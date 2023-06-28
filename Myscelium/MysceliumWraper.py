@@ -1,17 +1,40 @@
-import Myscelium as ms
+import Myscelium as mys
+
+class MysceliumHost:
+
+    def __init__(self, callcks:list) -> None:
+
+        mys.registry_socket_host_callbacks(callcks)
+
+        pass
+
+    def get_registred_commands (self) -> dict:
+        return mys.get_available_commands()
+
 
 
 def python_function(name, age, birth):
     # Your function logic here
+
+    print (name)
+
     pass
 
-ms.registry_socket_host_callbacks([{
-    "function": python_function,
-    "args": {
-        "name": "John",
-        "age": 30,
-        "birth": "1990-01-01",
-    },
-}, ])
 
-ms.show_avaliable_commands()
+callbacks = [{
+                "function": python_function,
+                "args": {
+                    "name": "str",
+                    "age": "int",
+                    "birth": "str",
+                    "data": {'localization': 'str', 'mail': 'str'},
+                },
+            }, ]
+
+mys_host = MysceliumHost(callcks=callbacks)
+
+print(mys_host.get_registred_commands())
+
+
+
+# ms.initialize_socket_host(ip='127.0.0.1', port=4444)

@@ -172,15 +172,14 @@ impl Worker {
     }
 }
 
-
-pub fn print_avaliable_commands () {
+pub fn get_available_commands_registered () -> HashMap<String, Value> {
     let command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    println!("{:?}", command_patterns);
+    return command_patterns.clone();
 }
 
-pub fn initialize_host () {
+pub fn initialize_host (adrress:String) {
 
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    let listener = TcpListener::bind(adrress).unwrap();
     // TcpListener::bind is used to create a new TCP listener which will be bound to the specified address.
 
     let pool = ThreadPool::new(4);
