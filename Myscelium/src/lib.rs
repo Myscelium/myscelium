@@ -11,7 +11,7 @@ use pyo3::types::{IntoPyDict, PyDict, PyTuple, PyList};
 fn rust_module(py: Python, m: &PyModule) -> PyResult<()> { // -> This can handle a list of python function patterns
    
     #[pyfn(m)] #[pyo3(name = "call_python_functions")]
-    fn call_python_functions_rust(py: Python, commands: &PyList) -> PyResult<()> {
+    fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
         for command in commands.iter() {
             let command_dict: &PyDict = command.downcast().unwrap();
             let function: &PyAny = command_dict.get_item("function").unwrap();
