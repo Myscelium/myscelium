@@ -9,8 +9,10 @@ use pyo3::types::PyDict;
 // use pyo3::wrap_pyfunction;
 // use pyo3::types::IntoPyDict;
 
-use crate::buffer_functions::UniqueIdGenerator;
-use crate::buffer_functions::SQLiteConnectionPool;
+use super::buffer_functions;
+
+use buffer_functions::UniqueIdGenerator;
+use buffer_functions::SQLiteConnectionPool;
 
 // use chrono::NaiveDateTime;
 // use std::result::Result;

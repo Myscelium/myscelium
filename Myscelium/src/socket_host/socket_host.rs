@@ -18,7 +18,7 @@ use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyString, PyDict, PyTuple, PyList};
 use pyo3::wrap_pyfunction;
 
-
+use crate::socket_host::enhanced_buffer;
 
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
@@ -261,7 +261,6 @@ fn handle_commom_function (command:Command) {
     }
 
 
-    
 
     // TODO >>> inteligate the function callback with the command patterns and redirect to tyhe python when they are called
 

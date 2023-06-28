@@ -6,9 +6,11 @@ use lazy_static::lazy_static;
 
 // use std::collections::HashMap;
 
-use crate::buffer_functions::UniqueIdGenerator;
-use crate::buffer_functions::SQLiteConnectionPool;
-use crate::buffer_functions::UniqueParityIdGenerator;
+use super::buffer_functions;
+
+use buffer_functions::UniqueIdGenerator;
+use buffer_functions::SQLiteConnectionPool;
+use buffer_functions::UniqueParityIdGenerator;
 
 use rusqlite::params;
 use serde::{Serialize, Deserialize};
