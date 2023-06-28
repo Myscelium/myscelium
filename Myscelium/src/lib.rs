@@ -2,6 +2,8 @@
 
 // use socket_client;
 
+use std::collections::HashMap;
+
 mod socket_host;
 use socket_host::socket_host as sckt_h;
 use pyo3::prelude::*;
@@ -12,6 +14,9 @@ fn rust_module(py: Python, m: &PyModule) -> PyResult<()> { // -> This can handle
    
     #[pyfn(m)] #[pyo3(name = "call_python_functions")]
     fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
+
+        let mut command_patterns = HashMap::new();
+
         for command in commands.iter() {
             let command_dict: &PyDict = command.downcast().unwrap();
             let function: &PyAny = command_dict.get_item("function").unwrap();
@@ -19,6 +24,8 @@ fn rust_module(py: Python, m: &PyModule) -> PyResult<()> { // -> This can handle
 
             // Extract the Python function name
             let function_name: &str = function.getattr("__name__")?.extract()?;
+
+            command_patterns.insert(function_name, args_dict);
 
             // Convert the args dict to a Vec and then to a tuple
             let args_vec: Vec<&PyAny> = args_dict.values().extract::<Vec<&PyAny>>()?;
