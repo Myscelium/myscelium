@@ -15,7 +15,7 @@ use serde_json::json;
 use lazy_static::lazy_static;
 
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict, PyTuple, PyList};
+use pyo3::types::{IntoPyDict, PyString, PyDict, PyTuple, PyList};
 use pyo3::wrap_pyfunction;
 
 
@@ -42,20 +42,14 @@ lazy_static! {
             }
         }"#;
 
-        // let json_str = r#"{
-
-        //     "get_commands_avaliable": "", 
-
-        // }"#;
-
         let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
         Arc::new(Mutex::new(command_patterns))
     };
 }
 
-pub fn set_socket_host_callbacks(callbacks: HashMap<String, Value>) {
+pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    *command_patterns = callbacks;
+    *command_patterns = callbacks_patterns;
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -66,54 +60,57 @@ struct Command {
     command: HashMap<String, Value>,
 }
 
-// fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
-//     let function_name = match command.command.get("function") {
-//         Some(Value::String(name)) => name,
-//         _ => return false,
-//     };
+fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
+    let function_name = match command.command.get("function") {
+        Some(Value::String(name)) => name,
+        _ => return false,
+    };
 
-//     let parameters = match command.command.get(function_name) {
-//         Some(parameters) => parameters,
-//         None => return false,
-//     };
+    let parameters = match command.command.get(function_name) {
+        Some(parameters) => parameters,
+        None => return false,
+    };
 
-//     match command_patterns.get(function_name) {
-//         Some(pattern) => validate_parameters(parameters, pattern),
-//         None => false,
-//     }
-// }
+    match command_patterns.get(function_name) {
+        Some(pattern) => validate_parameters(parameters, pattern),
+        None => false,
+    }
+}
 
-// fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
-//     match (parameters, pattern) {
-//         (Value::Object(params_map), Value::Object(pattern_map)) => {
-//             for (key, pattern_value) in pattern_map {
-//                 match params_map.get(key) {
-//                     Some(param_value) => {
-//                         if !validate_parameters(param_value, pattern_value) {
-//                             return false;
-//                         }
-//                     }
-//                     None => return false,
-//                 }
-//             }
-//             true
-//         }
-//         (Value::Array(params_arr), Value::Array(pattern_arr)) => {
-//             params_arr.len() == pattern_arr.len()
-//                 && params_arr
-//                     .iter()
-//                     .zip(pattern_arr.iter())
-//                     .all(|(param, pattern)| validate_parameters(param, pattern))
-//         }
-//         (_, Value::String(pattern_type)) => match pattern_type.as_str() {
-//             "str" => parameters.is_string(),
-//             "float" => parameters.is_f64(),
-//             // Add more type checks here...
-//             _ => false,
-//         },
-//         _ => false,
-//     }
-// }
+fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
+    match (parameters, pattern) {
+        (Value::Object(params_map), Value::Object(pattern_map)) => {
+            for (key, pattern_value) in pattern_map {
+                match params_map.get(key) {
+                    Some(param_value) => {
+                        if !validate_parameters(param_value, pattern_value) {
+                            return false;
+                        }
+                    }
+                    None => return false,
+                }
+            }
+            true
+        }
+        (Value::Array(params_arr), Value::Array(pattern_arr)) => {
+            params_arr.len() == pattern_arr.len()
+                && params_arr
+                    .iter()
+                    .zip(pattern_arr.iter())
+                    .all(|(param, pattern)| validate_parameters(param, pattern))
+        }
+        (_, Value::String(pattern_type)) => match pattern_type.as_str() {
+            "str" => parameters.is_string(),
+            "float" => parameters.is_f64(),
+            // Add more type checks here...
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
+
+// > thread Manangement:
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
@@ -171,6 +168,11 @@ impl Worker {
         }
     }
 }
+
+
+// > Socket Functions:
+
+
 
 pub fn get_available_commands_registered () -> HashMap<String, Value> {
     let command_patterns = COMMAND_PATTERNS.lock().unwrap();
@@ -248,13 +250,25 @@ fn handle_special_functions (function:String) -> Command {
 
 }
 
-fn handle_commom_function (function:String) {
+fn handle_commom_function (command:Command) {
+
+    let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+
+    if !validate_command(&command, &command_patterns) {
+        return
+    } else {
+
+    }
+
+
+    
+
+    // TODO >>> inteligate the function callback with the command patterns and redirect to tyhe python when they are called
 
 }
 
 fn handle_connection(mut stream: TcpStream)  {
 
-    // TODO >>> inteligate the function callback with the command patterns and redirect to tyhe python when they are called
 
     let mut buffer = [0; 4096];
 
@@ -283,7 +297,7 @@ fn handle_connection(mut stream: TcpStream)  {
 
             } else if command_patterns.contains_key(function) { // -> Commom Function Handler
 
-                let response = handle_commom_function(function.clone()); 
+                let response = handle_commom_function(command); 
 
                 let command_json = json!(response).to_string();
 

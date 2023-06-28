@@ -7,7 +7,7 @@ use std::collections::HashMap;
 mod socket_host;
 use socket_host::socket_host::{set_socket_host_callbacks, get_available_commands_registered, initialize_host};
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict, PyTuple, PyList};
+use pyo3::types::{IntoPyDict, PyString, PyDict, PyTuple, PyList};
 use pyo3::wrap_pyfunction;
 use serde_json::{Value, json};
 
@@ -79,7 +79,7 @@ fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()>
     }
 
     // Now you can use the command_patterns
-    set_socket_host_callbacks(command_patterns);
+    set_socket_host_callbacks(command_patterns, );
 
     Ok(())
 }
@@ -88,6 +88,31 @@ fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()>
 fn initialize_socket_host (ip:String, port:i32) {
     let address = format!("{}:{}", ip, port);
     initialize_host(address);
+}
+
+fn dict_to_tuple (py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyObject>> {
+    let mut tuple = Vec::new();
+
+    for value in dict.values() {
+        match value {
+            Value::String(s) => tuple.push(PyString::new(py, s).to_object(py)),
+            Value::Number(n) => tuple.push(n.as_f64().unwrap().into_py(py)),
+            Value::Object(map) => {
+                let sub_dict: HashMap<String, Value> = map.clone().into_iter().collect();
+                let py_dict = PyDict::new(py);
+                for (key, value) in sub_dict {
+                    let py_key = PyString::new(py, &key);
+                    let py_value = PyString::new(py, &value.to_string());
+                    py_dict.set_item(py_key, py_value)?;
+                }
+                tuple.push(py_dict.to_object(py));
+            },
+            // Handle other Value variants here...
+            _ => (),
+        }
+    }
+
+    Ok(tuple)
 }
 
 fn translate_value_to_py(py: Python, value: JsonValue) -> PyResult<PyObject> {
