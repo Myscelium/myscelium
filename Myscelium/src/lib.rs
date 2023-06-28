@@ -5,33 +5,34 @@
 mod socket_host;
 use socket_host::socket_host as sckt_h;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
-
-use pyo3::types::{PyDict, PyTuple};
+use pyo3::types::{IntoPyDict, PyDict, PyTuple, PyList};
 
 #[pymodule]
-fn rust_module(py: Python, m: &PyModule) -> PyResult<()> {
-    #[pyfn(m, "call_python_function")]
-    fn call_python_function(py: Python, command: &PyDict) -> PyResult<()> {
-        let function: &PyAny = command.get_item("function").unwrap();
-        let args_dict: &PyDict = command.get_item("args").unwrap().downcast().unwrap();
+fn rust_module(py: Python, m: &PyModule) -> PyResult<()> { // -> This can handle a list of python function patterns
+   
+    #[pyfn(m)] #[pyo3(name = "call_python_functions")]
+    fn call_python_functions_rust(py: Python, commands: &PyList) -> PyResult<()> {
+        for command in commands.iter() {
+            let command_dict: &PyDict = command.downcast().unwrap();
+            let function: &PyAny = command_dict.get_item("function").unwrap();
+            let args_dict: &PyDict = command_dict.get_item("args").unwrap().downcast().unwrap();
 
-        // Extract the Python function name
-        let function_name: &str = function.getattr("__name__")?.extract()?;
+            // Extract the Python function name
+            let function_name: &str = function.getattr("__name__")?.extract()?;
 
-        // Convert the args dict to a Vec and then to a tuple
-        let args_vec: Vec<&PyAny> = args_dict.values().extract::<Vec<&PyAny>>()?;
-        let args_tuple: &PyTuple = PyTuple::new(py, &args_vec);
+            // Convert the args dict to a Vec and then to a tuple
+            let args_vec: Vec<&PyAny> = args_dict.values().extract::<Vec<&PyAny>>()?;
+            let args_tuple: &PyTuple = PyTuple::new(py, args_vec);
 
-        // Call the Python function with the args
-        let _result = function.call1(args_tuple)?;
+            // Call the Python function with the args
+            let _result = function.call1(args_tuple)?;
+        }
 
         Ok(())
     }
 
     Ok(())
 }
-
 // To call by the python side:
 
 /*
