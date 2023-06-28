@@ -205,6 +205,8 @@ fn handle_commom_function (function:String) {
 
 fn handle_connection(mut stream: TcpStream)  {
 
+    // TODO >>> inteligate the function callback with the command patterns and redirect to tyhe python when they are called
+
     let command_patterns: HashMap<String, Value> = serde_json::from_str(
         r#"{
 
@@ -255,7 +257,7 @@ fn handle_connection(mut stream: TcpStream)  {
 
             } else if command_patterns.contains_key(function) { // -> Commom Function Handler
 
-                let response = handle_commom_function(function.clone());
+                let response = handle_commom_function(function.clone()); 
 
                 let command_json = json!(response).to_string();
 
