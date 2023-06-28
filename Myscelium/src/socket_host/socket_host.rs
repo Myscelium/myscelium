@@ -11,15 +11,30 @@ use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
+use serde_json::json;
+
+
 #[derive(Serialize, Deserialize, Debug)]
 struct Command {
-    function: String,
-    parameters: Value,
+    client_id: String,
+    parity_id: String,
+    priority: i32,
+    command: HashMap<String, Value>,
 }
 
 fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
-    match command_patterns.get(&command.function) {
-        Some(pattern) => validate_parameters(&command.parameters, pattern),
+    let function_name = match command.command.get("function") {
+        Some(Value::String(name)) => name,
+        _ => return false,
+    };
+
+    let parameters = match command.command.get(function_name) {
+        Some(parameters) => parameters,
+        None => return false,
+    };
+
+    match command_patterns.get(function_name) {
+        Some(pattern) => validate_parameters(parameters, pattern),
         None => false,
     }
 }
@@ -136,12 +151,60 @@ fn main() {
 
 }
 
-fn handle_connection(mut stream: TcpStream) {
-    let mut buffer = [0; 512];
+fn handle_special_functions (function:String) -> Command {
 
-    stream.read(&mut buffer).unwrap();
+    let command;
 
+    if function == "C202" { // -> Connection conf request
+        
+        let mut command_map = HashMap::new();
+        command_map.insert("function".to_string(), Value::String("C200".to_string()));
+
+       command = Command {
+            client_id: "some_client_id".to_string(),
+            parity_id: "itisaspecialcase".to_string(),
+            priority: 11,
+            command: command_map,
+        };
+
+    } else if function == "C206" { // -> Ping request
+
+        //*  Here we can check if have some data to send back to the client or not
+
+        let mut command_map = HashMap::new();
+        command_map.insert("function".to_string(), Value::String("C207".to_string()));
+
+        command = Command {
+            client_id: "some_client_id".to_string(),
+            parity_id: "itisaspecialcase".to_string(),
+            priority: 11,
+            command: command_map,
+        };
+
+    } else { // -> Receive conf
+        
+        let mut command_map = HashMap::new();
+        command_map.insert("function".to_string(), Value::String("C210".to_string()));
+
+        command = Command {
+            client_id: "some_client_id".to_string(),
+            parity_id: "itisaspecialcase".to_string(),
+            priority: 11,
+            command: command_map,
+        };
+        
+    }
     
+    return command;
+
+}
+
+fn handle_commom_function (function:String) {
+
+}
+
+fn handle_connection(mut stream: TcpStream)  {
+
     let command_patterns: HashMap<String, Value> = serde_json::from_str(
         r#"{
 
@@ -167,29 +230,59 @@ fn handle_connection(mut stream: TcpStream) {
     )
     .unwrap();
 
+    let mut buffer = [0; 4096];
+
+    stream.read(&mut buffer).unwrap();
+    
     let buffer_string = String::from_utf8_lossy(&buffer)
     .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
     .to_string();
 
-    /*
-        In this code, trim_end_matches is used to remove any trailing newline,
-        carriage return, or null characters from the string. 
-        The |c| c == '\n' || c == '\r' || c == '\0' part is a closure that returns 
-        true for newline, carriage return, and null characters, causing 
-        trim_end_matches to remove them.
-
-     */
-
-    println!("Request: {}", buffer_string);
-
-    println!("Length: {}", buffer_string.len());
-    println!("Last characters: {:?}", &buffer_string[(buffer_string.len() - 10)..]);
-
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
-    println!("Command: {:?}", command);
 
-    println!("{}", validate_command(&command, &command_patterns));
+    let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
-    stream.write(&buffer).unwrap();
-    stream.flush().unwrap();
+    match command.command.get("function") {
+        Some(Value::String(function)) => {
+            
+            if special_functions.contains(&function) { // -> Special Function Handler
+
+                let response = handle_special_functions (function.clone());
+
+                let command_response_json = json!(response).to_string();
+
+                stream.write_all(command_response_json.as_bytes()).unwrap();
+
+            } else if command_patterns.contains_key(function) { // -> Commom Function Handler
+
+                let response = handle_commom_function(function.clone());
+
+                let command_json = json!(response).to_string();
+
+                stream.write_all(command_json.as_bytes()).unwrap();
+
+            } else { // -> None of above
+
+                let mut command_map = HashMap::new();
+                command_map.insert("function".to_string(), Value::String("C210".to_string()));
+
+                let command = Command {
+                    client_id: "some_client_id".to_string(),
+                    parity_id: "itisaspecialcase".to_string(),
+                    priority: 11,
+                    command: command_map,
+                };
+
+                let command_json = json!(command).to_string();
+
+                stream.write_all(command_json.as_bytes()).unwrap();
+
+            }
+
+        }
+        _ => {
+            println!("The function name is not found or not a string.");
+        }
+    }
+
 }
