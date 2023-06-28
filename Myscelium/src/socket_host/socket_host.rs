@@ -8,11 +8,55 @@ use std::sync::{mpsc, Arc, Mutex};
 
 use serde::{Serialize, Deserialize};
 
-use serde_json::Value;
+use serde_json::{Value, from_str};
 use std::collections::HashMap;
 
 use serde_json::json;
+use lazy_static::lazy_static;
 
+use pyo3::prelude::*;
+use pyo3::types::{IntoPyDict, PyDict, PyTuple, PyList};
+use pyo3::wrap_pyfunction;
+
+
+
+lazy_static! {
+    static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
+
+        let json_str = r#"{
+            "get_symbols_data": {
+                "symbols_data": {
+                    "data-type": "str",
+                    "symbols": "str",
+                    "start-ts": "float",
+                    "end-ts": "float"
+                }
+            },
+            "get_other_symbols_data": {
+                "symbols_data": {
+                    "data-type": "str",
+                    "symbols": "str",
+                    "start-ts": "float",
+                    "end-ts": "float"
+                }
+            }
+        }"#;
+
+        // let json_str = r#"{
+
+        //     "get_commands_avaliable": "", 
+
+        // }"#;
+
+        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
+        Arc::new(Mutex::new(command_patterns))
+    };
+}
+
+pub fn set_socket_host_callbacks(callbacks: HashMap<String, Value>) {
+    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    *command_patterns = callbacks;
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Command {
@@ -22,54 +66,54 @@ struct Command {
     command: HashMap<String, Value>,
 }
 
-fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
-    let function_name = match command.command.get("function") {
-        Some(Value::String(name)) => name,
-        _ => return false,
-    };
+// fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
+//     let function_name = match command.command.get("function") {
+//         Some(Value::String(name)) => name,
+//         _ => return false,
+//     };
 
-    let parameters = match command.command.get(function_name) {
-        Some(parameters) => parameters,
-        None => return false,
-    };
+//     let parameters = match command.command.get(function_name) {
+//         Some(parameters) => parameters,
+//         None => return false,
+//     };
 
-    match command_patterns.get(function_name) {
-        Some(pattern) => validate_parameters(parameters, pattern),
-        None => false,
-    }
-}
+//     match command_patterns.get(function_name) {
+//         Some(pattern) => validate_parameters(parameters, pattern),
+//         None => false,
+//     }
+// }
 
-fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
-    match (parameters, pattern) {
-        (Value::Object(params_map), Value::Object(pattern_map)) => {
-            for (key, pattern_value) in pattern_map {
-                match params_map.get(key) {
-                    Some(param_value) => {
-                        if !validate_parameters(param_value, pattern_value) {
-                            return false;
-                        }
-                    }
-                    None => return false,
-                }
-            }
-            true
-        }
-        (Value::Array(params_arr), Value::Array(pattern_arr)) => {
-            params_arr.len() == pattern_arr.len()
-                && params_arr
-                    .iter()
-                    .zip(pattern_arr.iter())
-                    .all(|(param, pattern)| validate_parameters(param, pattern))
-        }
-        (_, Value::String(pattern_type)) => match pattern_type.as_str() {
-            "str" => parameters.is_string(),
-            "float" => parameters.is_f64(),
-            // Add more type checks here...
-            _ => false,
-        },
-        _ => false,
-    }
-}
+// fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
+//     match (parameters, pattern) {
+//         (Value::Object(params_map), Value::Object(pattern_map)) => {
+//             for (key, pattern_value) in pattern_map {
+//                 match params_map.get(key) {
+//                     Some(param_value) => {
+//                         if !validate_parameters(param_value, pattern_value) {
+//                             return false;
+//                         }
+//                     }
+//                     None => return false,
+//                 }
+//             }
+//             true
+//         }
+//         (Value::Array(params_arr), Value::Array(pattern_arr)) => {
+//             params_arr.len() == pattern_arr.len()
+//                 && params_arr
+//                     .iter()
+//                     .zip(pattern_arr.iter())
+//                     .all(|(param, pattern)| validate_parameters(param, pattern))
+//         }
+//         (_, Value::String(pattern_type)) => match pattern_type.as_str() {
+//             "str" => parameters.is_string(),
+//             "float" => parameters.is_f64(),
+//             // Add more type checks here...
+//             _ => false,
+//         },
+//         _ => false,
+//     }
+// }
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
@@ -128,7 +172,13 @@ impl Worker {
     }
 }
 
-fn main() {
+
+pub fn print_avaliable_commands () {
+    let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    println!("{:?}", command_patterns);
+}
+
+pub fn initialize_host () {
 
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     // TcpListener::bind is used to create a new TCP listener which will be bound to the specified address.
@@ -207,31 +257,6 @@ fn handle_connection(mut stream: TcpStream)  {
 
     // TODO >>> inteligate the function callback with the command patterns and redirect to tyhe python when they are called
 
-    let command_patterns: HashMap<String, Value> = serde_json::from_str(
-        r#"{
-
-            "get_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            },
-            
-            "get_other_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            }
-
-        }"#,
-    )
-    .unwrap();
-
     let mut buffer = [0; 4096];
 
     stream.read(&mut buffer).unwrap();
@@ -244,9 +269,11 @@ fn handle_connection(mut stream: TcpStream)  {
 
     let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
+    let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+
     match command.command.get("function") {
         Some(Value::String(function)) => {
-            
+
             if special_functions.contains(&function) { // -> Special Function Handler
 
                 let response = handle_special_functions (function.clone());

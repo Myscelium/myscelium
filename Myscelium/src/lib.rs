@@ -5,41 +5,62 @@
 use std::collections::HashMap;
 
 mod socket_host;
-use socket_host::socket_host as sckt_h;
+use socket_host::socket_host::{set_socket_host_callbacks, print_avaliable_commands, initialize_host};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple, PyList};
+use pyo3::wrap_pyfunction;
 
-#[pymodule]
-fn rust_module(py: Python, m: &PyModule) -> PyResult<()> { // -> This can handle a list of python function patterns
-   
-    #[pyfn(m)] #[pyo3(name = "call_python_functions")]
-    fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
+use serde_json::Value;
+
+
+#[pyfunction]
+fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
+    for command in commands.iter() {
+        let command_dict: &PyDict = command.downcast().unwrap();
+        let function: &PyAny = command_dict.get_item("function").unwrap();
+        let args_dict: &PyDict = command_dict.get_item("args").unwrap().downcast().unwrap();
+
+        // Extract the Python function name
+        let function_name: &str = function.getattr("__name__")?.extract()?;
 
         let mut command_patterns = HashMap::new();
+        command_patterns.insert(function_name.to_string(), Value::String(args_dict.to_string()));
 
-        for command in commands.iter() {
-            let command_dict: &PyDict = command.downcast().unwrap();
-            let function: &PyAny = command_dict.get_item("function").unwrap();
-            let args_dict: &PyDict = command_dict.get_item("args").unwrap().downcast().unwrap();
+        set_socket_host_callbacks (command_patterns);
 
-            // Extract the Python function name
-            let function_name: &str = function.getattr("__name__")?.extract()?;
+        // Convert the args dict to a Vec and then to a tuple
+        let args_vec: Vec<&PyAny> = args_dict.values().extract::<Vec<&PyAny>>()?;
+        let args_tuple: &PyTuple = PyTuple::new(py, args_vec);
 
-            command_patterns.insert(function_name, args_dict);
-
-            // Convert the args dict to a Vec and then to a tuple
-            let args_vec: Vec<&PyAny> = args_dict.values().extract::<Vec<&PyAny>>()?;
-            let args_tuple: &PyTuple = PyTuple::new(py, args_vec);
-
-            // Call the Python function with the args
-            let _result = function.call1(args_tuple)?;
-        }
-
-        Ok(())
+        // Call the Python function with the args
+        let _result = function.call1(args_tuple)?;
     }
 
     Ok(())
 }
+
+
+#[pyfunction]
+fn initialize_socket_host (ip:String, port:i32) {
+    initialize_host();
+}
+
+
+#[pyfunction]
+fn show_avaliable_commands () {
+    print_avaliable_commands();
+}
+
+
+#[pymodule]
+fn Myscelium (py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
+    m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
+    m.add_function(wrap_pyfunction!(show_avaliable_commands, m)?)?;
+    Ok(())
+}
+
+
 // To call by the python side:
 
 /*
