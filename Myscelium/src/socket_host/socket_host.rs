@@ -20,6 +20,8 @@ use pyo3::wrap_pyfunction;
 
 use crate::socket_host::enhanced_buffer;
 
+// > Global Vars Core
+
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
 
@@ -75,6 +77,9 @@ pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
     *command_patterns = callbacks_patterns;
 }
+
+
+// > Commands Manangemement & Checking
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Command {
