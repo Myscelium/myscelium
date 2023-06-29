@@ -7,7 +7,7 @@ use std::collections::HashMap;
 mod socket_host;
 use socket_host::socket_host::{set_socket_host_callbacks, get_available_commands_registered, initialize_host};
 use socket_host::socket_host::{initialize_host_buffer, set_max_conns};
-use socket_host::transposer::{set_workers_num};
+use socket_host::transposer::{set_workers_num, set_transposer_callbacks};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList};
@@ -115,7 +115,8 @@ fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()>
     }
 
     // Now you can use the command_patterns
-    set_socket_host_callbacks(command_patterns, );
+    set_socket_host_callbacks(command_patterns.clone(), );
+    set_transposer_callbacks(command_patterns, );
 
     Ok(())
 }

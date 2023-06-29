@@ -69,11 +69,11 @@ pub fn set_workers_num (n_workers:u32) {
 
  #[derive(Serialize, Deserialize, Debug)]
  pub struct DownCommand {
-    command_id:i32,
-    client_id:String,
-    parity_id:String,
-    priority:i32,
-    command:String,
+    pub command_id:i32,
+    pub client_id:String,
+    pub parity_id:String,
+    pub priority:i32,
+    pub command:String,
 }
 
 impl IntoPy <PyObject> for DownCommand {
@@ -278,7 +278,7 @@ pub fn check_if_parity_id_is_registred (client_id:String, parity_id:String) -> b
 
     BUFFER_POOL.release_connection(conn);
 
-    for id in  ids {
+    for id in ids {
         match id {
             Ok(id) => {
                 if parity_id == id {

@@ -311,7 +311,6 @@ fn handle_commom_function (command:Command) {
 
 fn handle_connection(mut stream: TcpStream)  {
 
-
     let mut buffer = [0; 4096];
 
     stream.read(&mut buffer).unwrap();

@@ -53,13 +53,13 @@ lazy_static! {
 
  }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct UpCommand {
-    command_id:i32,
-    client_id:String,
-    parity_id:String,
-    priority:i32,
-    command:String,
+ #[derive(Serialize, Deserialize, Debug)]
+ pub struct UpCommand {
+    pub command_id:i32,
+    pub client_id:String,
+    pub parity_id:String,
+    pub priority:i32,
+    pub command:String,
 }
 
 impl IntoPy <PyObject> for UpCommand {

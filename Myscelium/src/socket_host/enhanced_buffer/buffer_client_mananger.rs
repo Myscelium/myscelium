@@ -28,11 +28,11 @@ use rusqlite::params;
 // use buffer_functions::SQLiteConnectionPool;
 
 pub struct ClientCommand {
-    client_id:i32,
-    client_name:String,
-    client_key:String,
-    client_group:String,
-    client_las_contact: f64,
+    pub client_id:i32,
+    pub client_name:String,
+    pub client_key:String,
+    pub client_group:String,
+    pub client_las_contact: f64,
 }
 
 impl IntoPy <PyObject> for ClientCommand {
