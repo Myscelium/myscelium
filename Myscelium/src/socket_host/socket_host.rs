@@ -172,7 +172,21 @@ impl Worker {
 
 // > Socket Functions:
 
+pub fn initialize_host_buffer (buffer_location:String) {
 
+    println!("\ninicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
+
+    enhanced_buffer::buffer_down_mananger::buffer_down_initialize_table(buffer_location.clone());
+    
+    enhanced_buffer::buffer_up_mananger::buffer_up_initialize_table(buffer_location.clone());
+    
+    enhanced_buffer::buffer_client_mananger::client_buffer_initialize_table(buffer_location.clone());
+
+    println!("\nAll buffer initialized succefully!\n");
+
+    return;
+
+}
 
 pub fn get_available_commands_registered () -> HashMap<String, Value> {
     let command_patterns = COMMAND_PATTERNS.lock().unwrap();
@@ -259,7 +273,6 @@ fn handle_commom_function (command:Command) {
     } else {
 
     }
-
 
 
     // TODO >>> inteligate the function callback with the command patterns and redirect to tyhe python when they are called

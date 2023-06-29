@@ -2,7 +2,10 @@
 // use std::hash::Hash;
 // use std::sync::Mutex;
 
+use std::sync::{Arc, Mutex};
+
 use lazy_static::lazy_static;
+use pyo3::buffer;
 
 // use std::collections::HashMap;
 
@@ -26,8 +29,18 @@ use serde::{Serialize, Deserialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+
+
 lazy_static! {
-    static ref BUFFER_POOL: SQLiteConnectionPool = SQLiteConnectionPool::new(10, "data.db").unwrap();
+    static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
+    static ref BUFFER_POOL: SQLiteConnectionPool = {
+        let buffer_path_clone;
+        {
+            let buffer_path = BUFFER_PATH.lock().unwrap();
+            buffer_path_clone = buffer_path.clone();
+        }
+        SQLiteConnectionPool::new(10, buffer_path_clone.as_str()).unwrap()
+    };
 }
 
 /*
@@ -84,9 +97,23 @@ fn get_registred_ids () -> Vec<i32> {
 }
 
 
-pub fn  buffer_down_initialize_table () {
+pub fn buffer_down_initialize_table(buffer_path: String) {
+    let mut default_buffer_path = BUFFER_PATH.lock().unwrap();
 
-    let conn = BUFFER_POOL.get_connection().unwrap();
+    let new_buffer_path = format!("{}{}", buffer_path, default_buffer_path);
+
+    *default_buffer_path = new_buffer_path.clone();
+
+    // Create the directory if it does not exist
+    let dir_path = std::path::Path::new(&buffer_path);
+    if !dir_path.exists() {
+        std::fs::create_dir_all(&dir_path).unwrap();
+    }
+
+    println!("initializing buffer in: {}", new_buffer_path);
+
+    let buffer_pool = SQLiteConnectionPool::new(10, default_buffer_path.as_str()).unwrap();
+    let conn = buffer_pool.get_connection().unwrap();
 
     let result = conn.execute(
         "CREATE TABLE IF NOT EXISTS CommandsReceived (ID INT PRIMARY KEY, ClientID TEXT, ParityId TEXT, Priority NUMBER, Command TEXT)",
@@ -102,8 +129,9 @@ pub fn  buffer_down_initialize_table () {
         }
     }
 
-    BUFFER_POOL.release_connection(conn);
+    buffer_pool.release_connection(conn);  // Corrected line
 
+    return;
 }
 
 

@@ -6,6 +6,9 @@ use std::collections::HashMap;
 
 mod socket_host;
 use socket_host::socket_host::{set_socket_host_callbacks, get_available_commands_registered, initialize_host};
+use socket_host::socket_host::{initialize_host_buffer};
+
+
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyString, PyDict, PyTuple, PyList};
 use pyo3::wrap_pyfunction;
@@ -58,6 +61,18 @@ fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
         Ok(json!(arg_type))
     }
 }
+
+#[pyfunction]
+fn initalize_buffer_tables (path:&PyString) {
+
+    let buffer_path:String = path.extract().unwrap();
+
+    initialize_host_buffer(buffer_path);
+
+    return;
+
+}
+
 
 #[pyfunction]
 fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
@@ -158,6 +173,7 @@ fn get_available_commands(py: Python) -> PyResult<PyObject> {
 
 #[pymodule]
 fn Myscelium (py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(initalize_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
     m.add_function(wrap_pyfunction!(get_available_commands, m)?)?;
