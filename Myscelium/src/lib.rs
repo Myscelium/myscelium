@@ -6,8 +6,8 @@ use std::collections::HashMap;
 
 mod socket_host;
 use socket_host::socket_host::{set_socket_host_callbacks, get_available_commands_registered, initialize_host};
-use socket_host::socket_host::{initialize_host_buffer, set_workers_num, set_max_conns};
-
+use socket_host::socket_host::{initialize_host_buffer, set_max_conns};
+use socket_host::transposer::{set_workers_num};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList};
@@ -95,7 +95,6 @@ fn initalize_buffer_tables (path:&PyString) {
 
 }
 
-
 #[pyfunction]
 fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
@@ -122,9 +121,9 @@ fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()>
 }
 
 #[pyfunction]
-fn initialize_socket_host (ip:String, port:i32) {
+fn initialize_socket_host (ip:String, port:i32, client_id:String) {
     let address = format!("{}:{}", ip, port);
-    initialize_host(address);
+    initialize_host(address, client_id);
 }
 
 fn dict_to_tuple (py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyObject>> {

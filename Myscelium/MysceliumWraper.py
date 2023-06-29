@@ -13,28 +13,13 @@ class MysceliumHost:
 
     def get_registred_commands (self) -> dict:
         return mys.get_available_commands()
-
-def python_function(name, age, birth):
-    # Your function logic here
-
-    print (name)
-
-    pass
-
-callbacks = [{
-                "function": python_function,
-                "args": {
-                    "name": "str",
-                    "age": "int",
-                    "birth": "str",
-                    "data": {'localization': 'str', 'mail': 'str'},
-                },
-            }, ]
-
-mys_host = MysceliumHost(callcks=callbacks, client_id="xnsmdkeflerpfsa", buffer_path="Data/")
-
-print(mys_host.get_registred_commands())
+    
+    def initialize_host (self, ip, port, client_id):
+        mys.initialize_socket_host (ip, port, client_id)
 
 
 
-# ms.initialize_socket_host(ip='127.0.0.1', port=4444)
+
+
+
+

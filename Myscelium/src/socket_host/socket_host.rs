@@ -48,36 +48,11 @@ lazy_static! {
         Arc::new(Mutex::new(command_patterns))
     };
 
-    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
+    
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
+    static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
 
 }
-
-pub fn set_max_conns (n_max_conns:u32) {
-
-    let mut default_max_conns = MAX_CONS.lock().unwrap();
-
-    *default_max_conns = n_max_conns;
-
-}
-
-pub fn set_workers_num (n_workers:u32) {
-
-    let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
-
-    *default_num_of_workers = n_workers;
-
-    enhanced_buffer::buffer_down_mananger::set_workers_num(n_workers);
-    enhanced_buffer::buffer_up_mananger::set_workers_num(n_workers);
-    enhanced_buffer::buffer_client_mananger::set_workers_num(n_workers);
-
-}
-
-pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    *command_patterns = callbacks_patterns;
-}
-
 
 // > Commands Manangemement & Checking
 
@@ -199,7 +174,22 @@ impl Worker {
 }
 
 
-// > Socket Functions:
+// > Socket Interactive Functions:
+
+pub fn set_max_conns (n_max_conns:u32) {
+
+    let mut default_max_conns = MAX_CONS.lock().unwrap();
+
+    *default_max_conns = n_max_conns;
+
+}
+
+
+
+pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
+    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    *command_patterns = callbacks_patterns;
+}
 
 pub fn initialize_host_buffer (buffer_location:String) {
 
@@ -217,12 +207,10 @@ pub fn initialize_host_buffer (buffer_location:String) {
 
 }
 
-pub fn get_available_commands_registered () -> HashMap<String, Value> {
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    return command_patterns.clone();
-}
+pub fn initialize_host (adrress:String, client_id:String) {
 
-pub fn initialize_host (adrress:String) {
+    let mut actual_client_id = CLIENT_ID.lock().unwrap();
+    *actual_client_id = client_id;
 
     let default_max_conns = MAX_CONS.lock().unwrap();
 
@@ -246,6 +234,13 @@ pub fn initialize_host (adrress:String) {
     // then writes the contents of the buffer back to the stream.
 
 }
+
+pub fn get_available_commands_registered () -> HashMap<String, Value> {
+    let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    return command_patterns.clone();
+}
+
+// > Socket main structure:
 
 fn handle_special_functions (function:String) -> Command {
 
@@ -297,6 +292,8 @@ fn handle_special_functions (function:String) -> Command {
 
 fn handle_commom_function (command:Command) {
 
+    // let actual_client_id = CLIENT_ID.lock().unwrap();
+
     let command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
     if !validate_command(&command, &command_patterns) {
@@ -305,9 +302,11 @@ fn handle_commom_function (command:Command) {
 
     }
 
+    let json_command = serde_json::to_string(&command.command).unwrap();
 
-    // TODO >>> inteligate the function callback with the command patterns and redirect to tyhe python when they are called
+    enhanced_buffer::buffer_down_mananger::buffer_down_schedule(command.client_id, command.parity_id, command.priority, json_command);
 
+    return;
 }
 
 fn handle_connection(mut stream: TcpStream)  {
