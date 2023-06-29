@@ -6,11 +6,11 @@ use std::collections::HashMap;
 
 mod socket_host;
 use socket_host::socket_host::{set_socket_host_callbacks, get_available_commands_registered, initialize_host};
-use socket_host::socket_host::{initialize_host_buffer};
+use socket_host::socket_host::{initialize_host_buffer, set_workers_num, set_max_conns};
 
 
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyString, PyDict, PyTuple, PyList};
+use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList};
 use pyo3::wrap_pyfunction;
 use serde_json::{Value, json};
 
@@ -43,6 +43,28 @@ use serde_json::Value as JsonValue;
 
 //     Ok(())
 // }
+
+
+#[pyfunction]
+fn set_num_of_workers (n_workers:&PyInt) {
+
+    let workers_num:u32 = n_workers.extract().unwrap();
+
+    set_workers_num(workers_num);
+
+    return;
+
+}
+
+#[pyfunction]
+fn set_max_connections (n_max_conns:&PyInt) {
+
+    let max_conns:u32 = n_max_conns.extract().unwrap();
+
+    set_max_conns(max_conns);
+
+    return;
+}
 
 
 fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
@@ -177,6 +199,8 @@ fn Myscelium (py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
     m.add_function(wrap_pyfunction!(get_available_commands, m)?)?;
+    m.add_function(wrap_pyfunction!(set_max_connections, m)?)?;
+    m.add_function(wrap_pyfunction!(set_num_of_workers, m)?)?;
     Ok(())
 }
 

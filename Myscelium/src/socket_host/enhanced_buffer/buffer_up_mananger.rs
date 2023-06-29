@@ -18,14 +18,23 @@ use std::sync::{Arc, Mutex};
 
 lazy_static! {
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
+    
+    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
+
     static ref BUFFER_POOL: SQLiteConnectionPool = {
         let buffer_path_clone;
+        let num_workers_clone;
         {
             let buffer_path = BUFFER_PATH.lock().unwrap();
             buffer_path_clone = buffer_path.clone();
+
+            let num_workers = NUM_WORKERS.lock().unwrap();
+            num_workers_clone = num_workers.clone() as usize
+
         }
-        SQLiteConnectionPool::new(10, buffer_path_clone.as_str()).unwrap()
+        SQLiteConnectionPool::new(num_workers_clone, buffer_path_clone.as_str()).unwrap()
     };
+
 }
 
 /*
@@ -36,7 +45,15 @@ lazy_static! {
     
  */
 
- #[derive(Serialize, Deserialize, Debug)]
+ pub fn set_workers_num (n_workers:u32) {
+    
+    let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
+
+    *default_num_of_workers = n_workers;
+
+ }
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UpCommand {
     command_id:i32,
     client_id:String,

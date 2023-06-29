@@ -45,6 +45,30 @@ lazy_static! {
         let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
         Arc::new(Mutex::new(command_patterns))
     };
+
+    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
+    static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
+
+}
+
+pub fn set_max_conns (n_max_conns:u32) {
+
+    let mut default_max_conns = MAX_CONS.lock().unwrap();
+
+    *default_max_conns = n_max_conns;
+
+}
+
+pub fn set_workers_num (n_workers:u32) {
+
+    let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
+
+    *default_num_of_workers = n_workers;
+
+    enhanced_buffer::buffer_down_mananger::set_workers_num(n_workers);
+    enhanced_buffer::buffer_up_mananger::set_workers_num(n_workers);
+    enhanced_buffer::buffer_client_mananger::set_workers_num(n_workers);
+
 }
 
 pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
@@ -195,10 +219,12 @@ pub fn get_available_commands_registered () -> HashMap<String, Value> {
 
 pub fn initialize_host (adrress:String) {
 
+    let default_max_conns = MAX_CONS.lock().unwrap();
+
     let listener = TcpListener::bind(adrress).unwrap();
     // TcpListener::bind is used to create a new TCP listener which will be bound to the specified address.
 
-    let pool = ThreadPool::new(4);
+    let pool = ThreadPool::new(*default_max_conns as usize);
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
