@@ -10,7 +10,11 @@ use serde::{Serialize, Deserialize};
 
 use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
 
-#[derive(Serialize, Deserialize, Debug)]
+use pyo3::types::{IntoPyDict, PyString, PyInt, PyAny, PyDict, PyTuple, PyList};
+use pyo3::{Python, PyResult, PyObject};
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Command {
     client_id: String,
     parity_id: String,
@@ -128,8 +132,60 @@ impl Worker {
 
 // > Transposer:
 
-fn handle_command (command:Command) {
+fn dict_to_tuple(py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyObject>> {
+    let mut tuple = Vec::new();
 
+    if let Some(function) = dict.get("function") {
+        if let Value::String(function_name) = function {
+            if let Some(args) = dict.get(function_name) {
+                match args {
+                    Value::Object(map) => {
+                        let sub_dict: HashMap<String, Value> = map.clone().into_iter().collect();
+                        let py_dict = PyDict::new(py);
+                        for (key, value) in sub_dict {
+                            let py_key = PyString::new(py, &key);
+                            let py_value = PyString::new(py, &value.to_string());
+                            py_dict.set_item(py_key, py_value)?;
+                        }
+                        tuple.push(py_dict.into());
+                    },
+                    // Handle other Value variants here...
+                    _ => (),
+                }
+            }
+        }
+    }
+
+    Ok(tuple)
+}
+
+fn handle_command (command:Command) {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    match command.command.get("function") {
+        Some(Value::String(function_name)) => {
+            // The name of the Python function
+            let function: &PyAny = py.eval(function_name, None, None).unwrap();
+
+            match dict_to_tuple(py, &command.command) { // -> Convert the command arguments to a Python tuple
+                Ok(args) => {
+                    // Convert the Vec<Py<PyAny>> to a PyTuple
+                    let args_tuple = PyTuple::new(py, args);
+
+                    // Call the Python function with the converted arguments
+                    match function.call1(args_tuple) {
+                        Ok(result) => println!("Function returned: {:?}", result),
+                        Err(e) => eprintln!("Error calling function: {:?}", e),
+                    }
+                },
+                Err(e) => eprintln!("Error converting arguments to tuple: {:?}", e),
+            }
+        },
+        _ => {
+            println!("The function name is not found or not a string.");
+        }
+    }
 }
 
 pub fn initialize_transposer () {
@@ -168,11 +224,11 @@ pub fn initialize_transposer () {
 
                     println!("command skipped and remvoed from schedule");
 
-                }  else {
+                }  else {   
 
-                    handle_command (translated_command);
+                    handle_command (translated_command.clone());
 
-                    println!("command: {}, processed!", translated_command.parity_id); // TODO
+                    println!("command: {}, processed!", translated_command.parity_id);
 
                     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
 

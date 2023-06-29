@@ -67,7 +67,7 @@ fn set_max_connections (n_max_conns:&PyInt) {
 }
 
 
-fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
+fn extract_arg_types (arg: &PyAny) -> PyResult<Value> {
     if let Ok(arg_dict) = arg.downcast::<PyDict>() {
         // If the argument is a dictionary, recursively extract the argument types
         let mut args_types = HashMap::new();
@@ -96,7 +96,7 @@ fn initalize_buffer_tables (path:&PyString) {
 }
 
 #[pyfunction]
-fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
+fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
 
     for command in commands.iter() {
@@ -152,7 +152,7 @@ fn dict_to_tuple (py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyO
     Ok(tuple)
 }
 
-fn translate_value_to_py(py: Python, value: JsonValue) -> PyResult<PyObject> {
+fn translate_value_to_py (py: Python, value: JsonValue) -> PyResult<PyObject> {
     // Convert the JSON value to the appropriate Python object
     match value {
         JsonValue::Null => Ok(py.None()),
