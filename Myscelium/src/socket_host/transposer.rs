@@ -115,6 +115,7 @@ impl ThreadPool {
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+
         let thread = thread::spawn(move || loop {
             let job = match receiver.lock().unwrap().recv() {
                 Ok(job) => job,
@@ -130,12 +131,14 @@ impl Worker {
             id,
             thread: Some(thread),
         }
+
     }
 }
 
 // > Transposer:
 
 fn dict_to_tuple(py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyObject>> {
+
     let function_name = match dict.get("function") {
         Some(Value::String(function_name)) => function_name,
         _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
@@ -191,7 +194,7 @@ fn handle_command (command:Command) -> PyResult<PyObject> {
 
 
 fn process (down_command:DownCommand) {
-
+    
     let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
     let patters = command_patterns;
 
@@ -207,37 +210,32 @@ fn process (down_command:DownCommand) {
                                                 command: hashmap_command,
                                             };
 
-    match translated_command.command.get("function") {
-        Some(Value::String(function)) => {
-
-            if !patters.contains_key(function) { // -> Remove command from schedule if it isn't on the patterns
-
-                println!("Command isn't registred in the patterns");
-
-                enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
-
-                println!("command skipped and remvoed from schedule");
-
-            }  else {   
-
-                let response = handle_command (translated_command.clone());
-
-                // TODO >>> Implement the response handling mecanism
-
-                println!("The response to the callback are: {:?}", response);
-
-                println!("command: {}, processed!", translated_command.parity_id);
-
-                enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
-
-            }
-
-        }
+    let function = match translated_command.command.get("function") {
+        Some(Value::String(function)) => function,
         _ => {
             println!("The function name is not found or not a string.");
+            return;
         }
-    
+    };
+
+    if !patters.contains_key(function) { // -> Remove command from schedule if it isn't on the patterns
+        println!("Command isn't registred in the patterns");
+
+        enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
+
+        println!("command skipped and remvoed from schedule");
+        return;
     }
+
+    let response = handle_command (translated_command.clone());
+
+    // TODO >>> Implement the response handling mecanism
+
+    println!("The response to the callback are: {:?}", response);
+
+    println!("command: {}, processed!", translated_command.parity_id);
+
+    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
 
 }
 
