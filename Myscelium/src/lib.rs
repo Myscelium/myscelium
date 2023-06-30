@@ -18,8 +18,15 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use ctrlc::set_handler;
 
+use lazy_static::lazy_static;   
+
 use serde_json::Value as JsonValue;
 use std::thread;
+
+
+lazy_static! {
+    pub static ref RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+}
 
 // #[pyfunction]
 // fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
@@ -146,14 +153,19 @@ fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()
     Ok(())
 }
 
+fn stop_socket_host() {
+    RUNNING.store(false, Ordering::SeqCst);
+}
+
 #[pyfunction]
 fn initialize_socket_host (ip:String, port:i32, client_id:String) {
     let address = format!("{}:{}", ip, port);
-
-    thread::spawn(|| {
+    
+    thread::spawn(move || {
 
         ctrlc::set_handler(move || {
-            println!("received Ctrl+C!");
+            println!("received from lib Ctrl+C!");
+            stop_socket_host();
         })
         .expect("Error setting Ctrl-C handler");
 

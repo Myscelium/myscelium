@@ -1,0 +1,10 @@
+implementation=CPython
+version=3.7
+shared=true
+abi3=false
+lib_name=python37
+lib_dir=C:\Users\crist\AppData\Local\Programs\Python\Python37\libs
+executable=C:\Users\crist\AppData\Local\Programs\Python\Python37\python.exe
+pointer_width=64
+build_flags=WITH_THREAD
+suppress_build_script_link_lines=false
