@@ -136,30 +136,24 @@ impl Worker {
 // > Transposer:
 
 fn dict_to_tuple(py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyObject>> {
-    let mut tuple = Vec::new();
+    let function_name = match dict.get("function") {
+        Some(Value::String(function_name)) => function_name,
+        _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
+    };
 
-    if let Some(function) = dict.get("function") {
-        if let Value::String(function_name) = function {
-            if let Some(args) = dict.get(function_name) {
-                match args {
-                    Value::Object(map) => {
-                        let sub_dict: HashMap<String, Value> = map.clone().into_iter().collect();
-                        let py_dict = PyDict::new(py);
-                        for (key, value) in sub_dict {
-                            let py_key = PyString::new(py, &key);
-                            let py_value = PyString::new(py, &value.to_string());
-                            py_dict.set_item(py_key, py_value)?;
-                        }
-                        tuple.push(py_dict.into());
-                    },
-                    // Handle other Value variants here...
-                    _ => (),
-                }
-            }
-        }
+    let sub_dict = match dict.get(function_name) {
+        Some(Value::Object(map)) => map.clone().into_iter().collect::<HashMap<String, Value>>(),
+        _ => return Err(PyErr::new::<PyException, _>("The arguments are not found or not an object.")),
+    };
+
+    let py_dict = PyDict::new(py);
+    for (key, value) in sub_dict {
+        let py_key = PyString::new(py, &key);
+        let py_value = PyString::new(py, &value.to_string());
+        py_dict.set_item(py_key, py_value)?;
     }
 
-    Ok(tuple)
+    Ok(vec![py_dict.into()])
 }
 
 fn handle_command (command:Command) -> PyResult<PyObject> {
@@ -167,41 +161,34 @@ fn handle_command (command:Command) -> PyResult<PyObject> {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    match command.command.get("function") {
-        Some(Value::String(function_name)) => {
-            // The name of the Python function
-            let function: &PyAny = py.eval(function_name, None, None).unwrap();
+    let function_name = match command.command.get("function") {
+        Some(Value::String(function_name)) => function_name,
+        _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
+    };
 
-            match dict_to_tuple(py, &command.command) { // -> Convert the command arguments to a Python tuple
-                Ok(args) => {
-                    // Convert the Vec<Py<PyAny>> to a PyTuple
-                    let args_tuple = PyTuple::new(py, args);
+    // The name of the Python function
+    let function: &PyAny = py.eval(function_name, None, None).unwrap();
 
-                    // Call the Python function with the converted arguments
-                    match function.call1(args_tuple) {
-                        Ok(result) => {
-                            println!("Function returned: {:?}", result);
-                            let result: PyObject = result.extract().unwrap();
-                            Ok(result)
-                        },
-                        Err(e) => {
-                            eprintln!("Error calling function: {:?}", e);
-                            Err(e)
-                        },
-                    }
-                },
-                Err(e) => {
-                    eprintln!("Error converting arguments to tuple: {:?}", e);
-                    Err(PyErr::new::<PyException, _>(format!("Error converting arguments to tuple: {:?}", e)))
-                },
-            }
-        },
-        _ => {
-            println!("The function name is not found or not a string.");
-            Err(PyErr::new::<PyException, _>("The function name is not found or not a string."))
-        }
-    }
+    let args = dict_to_tuple(py, &command.command).map_err(|e| {
+        eprintln!("Error converting arguments to tuple: {:?}", e);
+        PyErr::new::<PyException, _>(format!("Error converting arguments to tuple: {:?}", e))
+    })?;
+
+    // Convert the Vec<Py<PyAny>> to a PyTuple
+    let args_tuple = PyTuple::new(py, args);
+
+    // Call the Python function with the converted arguments
+    let result = function.call1(args_tuple).map_err(|e| {
+        eprintln!("Error calling function: {:?}", e);
+        e
+    })?;
+
+    println!("Function returned: {:?}", result);
+    let result: PyObject = result.extract().unwrap();
+    Ok(result)
+
 }
+
 
 fn process (down_command:DownCommand) {
 
