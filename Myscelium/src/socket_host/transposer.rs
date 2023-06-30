@@ -264,14 +264,14 @@ pub fn initialize_transposer () {
         }
 
         for dow_command in schedule {
-
             process(dow_command);
-
         }
 
         let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
     }
+
+    return;
 
     // for stream in listener.incoming() {
     //     let stream = stream.unwrap();

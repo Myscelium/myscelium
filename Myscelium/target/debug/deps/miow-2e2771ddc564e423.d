@@ -1,0 +1,12 @@
+E:\Zarpyon\Git\Repos\Myscelium\Myscelium\target\debug\deps\miow-2e2771ddc564e423.rmeta: C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\lib.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\handle.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\overlapped.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\iocp.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\net.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\pipe.rs
+
+E:\Zarpyon\Git\Repos\Myscelium\Myscelium\target\debug\deps\libmiow-2e2771ddc564e423.rlib: C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\lib.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\handle.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\overlapped.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\iocp.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\net.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\pipe.rs
+
+E:\Zarpyon\Git\Repos\Myscelium\Myscelium\target\debug\deps\miow-2e2771ddc564e423.d: C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\lib.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\handle.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\overlapped.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\iocp.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\net.rs C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\pipe.rs
+
+C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\lib.rs:
+C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\handle.rs:
+C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\overlapped.rs:
+C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\iocp.rs:
+C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\net.rs:
+C:\Users\Poseidon\.cargo\registry\src\github.com-1ecc6299db9ec823\miow-0.3.7\src\pipe.rs:

@@ -20,12 +20,16 @@ use pyo3::wrap_pyfunction;
 
 use crate::socket_host::enhanced_buffer;
 
+
+
+use std::time::Duration;
+
+
 // > Global Vars Core
 
 use crate::RUNNING;
 use std::sync::atomic::Ordering;
 
-use std::time::Duration;
 
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
@@ -251,51 +255,73 @@ pub fn initialize_host_buffer (buffer_location:String) {
 
 }
 
-fn pool_stoping_event_controler (mut pool:ThreadPool) {
+fn pool_stoping_event_controler(pool: Arc<Mutex<ThreadPool>>) {
+    loop {
+        // Stop the thread pool
+        if !RUNNING.load(Ordering::SeqCst) {
+            pool.lock().unwrap().stop();
+            println!("Stopped the thread pool!");
+            break;
+        }
 
-    // Stop the thread pool
-    if !RUNNING.load(Ordering::SeqCst) {
-        pool.stop();
-        println!("Stoped the thread pool!");
+        // Sleep for a while before checking again
+        thread::sleep(Duration::from_millis(1));
     }
 
+    return;
 }
 
-pub fn initialize_host (adrress:String, client_id:String) {
+pub fn initialize_host (address:String, client_id:String) {
+
 
     let mut actual_client_id = CLIENT_ID.lock().unwrap();
     *actual_client_id = client_id;
 
-    
-
     let default_max_conns = MAX_CONS.lock().unwrap();
 
-    let listener = TcpListener::bind(adrress).unwrap();
-    // TcpListener::bind is used to create a new TCP listener which will be bound to the specified address.
+    let listener = TcpListener::bind(&address).unwrap();
 
-    let mut pool = ThreadPool::new(*default_max_conns as usize);
+    let pool = Arc::new(Mutex::new(ThreadPool::new(*default_max_conns as usize)));
 
+    let pool_clone = Arc::clone(&pool);
     thread::spawn(move || {
-        pool_stoping_event_controler(pool)
+        pool_stoping_event_controler(pool_clone)
     });
 
-    for stream in listener.incoming() {
+    loop {
 
-        let stream = stream.unwrap();
+        println!("Waiting conn!");
 
-        pool.execute(|| {
-            handle_connection(stream);
-        });
+        // Keep the thread alive until RUNNING is set to false
+        if !RUNNING.load(Ordering::SeqCst) {
+            print!("runing is set to false, skipping");
+            break;
+        }
 
+        match listener.accept() {
+            Ok((stream, _)) => {
+                let pool_clone = Arc::clone(&pool);
+                pool_clone.lock().unwrap().execute(move || {
+                    handle_connection(stream);
+                });
+            }
+            Err(e) => {
+                eprintln!("Failed to accept a connection: {}", e);
+            }
+        }
+
+        thread::sleep(Duration::from_secs(1));
     }
 
+    
+    
+}
     // The incoming method is called on the listener, which returns an iterator that gives us a sequence of 
     // TCP streams (representing a series of connections). The server will then handle each connection in a loop.
 
     // handle_connection is a function that handles each TCP stream. It reads from the stream into a buffer, 
     // then writes the contents of the buffer back to the stream.
 
-}
 
 pub fn get_available_commands_registered () -> HashMap<String, Value> {
     let command_patterns = COMMAND_PATTERNS.lock().unwrap();

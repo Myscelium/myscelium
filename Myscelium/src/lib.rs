@@ -18,15 +18,17 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use ctrlc::set_handler;
 
-use lazy_static::lazy_static;   
-
 use serde_json::Value as JsonValue;
 use std::thread;
 
+use std::time::{Duration, Instant};
+
+use lazy_static::lazy_static;   
 
 lazy_static! {
     pub static ref RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
 }
+
 
 // #[pyfunction]
 // fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
@@ -160,20 +162,35 @@ fn stop_socket_host() {
 #[pyfunction]
 fn initialize_socket_host (ip:String, port:i32, client_id:String) {
     let address = format!("{}:{}", ip, port);
-    
-    thread::spawn(move || {
+
+    thread::spawn(|| {
 
         ctrlc::set_handler(move || {
-            println!("received from lib Ctrl+C!");
+            println!("\nreceived Ctrl+C!\n");
             stop_socket_host();
         })
         .expect("Error setting Ctrl-C handler");
 
-        initialize_transposer()
+        initialize_transposer();
+        println!("Socket transposer exited ssucefully!")
+
+    });
+
+    thread::spawn(|| {
+
+        initialize_host(address, client_id);
+        println!("Socket host exited ssucefully!");
+
     });
     
-    initialize_host(address, client_id);
-    
+    loop {
+        if !RUNNING.load(Ordering::SeqCst) {
+            println!("Stop the core!");
+            thread::sleep(Duration::from_secs(10));
+            break;
+        }
+    }
+
 }
 
 fn translate_value_to_py (py: Python, value: JsonValue) -> PyResult<PyObject> {
