@@ -17,6 +17,8 @@ use pyo3::exceptions::PyException;
 
 use std::time::{Duration, Instant};
 
+use crate::RUNNING;
+use std::sync::atomic::Ordering;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Command {
@@ -244,10 +246,10 @@ pub fn initialize_transposer () {
 
     loop {
 
-        ctrlc::set_handler(move || {
-            println!("received Ctrl+C!");
-        })
-        .expect("Error setting Ctrl-C handler");
+        if !RUNNING.load(Ordering::SeqCst) {
+            println!("Stop the transposer!");
+            break;
+        }
 
         let num_of_workers = NUM_WORKERS.lock().unwrap();
 

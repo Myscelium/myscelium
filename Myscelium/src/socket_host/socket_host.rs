@@ -22,7 +22,8 @@ use crate::socket_host::enhanced_buffer;
 
 // > Global Vars Core
 
-
+use crate::RUNNING;
+use std::sync::atomic::Ordering;
 
 use std::time::Duration;
 
@@ -120,7 +121,7 @@ fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
 
 // > thread Manangement:
 
-type Job = Box<dyn FnOnce() + Send + 'static>;
+type Job = Option<Box<dyn FnOnce() + Send + 'static>>;
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
@@ -131,6 +132,7 @@ struct Worker {
     id: usize,
     thread: Option<thread::JoinHandle<()>>,
 }
+
 
 impl ThreadPool {
     pub fn new(size: usize) -> ThreadPool {
@@ -153,15 +155,35 @@ impl ThreadPool {
         F: FnOnce() + Send + 'static,
     {
         let job = Box::new(f);
-        self.sender.send(job).unwrap();
+        self.sender.send(Some(job)).unwrap();
     }
+
+    pub fn stop(&mut self) {
+        println!("Sending terminate message to all workers.");
+
+        for _ in &self.workers {
+            self.sender.send(None).unwrap();
+        }
+
+        println!("Shutting down all workers.");
+
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
+    }
+    
 }
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || loop {
             let job = match receiver.lock().unwrap().recv() {
-                Ok(job) => job,
+                Ok(Some(job)) => job,
+                Ok(None) => return,
                 Err(_) => return,
             };
 
@@ -177,6 +199,26 @@ impl Worker {
     }
 }
 
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        println!("Sending terminate message to all workers.");
+
+        for _ in &self.workers {
+            self.sender.send(None).unwrap();
+        }
+
+        println!("Shutting down all workers.");
+
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
+    }
+}
+
 
 // > Socket Interactive Functions:
 
@@ -187,8 +229,6 @@ pub fn set_max_conns (n_max_conns:u32) {
     *default_max_conns = n_max_conns;
 
 }
-
-
 
 pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
@@ -211,30 +251,42 @@ pub fn initialize_host_buffer (buffer_location:String) {
 
 }
 
+fn pool_stoping_event_controler (mut pool:ThreadPool) {
+
+    // Stop the thread pool
+    if !RUNNING.load(Ordering::SeqCst) {
+        pool.stop();
+        println!("Stoped the thread pool!");
+    }
+
+}
+
 pub fn initialize_host (adrress:String, client_id:String) {
 
     let mut actual_client_id = CLIENT_ID.lock().unwrap();
     *actual_client_id = client_id;
+
+    
 
     let default_max_conns = MAX_CONS.lock().unwrap();
 
     let listener = TcpListener::bind(adrress).unwrap();
     // TcpListener::bind is used to create a new TCP listener which will be bound to the specified address.
 
-    let pool = ThreadPool::new(*default_max_conns as usize);
+    let mut pool = ThreadPool::new(*default_max_conns as usize);
+
+    thread::spawn(move || {
+        pool_stoping_event_controler(pool)
+    });
 
     for stream in listener.incoming() {
-
-        ctrlc::set_handler(move || {
-            println!("received Ctrl+C!");
-        })
-        .expect("Error setting Ctrl-C handler");
 
         let stream = stream.unwrap();
 
         pool.execute(|| {
             handle_connection(stream);
         });
+
     }
 
     // The incoming method is called on the listener, which returns an iterator that gives us a sequence of 

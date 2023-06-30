@@ -1,0 +1,11 @@
+C:\Users\crist\Desktop\PrivateRepos\Myscelium\Myscelium\target\debug\deps\libc-c9c68c0b3fd1e7a8.rmeta: C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\lib.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\macros.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\fixed_width_ints.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\windows\mod.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\windows\msvc\mod.rs
+
+C:\Users\crist\Desktop\PrivateRepos\Myscelium\Myscelium\target\debug\deps\liblibc-c9c68c0b3fd1e7a8.rlib: C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\lib.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\macros.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\fixed_width_ints.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\windows\mod.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\windows\msvc\mod.rs
+
+C:\Users\crist\Desktop\PrivateRepos\Myscelium\Myscelium\target\debug\deps\libc-c9c68c0b3fd1e7a8.d: C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\lib.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\macros.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\fixed_width_ints.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\windows\mod.rs C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\windows\msvc\mod.rs
+
+C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\lib.rs:
+C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\macros.rs:
+C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\fixed_width_ints.rs:
+C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\windows\mod.rs:
+C:\Users\crist\.cargo\registry\src\github.com-1ecc6299db9ec823\libc-0.2.147\src\windows\msvc\mod.rs:
