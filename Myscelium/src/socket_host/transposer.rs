@@ -11,8 +11,11 @@ use serde::{Serialize, Deserialize};
 use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
 
 use pyo3::types::{IntoPyDict, PyString, PyInt, PyAny, PyDict, PyTuple, PyList};
-use pyo3::{Python, PyResult, PyObject};
+use pyo3::{Python, PyResult, PyObject, PyErr};
 
+use pyo3::exceptions::PyException;
+
+use std::time::{Duration, Instant};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Command {
@@ -159,7 +162,8 @@ fn dict_to_tuple(py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyOb
     Ok(tuple)
 }
 
-fn handle_command (command:Command) {
+fn handle_command (command:Command) -> PyResult<PyObject> {
+
     let gil = Python::acquire_gil();
     let py = gil.python();
 
@@ -175,77 +179,105 @@ fn handle_command (command:Command) {
 
                     // Call the Python function with the converted arguments
                     match function.call1(args_tuple) {
-                        Ok(result) => println!("Function returned: {:?}", result),
-                        Err(e) => eprintln!("Error calling function: {:?}", e),
+                        Ok(result) => {
+                            println!("Function returned: {:?}", result);
+                            let result: PyObject = result.extract().unwrap();
+                            Ok(result)
+                        },
+                        Err(e) => {
+                            eprintln!("Error calling function: {:?}", e);
+                            Err(e)
+                        },
                     }
                 },
-                Err(e) => eprintln!("Error converting arguments to tuple: {:?}", e),
+                Err(e) => {
+                    eprintln!("Error converting arguments to tuple: {:?}", e);
+                    Err(PyErr::new::<PyException, _>(format!("Error converting arguments to tuple: {:?}", e)))
+                },
             }
         },
         _ => {
             println!("The function name is not found or not a string.");
+            Err(PyErr::new::<PyException, _>("The function name is not found or not a string."))
         }
     }
 }
 
-pub fn initialize_transposer () {
-
-    let num_of_workers = NUM_WORKERS.lock().unwrap();
+fn process (down_command:DownCommand) {
 
     let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
     let patters = command_patterns;
 
-    let pool = ThreadPool::new(*num_of_workers as usize);
+    let command_id:i32 = down_command.command_id;
+    let command:String = down_command.command;
 
-    let schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
+    let hashmap_command:HashMap<String, Value> = serde_json::from_str(&command).unwrap();
 
-    for dow_command in schedule {
+    let translated_command:Command = Command{
+                                                client_id: down_command.client_id,
+                                                parity_id: down_command.parity_id,
+                                                priority: down_command.priority,
+                                                command: hashmap_command,
+                                            };
 
-        let command_id:i32 = dow_command.command_id;
-        let command:String = dow_command.command;
+    match translated_command.command.get("function") {
+        Some(Value::String(function)) => {
 
-        let hashmap_command:HashMap<String, Value> = serde_json::from_str(&command).unwrap();
+            if !patters.contains_key(function) { // -> Remove command from schedule if it isn't on the patterns
 
-        let translated_command:Command = Command{
-                                                    client_id: dow_command.client_id,
-                                                    parity_id: dow_command.parity_id,
-                                                    priority: dow_command.priority,
-                                                    command: hashmap_command,
-                                                };
+                println!("Command isn't registred in the patterns");
 
-        match translated_command.command.get("function") {
-            Some(Value::String(function)) => {
+                enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
 
-                if !patters.contains_key(function) { // -> Remove command from schedule if it isn't on the patterns
+                println!("command skipped and remvoed from schedule");
 
-                    println!("Command isn't registred in the patterns");
+            }  else {   
 
-                    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
+                let response = handle_command (translated_command.clone());
 
-                    println!("command skipped and remvoed from schedule");
+                // TODO >>> Implement the response handling mecanism
 
-                }  else {   
+                println!("The response to the callback are: {:?}", response);
 
-                    handle_command (translated_command.clone());
+                println!("command: {}, processed!", translated_command.parity_id);
 
-                    println!("command: {}, processed!", translated_command.parity_id);
-
-                    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
-
-                }
+                enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
 
             }
-            _ => {
-                println!("The function name is not found or not a string.");
-            }
-        
+
         }
-
+        _ => {
+            println!("The function name is not found or not a string.");
+        }
+    
     }
 
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+}
 
+pub fn initialize_transposer () {
 
+    loop {
+
+        let num_of_workers = NUM_WORKERS.lock().unwrap();
+
+        let pool = ThreadPool::new(*num_of_workers as usize);
+
+        let schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
+
+        if !schedule.len() > 0 {
+            thread::sleep(Duration::from_secs(5));
+            continue;
+        }
+
+        for dow_command in schedule {
+
+            process(dow_command);
+
+        }
+
+        let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+
+    }
 
     // for stream in listener.incoming() {
     //     let stream = stream.unwrap();

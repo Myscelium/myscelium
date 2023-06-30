@@ -7,7 +7,7 @@ use std::collections::HashMap;
 mod socket_host;
 use socket_host::socket_host::{set_socket_host_callbacks, get_available_commands_registered, initialize_host};
 use socket_host::socket_host::{initialize_host_buffer, set_max_conns};
-use socket_host::transposer::{set_workers_num, set_transposer_callbacks};
+use socket_host::transposer::{set_workers_num, set_transposer_callbacks, initialize_transposer};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList};
@@ -15,7 +15,7 @@ use pyo3::wrap_pyfunction;
 use serde_json::{Value, json};
 
 use serde_json::Value as JsonValue;
-
+use std::thread;
 
 // #[pyfunction]
 // fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
@@ -124,32 +124,13 @@ fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()
 #[pyfunction]
 fn initialize_socket_host (ip:String, port:i32, client_id:String) {
     let address = format!("{}:{}", ip, port);
+    
+    thread::spawn(|| {
+        initialize_transposer()
+    });
+    
     initialize_host(address, client_id);
-}
-
-fn dict_to_tuple (py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyObject>> {
-    let mut tuple = Vec::new();
-
-    for value in dict.values() {
-        match value {
-            Value::String(s) => tuple.push(PyString::new(py, s).to_object(py)),
-            Value::Number(n) => tuple.push(n.as_f64().unwrap().into_py(py)),
-            Value::Object(map) => {
-                let sub_dict: HashMap<String, Value> = map.clone().into_iter().collect();
-                let py_dict = PyDict::new(py);
-                for (key, value) in sub_dict {
-                    let py_key = PyString::new(py, &key);
-                    let py_value = PyString::new(py, &value.to_string());
-                    py_dict.set_item(py_key, py_value)?;
-                }
-                tuple.push(py_dict.to_object(py));
-            },
-            // Handle other Value variants here...
-            _ => (),
-        }
-    }
-
-    Ok(tuple)
+    
 }
 
 fn translate_value_to_py (py: Python, value: JsonValue) -> PyResult<PyObject> {
