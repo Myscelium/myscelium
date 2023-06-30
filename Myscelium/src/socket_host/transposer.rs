@@ -17,6 +17,7 @@ use pyo3::exceptions::PyException;
 
 use std::time::{Duration, Instant};
 
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Command {
     client_id: String,
@@ -194,7 +195,7 @@ fn handle_command (command:Command) -> PyResult<PyObject> {
 
 
 fn process (down_command:DownCommand) {
-    
+
     let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
     let patters = command_patterns;
 
@@ -243,6 +244,11 @@ pub fn initialize_transposer () {
 
     loop {
 
+        ctrlc::set_handler(move || {
+            println!("received Ctrl+C!");
+        })
+        .expect("Error setting Ctrl-C handler");
+
         let num_of_workers = NUM_WORKERS.lock().unwrap();
 
         let pool = ThreadPool::new(*num_of_workers as usize);
@@ -250,6 +256,7 @@ pub fn initialize_transposer () {
         let schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
         if !schedule.len() > 0 {
+            println!("Nothing in the schedule, skipping >>>");
             thread::sleep(Duration::from_secs(5));
             continue;
         }

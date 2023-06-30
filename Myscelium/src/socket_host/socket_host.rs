@@ -22,6 +22,10 @@ use crate::socket_host::enhanced_buffer;
 
 // > Global Vars Core
 
+
+
+use std::time::Duration;
+
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
 
@@ -220,6 +224,12 @@ pub fn initialize_host (adrress:String, client_id:String) {
     let pool = ThreadPool::new(*default_max_conns as usize);
 
     for stream in listener.incoming() {
+
+        ctrlc::set_handler(move || {
+            println!("received Ctrl+C!");
+        })
+        .expect("Error setting Ctrl-C handler");
+
         let stream = stream.unwrap();
 
         pool.execute(|| {

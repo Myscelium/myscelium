@@ -1,5 +1,6 @@
 from MysceliumWraper import MysceliumHost
 
+
 def python_function(name, age, birth):
     # Your function logic here
 
@@ -17,8 +18,11 @@ callbacks = [{
                 },
             }, ]
 
-mys_host = MysceliumHost(callcks=callbacks, client_id="xnsmdkeflerpfsa", buffer_path="Data/")
 
-print(mys_host.get_registred_commands())
 
-mys_host.initialize_host(ip="127.0.0.1", port=4444)
+
+if __name__ == '__main__':
+    mys_host = MysceliumHost(callbacks=callbacks, client_id="xnsmdkeflerpfsa", buffer_path="Data/")
+
+    print(mys_host.get_registred_commands())
+    mys_host.initialize_host(ip="127.0.0.1", port=4444)
