@@ -9,14 +9,14 @@ def python_function(name, age, birth):
     pass
 
 callbacks = [{
-                "function": python_function,
-                "args": {
-                    "name": "str",
-                    "age": "int",
-                    "birth": "str",
-                    "data": {'localization': 'str', 'mail': 'str'},
-                },
-            }, ]
+    "function": python_function,
+    "args": {
+        "name": "str",
+        "age": "int",
+        "birth": "str",
+        "data": {'localization': 'str', 'mail': 'str'},
+    },
+}, ]
 
 
 

@@ -10,9 +10,11 @@ use serde::{Serialize, Deserialize};
 
 use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
 
-use pyo3::types::{IntoPyDict, PyString, PyInt, PyAny, PyDict, PyTuple, PyList};
+use pyo3::types::{IntoPyDict, PyString, PyInt, PyAny, PyDict, PyTuple, PyList, PyFunction};
 use pyo3::{Python, PyResult, PyObject, PyErr};
 
+
+use pyo3::Py;
 use pyo3::exceptions::PyException;
 
 use std::time::{Duration, Instant};
@@ -55,6 +57,11 @@ lazy_static! {
         Arc::new(Mutex::new(command_patterns))
     };
 
+    static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
+        let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
+        Arc::new(Mutex::new(command_patterns))  
+    };
+
     static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5)); // Default
 }
 
@@ -70,10 +77,13 @@ pub fn set_workers_num (n_workers:u32) {
 
 }
 
-pub fn set_transposer_callbacks (callback_patterns:HashMap<String, Value>) {
+pub fn set_transposer_callbacks (commands_patterns:HashMap<String, Value>, callbacks_patterns:HashMap<String, (Py<PyFunction>, Value)>) {
 
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    *command_patterns = callback_patterns;
+    *command_patterns = commands_patterns;
+
+    let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
+    *callback_patterns = callbacks_patterns;
 
 }
 
@@ -147,6 +157,12 @@ fn dict_to_tuple(py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyOb
         _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
     };
 
+    // Check if the dict contains the function name as a key
+    if !dict.contains_key(function_name) {
+        // If it does not, return an empty Vec since there are no arguments
+        return Ok(Vec::new());
+    }
+
     let sub_dict = match dict.get(function_name) {
         Some(Value::Object(map)) => map.clone().into_iter().collect::<HashMap<String, Value>>(),
         _ => return Err(PyErr::new::<PyException, _>("The arguments are not found or not an object.")),
@@ -162,41 +178,44 @@ fn dict_to_tuple(py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyOb
     Ok(vec![py_dict.into()])
 }
 
-fn handle_command (command:Command) -> PyResult<PyObject> {
+fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
+    println!("Getting function name...");
     let function_name = match command.command.get("function") {
         Some(Value::String(function_name)) => function_name,
         _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
     };
+    println!("Got function name: {}", function_name);
 
-    // The name of the Python function
-    let function: &PyAny = py.eval(function_name, None, None).unwrap();
+    // Get the function and args_types from the CALLBACK_PATTERNS
+    let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
+    let (function, _) = callback_patterns.get(function_name).unwrap();
 
     let args = dict_to_tuple(py, &command.command).map_err(|e| {
         eprintln!("Error converting arguments to tuple: {:?}", e);
         PyErr::new::<PyException, _>(format!("Error converting arguments to tuple: {:?}", e))
     })?;
 
+    ("args: {:?}", args.clone());
+
     // Convert the Vec<Py<PyAny>> to a PyTuple
     let args_tuple = PyTuple::new(py, args);
 
     // Call the Python function with the converted arguments
-    let result = function.call1(args_tuple).map_err(|e| {
+    let result = function.call1(py, args_tuple).map_err(|e| {
         eprintln!("Error calling function: {:?}", e);
         e
     })?;
 
-    println!("Function returned: {:?}", result);
-    let result: PyObject = result.extract().unwrap();
-    Ok(result)
+    let result_obj: PyObject = result.clone().into();  // Convert the result into a PyObject
 
+    Ok(result_obj)  // Return the PyObject
 }
 
 
 fn process (down_command:DownCommand) {
+
+    println!("Initializing prossesing!");
 
     let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
     let patters = command_patterns;
@@ -212,6 +231,8 @@ fn process (down_command:DownCommand) {
                                                 priority: down_command.priority,
                                                 command: hashmap_command,
                                             };
+
+    println!("Translated command: {:?}", translated_command);
 
     let function = match translated_command.command.get("function") {
         Some(Value::String(function)) => function,
@@ -230,11 +251,39 @@ fn process (down_command:DownCommand) {
         return;
     }
 
-    let response = handle_command (translated_command.clone());
+    println!("Command function: {} is a valid function!", function);
+
+    println!("Calling the callback!\n");
+    	
+    
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let response = handle_command (py, translated_command.clone());
+
+    let result_obj = response.unwrap();
+    let result_dict: &PyDict = result_obj.cast_as(py).unwrap();
+
+    let mut rust_dict = HashMap::new();  // Declare the HashMap
+
+    for (key, value) in result_dict.iter() {
+        let key_str: String = key.extract().unwrap();
+        if let Ok(value_str) = value.extract::<String>() {
+            rust_dict.insert(key_str, value_str);
+        } else if let Ok(value_int) = value.extract::<i32>() {
+            rust_dict.insert(key_str, value_int.to_string());
+        } else if let Ok(value_list) = value.extract::<Vec<String>>() {
+            rust_dict.insert(key_str, format!("{:?}", value_list));
+        } else {
+            // Handle other types as needed
+        }
+    }
+
+    // println!("Function returned: {:?}", result_dict);  // Print the extracted value
 
     // TODO >>> Implement the response handling mecanism
 
-    println!("The response to the callback are: {:?}", response);
+    println!("The response to the callback are: {:?}", result_dict);
 
     println!("command: {}, processed!", translated_command.parity_id);
 
@@ -257,11 +306,15 @@ pub fn initialize_transposer () {
 
         let schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
-        if !schedule.len() > 0 {
+        println!("\nSchedule to process:\n{:?}\n", schedule);
+
+        if !(schedule.len() > 0) {
             println!("Nothing in the schedule, skipping >>>");
             thread::sleep(Duration::from_secs(5));
             continue;
         }
+
+        println!("\nData found in schedule!");
 
         for dow_command in schedule {
             process(dow_command);

@@ -10,7 +10,7 @@ use socket_host::socket_host::{initialize_host_buffer, set_max_conns};
 use socket_host::transposer::{set_workers_num, set_transposer_callbacks, initialize_transposer};
 
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList};
+use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList, PyFunction};
 use pyo3::wrap_pyfunction;
 use serde_json::{Value, json};
 
@@ -112,6 +112,8 @@ fn initalize_buffer_tables (path:&PyString) {
 fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
 
+    let mut callbacks_patterns =  HashMap::new();
+
     for command in commands.iter() {
         let command_dict: &PyDict = command.downcast().unwrap();
         let function: &PyAny = command_dict.get_item("function").unwrap();
@@ -145,12 +147,18 @@ fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()
         }
 
         // Store the function name and argument types in the command patterns
-        command_patterns.insert(function_name.to_string(), args_types_value);
+        command_patterns.insert(function_name.to_string(), args_types_value.clone());
+
+        let function = function.downcast::<PyFunction>()?.clone();
+
+        let function: Py<PyFunction> = function.into_py(py);  // convert &PyAny to Py<PyFunction>
+        callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
+
     }
 
     // Now you can use the command_patterns
     set_socket_host_callbacks(command_patterns.clone(), );
-    set_transposer_callbacks(command_patterns, );
+    set_transposer_callbacks(command_patterns.clone(), callbacks_patterns, );
 
     Ok(())
 }
@@ -166,8 +174,10 @@ fn initialize_socket_host (ip:String, port:i32, client_id:String) {
     thread::spawn(|| {
 
         ctrlc::set_handler(move || {
-            println!("\nreceived Ctrl+C!\n");
-            stop_socket_host();
+            if RUNNING.load(Ordering::SeqCst) {
+                println!("\nreceived Ctrl+C!\n");
+                stop_socket_host();
+            }
         })
         .expect("Error setting Ctrl-C handler");
 

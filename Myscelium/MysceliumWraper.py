@@ -8,7 +8,7 @@ class MysceliumHost:
         self.client_id = client_id
 
         special_functions = [{
-            "function": self.get_registred_commands,
+            "function": get_registred_commands,
             "response_type":"same_as_origin",
             "args": "None",
         }, ]
@@ -25,8 +25,9 @@ class MysceliumHost:
         pass
 
     def get_registred_commands (self) -> dict:
+        print("Activated the get registred commands")
         return mys.get_available_commands()
-    
+
     def initialize_host (self, ip:str, port:int):
         mys.initialize_socket_host (ip, port, self.client_id)
 
@@ -35,6 +36,8 @@ class MysceliumHost:
         mys.stop_socket_host()
 
 
-
+def get_registred_commands () -> dict:
+        print("Activated the get registred commands")
+        return mys.get_available_commands()
 
 

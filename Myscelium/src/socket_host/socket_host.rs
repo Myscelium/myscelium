@@ -65,7 +65,7 @@ lazy_static! {
 
 // > Commands Manangemement & Checking
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Command {
     client_id: String,
     parity_id: String,
@@ -380,81 +380,119 @@ fn handle_special_functions (function:String) -> Command {
 
 }
 
-fn handle_commom_function (command:Command) {
+fn handle_commom_function (command:Command) -> Command {
 
     // let actual_client_id = CLIENT_ID.lock().unwrap();
 
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    let mut command_map = HashMap::new();
+    command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-    if !validate_command(&command, &command_patterns) {
-        return
-    } else {
+    let response_command = Command {
+        client_id: "some_client_id".to_string(),
+        parity_id: "itisaspecialcase".to_string(),
+        priority: 11,
+        command: command_map,
+    };
 
-    }
+    // let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+
+    // if !validate_command(&command, &command_patterns) {
+    //     return response_command;
+    // } else {
+
+    // }
 
     let json_command = serde_json::to_string(&command.command).unwrap();
 
     enhanced_buffer::buffer_down_mananger::buffer_down_schedule(command.client_id, command.parity_id, command.priority, json_command);
 
-    return;
+    // TODO >>> Add a mecanism to get the buffer up responses and send back to client or redirect to antoher client
+
+    return response_command;
 }
 
-fn handle_connection(mut stream: TcpStream)  {
+fn handle_connection (mut stream: TcpStream)  {
 
-    let mut buffer = [0; 4096];
+    loop {
+        let mut buffer = [0; 4096];
 
-    stream.read(&mut buffer).unwrap();
-    
-    let buffer_string = String::from_utf8_lossy(&buffer)
-    .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
-    .to_string();
+        match stream.read(&mut buffer) {
+            Ok(0) => {
+                // No data was read, break the loop
+                continue;
+            }
+            Ok(bytes_read) => {
+                println!("Data received!");
+            }
+            Err(e) => {
+                // Handle the error
+                eprintln!("Failed to read from the stream: {}", e);
+            }
+        }
+        
+        let buffer_string = String::from_utf8_lossy(&buffer)
+        .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
+        .to_string();
 
-    let command: Command = serde_json::from_str(&buffer_string).unwrap();
+        let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
-    let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
+        println!("\nCommand received:\n{:?}\n", command);
 
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+        let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
-    match command.command.get("function") {
-        Some(Value::String(function)) => {
+        let command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
-            if special_functions.contains(&function) { // -> Special Function Handler
+        match command.command.get("function") {
+            Some(Value::String(function)) => {
 
-                let response = handle_special_functions (function.clone());
+                println!("Comand function: {}", function);
 
-                let command_response_json = json!(response).to_string();
+                if special_functions.contains(&function) { // -> Special Function Handler
 
-                stream.write_all(command_response_json.as_bytes()).unwrap();
+                    let response = handle_special_functions (function.clone());
 
-            } else if command_patterns.contains_key(function) { // -> Commom Function Handler
+                    let command_response_json = json!(response).to_string();
 
-                let response = handle_commom_function(command); 
+                    println!("Sending back: {:?}", command_response_json);
 
-                let command_json = json!(response).to_string();
+                    stream.write_all(command_response_json.as_bytes()).unwrap();
 
-                stream.write_all(command_json.as_bytes()).unwrap();
+                } else if command_patterns.contains_key(function) { // -> Commom Function Handler
 
-            } else { // -> None of above
+                    println!("Command is in command patterns!");
 
-                let mut command_map = HashMap::new();
-                command_map.insert("function".to_string(), Value::String("C210".to_string()));
+                    let response = handle_commom_function(command); 
 
-                let command = Command {
-                    client_id: "some_client_id".to_string(),
-                    parity_id: "itisaspecialcase".to_string(),
-                    priority: 11,
-                    command: command_map,
-                };
+                    let command_json = json!(response).to_string();
 
-                let command_json = json!(command).to_string();
+                    println!("Sending back: {:?}", command_json);
 
-                stream.write_all(command_json.as_bytes()).unwrap();
+                    stream.write_all(command_json.as_bytes()).unwrap();
+
+                } else { // -> None of above
+
+                    let mut command_map = HashMap::new();
+                    command_map.insert("function".to_string(), Value::String("C210".to_string()));
+
+                    let command = Command {
+                        client_id: "some_client_id".to_string(),
+                        parity_id: "itisaspecialcase".to_string(),
+                        priority: 11,
+                        command: command_map,
+                    };
+
+                    let command_json = json!(command).to_string();
+
+                    println!("Sending back: {:?}", command_json);
+
+                    stream.write_all(command_json.as_bytes()).unwrap();
+
+                }
 
             }
-
-        }
-        _ => {
-            println!("The function name is not found or not a string.");
+            _ => {
+                println!("The function name is not found or not a string.");
+            }
         }
     }
 
