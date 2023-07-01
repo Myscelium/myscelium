@@ -227,7 +227,7 @@ fn process (down_command:DownCommand) {
 
     let translated_command:Command = Command{
                                                 client_id: down_command.client_id,
-                                                parity_id: down_command.parity_id,
+                                                parity_id: down_command.parity_id.clone(),
                                                 priority: down_command.priority,
                                                 command: hashmap_command,
                                             };
@@ -255,37 +255,40 @@ fn process (down_command:DownCommand) {
 
     println!("Calling the callback!\n");
     	
-    
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let response = handle_command (py, translated_command.clone());
-
-    let result_obj = response.unwrap();
-    let result_dict: &PyDict = result_obj.cast_as(py).unwrap();
-
     let mut rust_dict = HashMap::new();  // Declare the HashMap
+    
+    thread::spawn(move || {
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
 
-    for (key, value) in result_dict.iter() {
-        let key_str: String = key.extract().unwrap();
-        if let Ok(value_str) = value.extract::<String>() {
-            rust_dict.insert(key_str, value_str);
-        } else if let Ok(value_int) = value.extract::<i32>() {
-            rust_dict.insert(key_str, value_int.to_string());
-        } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-            rust_dict.insert(key_str, format!("{:?}", value_list));
-        } else {
-            // Handle other types as needed
-        }
-    }
+            println!("Acquired the GIL");
+
+            let response = handle_command (py, translated_command.clone());
+
+            let result_obj = response.unwrap();
+            let result_dict: &PyDict = result_obj.cast_as(py).unwrap();
+
+
+            for (key, value) in result_dict.iter() {
+                let key_str: String = key.extract().unwrap();
+                if let Ok(value_str) = value.extract::<String>() {
+                    rust_dict.insert(key_str, value_str);
+                } else if let Ok(value_int) = value.extract::<i32>() {
+                    rust_dict.insert(key_str, value_int.to_string());
+                } else if let Ok(value_list) = value.extract::<Vec<String>>() {
+                    rust_dict.insert(key_str, format!("{:?}", value_list));
+                } else {
+                    // Handle other types as needed
+                }
+            }
+        });
+    });
 
     // println!("Function returned: {:?}", result_dict);  // Print the extracted value
 
     // TODO >>> Implement the response handling mecanism
 
-    println!("The response to the callback are: {:?}", result_dict);
-
-    println!("command: {}, processed!", translated_command.parity_id);
+    println!("command: {}, processed!", down_command.parity_id);
 
     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
 
