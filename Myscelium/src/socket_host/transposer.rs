@@ -257,7 +257,7 @@ fn process (down_command:DownCommand) {
     	
     let mut rust_dict = HashMap::new();  // Declare the HashMap
     
-    thread::spawn(move || {
+    thread::spawn(move || { //-> This solves the issue of not aquirring gill
         pyo3::prepare_freethreaded_python();
         Python::with_gil(|py| {
 
