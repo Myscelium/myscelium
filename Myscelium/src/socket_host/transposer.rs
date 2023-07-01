@@ -255,8 +255,10 @@ fn process (down_command:DownCommand) {
 
     println!("Calling the callback!\n");
     	
-    let mut rust_dict = HashMap::new();  // Declare the HashMap
-    
+    let rust_dict = Arc::new(Mutex::new(HashMap::new()));  // Declare the HashMap
+
+    let rust_dict_clone = Arc::clone(&rust_dict);
+
     thread::spawn(move || { //-> This solves the issue of not aquirring
         pyo3::prepare_freethreaded_python();
         Python::with_gil(|py| {
@@ -268,15 +270,16 @@ fn process (down_command:DownCommand) {
             let result_obj = response.unwrap();
             let result_dict: &PyDict = result_obj.cast_as(py).unwrap();
 
+            let mut rust_dict_rference = rust_dict_clone.lock().unwrap();
 
             for (key, value) in result_dict.iter() {
                 let key_str: String = key.extract().unwrap();
                 if let Ok(value_str) = value.extract::<String>() {
-                    rust_dict.insert(key_str, value_str);
+                    rust_dict_rference.insert(key_str, value_str);
                 } else if let Ok(value_int) = value.extract::<i32>() {
-                    rust_dict.insert(key_str, value_int.to_string());
+                    rust_dict_rference.insert(key_str, value_int.to_string());
                 } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-                    rust_dict.insert(key_str, format!("{:?}", value_list));
+                    rust_dict_rference.insert(key_str, format!("{:?}", value_list));
                 } else {
                     // Handle other types as needed
                 }
@@ -284,7 +287,7 @@ fn process (down_command:DownCommand) {
         });
     });
 
-    // println!("Function returned: {:?}", result_dict);  // Print the extracted value
+    println!("Function returned: {:?}", *rust_dict.lock().unwrap());
 
     // TODO >>> Implement the response handling mecanism
 
