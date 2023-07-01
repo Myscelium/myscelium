@@ -281,6 +281,8 @@ pub fn initialize_host (address:String, client_id:String) {
 
     let listener = TcpListener::bind(&address).unwrap();
 
+    println!("Listening: {}", address);
+
     let pool = Arc::new(Mutex::new(ThreadPool::new(*default_max_conns as usize)));
 
     let pool_clone = Arc::clone(&pool);

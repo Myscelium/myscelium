@@ -186,7 +186,7 @@ fn initialize_socket_host (ip:String, port:i32, client_id:String) {
     loop {
         if !RUNNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
-            thread::sleep(Duration::from_secs(10));
+            thread::sleep(Duration::from_secs(7));
             break;
         }
     }
