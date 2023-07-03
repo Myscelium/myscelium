@@ -168,7 +168,7 @@ fn stop_socket_host() {
 }
 
 #[pyfunction]
-fn initialize_socket_host (ip:String, port:i32, client_id:String) {
+fn initialize_socket_host (py:Python, ip:String, port:i32, client_id:String) {
     let address = format!("{}:{}", ip, port);
 
     thread::spawn(|| {
@@ -181,19 +181,17 @@ fn initialize_socket_host (ip:String, port:i32, client_id:String) {
         })
         .expect("Error setting Ctrl-C handler");
 
-        initialize_transposer();
-        println!("Socket transposer exited ssucefully!")
-
-    });
-
-    thread::spawn(|| {
-
         initialize_host(address, client_id);
         println!("Socket host exited ssucefully!");
+        
 
     });
-    
+
     loop {
+
+        initialize_transposer(py);
+        println!("Socket transposer exited ssucefully!");
+    
         if !RUNNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
             thread::sleep(Duration::from_secs(7));
@@ -254,7 +252,6 @@ fn Myscelium (py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_num_of_workers, m)?)?;
     Ok(())
 }
-
 
 // To call by the python side:
 

@@ -213,7 +213,7 @@ fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
 }
 
 
-fn process (down_command:DownCommand) {
+fn process (py:Python, down_command:DownCommand) {
 
     println!("Initializing prossesing!");
 
@@ -255,39 +255,34 @@ fn process (down_command:DownCommand) {
 
     println!("Calling the callback!\n");
     	
-    let rust_dict = Arc::new(Mutex::new(HashMap::new()));  // Declare the HashMap
+    let mut rust_dict = HashMap::new();  // Declare the HashMap
 
-    let rust_dict_clone = Arc::clone(&rust_dict);
+    println!("Acquired the GIL");
 
-    thread::spawn(move || { //-> This solves the issue of not aquirring
-        pyo3::prepare_freethreaded_python();
-        Python::with_gil(|py| {
+    let response = handle_command (py, translated_command.clone());
 
-            println!("Acquired the GIL");
+    let result_obj = response.unwrap();
+    let result_dict: &PyDict = result_obj.cast_as(py).unwrap();
 
-            let response = handle_command (py, translated_command.clone());
 
-            let result_obj = response.unwrap();
-            let result_dict: &PyDict = result_obj.cast_as(py).unwrap();
+    for (key, value) in result_dict.iter() {
+        let key_str: String = key.extract().unwrap();
+        if let Ok(value_str) = value.extract::<String>() {
+            rust_dict.insert(key_str, value_str);
+        } else if let Ok(value_int) = value.extract::<i32>() {
+            rust_dict.insert(key_str, value_int.to_string());
+        } else if let Ok(value_list) = value.extract::<Vec<String>>() {
+            rust_dict.insert(key_str, format!("{:?}", value_list));
+        } else {
+            // Handle other types as needed
+        }
+    }
 
-            let mut rust_dict_rference = rust_dict_clone.lock().unwrap();
+    println!("Function returned: {:?}", result_dict);
 
-            for (key, value) in result_dict.iter() {
-                let key_str: String = key.extract().unwrap();
-                if let Ok(value_str) = value.extract::<String>() {
-                    rust_dict_rference.insert(key_str, value_str);
-                } else if let Ok(value_int) = value.extract::<i32>() {
-                    rust_dict_rference.insert(key_str, value_int.to_string());
-                } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-                    rust_dict_rference.insert(key_str, format!("{:?}", value_list));
-                } else {
-                    // Handle other types as needed
-                }
-            }
-        });
-    });
+  
 
-    println!("Function returned: {:?}", *rust_dict.lock().unwrap());
+    // println!("Function returned: {:?}", result_dict);  // Print the extracted value
 
     // TODO >>> Implement the response handling mecanism
 
@@ -297,38 +292,29 @@ fn process (down_command:DownCommand) {
 
 }
 
-pub fn initialize_transposer () {
+pub fn initialize_transposer (py:Python) {
 
-    loop {
+    let num_of_workers = NUM_WORKERS.lock().unwrap();
 
-        if !RUNNING.load(Ordering::SeqCst) {
-            println!("Stop the transposer!");
-            break;
-        }
+    let pool = ThreadPool::new(*num_of_workers as usize);
 
-        let num_of_workers = NUM_WORKERS.lock().unwrap();
+    let schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
-        let pool = ThreadPool::new(*num_of_workers as usize);
+    println!("\nSchedule to process:\n{:?}\n", schedule);
 
-        let schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
-
-        println!("\nSchedule to process:\n{:?}\n", schedule);
-
-        if !(schedule.len() > 0) {
-            println!("Nothing in the schedule, skipping >>>");
-            thread::sleep(Duration::from_secs(5));
-            continue;
-        }
-
-        println!("\nData found in schedule!");
-
-        for dow_command in schedule {
-            process(dow_command);
-        }
-
-        let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-
+    if !(schedule.len() > 0) {
+        println!("Nothing in the schedule, skipping >>>");
+        thread::sleep(Duration::from_secs(5));
+        return;;
     }
+
+    println!("\nData found in schedule!");
+
+    for dow_command in schedule {
+        process(py, dow_command);
+    }
+
+    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
     return;
 
