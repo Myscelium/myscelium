@@ -20,6 +20,9 @@ use pyo3::wrap_pyfunction;
 
 use crate::socket_host::enhanced_buffer;
 
+use crate::socket_host::enhanced_buffer::buffer_up_mananger::UpCommand;
+
+
 use std::time::Duration;
 
 
@@ -409,6 +412,29 @@ fn handle_commom_function (command:Command) -> Command {
     return response_command;
 }
 
+
+fn get_response (command:Command) -> Command {
+
+    let up_schedule:Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.parity_id);
+
+    let command_response = &up_schedule[0];
+
+    let mut command_map = HashMap::new();
+    command_map.insert("response".to_string(), Value::String(command_response.command.to_string()));
+
+    let response_command = Command {
+        client_id: command_response.client_id.clone(),
+        parity_id: command_response.parity_id.clone(),
+        priority: 11,
+        command: command_map,
+    };
+
+    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id, response_command.parity_id.clone());
+
+    return response_command
+
+} 
+
 fn handle_connection (mut stream: TcpStream)  {
 
     loop {
@@ -459,7 +485,20 @@ fn handle_connection (mut stream: TcpStream)  {
 
                     println!("Command is in command patterns!");
 
-                    let response = handle_commom_function(command); 
+                    let command_is_not_registry:bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
+
+                    let response:Command;
+
+                    if !command_is_not_registry {
+                        
+                        println!("Command {}, alwready have a response!", command.parity_id.clone());
+                        response = get_response(command);
+
+                    } else{
+
+                        response = handle_commom_function(command); 
+
+                    }
 
                     let command_json = json!(response).to_string();
 
