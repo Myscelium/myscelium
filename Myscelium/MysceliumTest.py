@@ -6,7 +6,7 @@ def python_function(name, age, birth):
 
     print (name)
 
-    pass
+    return None
 
 callbacks = [{
     "function": python_function,

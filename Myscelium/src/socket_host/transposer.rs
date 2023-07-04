@@ -10,17 +10,24 @@ use serde::{Serialize, Deserialize};
 
 use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
 
-use pyo3::types::{IntoPyDict, PyString, PyInt, PyAny, PyDict, PyTuple, PyList, PyFunction};
+use pyo3::types::{IntoPyDict, PyString, PyInt, PyAny, PyDict, PyTuple, PyList, PyFunction, PyBool, PyFloat};
 use pyo3::{Python, PyResult, PyObject, PyErr};
 
+use pyo3::IntoPy;
 
 use pyo3::Py;
 use pyo3::exceptions::PyException;
 
 use std::time::{Duration, Instant};
 
+use std::error::Error;
+
+use pyo3::ToPyObject;
+
 use crate::RUNNING;
 use std::sync::atomic::Ordering;
+
+use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Command {
@@ -150,32 +157,48 @@ impl Worker {
 
 // > Transposer:
 
-fn dict_to_tuple(py: Python, dict: &HashMap<String, Value>) -> PyResult<Vec<PyObject>> {
-
-    let function_name = match dict.get("function") {
-        Some(Value::String(function_name)) => function_name,
-        _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
-    };
+fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<&'l PyTuple> {
 
     // Check if the dict contains the function name as a key
-    if !dict.contains_key(function_name) {
+    if !dict.contains_key("args") {
         // If it does not, return an empty Vec since there are no arguments
-        return Ok(Vec::new());
+        let mut values: Vec<PyObject> = Vec::new();
+        return Ok(PyTuple::new(py, values));
     }
 
-    let sub_dict = match dict.get(function_name) {
-        Some(Value::Object(map)) => map.clone().into_iter().collect::<HashMap<String, Value>>(),
-        _ => return Err(PyErr::new::<PyException, _>("The arguments are not found or not an object.")),
+    let args_string = match dict.get("args") {
+        Some(Value::String(s)) => s,
+        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
     };
 
-    let py_dict = PyDict::new(py);
-    for (key, value) in sub_dict {
-        let py_key = PyString::new(py, &key);
-        let py_value = PyString::new(py, &value.to_string());
-        py_dict.set_item(py_key, py_value)?;
+    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
+
+    println!("Args extracted: {:?}", sub_dict);
+
+    let mut values: Vec<PyObject> = Vec::new();
+    for value in sub_dict.values() {
+        let py_value = match value {
+            Value::String(s) => s.into_py(py),
+            Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    i.into_py(py)
+                } else if let Some(f) = n.as_f64() {
+                    f.into_py(py)
+                } else {
+                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
+                }
+            },
+            Value::Bool(b) => b.into_py(py),
+            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
+        };
+        values.push(py_value);
     }
 
-    Ok(vec![py_dict.into()])
+    let py_tuple = PyTuple::new(py, &values);
+
+    println!("py_tuple: {}", py_tuple);
+
+    Ok(py_tuple)
 }
 
 fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
@@ -196,13 +219,10 @@ fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
         PyErr::new::<PyException, _>(format!("Error converting arguments to tuple: {:?}", e))
     })?;
 
-    ("args: {:?}", args.clone());
-
-    // Convert the Vec<Py<PyAny>> to a PyTuple
-    let args_tuple = PyTuple::new(py, args);
+    ("args: {:?}", &args);
 
     // Call the Python function with the converted arguments
-    let result = function.call1(py, args_tuple).map_err(|e| {
+    let result = function.call1(py, args).map_err(|e| {
         eprintln!("Error calling function: {:?}", e);
         e
     })?;
@@ -212,6 +232,77 @@ fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
     Ok(result_obj)  // Return the PyObject
 }
 
+// Define a custom type that can be either Empty, Map, or Error
+#[derive(Debug)]
+enum ResultType {
+    Empty,
+    Map(HashMap<String, String>),
+    Error(Box<dyn Error>),
+}
+
+// Implement Display for ResultType to be able to print it
+impl fmt::Display for ResultType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ResultType::Empty => write!(f, "Empty"),
+            ResultType::Map(map) => write!(f, "{:?}", map),
+            ResultType::Error(err) => write!(f, "Error: {}", err),
+        }
+    }
+}
+
+fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
+    if let Ok(dict) = obj.cast_as::<PyDict>(py) {
+        // Handle dict
+
+        let mut rust_dict = HashMap::new();  // Declare the HashMap
+    
+        for (key, value) in dict.iter() {
+            let key_str: String = key.extract().unwrap();
+            if let Ok(value_str) = value.extract::<String>() {
+                rust_dict.insert(key_str, value_str);
+            } else if let Ok(value_int) = value.extract::<i32>() {
+                rust_dict.insert(key_str, value_int.to_string());
+            } else if let Ok(value_list) = value.extract::<Vec<String>>() {
+                rust_dict.insert(key_str, format!("{:?}", value_list));
+            } else {
+                // Handle other types as needed
+            }
+        }
+
+        return ResultType::Map(rust_dict);
+
+    } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
+        // Handle tuple
+        for item in tuple {
+            println!("Item: {}", item);
+        }
+    } else if let Ok(list) = obj.cast_as::<PyList>(py) {
+        // Handle list
+        for item in list {
+            println!("Item: {}", item);
+        }
+    } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
+        // Handle int
+        println!("Integer: {}", int);
+    } else if let Ok(float) = obj.cast_as::<PyFloat>(py) {
+        // Handle float
+        println!("Float: {}", float);
+    } else if let Ok(string) = obj.cast_as::<PyString>(py) {
+        // Handle string
+        println!("String: {}", string);
+    } else if let Ok(boolean) = obj.cast_as::<PyBool>(py) {
+        // Handle bool
+        println!("Boolean: {}", boolean);
+    } else if obj.is_none(py) {
+        // Handle None
+        println!("None");
+    } else {
+        return ResultType::Empty;
+    }
+
+    ResultType::Empty
+}
 
 fn process (py:Python, down_command:DownCommand) {
 
@@ -280,40 +371,24 @@ fn process (py:Python, down_command:DownCommand) {
 
     println!("Calling the callback!\n");
     	
-    let mut rust_dict = HashMap::new();  // Declare the HashMap
-
     println!("Acquired the GIL");
 
     let response = handle_command (py, translated_command.clone());
 
-    let result_obj = response.unwrap();
-    let result_dict: &PyDict = result_obj.cast_as(py).unwrap();
+    let result = handle_pyobject(py, response.unwrap());
 
-
-    for (key, value) in result_dict.iter() {
-        let key_str: String = key.extract().unwrap();
-        if let Ok(value_str) = value.extract::<String>() {
-            rust_dict.insert(key_str, value_str);
-        } else if let Ok(value_int) = value.extract::<i32>() {
-            rust_dict.insert(key_str, value_int.to_string());
-        } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-            rust_dict.insert(key_str, format!("{:?}", value_list));
-        } else {
-            // Handle other types as needed
-        }
-    }
-
-    println!("Function returned: {:?}", result_dict);
+    println!("Function returned: {:?}", result);
 
     // println!("Function returned: {:?}", result_dict);  // Print the extracted value
 
-    // TODO >>> Implement the response handling mecanism
 
     println!("command: {}, processed!", down_command.parity_id);
 
     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
-    
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(down_command.client_id, down_command.parity_id, down_command.priority, result_dict.to_string())
+
+    // TODO >>> implement a mecanism to handle when the response is empty to only send a confirmation signal
+
+    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(down_command.client_id, down_command.parity_id, down_command.priority, result.to_string())
 
 }
 
