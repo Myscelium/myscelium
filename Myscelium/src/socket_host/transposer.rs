@@ -236,6 +236,20 @@ fn process (py:Python, down_command:DownCommand) {
 
     let hashmap_command:HashMap<String, Value> = serde_json::from_str(&command).unwrap();
 
+    // TODO >>> Use the command.command or create a require type field to redirect the command to another client
+
+    // -> One idea is to create a obrigatory key in the command.command and instead of only function create a type kwarg field 
+    // > Type can be: 
+    // >    - same as origin  
+    // >    - redirect
+
+    // > if it is redirect one extra kwarg is necessary that have the client_id to redirect
+    // * This will create a need to have a local database in the host to store the clients
+    // * and to store when is the last contact of some client, if it is some threshold value
+    // * more it will remove the registred client, if it have a contact recent, this will redirect the message
+    // * however if the message is becames too old before the client the message is redirected catches it
+    // * The system have to remove this old message from the buffer too.  
+
     let translated_command:Command = Command{
                                                 client_id: down_command.client_id.clone(),
                                                 parity_id: down_command.parity_id.clone(),
