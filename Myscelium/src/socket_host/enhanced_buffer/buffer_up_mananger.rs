@@ -16,6 +16,8 @@ use pyo3::types::PyDict;
 
 use std::sync::{Arc, Mutex};
 
+use std::collections::HashMap;
+
 lazy_static! {
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
     
@@ -58,7 +60,7 @@ lazy_static! {
     pub command_id:i32,
     pub client_id:String,
     pub parity_id:String,
-    pub priority:i32,
+    pub priority:u8,
     pub command:String,
 }
 
@@ -245,7 +247,7 @@ pub fn buffer_up_list_schedule () -> Vec<UpCommand> {
 }
 
 
-pub fn buffer_up_schedule (client_id:String, parity_id:String, priority:i32, command:String) {
+pub fn buffer_up_schedule (client_id:String, parity_id:String, priority:u8, command:String) {
 
     let registered_ids = get_registred_ids();
 

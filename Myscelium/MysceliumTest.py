@@ -1,5 +1,5 @@
 from MysceliumWraper import MysceliumHost
-from MysceliumWraper import callback_pattern
+from MysceliumWraper import callback_pattern, response_pattern
 
 
 def python_function(age, birth, name):
@@ -11,7 +11,23 @@ def python_function(age, birth, name):
     print (name)
     print (age)
 
-    return {"Response":"Hello!"}
+    response = response_pattern(response_mode='same_as_origin', response='hello!')
+
+    return response
+
+def test_redirect (client_id, data):
+
+    if isinstance(client_id, str):
+    
+        print (f"Redicrecting data: {data} to client: {client_id}")
+        response = response_pattern(response_mode='redirect', redirect_to_client_id=client_id, response=data)
+        return response
+    
+    else:
+
+        print ("Client id isn't a string, failed to redirect data!")
+        return None
+
 
 # "data": {'localization': 'str', 'mail': 'str'},
 
@@ -21,6 +37,11 @@ callbacks = [
         "birth": "str",
         "name": "str",
         "age": "int",
+    }),
+
+    callback_pattern(callback=test_redirect, args={
+        "client_id" : "str", 
+        "data" : "dict",
     }),
 
 ]

@@ -35,6 +35,25 @@ class MysceliumHost:
         # This function will be called when a SIGINT signal is received
         mys.stop_socket_host()
 
+# -> Functions:
+
+def response_pattern (response:any, response_mode:str, redirect_to_client_id:str=None):
+
+    if response_mode == "redirect":
+
+        if redirect_to_client_id != None:
+             raise ("Invalid redirect! Missing client_id to redirect!")
+        else:
+            pass
+
+        return {'response_mode':'redirect', 'response':response, 'redirect_to':redirect_to_client_id}
+
+    elif response_mode == 'same_as_origin':
+         
+        return {'response_mode':'same_as_origin', 'response':response}
+    
+    else:
+         raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
 
 def callback_pattern (callback, args):
          

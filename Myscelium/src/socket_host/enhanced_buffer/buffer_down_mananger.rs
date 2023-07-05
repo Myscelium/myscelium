@@ -72,7 +72,7 @@ pub fn set_workers_num (n_workers:u32) {
     pub command_id:i32,
     pub client_id:String,
     pub parity_id:String,
-    pub priority:i32,
+    pub priority:u8,
     pub command:String,
 }
 

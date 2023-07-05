@@ -33,9 +33,48 @@ use std::fmt;
 struct Command {
     client_id: String,
     parity_id: String,
-    priority: i32,
+    priority: u8,
     command: HashMap<String, Value>,
 }
+
+enum CommandType {
+    Function(String),
+    Response(String),
+    Redirect(String),
+    Unknown
+}
+
+impl Command {
+
+    fn new (client_id:String, parity_id:String, priority:u8, command:HashMap<String, Value>) -> Self {
+
+        Self {
+
+            client_id,
+            parity_id,
+            priority,
+            command
+
+        }
+
+    }
+
+    fn command_type (&self) -> CommandType {
+
+        if self.command.contains_key("function") {
+            CommandType::Function(self.command.get("function").unwrap().to_string())
+        } else if self.command.contains_key("response") {
+            CommandType::Response(self.command.get("response").unwrap().to_string())
+        } else if self.command.contains_key("redirect") {
+            CommandType::Redirect(self.command.get("redirect").unwrap().to_string())
+        } else {
+            CommandType::Unknown
+        }
+
+    }
+
+}
+
 
 lazy_static! {
 
@@ -70,7 +109,7 @@ lazy_static! {
     };
 
     static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5)); 
-    
+
 }
 
 pub fn set_workers_num (n_workers:u32) {
@@ -234,11 +273,11 @@ fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
 }
 
 // Define a custom type that can be either Empty, Map, or Error
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ResultType {
     Empty,
     Map(HashMap<String, String>),
-    Error(Box<dyn Error>),
+    Error(String),
 }
 
 // Implement Display for ResultType to be able to print it
@@ -305,6 +344,8 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     ResultType::Empty
 }
 
+
+
 fn process (py:Python, down_command:DownCommand) {
 
     println!("Initializing prossesing!");
@@ -342,12 +383,13 @@ fn process (py:Python, down_command:DownCommand) {
     // * however if the message is becames too old before the client the message is redirected catches it
     // * The system have to remove this old message from the buffer too.  
 
-    let translated_command:Command = Command{
-                                                client_id: down_command.client_id.clone(),
-                                                parity_id: down_command.parity_id.clone(),
-                                                priority: down_command.priority.clone(),
-                                                command: hashmap_command.clone(),
-                                            };
+    let translated_command:Command = Command::new(
+                                                    down_command.client_id.clone(), 
+                                                    down_command.parity_id.clone(), 
+                                                    down_command.priority.clone(), 
+                                                    hashmap_command.clone()
+                                                );
+
 
     println!("Translated command: {:?}", translated_command);
 
@@ -378,10 +420,85 @@ fn process (py:Python, down_command:DownCommand) {
 
     let result = handle_pyobject(py, response.unwrap());
 
-    println!("Function returned: {:?}", result);
+    let response;
+
+    let mut client_id = down_command.client_id;
+
+    match result {
+
+        ResultType::Map(m) => {
+            
+            if m.contains_key("response_mode") {
+
+                let response_mode = m.get("response_mode").unwrap();
+
+                if response_mode == &"same_as_origin".to_string() {
+
+                    // -> Handle the cases when command have to be returned to origin!
+
+                    response = serde_json::to_string(&m);
+
+                } else if response_mode == &"redirect".to_string() {
+
+                    // -> Handle the cases when command have to be redirected!
+
+                    if m.contains_key("redirect_to") {
+
+                        let redirect_to = m.get("redirect_to").unwrap();
+
+                        // TODO >> Add a way to detect if the clien_id is really registred in the database
+
+                        client_id = redirect_to.to_string();
+
+                        response = serde_json::to_string(&m);
+
+                    } else {
+
+                        println!("Error! Callback response args don't have redirect_to client_id field!");
+                        let mut error_map = HashMap::new();
+                        error_map.insert("Error".to_string(), "Error! Callback response args don't have redirect_to client_id field!".to_string());
+                        response = serde_json::to_string(&error_map)
+
+                    }
+
+                } else {
+
+                    println!("Error! Response mode dont match any response mode, please use one of this: ('same_as_origin', 'redirect')!");
+                    let mut error_map = HashMap::new();
+                    error_map.insert("Error".to_string(), "Error! Callback response args don't have redirect_to client_id field!".to_string());
+                    response = serde_json::to_string(&error_map)
+
+                }
+
+            } else {
+                
+                println!("Error! Callback don't implement response mode!");
+                let mut error_map = HashMap::new();
+                error_map.insert("Error".to_string(), "Error Callback don't implement response mode!".to_string());
+                response = serde_json::to_string(&error_map)
+
+            }
+
+        }
+        ResultType::Empty => {
+        
+            response = serde_json::to_string(&"C210".to_string());
+        
+        }
+        ResultType::Error(e) => {
+            
+            println!("An error ocurred while converting python callback response, the error was: {:?}", e);
+            let mut error_map = HashMap::new();
+            error_map.insert("Error".to_string(), e.to_string());
+            response = serde_json::to_string(&error_map)
+
+        }
+    
+    }
+
+    println!("Function returned: {:?}", response);
 
     // println!("Function returned: {:?}", result_dict);  // Print the extracted value
-
 
     println!("command: {}, processed!", down_command.parity_id);
 
@@ -389,7 +506,7 @@ fn process (py:Python, down_command:DownCommand) {
 
     // TODO >>> implement a mecanism to handle when the response is empty to only send a confirmation signal
 
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(down_command.client_id, down_command.parity_id, down_command.priority, result.to_string())
+    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id, down_command.priority, response.unwrap())
 
 }
 
