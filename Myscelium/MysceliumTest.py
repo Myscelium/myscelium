@@ -1,5 +1,5 @@
 from MysceliumWraper import MysceliumHost
-from MysceliumWraper import callback_pattern, response_pattern
+from MysceliumWraper import callback_pattern, response_pattern, client_pattern
 
 
 def python_function(age, birth, name):
@@ -28,9 +28,6 @@ def test_redirect (client_id, data):
         print ("Client id isn't a string, failed to redirect data!")
         return None
 
-
-# "data": {'localization': 'str', 'mail': 'str'},
-
 callbacks = [
 
     callback_pattern(callback=python_function, args={
@@ -46,8 +43,17 @@ callbacks = [
 
 ]
 
+allowed_clients = [
+
+    client_pattern(client_type="Interface", client_id="some_client_id"),
+    client_pattern(client_type="Interface", client_id="randomsclientids"),
+
+]
+
 if __name__ == '__main__':
-    mys_host = MysceliumHost(callbacks=callbacks, client_id="xnsmdkeflerpfsa", buffer_path="Data/")
+    
+    mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path="Data/")
 
     # print(mys_host.get_registred_commands())
+
     mys_host.initialize_host(ip="127.0.0.1", port=4444)
