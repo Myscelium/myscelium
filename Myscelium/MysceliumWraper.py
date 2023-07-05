@@ -36,6 +36,15 @@ class MysceliumHost:
         mys.stop_socket_host()
 
 
+def callback_pattern (callback, args):
+         
+        callback_pattern =  {
+            "function": callback,
+            "args": args,
+        }
+        
+        return callback_pattern
+
 def get_registred_commands () -> dict:
         print("Activated the get registred commands")
         return mys.get_available_commands()

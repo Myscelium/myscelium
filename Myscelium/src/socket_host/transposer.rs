@@ -69,7 +69,8 @@ lazy_static! {
         Arc::new(Mutex::new(command_patterns))  
     };
 
-    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5)); // Default
+    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5)); 
+    
 }
 
 pub fn set_workers_num (n_workers:u32) {
@@ -204,7 +205,7 @@ fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<
 fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
 
     println!("Getting function name...");
-    let function_name = match command.command.get("function") {
+    let function_name:&String = match command.command.get("function") {
         Some(Value::String(function_name)) => function_name,
         _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
     };

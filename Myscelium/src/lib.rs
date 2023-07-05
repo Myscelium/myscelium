@@ -115,6 +115,7 @@ fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()
     let mut callbacks_patterns =  HashMap::new();
 
     for command in commands.iter() {
+        
         let command_dict: &PyDict = command.downcast().unwrap();
         let function: &PyAny = command_dict.get_item("function").unwrap();
         
