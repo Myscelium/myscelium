@@ -444,13 +444,26 @@ fn process (py:Python, down_command:DownCommand) {
 
                     if m.contains_key("redirect_to") {
 
+                        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id.clone(), down_command.priority, "C210".to_string());
+
                         let redirect_to = m.get("redirect_to").unwrap();
 
                         // TODO >> Add a way to detect if the clien_id is really registred in the database
 
                         client_id = redirect_to.to_string();
 
-                        response = serde_json::to_string(&m);
+                        if m.contains_key("response") {
+                            
+                            response = serde_json::to_string(m.get("response").unwrap());
+
+                        } else {
+
+                            println!("Error! Callback response args don't have response kwarg!");
+                            let mut error_map = HashMap::new();
+                            error_map.insert("Error".to_string(), "Error! Callback response args don't have response kwarg!".to_string());
+                            response = serde_json::to_string(&error_map)
+
+                        }
 
                     } else {
 
@@ -500,7 +513,7 @@ fn process (py:Python, down_command:DownCommand) {
 
     // println!("Function returned: {:?}", result_dict);  // Print the extracted value
 
-    println!("command: {}, processed!", down_command.parity_id);
+    println!("command: {:?}, processed!", &down_command.parity_id);
 
     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
 

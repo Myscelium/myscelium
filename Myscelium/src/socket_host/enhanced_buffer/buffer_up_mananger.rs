@@ -175,16 +175,16 @@ pub fn buffer_up_gen_valid_parity_id (client_id:String) -> String {
 
 }
 
-pub fn buffer_up_get_scheduled_by_parity_id (parity_id:String) -> Vec<UpCommand> {
+pub fn buffer_up_get_scheduled_by_parity_id (client_id:String, parity_id:String) -> Vec<UpCommand> {
 
     let conn = BUFFER_POOL.get_connection().unwrap();
 
     let mut commands_schedule:Vec<UpCommand> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsTosend WHERE ParityId = ? ").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM CommandsTosend WHERE ClientID = ? AND ParityId = ?").unwrap();
 
-        let commands_iter = smtp.query_map(params![parity_id], |row| {
+        let commands_iter = smtp.query_map(params![client_id, parity_id], |row| {
     
             Ok (
     

@@ -66,12 +66,51 @@ lazy_static! {
 
 // > Commands Manangemement & Checking
 
+#[derive(Debug)]
+enum CommandType {
+    Function(String),
+    Response(String),
+    Redirect(String),
+    Unknown
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Command {
     client_id: String,
     parity_id: String,
-    priority: i32,
+    priority: u8,
     command: HashMap<String, Value>,
+}
+
+impl Command {
+
+    fn new (client_id:String, parity_id:String, priority:u8, command:HashMap<String, Value>) -> Self {
+
+        Self {
+
+            client_id,
+            parity_id,
+            priority,
+            command
+
+        }
+
+    }
+
+    fn command_type (&self) -> CommandType {
+
+        if self.command.contains_key("function") {
+            CommandType::Function(self.command.get("function").unwrap().to_string())
+        } else if self.command.contains_key("response") {
+            CommandType::Response(self.command.get("response").unwrap().to_string())
+        } else if self.command.contains_key("redirect") {
+            CommandType::Redirect(self.command.get("redirect").unwrap().to_string())
+        } else {
+            CommandType::Unknown
+        }
+
+    }
+
 }
 
 fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
@@ -405,17 +444,25 @@ fn handle_commom_function (command:Command) -> Command {
 
     let json_command = serde_json::to_string(&command.command).unwrap();
 
-    enhanced_buffer::buffer_down_mananger::buffer_down_schedule(command.client_id, command.parity_id, command.priority, json_command);
+    enhanced_buffer::buffer_down_mananger::buffer_down_schedule(command.client_id.clone(), command.parity_id, command.priority, json_command);
 
     // TODO >>> Add a mecanism to get the buffer up responses and send back to client or redirect to antoher client
 
     return response_command;
 }
 
+enum Response {
+    Command(Command),
+    None
+}
 
-fn get_response (command:Command) -> Command {
+fn get_response (command:Command) -> Response {
 
-    let up_schedule:Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.parity_id);
+    let up_schedule:Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
+
+    if !(up_schedule.len() > 0) {
+        return Response::None
+    }
 
     let command_response = &up_schedule[0];
 
@@ -429,9 +476,9 @@ fn get_response (command:Command) -> Command {
         command: command_map,
     };
 
-    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id, response_command.parity_id.clone());
+    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
 
-    return response_command
+    return Response::Command(response_command);
 
 } 
 
@@ -492,7 +539,25 @@ fn handle_connection (mut stream: TcpStream)  {
                     if !command_is_not_registry {
                         
                         println!("Command {}, alwready have a response!", command.parity_id.clone());
-                        response = get_response(command);
+
+
+
+                        match get_response(command.clone()) {
+                            Response::Command(c) => {
+                                response = c;
+                            }
+                            Response::None => {
+
+                                println!("Response is None!");
+
+                                let mut special_response = HashMap::new();
+
+                                special_response.insert("function".to_string(), Value::String("C210".to_string()));
+
+                                response = Command::new(command.client_id, "itisaspecialcase".to_string(), 11, special_response);
+                            }
+                        }
+                        
 
                     } else{
 

@@ -42,9 +42,9 @@ def response_pattern (response:any, response_mode:str, redirect_to_client_id:str
     if response_mode == "redirect":
 
         if redirect_to_client_id != None:
-             raise ("Invalid redirect! Missing client_id to redirect!")
-        else:
             pass
+        else:
+            raise ("Invalid redirect! Missing client_id to redirect!")
 
         return {'response_mode':'redirect', 'response':response, 'redirect_to':redirect_to_client_id}
 

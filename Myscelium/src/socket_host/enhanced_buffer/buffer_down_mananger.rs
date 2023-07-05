@@ -222,7 +222,7 @@ pub fn buffer_down_gen_valid_parity_id (client_id:String) -> String {
 
 }
 
-pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:i32, command:String) {
+pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:u8, command:String) {
 
     if check_if_parity_id_is_registred(client_id.clone(), parity_id.clone()) {
         println!("Parity_id: {} alwready registred to client_id: {}, so skiping...", parity_id, client_id);

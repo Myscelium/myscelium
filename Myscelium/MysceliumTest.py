@@ -20,7 +20,7 @@ def test_redirect (client_id, data):
     if isinstance(client_id, str):
     
         print (f"Redicrecting data: {data} to client: {client_id}")
-        response = response_pattern(response_mode='redirect', redirect_to_client_id=client_id, response=data)
+        response = response_pattern(response=data, response_mode='redirect', redirect_to_client_id=client_id)
         return response
     
     else:
