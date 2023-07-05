@@ -17,6 +17,7 @@ class MysceliumHost:
 
         mys.registry_socket_host_callbacks(callbacks)
         mys.initalize_buffer_tables(buffer_path)
+        mys.set_allowed_clients(allowed_clients)
         mys.set_num_of_workers(n_workers)
         mys.set_max_connections(n_max_conns)
 

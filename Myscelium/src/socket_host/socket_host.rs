@@ -64,6 +64,13 @@ lazy_static! {
 
 }
 
+// TODO >>> Implement a set client that add the clients to a database, and remove the ones that isn't in the clients_allowed.
+// TODO >>> Also create a mecanism that resets clients las contact when socket_host is reinitialized.
+
+pub fn set_clients_allowed (clients_allowed:Vec<HashMap<String, String>>) {
+
+}
+
 // > Commands Manangemement & Checking
 
 #[derive(Debug)]

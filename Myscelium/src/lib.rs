@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 mod socket_host;
 use socket_host::socket_host::{set_socket_host_callbacks, get_available_commands_registered, initialize_host};
-use socket_host::socket_host::{initialize_host_buffer, set_max_conns};
+use socket_host::socket_host::{initialize_host_buffer, set_max_conns, set_clients_allowed};
 use socket_host::transposer::{set_workers_num, set_transposer_callbacks, initialize_transposer};
 
 use pyo3::prelude::*;
@@ -243,6 +243,45 @@ fn get_available_commands(py: Python) -> PyResult<PyObject> {
     Ok(py_dict.into())
 }
 
+#[pyfunction]
+fn set_allowed_clients (allowed_clients_list: &PyList) -> PyResult<()> {
+
+    let mut allowed_clients:Vec<HashMap<String, String>> = Vec::new();
+
+    for client_allowed in allowed_clients_list.iter() {
+        
+        let mut allowed_client =  HashMap::new();
+
+        let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
+
+        let client_type: &PyAny = allowed_clients_dict.get_item("client_type").unwrap();
+        let client_id: &PyAny = allowed_clients_dict.get_item("client_id").unwrap();
+
+        if let Ok(extracted_client_type) = client_type.extract::<String>() {
+            
+            if let Ok(extracted_client_id) = client_id.extract::<String>() {
+                
+                allowed_client.insert("client_type".to_string(), extracted_client_type);
+                allowed_client.insert("client_id".to_string(), extracted_client_id);
+
+            } else {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_id must be a String with 16 characters!"));
+            }
+
+        } else {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_type must be a String!"));
+        }
+
+        allowed_clients.push(allowed_client);
+
+    }
+
+    set_clients_allowed(allowed_clients);
+
+    Ok(())
+
+}
+
 #[pymodule]
 fn Myscelium (py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(initalize_buffer_tables, m)?)?;
@@ -251,6 +290,7 @@ fn Myscelium (py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_available_commands, m)?)?;
     m.add_function(wrap_pyfunction!(set_max_connections, m)?)?;
     m.add_function(wrap_pyfunction!(set_num_of_workers, m)?)?;
+    m.add_function(wrap_pyfunction!(set_allowed_clients, m)?)?;
     Ok(())
 }
 
