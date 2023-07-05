@@ -388,12 +388,12 @@ fn handle_special_functions (function:String) -> Command {
         let mut command_map = HashMap::new();
         command_map.insert("function".to_string(), Value::String("C200".to_string()));
 
-       command = Command {
-            client_id: "some_client_id".to_string(),
-            parity_id: "itisaspecialcase".to_string(),
-            priority: 11,
-            command: command_map,
-        };
+        command = Command::new (
+            "some_client_id".to_string(),
+            "itisaspecialcase".to_string(),
+            11,
+            command_map,
+        );
 
     } else if function == "C206" { // -> Ping request
 
@@ -402,24 +402,24 @@ fn handle_special_functions (function:String) -> Command {
         let mut command_map = HashMap::new();
         command_map.insert("function".to_string(), Value::String("C207".to_string()));
 
-        command = Command {
-            client_id: "some_client_id".to_string(),
-            parity_id: "itisaspecialcase".to_string(),
-            priority: 11,
-            command: command_map,
-        };
+        command = Command::new (
+            "some_client_id".to_string(),
+            "itisaspecialcase".to_string(),
+            11,
+            command_map,
+        );
 
     } else { // -> Receive conf
         
         let mut command_map = HashMap::new();
         command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-        command = Command {
-            client_id: "some_client_id".to_string(),
-            parity_id: "itisaspecialcase".to_string(),
-            priority: 11,
-            command: command_map,
-        };
+        command = Command::new (
+            "some_client_id".to_string(),
+            "itisaspecialcase".to_string(),
+            11,
+            command_map,
+        );
         
     }
     
@@ -434,12 +434,12 @@ fn handle_commom_function (command:Command) -> Command {
     let mut command_map = HashMap::new();
     command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-    let response_command = Command {
-        client_id: "some_client_id".to_string(),
-        parity_id: "itisaspecialcase".to_string(),
-        priority: 11,
-        command: command_map,
-    };
+    let response_command = Command::new (
+        "some_client_id".to_string(),
+        "itisaspecialcase".to_string(),
+        11,
+        command_map,
+    );
 
     // let command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
