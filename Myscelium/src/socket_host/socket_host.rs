@@ -5,6 +5,7 @@ use std::net::TcpStream;
 use std::thread;
 
 use std::sync::{mpsc, Arc, Mutex};
+use std::time::SystemTime;
 
 use serde::{Serialize, Deserialize};
 
@@ -31,6 +32,12 @@ use std::time::Duration;
 use crate::RUNNING;
 use std::sync::atomic::Ordering;
 
+#[derive(Debug)]
+pub struct Client {
+    client_id: String,
+    last_contact: SystemTime,
+    client_type: String,
+}
 
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
@@ -62,12 +69,37 @@ lazy_static! {
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
 
+    static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
+
 }
 
-// TODO >>> Implement a set client that add the clients to a database, and remove the ones that isn't in the clients_allowed.
-// TODO >>> Also create a mecanism that resets clients las contact when socket_host is reinitialized.
+pub fn is_client_registred(client_id: &String) -> bool {
+    let clients = CLIENTS_ALLOWED.lock().unwrap();
+    clients.contains_key(client_id)
+}
 
-pub fn set_clients_allowed (clients_allowed:Vec<HashMap<String, String>>) {
+pub fn register_client(client_id: String, client_type: String) {
+    
+    let mut clients = CLIENTS_ALLOWED.lock().unwrap();
+    
+    if !is_client_registred(&client_id) {
+
+        clients.insert(client_id.clone(), Client {
+            client_id,
+            last_contact: SystemTime::now(),
+            client_type,
+        });
+        
+    }
+
+}
+
+pub fn update_last_contact (client_id: String) {
+    
+    let mut clients = CLIENTS_ALLOWED.lock().unwrap();
+    if let Some (client) = clients.get_mut(&client_id) {
+        client.last_contact = SystemTime::now();
+    }
 
 }
 
