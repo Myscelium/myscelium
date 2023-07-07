@@ -10,7 +10,7 @@ use socket_host::socket_host::{initialize_host_buffer, set_max_conns, register_c
 use socket_host::transposer::{set_workers_num, set_transposer_callbacks, initialize_transposer};
 
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList, PyFunction};
+use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList, PyFunction, PyBool};
 use pyo3::wrap_pyfunction;
 use serde_json::{Value, json};
 

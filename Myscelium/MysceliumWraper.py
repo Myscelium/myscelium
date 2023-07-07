@@ -5,6 +5,8 @@ class MysceliumHost:
 
     def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5) -> None:
 
+        self.allowed_clients = allowed_clients
+
         self.host_id = host_id
 
         special_functions = [{
@@ -17,7 +19,7 @@ class MysceliumHost:
 
         mys.registry_socket_host_callbacks(callbacks)
         mys.initalize_buffer_tables(buffer_path)
-        mys.set_allowed_clients(allowed_clients)
+        mys.set_allowed_clients(self.allowed_clients)
         mys.set_num_of_workers(n_workers)
         mys.set_max_connections(n_max_conns)
 

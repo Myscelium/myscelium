@@ -32,7 +32,7 @@ use std::time::Duration;
 use crate::RUNNING;
 use std::sync::atomic::Ordering;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client {
     client_id: String,
     last_contact: SystemTime,
@@ -73,16 +73,23 @@ lazy_static! {
 
 }
 
-pub fn is_client_registred(client_id: &String) -> bool {
-    let clients = CLIENTS_ALLOWED.lock().unwrap();
+pub fn is_client_registred (client_id: &String) -> bool {
+
+    let clients;
+
+    {
+        clients = CLIENTS_ALLOWED.lock().unwrap().clone();
+    }
+
     clients.contains_key(client_id)
 }
 
 pub fn register_client(client_id: String, client_type: String) {
     
-    let mut clients = CLIENTS_ALLOWED.lock().unwrap();
     
     if !is_client_registred(&client_id) {
+        
+        let mut clients = CLIENTS_ALLOWED.lock().unwrap();
 
         clients.insert(client_id.clone(), Client {
             client_id,
@@ -552,6 +559,30 @@ fn handle_connection (mut stream: TcpStream)  {
 
         let command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
+        if !is_client_registred (&command.client_id) { // -> In case client isn't registred in the clients allowed
+
+            let mut command_map = HashMap::new();
+            command_map.insert("function".to_string(), Value::String("Error".to_string()));
+            command_map.insert("Error".to_string(), Value::String("Your client isn't registred in the whitelist!".to_string()));
+
+            let response:Command = Command::new (
+                "some_client_id".to_string(),
+                "itisaspecialcase".to_string(),
+                11,
+                command_map,
+            );
+
+            let command_response_json = json!(response).to_string();
+
+            println!("WARNING: Client isn't registred, sending back: {:?}", command_response_json);
+
+            stream.write_all(command_response_json.as_bytes()).unwrap();
+
+            return;
+        }
+
+        update_last_contact(command.client_id.clone());
+
         match command.command.get("function") {
             Some(Value::String(function)) => {
 
@@ -578,8 +609,6 @@ fn handle_connection (mut stream: TcpStream)  {
                     if !command_is_not_registry {
                         
                         println!("Command {}, alwready have a response!", command.parity_id.clone());
-
-
 
                         match get_response(command.clone()) {
                             Response::Command(c) => {
