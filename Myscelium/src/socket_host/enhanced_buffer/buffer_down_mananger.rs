@@ -226,6 +226,34 @@ pub fn buffer_down_gen_valid_parity_id (client_id:String) -> String {
 
 }
 
+pub fn buffer_down_clear_old_commands () {
+
+    let now = Utc::now();
+    let current_timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+    let schedule = buffer_down_list_schedule();
+
+    if !(schedule.is_empty()) {
+        return;
+    }
+
+    for dow_command in schedule {
+
+        let command_timestamp = dow_command.created_time;
+
+        let time_difference = (current_timestamp - command_timestamp);
+
+        if time_difference >= 30.0 {
+
+            buffer_down_remove_schedule_by_id(dow_command.command_id);
+            println!("\nCommand: {} from client: {}, too old, clearing from the buffer down schedule!\n", dow_command.parity_id, dow_command.client_id);
+
+        }
+
+    }
+
+}
+
 pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:u8, command:String) {
 
     if check_if_parity_id_is_registred(client_id.clone(), parity_id.clone()) {

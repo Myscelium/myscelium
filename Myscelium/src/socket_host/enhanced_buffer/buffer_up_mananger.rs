@@ -344,6 +344,34 @@ pub fn buffer_up_update_schedule (id:i32, client_id:String, parity_id:String, pr
 
 }
 
+pub fn buffer_up_clear_old_commands () {
+
+    let now = Utc::now();
+    let current_timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+    let schedule = buffer_up_list_schedule();
+
+    if !(schedule.is_empty()) {
+        return;
+    }
+
+    for up_command in schedule {
+
+        let command_timestamp = up_command.created_time;
+
+        let time_difference = (current_timestamp - command_timestamp);
+
+        if time_difference >= 30.0 {
+
+            buffer_up_remove_schedule_by_id(up_command.command_id);
+            println!("\nCommand: {} from client: {}, too old, clearing from the buffer up schedule!\n", up_command.parity_id, up_command.client_id);
+
+        }
+
+    }
+
+}
+
 pub fn buffer_up_remove_schedule_by_id (id:i32) {
 
     let conn = BUFFER_POOL.get_connection().unwrap();

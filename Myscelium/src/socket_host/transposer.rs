@@ -531,6 +531,13 @@ fn process (py:Python, down_command:DownCommand) {
 
 }
 
+fn clear_old_data () {
+
+    enhanced_buffer::buffer_down_mananger::buffer_down_clear_old_commands();
+    enhanced_buffer::buffer_up_mananger::buffer_up_clear_old_commands();
+
+}
+
 pub fn initialize_transposer (py:Python) {
 
     let num_of_workers = NUM_WORKERS.lock().unwrap();
@@ -543,6 +550,7 @@ pub fn initialize_transposer (py:Python) {
 
     if !(schedule.len() > 0) {
         println!("Nothing in the schedule, skipping >>>");
+        clear_old_data ();
         thread::sleep(Duration::from_secs(5));
         return;
     }
