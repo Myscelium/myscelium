@@ -18,6 +18,8 @@ use std::sync::{Arc, Mutex};
 
 use std::collections::HashMap;
 
+use chrono::Utc;
+
 lazy_static! {
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
     
@@ -62,6 +64,7 @@ lazy_static! {
     pub parity_id:String,
     pub priority:u8,
     pub command:String,
+    pub created_time:f64
 }
 
 impl IntoPy <PyObject> for UpCommand {
@@ -120,7 +123,7 @@ pub fn buffer_up_initialize_table(buffer_path: String) {
     let conn = buffer_pool.get_connection().unwrap();
 
     let result = conn.execute(
-        "CREATE TABLE IF NOT EXISTS CommandsTosend (ID INT PRIMARY KEY, ClientID TEXT, ParityId TEXT, Priority NUMBER, Command TEXT)",
+        "CREATE TABLE IF NOT EXISTS CommandsTosend (ID INT PRIMARY KEY, ClientID TEXT, ParityId TEXT, Priority NUMBER, Command TEXT, CreatedTime NUMBER)",
         params![],
     );
 
@@ -192,7 +195,8 @@ pub fn buffer_up_get_scheduled_by_parity_id (client_id:String, parity_id:String)
                 client_id:row.get(1).unwrap(),
                 parity_id:row.get(2).unwrap(),
                 priority:row.get(3).unwrap(),
-                command:row.get(4).unwrap()}
+                command:row.get(4).unwrap(),
+                created_time:row.get(5).unwrap()}
     
             )
     
@@ -228,7 +232,8 @@ pub fn buffer_up_list_schedule () -> Vec<UpCommand> {
                 client_id:row.get(1).unwrap(),
                 parity_id:row.get(2).unwrap(),
                 priority:row.get(3).unwrap(),
-                command:row.get(4).unwrap()}
+                command:row.get(4).unwrap(),
+                created_time:row.get(5).unwrap()}
     
             )
     
@@ -255,9 +260,12 @@ pub fn buffer_up_schedule (client_id:String, parity_id:String, priority:u8, comm
 
     let conn = BUFFER_POOL.get_connection().unwrap();
 
+    let now = Utc::now();
+    let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
     let result = conn.execute(
-        "INSERT INTO CommandsTosend (ID, ClientID, ParityId, Priority, Command) VALUES (?, ?, ?, ?, ?);",
-        params![id_generator.gen(), client_id, parity_id, priority, command],
+        "INSERT INTO CommandsTosend (ID, ClientID, ParityId, Priority, Command, CreatedTime) VALUES (?, ?, ?, ?, ?, ?);",
+        params![id_generator.gen(), client_id, parity_id, priority, command, timestamp],
     );
 
     match result {
@@ -335,7 +343,6 @@ pub fn buffer_up_update_schedule (id:i32, client_id:String, parity_id:String, pr
     BUFFER_POOL.release_connection(conn);
 
 }
-
 
 pub fn buffer_up_remove_schedule_by_id (id:i32) {
 
