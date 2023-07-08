@@ -15,6 +15,8 @@ use buffer_functions::UniqueIdGenerator;
 use buffer_functions::SQLiteConnectionPool;
 use buffer_functions::UniqueParityIdGenerator;
 
+use chrono::Utc;
+
 use rusqlite::params;
 use serde::{Serialize, Deserialize};
 
@@ -74,6 +76,7 @@ pub fn set_workers_num (n_workers:u32) {
     pub parity_id:String,
     pub priority:u8,
     pub command:String,
+    pub created_time:f64,
 }
 
 impl IntoPy <PyObject> for DownCommand {
@@ -132,7 +135,7 @@ pub fn buffer_down_initialize_table(buffer_path: String) {
     let conn = buffer_pool.get_connection().unwrap();
 
     let result = conn.execute(
-        "CREATE TABLE IF NOT EXISTS CommandsReceived (ID INT PRIMARY KEY, ClientID TEXT, ParityId TEXT, Priority NUMBER, Command TEXT)",
+        "CREATE TABLE IF NOT EXISTS CommandsReceived (ID INT PRIMARY KEY, ClientID TEXT, ParityId TEXT, Priority NUMBER, Command TEXT, CreatedTime NUMBER)",
         params![],
     );
 
@@ -164,11 +167,12 @@ pub fn  buffer_down_list_schedule () -> Vec<DownCommand> {
         
             Ok (DownCommand{
 
-                    command_id: row.get(0).unwrap(), 
-                    client_id:  row.get(1).unwrap(),
-                    parity_id:  row.get(2).unwrap(),
-                    priority:   row.get(3).unwrap(),
-                    command:    row.get(4).unwrap()
+                    command_id:     row.get(0).unwrap(), 
+                    client_id:      row.get(1).unwrap(),
+                    parity_id:      row.get(2).unwrap(),
+                    priority:       row.get(3).unwrap(),
+                    command:        row.get(4).unwrap(),
+                    created_time:   row.get(5).unwrap()
                 
                 })
                 
@@ -235,9 +239,12 @@ pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:u8, co
 
     let conn = BUFFER_POOL.get_connection().unwrap();
 
+    let now = Utc::now();
+    let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
     let result = conn.execute(
-        "INSERT INTO CommandsReceived (ID, ClientID, ParityId, Priority, Command) VALUES (?, ?, ?, ?, ?);",
-        params![id_generator.gen(), client_id, parity_id, priority, command],
+        "INSERT INTO CommandsReceived (ID, ClientID, ParityId, Priority, Command, CreatedTime) VALUES (?, ?, ?, ?, ?, ?);",
+        params![id_generator.gen(), client_id, parity_id, priority, command, timestamp],
     );
 
     match result {

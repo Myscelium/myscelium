@@ -333,8 +333,6 @@ pub fn initialize_host_buffer (buffer_location:String) {
     
     enhanced_buffer::buffer_up_mananger::buffer_up_initialize_table(buffer_location.clone());
     
-    enhanced_buffer::buffer_client_mananger::client_buffer_initialize_table(buffer_location.clone());
-
     println!("\nAll buffer initialized succefully!\n");
 
     return;

@@ -122,7 +122,6 @@ pub fn set_workers_num (n_workers:u32) {
 
     enhanced_buffer::buffer_down_mananger::set_workers_num(n_workers);
     enhanced_buffer::buffer_up_mananger::set_workers_num(n_workers);
-    enhanced_buffer::buffer_client_mananger::set_workers_num(n_workers);
 
 }
 

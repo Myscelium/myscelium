@@ -1,5 +1,5 @@
 import signal
-import Myscelium as mys
+import Myscelium as mys # Maybe change the rust myscelium lib to MysceliumEngine
 
 class MysceliumHost:
 

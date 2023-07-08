@@ -21,7 +21,6 @@ lazy_static! {
     static ref ID_LENGTH:Mutex<i32> = Mutex::new(9999);
 }
 
-
 /*
     However, the rusqlite library in Rust automatically starts a new 
     transaction before each command and commits it after the command 
@@ -29,7 +28,6 @@ lazy_static! {
     known as "autocommit mode".
     
  */
-
 
 
  pub struct UniqueParityIdGenerator {
