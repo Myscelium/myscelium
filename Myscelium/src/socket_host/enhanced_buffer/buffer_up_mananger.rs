@@ -351,7 +351,7 @@ pub fn buffer_up_clear_old_commands () {
 
     let schedule = buffer_up_list_schedule();
 
-    if !(schedule.is_empty()) {
+    if (schedule.is_empty()) {
         return;
     }
 

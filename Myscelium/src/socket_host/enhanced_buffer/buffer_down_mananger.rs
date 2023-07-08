@@ -233,7 +233,7 @@ pub fn buffer_down_clear_old_commands () {
 
     let schedule = buffer_down_list_schedule();
 
-    if !(schedule.is_empty()) {
+    if (schedule.is_empty()) {
         return;
     }
 

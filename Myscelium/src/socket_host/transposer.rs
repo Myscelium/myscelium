@@ -242,6 +242,47 @@ fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<
     Ok(py_tuple)
 }
 
+fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
+    // Check if the dict contains the function name as a key
+    if !dict.contains_key("args") {
+        // If it does not, return an empty HashMap since there are no arguments
+        let kwargs: HashMap<String, PyObject> = HashMap::new();
+        return Ok(kwargs);
+    }
+
+    let args_string = match dict.get("args") {
+        Some(Value::String(s)) => s,
+        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
+    };
+
+    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
+
+    println!("Args extracted: {:?}", sub_dict);
+
+    let mut kwargs: HashMap<String, PyObject> = HashMap::new();
+    for (key, value) in sub_dict.iter() {
+        let py_value = match value {
+            Value::String(s) => s.into_py(py),
+            Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    i.into_py(py)
+                } else if let Some(f) = n.as_f64() {
+                    f.into_py(py)
+                } else {
+                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
+                }
+            },
+            Value::Bool(b) => b.into_py(py),
+            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
+        };
+        kwargs.insert(key.clone(), py_value);
+    }
+
+    println!("kwargs: {:?}", kwargs);
+
+    Ok(kwargs)
+}
+
 fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
 
     println!("Getting function name...");
@@ -255,15 +296,18 @@ fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
     let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     let (function, _) = callback_patterns.get(function_name).unwrap();
 
-    let args = dict_to_tuple(py, &command.command).map_err(|e| {
-        eprintln!("Error converting arguments to tuple: {:?}", e);
-        PyErr::new::<PyException, _>(format!("Error converting arguments to tuple: {:?}", e))
+    let kwargs_map = dict_to_kwargs(py, &command.command).map_err(|e| {
+        eprintln!("Error converting arguments to kwargs: {:?}", e);
+        PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e))
     })?;
 
-    ("args: {:?}", &args);
+    let kwargs = PyDict::new(py);
+    for (key, value) in kwargs_map {
+        kwargs.set_item(key, value).unwrap();
+    }
 
     // Call the Python function with the converted arguments
-    let result = function.call1(py, args).map_err(|e| {
+    let result = function.call(py, (), Some(kwargs)).map_err(|e| {
         eprintln!("Error calling function: {:?}", e);
         e
     })?;
