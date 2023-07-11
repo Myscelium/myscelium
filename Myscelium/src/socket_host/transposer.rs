@@ -635,7 +635,9 @@ pub fn initialize_transposer (py: Python<'_>) {
 
     let mut pool = ThreadPool::new(*num_of_workers as usize);
 
-    let schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
+    let mut schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
+
+    schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
 
     println!("\nSchedule to process:\n{:?}\n", schedule);
 
