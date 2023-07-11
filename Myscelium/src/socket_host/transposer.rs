@@ -648,19 +648,13 @@ pub fn initialize_transposer (py: Python<'_>) {
 
     println!("\nData found in schedule!");
 
-    let gil_pool = unsafe { py.new_pool() };
-
-    
-    let py = gil_pool.python();
-
-
     for dow_command in schedule {
 
         pool.wait_for_free_worker(Box::new(|| {
 
             println!("get a pool worker in tranposer!");
 
-            let mut py;
+            let py;
 
             {
                 let getting_py = unsafe {Python::assume_gil_acquired()};
