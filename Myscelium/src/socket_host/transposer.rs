@@ -12,6 +12,8 @@ use crate::socket_host::socket_host::is_client_registred;
 
 use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
 
+use std::sync::{Condvar, atomic::{AtomicBool, Ordering}};
+
 use pyo3::types::{IntoPyDict, PyString, PyInt, PyAny, PyDict, PyTuple, PyList, PyFunction, PyBool, PyFloat};
 use pyo3::{Python, PyResult, PyObject, PyErr};
 
@@ -27,7 +29,6 @@ use std::error::Error;
 use pyo3::ToPyObject;
 
 use crate::RUNNING;
-use std::sync::atomic::Ordering;
 
 use std::fmt;
 
@@ -138,15 +139,18 @@ pub fn set_transposer_callbacks (commands_patterns:HashMap<String, Value>, callb
 // > thread Manangement:
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
+type Message = Option<Job>;
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    sender: mpsc::Sender<Message>,
+    free_condvar: Arc<Condvar>,
 }
 
 struct Worker {
     id: usize,
     thread: Option<thread::JoinHandle<()>>,
+    busy: Arc<AtomicBool>,
 }
 
 impl ThreadPool {
@@ -155,44 +159,87 @@ impl ThreadPool {
 
         let (sender, receiver) = mpsc::channel();
         let receiver = Arc::new(Mutex::new(receiver));
+        let free_condvar = Arc::new(Condvar::new());
 
         let mut workers = Vec::with_capacity(size);
 
         for id in 0..size {
-            workers.push(Worker::new(id, Arc::clone(&receiver)));
+            workers.push(Worker::new(id, Arc::clone(&receiver), Arc::clone(&free_condvar)));
         }
 
-        ThreadPool { workers, sender }
+        ThreadPool { workers, sender, free_condvar }
     }
 
-    pub fn execute<F>(&self, f: F)
-    where
-        F: FnOnce() + Send + 'static,
-    {
-        let job = Box::new(f);
-        self.sender.send(job).unwrap();
+    pub fn execute(&self, f: Job) {
+        self.sender.send(Some(f)).unwrap();
     }
+
+    pub fn wait_for_free_worker(&self, f: Job) {
+        let lock = Mutex::new(());
+        let mut guard = lock.lock().unwrap();
+        while self.free_workers().is_empty() {
+            guard = self.free_condvar.wait_timeout(guard, std::time::Duration::from_secs(1)).unwrap().0;
+        }
+        self.execute(f);
+    }
+
+    pub fn free_workers(&self) -> Vec<usize> {
+        self.workers.iter()
+            .filter(|worker| !worker.busy.load(Ordering::SeqCst))
+            .map(|worker| worker.id)
+            .collect()
+    }
+
+    pub fn join(&mut self) {
+        // Send termination message to each worker.
+        for _ in &self.workers {
+            self.sender.send(None).unwrap();
+        }
+
+        // Wait for all workers to finish.
+        for worker in &mut self.workers {
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
+    }
+
 }
 
 impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>, free_condvar: Arc<Condvar>) -> Worker {
+        let busy = Arc::new(AtomicBool::new(false));
+        let busy_clone = Arc::clone(&busy);
+        let free_condvar_clone = Arc::clone(&free_condvar);
 
         let thread = thread::spawn(move || loop {
-            let job = match receiver.lock().unwrap().recv() {
-                Ok(job) => job,
+            let message = match receiver.lock().unwrap().recv() {
+                Ok(message) => message,
                 Err(_) => return,
             };
 
-            println!("Worker {} got a job; executing.", id);
-
-            job();
+            match message {
+                Some(job) => {
+                    busy_clone.store(true, Ordering::SeqCst);
+                    println!("\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-
+                              \nTransposer Worker {} got a job; executing.\n", id);
+                    job();
+                    busy_clone.store(false, Ordering::SeqCst);
+                    free_condvar_clone.notify_one();
+                }
+                None => {
+                    println!("\nTransposer Worker {} was told to terminate.
+                              \n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-\n", id);
+                    return;
+                }
+            }
         });
 
         Worker {
             id,
             thread: Some(thread),
+            busy,
         }
-
     }
 }
 
@@ -582,11 +629,11 @@ fn clear_old_data () {
 
 }
 
-pub fn initialize_transposer (py:Python) {
+pub fn initialize_transposer (py: Python<'_>) {
 
     let num_of_workers = NUM_WORKERS.lock().unwrap();
 
-    let pool = ThreadPool::new(*num_of_workers as usize);
+    let mut pool = ThreadPool::new(*num_of_workers as usize);
 
     let schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
@@ -601,9 +648,40 @@ pub fn initialize_transposer (py:Python) {
 
     println!("\nData found in schedule!");
 
+    let gil_pool = unsafe { py.new_pool() };
+
+    
+    let py = gil_pool.python();
+
+
     for dow_command in schedule {
-        process(py, dow_command);
+
+        pool.wait_for_free_worker(Box::new(|| {
+
+            println!("get a pool worker in tranposer!");
+
+            let mut py;
+
+            {
+                let getting_py = unsafe {Python::assume_gil_acquired()};
+
+                let gil_pool = unsafe { getting_py.clone().new_pool() };
+                
+                py = gil_pool.python();
+
+                println! ("Aquired python in a process task!");
+
+                process(py, dow_command);
+
+                println! ("Finalize a process task!");
+
+            }
+
+        }));      
+
     }
+    
+    pool.join();
 
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
 

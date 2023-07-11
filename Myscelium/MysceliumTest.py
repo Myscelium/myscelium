@@ -51,7 +51,7 @@ allowed_clients = [
 
 if __name__ == '__main__':
     
-    mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path="Data/")
+    mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2)
 
     # print(mys_host.get_registred_commands())
 

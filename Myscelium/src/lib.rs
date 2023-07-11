@@ -169,7 +169,7 @@ fn stop_socket_host() {
 }
 
 #[pyfunction]
-fn initialize_socket_host (py:Python, ip:String, port:i32, client_id:String) {
+fn initialize_socket_host (py: Python<'_>, ip:String, port:i32, client_id:String) {
     let address = format!("{}:{}", ip, port);
 
     thread::spawn(|| {
@@ -188,6 +188,7 @@ fn initialize_socket_host (py:Python, ip:String, port:i32, client_id:String) {
 
     });
 
+    
     loop {
 
         initialize_transposer(py);
@@ -202,7 +203,7 @@ fn initialize_socket_host (py:Python, ip:String, port:i32, client_id:String) {
 
 }
 
-fn translate_value_to_py (py: Python, value: JsonValue) -> PyResult<PyObject> {
+fn translate_value_to_py (py: Python<'_>, value: JsonValue) -> PyResult<PyObject> {
     // Convert the JSON value to the appropriate Python object
     match value {
         JsonValue::Null => Ok(py.None()),
@@ -230,7 +231,7 @@ fn translate_value_to_py (py: Python, value: JsonValue) -> PyResult<PyObject> {
 }
 
 #[pyfunction]
-fn get_available_commands(py: Python) -> PyResult<PyObject> {
+fn get_available_commands(py: Python<'_>) -> PyResult<PyObject> {
     let commands = get_available_commands_registered();
 
     // Convert the HashMap values to PyObjects
@@ -274,7 +275,7 @@ fn set_allowed_clients (allowed_clients_list: &PyList) -> PyResult<()> {
 }
 
 #[pymodule]
-fn Myscelium (py: Python, m: &PyModule) -> PyResult<()> {
+fn Myscelium (py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(initalize_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
