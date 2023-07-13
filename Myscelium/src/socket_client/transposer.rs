@@ -32,6 +32,50 @@ use crate::CLIENT_IS_RUNING;
 
 use std::fmt;
 
+
+use rand::Rng;
+use rand::distributions::Alphanumeric;
+
+pub struct UniqueParityIdGenerator {
+    length: usize,
+    registered_ids: Vec<String>,
+}
+
+impl UniqueParityIdGenerator {
+    pub fn new(length: usize, registered_ids: Vec<String>) -> Self {
+        Self {
+            length,
+            registered_ids,
+        }
+    }
+
+    pub fn update_registered_parity_ids (&mut self, registered_ids: Vec<String>) {
+        self.registered_ids = registered_ids;
+    }
+
+    pub fn gen (&mut self) -> String {
+        loop {
+            let buffer_id = self.random_string();
+            if self.validate(&buffer_id) {
+                return buffer_id;
+            }
+        }
+    }
+
+    fn random_string (&self) -> String {
+        let rng = rand::thread_rng();
+        let id: String = rng.sample_iter(&Alphanumeric)
+            .take(self.length)
+            .map(char::from)
+            .collect();
+        id
+    }
+
+    fn validate (&self, buffer_id: &String) -> bool {
+        !self.registered_ids.contains(buffer_id)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Command {
     client_id: String,

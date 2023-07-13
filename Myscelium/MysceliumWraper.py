@@ -41,6 +41,43 @@ class MysceliumHost:
     def send (self):
          pass
 
+class MysceliumClient:
+
+    def __init__(self, callbacks:list, client_uid:int, buffer_path:str, n_workers=2) -> None:
+
+        self.client_uid = client_uid
+
+        special_functions = [{
+            "function": get_registred_commands,
+            "response_type":"same_as_origin",
+            "args": "None",
+        }, ]
+        
+        callbacks = callbacks + special_functions
+
+        mys.registry_socket_client_callbacks(callbacks)
+        mys.initalize_client_buffer_tables(buffer_path)
+        mys.set_socket_client_allowed_clients(self.allowed_clients)
+        mys.set_socket_client_transposer_num_of_workers(n_workers)
+
+        self.host_thread = None
+
+        pass
+    
+    def get_registred_commands (self) -> dict:
+        print("Activated the get registred commands")
+        return mys.get_socket_client_available_commands()
+
+    def initialize_client (self, ip:str, port:int):
+        mys.initialize_socket_client (ip, port, self.host_id)
+
+    def stop_client (self, signal, frame):
+        # This function will be called when a SIGINT signal is received
+        mys.stop_socket_client()
+
+    def send (self):
+         pass
+
 # -> Functions:
 
 def client_pattern (client_type:str, client_id:str):

@@ -129,63 +129,202 @@ pub fn get_socket_client_available_commands_registered () -> HashMap<String, Val
 
 // The Debug Trait, is also derived, which allows the structure to be printed fro debugging purposes
 
-#[derive(Serialize, Deserialize, Debug)]
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Command {
-    id: i32,
     client_id: String,
     parity_id: String,
-    priority: i32,
-    command: HashMap<String, String>
+    priority: u8,
+    command: HashMap<String, Value>,
+}
+
+enum Response {
+    Command(Command),
+    None,
+}
+
+#[derive(Serialize, Deserialize)]
+enum CommandType {
+    Function(String),
+    Response(String),
+    Unknown,
+}
+
+impl Command {
+
+    fn new(client_id: &str, parity_id: &str, priority:u8, command:HashMap<String, Value>) -> Self {
+        
+        Self {
+
+            client_id: client_id.to_string(),
+            parity_id: parity_id.to_string(),
+            priority,
+            command,
+
+        }
+
+    }
+
+    fn command_type(&self) -> CommandType {
+
+        if self.command.contains_key("function") {
+            CommandType::Function(self.command.get("function").unwrap().to_string())
+        } else if self.command.contains_key("response") {
+            CommandType::Response(self.command.get("response").unwrap().to_string())
+        } else {
+            CommandType::Unknown
+        }
+    
+    }
+
 }
 
 use serde_json::to_string;
 
-fn main() {
+fn verify_connection (stream:&mut TcpStream) -> bool{
+
+    let mut command_map = HashMap::new();
+    command_map.insert("function".to_string(), Value::String("C202".to_string()));
 
     let command = Command {
-        id: 1,
-        client_id: "client1".to_string(),
-        parity_id: "parity1".to_string(),
-        priority: 2,
-        command: {
-            let mut m = HashMap::new();
-            m.insert("key".to_string(), "value".to_string());
-            m
-        },
+        client_id: "some_client_id".to_string(),
+        parity_id: "itisaspecialcase".to_string(),
+        priority: 11,
+        command: command_map,
     };
 
-    let json = to_string(&command).unwrap();
-    println!("{}", json);
+    let command_json = json!(command).to_string();
 
-    // -> Socket Client:
+    stream.write_all(command_json.as_bytes()).unwrap();
 
-    let mut stream = TcpStream::connect("127.0.0.1:7878").unwrap();
+    let mut buffer = [0; 4096];
+    stream.read(&mut buffer).unwrap();
 
-    let command = json!({
-        "function": "get_symbols_data",
-        "parameters": {
-            "symbols_data": {
-                "data-type": "AAPL",
-                "symbols": "AAPL",
-                "start-ts": 162.34,
-                "end-ts": 163.34
+    let buffer_string = String::from_utf8_lossy(&buffer)
+    .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
+    .to_string();
+
+    let command: Command = serde_json::from_str(&buffer_string).unwrap();
+
+    println!("{:?}", command);
+
+    match command.command.get("function") {
+        Some(Value::String(function)) => {
+
+            if function == "C200" {
+                return true
+            } else {
+                return false;
+            } 
+        }
+        _ => {
+            println!("The function name is not found or not a string.");
+            return false
+        }
+    }
+    
+}
+
+fn send (stream:&mut TcpStream, command:Command) -> Response {
+
+    let conn:bool = verify_connection(stream);
+
+    if !conn {
+        println!("Not connected!");  
+        return Response::None;
+    }
+
+    println!("Connected!!");
+
+    let command_json = json!(command).to_string();
+
+    stream.write_all(command_json.as_bytes()).unwrap();
+
+    let mut buffer = [0; 4096];
+    stream.read(&mut buffer).unwrap();
+
+    let buffer_string = String::from_utf8_lossy(&buffer)
+    .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
+    .to_string();
+
+    let command: Command = serde_json::from_str(&buffer_string).unwrap();
+
+    println!("Received: {:?}", command);
+
+    return Response::Command (command);
+    
+}
+
+
+fn send_command (request_command:Command) {
+
+    let mut stream = TcpStream::connect("127.0.0.1:4444").unwrap();
+
+    loop {
+
+        thread::sleep(Duration::from_secs(5));
+
+        let received = send(&mut stream, request_command.clone());
+
+        let mut command_received;
+
+        match received {    
+            Response::None => {
+                println!("Received invalid data!");
+                continue;
+            }
+            Response::Command(c) => {
+                println!("Received command: {:?}", c);
+                command_received = c
             }
         }
-    });
 
-    let command_string = command.to_string();
+        match command_received.command_type() {
+            
+            CommandType::Function(f) => {
 
-    // let msg = b"hello, world!";
-    // stream.write(msg).unwrap();
+                let function:String = serde_json::from_str(&f).unwrap();
 
-    stream.write_all(command_string.as_bytes()).unwrap();
+                if command_received.parity_id != "itisaspecialcase" {
+                    if function == "C210".to_string() {
+                        println!("Received Confirmation!");
+                        break;
+                    } else if function == "Error".to_string() {
+                        println!("An error ocurred in host, the error was: {}", command_received.command.get("Error").unwrap());
+                        break;
+                    }
+                }
 
-    // write is used to send a message to the server.
+                println!("Receive a function: {:?}", f);
+            
+            }
 
-    let mut buffer = [0; 512];
-    stream.read(&mut buffer).unwrap();
-    // Then we read the response from the server into a buffer and print it out.
+            CommandType::Response(r) => {
 
-    println!("Received: {}", String::from_utf8_lossy(&buffer[..]))
+                println!("Received a response!");   
+
+                let response_parity_id = command_received.parity_id;
+
+                if response_parity_id == request_command.parity_id {
+                    println!("Response matches the request parity_id: {:?}", request_command.parity_id);
+
+                    let response_command = command_received.command;
+
+                    println!("The receive response is: {:?}", response_command);
+
+                    break;
+
+                }
+            
+            }
+
+            CommandType::Unknown => {
+                println!("Received a Unknown command!")
+            }
+
+        }
+
+    }
 
 }
