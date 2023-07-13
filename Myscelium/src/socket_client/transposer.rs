@@ -32,7 +32,6 @@ use crate::CLIENT_IS_RUNING;
 
 use std::fmt;
 
-
 use rand::Rng;
 use rand::distributions::Alphanumeric;
 
@@ -560,7 +559,7 @@ fn process (py:Python, down_command:DownCommand) {
 
     let mut client_id = down_command.client_id;
 
-    match result {
+    match result { // TODO >>> Remove the redirect patterns becasue them isn't necessary on client
 
         ResultType::Map(m) => {
             

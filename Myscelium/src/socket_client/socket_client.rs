@@ -1,4 +1,5 @@
 use crate::socket_client::enhanced_buffer;
+use crate::socket_host::enhanced_buffer::buffer_up_mananger;
 use lazy_static::lazy_static;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
@@ -178,6 +179,25 @@ impl Command {
     
     }
 
+    fn from_up_command (&self, up_command: UpCommand) -> Self {
+
+        let client_id = up_command.client_id.clone();
+        let parity_id = up_command.parity_id.clone();
+        let priority = up_command.priority.clone();
+        let command: HashMap<String, Value> = serde_json::from_str(&up_command.command).unwrap();
+
+        Self {
+
+            client_id,
+            parity_id,
+            priority,
+            command
+
+        }
+
+
+    }
+
 }
 
 use serde_json::to_string;
@@ -256,10 +276,33 @@ fn send (stream:&mut TcpStream, command:Command) -> Response {
     
 }
 
+use buffer_up_mananger::UpCommand;
 
-fn send_command (request_command:Command) {
+fn initialize_client (address:String) {
+    
+    let mut stream = TcpStream::connect(address).unwrap();
 
-    let mut stream = TcpStream::connect("127.0.0.1:4444").unwrap();
+    let up_schedule = buffer_up_mananger::buffer_up_list_schedule();
+
+    
+
+    for up_command in up_schedule {
+        
+        loop {
+
+            let received = send(&mut stream, );
+            let mut command_received:Command;
+
+
+
+
+        }
+
+
+
+    }
+
+
 
     loop {
 
@@ -270,6 +313,7 @@ fn send_command (request_command:Command) {
         let mut command_received;
 
         match received {    
+
             Response::None => {
                 println!("Received invalid data!");
                 continue;
@@ -278,6 +322,7 @@ fn send_command (request_command:Command) {
                 println!("Received command: {:?}", c);
                 command_received = c
             }
+
         }
 
         match command_received.command_type() {

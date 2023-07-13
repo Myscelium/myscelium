@@ -14,6 +14,7 @@ use serde::{Serialize, Deserialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+use std::clone;
 use std::sync::{Arc, Mutex};
 
 use std::collections::HashMap;
@@ -57,7 +58,7 @@ lazy_static! {
 
  }
 
- #[derive(Serialize, Deserialize, Debug)]
+ #[derive(Serialize, Deserialize, Debug, Clone)]
  pub struct UpCommand {
     pub command_id:i32,
     pub client_id:String,

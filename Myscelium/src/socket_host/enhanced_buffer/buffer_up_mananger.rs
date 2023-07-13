@@ -57,7 +57,7 @@ lazy_static! {
 
  }
 
- #[derive(Serialize, Deserialize, Debug)]
+ #[derive(Serialize, Deserialize, Debug, Clone)]
  pub struct UpCommand {
     pub command_id:i32,
     pub client_id:String,
