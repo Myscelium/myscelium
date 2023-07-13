@@ -18,10 +18,10 @@ class MysceliumHost:
         callbacks = callbacks + special_functions
 
         mys.registry_socket_host_callbacks(callbacks)
-        mys.initalize_buffer_tables(buffer_path)
-        mys.set_allowed_clients(self.allowed_clients)
-        mys.set_num_of_workers(n_workers)
-        mys.set_max_connections(n_max_conns)
+        mys.initalize_host_buffer_tables(buffer_path)
+        mys.set_socket_host_allowed_clients(self.allowed_clients)
+        mys.set_socket_host_transposer_num_of_workers(n_workers)
+        mys.set_socket_host_max_connections(n_max_conns)
 
         self.host_thread = None
 
@@ -29,7 +29,7 @@ class MysceliumHost:
     
     def get_registred_commands (self) -> dict:
         print("Activated the get registred commands")
-        return mys.get_available_commands()
+        return mys.get_socket_host_available_commands()
 
     def initialize_host (self, ip:str, port:int):
         mys.initialize_socket_host (ip, port, self.host_id)

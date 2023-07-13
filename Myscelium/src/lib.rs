@@ -59,7 +59,7 @@ lazy_static! {
 
 
 #[pyfunction]
-fn set_num_of_workers (n_workers:&PyInt) {
+fn set_socket_host_transposer_num_of_workers (n_workers:&PyInt) {
 
     let workers_num:u32 = n_workers.extract().unwrap();
 
@@ -70,7 +70,7 @@ fn set_num_of_workers (n_workers:&PyInt) {
 }
 
 #[pyfunction]
-fn set_max_connections (n_max_conns:&PyInt) {
+fn set_socket_host_max_connections (n_max_conns:&PyInt) {
 
     let max_conns:u32 = n_max_conns.extract().unwrap();
 
@@ -98,7 +98,7 @@ fn extract_arg_types (arg: &PyAny) -> PyResult<Value> {
 }
 
 #[pyfunction]
-fn initalize_buffer_tables (path:&PyString) {
+fn initalize_host_buffer_tables (path:&PyString) {
 
     let buffer_path:String = path.extract().unwrap();
 
@@ -188,7 +188,6 @@ fn initialize_socket_host (py: Python<'_>, ip:String, port:i32, client_id:String
 
     });
 
-    
     loop {
 
         initialize_transposer(py);
@@ -231,7 +230,7 @@ fn translate_value_to_py (py: Python<'_>, value: JsonValue) -> PyResult<PyObject
 }
 
 #[pyfunction]
-fn get_available_commands(py: Python<'_>) -> PyResult<PyObject> {
+fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
     let commands = get_available_commands_registered();
 
     // Convert the HashMap values to PyObjects
@@ -245,7 +244,7 @@ fn get_available_commands(py: Python<'_>) -> PyResult<PyObject> {
 }
 
 #[pyfunction]
-fn set_allowed_clients (allowed_clients_list: &PyList) -> PyResult<()> {
+fn set_socket_host_allowed_clients (allowed_clients_list: &PyList) -> PyResult<()> {
 
     for client_allowed in allowed_clients_list.iter() {
         
@@ -276,13 +275,13 @@ fn set_allowed_clients (allowed_clients_list: &PyList) -> PyResult<()> {
 
 #[pymodule]
 fn Myscelium (py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(initalize_buffer_tables, m)?)?;
+    m.add_function(wrap_pyfunction!(initalize_host_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
-    m.add_function(wrap_pyfunction!(get_available_commands, m)?)?;
-    m.add_function(wrap_pyfunction!(set_max_connections, m)?)?;
-    m.add_function(wrap_pyfunction!(set_num_of_workers, m)?)?;
-    m.add_function(wrap_pyfunction!(set_allowed_clients, m)?)?;
+    m.add_function(wrap_pyfunction!(get_socket_host_available_commands, m)?)?;
+    m.add_function(wrap_pyfunction!(set_socket_host_max_connections, m)?)?;
+    m.add_function(wrap_pyfunction!(set_socket_host_transposer_num_of_workers, m)?)?;
+    m.add_function(wrap_pyfunction!(set_socket_host_allowed_clients, m)?)?;
     Ok(())
 }
 
