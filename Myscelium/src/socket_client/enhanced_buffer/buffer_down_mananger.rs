@@ -98,7 +98,7 @@ fn get_registred_ids () -> Vec<i32> {
     let mut ids:Vec<i32> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsReceived").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsReceived").unwrap();
         let commands_iter = smtp.query_map(params![], |row| {
             let id: i32 = row.get(0)?;
             Ok(id)
@@ -135,16 +135,16 @@ pub fn buffer_down_initialize_table(buffer_path: String) {
     let conn = buffer_pool.get_connection().unwrap();
 
     let result = conn.execute(
-        "CREATE TABLE IF NOT EXISTS CommandsReceived (ID INT PRIMARY KEY, ClientID TEXT, ParityId TEXT, Priority NUMBER, Command TEXT, CreatedTime NUMBER)",
+        "CREATE TABLE IF NOT EXISTS ClientCommandsReceived (ID INT PRIMARY KEY, ClientID TEXT, ParityId TEXT, Priority NUMBER, Command TEXT, CreatedTime NUMBER)",
         params![],
     );
 
     match result {
         Ok(_) => {
-            println!("Successfully initialize CommandsReceived table!");
+            println!("Successfully initialize ClientCommandsReceived table!");
         }
         Err(e) => {
-            eprintln!("An error occurred while scheduling the command in the CommandsReceived table: {}", e);
+            eprintln!("An error occurred while scheduling the command in the ClientCommandsReceived table: {}", e);
         }
     }
 
@@ -161,7 +161,7 @@ pub fn  buffer_down_list_schedule () -> Vec<DownCommand> {
     let mut commands_schedule:Vec<DownCommand> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsReceived").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsReceived").unwrap();
     
         let commands_iter = smtp.query_map(params![], |row| {
         
@@ -196,7 +196,7 @@ fn get_registred_parity_ids (client_id:String) -> Vec<String> {
     let mut parity_ids:Vec<String> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsReceived WHERE ClientID = ? ").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsReceived WHERE ClientID = ? ").unwrap();
         let commands_iter = smtp.query_map(params![client_id], |row| {
             let parity_id: String = row.get(2)?;
             Ok(parity_id)
@@ -271,20 +271,20 @@ pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:u8, co
     let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
     let result = conn.execute(
-        "INSERT INTO CommandsReceived (ID, ClientID, ParityId, Priority, Command, CreatedTime) VALUES (?, ?, ?, ?, ?, ?);",
+        "INSERT INTO ClientCommandsReceived (ID, ClientID, ParityId, Priority, Command, CreatedTime) VALUES (?, ?, ?, ?, ?, ?);",
         params![id_generator.gen(), client_id, parity_id, priority, command, timestamp],
     );
 
     match result {
         Ok(rows) => {
             if rows > 0 {
-                println!("Successfully inserted command in the table CommandsReceived. {} row(s) were affected.", rows);
+                println!("Successfully inserted command in the table ClientCommandsReceived. {} row(s) were affected.", rows);
             } else {
                 println!("No rows were affected.");
             }
         }
         Err(e) => {
-            eprintln!("An error occurred while inserting the command in the table CommandsReceived: {}", e);
+            eprintln!("An error occurred while inserting the command in the table ClientCommandsReceived: {}", e);
         }
     }
 
@@ -300,7 +300,7 @@ pub fn check_if_parity_id_is_registred (client_id:String, parity_id:String) -> b
     let mut ids:Vec<Result<String, _>> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsReceived WHERE ClientID = ?").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsReceived WHERE ClientID = ?").unwrap();
         let commands_iter = smtp.query_map(params![client_id], |row| {
             let id:String = row.get(2)?;
             Ok(id)
@@ -321,7 +321,7 @@ pub fn check_if_parity_id_is_registred (client_id:String, parity_id:String) -> b
                 }
             },
             Err (e) => {
-                eprintln!("And error ocurred when obtaining the ids registred in the table CommandsReceived: {}", e);
+                eprintln!("And error ocurred when obtaining the ids registred in the table ClientCommandsReceived: {}", e);
             }                                         
 
         }
@@ -338,20 +338,20 @@ pub fn  buffer_down_update_schedule (id:i32, client_id:String, parity_id:String,
     let conn = BUFFER_POOL.get_connection().unwrap();
 
     let result = conn.execute(
-        "Update CommandsReceived set ClientID = ?, ParityId = ?, Priority = ?, Command = ? where ID = ?",
+        "Update ClientCommandsReceived set ClientID = ?, ParityId = ?, Priority = ?, Command = ? where ID = ?",
         params![client_id, parity_id, priority, command, id],
     );
 
     match result {
         Ok(rows) => {
             if rows > 0 {
-                println!("Successfully update the command in the table CommandsReceived. {} row(s) were affected.", rows);
+                println!("Successfully update the command in the table ClientCommandsReceived. {} row(s) were affected.", rows);
             } else {
-                println!("Successfully update the command in the table CommandsReceived. No rows were affected.");
+                println!("Successfully update the command in the table ClientCommandsReceived. No rows were affected.");
             }
         }
         Err(e) => {
-            eprintln!("An error occurred while update the command in the table CommandsReceived: {}", e);
+            eprintln!("An error occurred while update the command in the table ClientCommandsReceived: {}", e);
         }
     }
 
@@ -364,7 +364,7 @@ pub fn  buffer_down_remove_schedule_by_id (id:i32) {
 
     let conn = BUFFER_POOL.get_connection().unwrap();
     let result = conn.execute(
-        "DELETE from CommandsReceived where ID = ?",
+        "DELETE from ClientCommandsReceived where ID = ?",
         params![id],
     );
 
@@ -374,7 +374,7 @@ pub fn  buffer_down_remove_schedule_by_id (id:i32) {
             println!("Successfully deleted Command of ID: {}. {} rows were affected.", id, rows);
         }
         Err(e) => {
-            eprintln!("An error occurred while deleting the command: {} from CommandsReceived table: {}", id, e);
+            eprintln!("An error occurred while deleting the command: {} from ClientCommandsReceived table: {}", id, e);
         }
 
     }
@@ -389,7 +389,7 @@ pub fn  buffer_down_remove_schedule_by_parity_id (client_id:String, parity_id:St
     let conn = BUFFER_POOL.get_connection().unwrap();
     
     let result = conn.execute(
-        "DELETE from CommandsReceived where ClientID = ? AND ParityId = ?",
+        "DELETE from ClientCommandsReceived where ClientID = ? AND ParityId = ?",
         params![client_id, parity_id],
     );
 
@@ -399,7 +399,7 @@ pub fn  buffer_down_remove_schedule_by_parity_id (client_id:String, parity_id:St
             println!("Successfully deleted Command from Client: {} And ParityID: {}. {} rows were affected.",client_id, parity_id, rows);
         }
         Err(e) => {
-            eprintln!("An error occurred while deleting the Client: {} And ParityID: {} from CommandsReceived table: {}", client_id, parity_id, e);
+            eprintln!("An error occurred while deleting the Client: {} And ParityID: {} from ClientCommandsReceived table: {}", client_id, parity_id, e);
         }   
     
     }

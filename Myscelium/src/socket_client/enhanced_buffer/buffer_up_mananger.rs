@@ -86,7 +86,7 @@ fn get_registred_ids () -> Vec<i32> {
     let mut ids:Vec<i32> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsTosend").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend").unwrap();
         let commands_iter = smtp.query_map(params![], |row| {
             let id:i32 = row.get(0).unwrap();
             Ok(id)
@@ -123,16 +123,16 @@ pub fn buffer_up_initialize_table(buffer_path: String) {
     let conn = buffer_pool.get_connection().unwrap();
 
     let result = conn.execute(
-        "CREATE TABLE IF NOT EXISTS CommandsTosend (ID INT PRIMARY KEY, ClientID TEXT, ParityId TEXT, Priority NUMBER, Command TEXT, CreatedTime NUMBER)",
+        "CREATE TABLE IF NOT EXISTS ClientCommandsTosend (ID INT PRIMARY KEY, ClientID TEXT, ParityId TEXT, Priority NUMBER, Command TEXT, CreatedTime NUMBER)",
         params![],
     );
 
     match result {
         Ok(_) => {
-            println!("Successfully initialize CommandsTosend table!");
+            println!("Successfully initialize ClientCommandsTosend table!");
         }
         Err(e) => {
-            eprintln!("An error occurred while scheduling the command in the CommandsTosend table: {}", e);
+            eprintln!("An error occurred while scheduling the command in the ClientCommandsTosend table: {}", e);
         }
     }
 
@@ -148,7 +148,7 @@ fn get_registred_parity_ids (client_id:String) -> Vec<String> {
     let mut parity_ids:Vec<String> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsTosend WHERE ClientID = ? ").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend WHERE ClientID = ? ").unwrap();
         let commands_iter = smtp.query_map(params![client_id], |row| {
             let parity_id: String = row.get(2)?;
             Ok(parity_id)
@@ -185,7 +185,7 @@ pub fn buffer_up_get_scheduled_by_parity_id (client_id:String, parity_id:String)
     let mut commands_schedule:Vec<UpCommand> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsTosend WHERE ClientID = ? AND ParityId = ?").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend WHERE ClientID = ? AND ParityId = ?").unwrap();
 
         let commands_iter = smtp.query_map(params![client_id, parity_id], |row| {
     
@@ -222,7 +222,7 @@ pub fn buffer_up_list_schedule () -> Vec<UpCommand> {
     let mut commands_schedule:Vec<UpCommand> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsTosend").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend").unwrap();
 
         let commands_iter = smtp.query_map(params![], |row| {
     
@@ -264,16 +264,16 @@ pub fn buffer_up_schedule (client_id:String, parity_id:String, priority:u8, comm
     let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
     let result = conn.execute(
-        "INSERT INTO CommandsTosend (ID, ClientID, ParityId, Priority, Command, CreatedTime) VALUES (?, ?, ?, ?, ?, ?);",
+        "INSERT INTO ClientCommandsTosend (ID, ClientID, ParityId, Priority, Command, CreatedTime) VALUES (?, ?, ?, ?, ?, ?);",
         params![id_generator.gen(), client_id, parity_id, priority, command, timestamp],
     );
 
     match result {
         Ok(_) => {
-            println!("Successfully schedule Command in CommandsTosend");
+            println!("Successfully schedule Command in ClientCommandsTosend");
         }
         Err(e) => {
-            eprintln!("An error occurred while scheduling the command in the CommandsTosend table: {}", e);
+            eprintln!("An error occurred while scheduling the command in the ClientCommandsTosend table: {}", e);
         }
     }
 
@@ -288,7 +288,7 @@ pub fn check_if_parity_id_is_registred (parity_id:String) -> bool {
     let mut ids:Vec<Result<String, _>> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM CommandsTosend").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend").unwrap();
         let commands_iter = smtp.query_map(params![], |row| { 
             let id:String = row.get(2).unwrap();
             Ok(id)
@@ -310,7 +310,7 @@ pub fn check_if_parity_id_is_registred (parity_id:String) -> bool {
                 }
             },
             Err (e) => {
-                eprintln!("An error occurred while check if parity_id is registred in the CommandsTosend table: {}", e);
+                eprintln!("An error occurred while check if parity_id is registred in the ClientCommandsTosend table: {}", e);
             }                                         
 
         }
@@ -327,16 +327,16 @@ pub fn buffer_up_update_schedule (id:i32, client_id:String, parity_id:String, pr
     let conn = BUFFER_POOL.get_connection().unwrap();
 
     let result = conn.execute(
-        "Update CommandsTosend set ClientID = ?, ParityId = ?, Priority = ?, Command = ? where ID = ?",
+        "Update ClientCommandsTosend set ClientID = ?, ParityId = ?, Priority = ?, Command = ? where ID = ?",
         params![client_id, parity_id, priority, command, id],
     );
 
     match result {
         Ok(_) => {
-            println!("Successfully update Command in CommandsTosend");
+            println!("Successfully update Command in ClientCommandsTosend");
         }
         Err(e) => {
-            eprintln!("An error occurred while update the command in the CommandsTosend table: {}", e);
+            eprintln!("An error occurred while update the command in the ClientCommandsTosend table: {}", e);
         }
     }
 
@@ -376,16 +376,16 @@ pub fn buffer_up_remove_schedule_by_id (id:i32) {
 
     let conn = BUFFER_POOL.get_connection().unwrap();
     let result = conn.execute(
-        "DELETE from CommandsTosend where ID = ?",
+        "DELETE from ClientCommandsTosend where ID = ?",
         params![id],
     );
 
     match result {
         Ok(_) => {
-            println!("Successfully removed scheduled Command of id: {} in CommandsTosend", id);
+            println!("Successfully removed scheduled Command of id: {} in ClientCommandsTosend", id);
         }
         Err(e) => {
-            eprintln!("An error occurred while removing the scheduled the command of id: {} in the CommandsTosend table: {}", id, e);
+            eprintln!("An error occurred while removing the scheduled the command of id: {} in the ClientCommandsTosend table: {}", id, e);
         }
     }
 
@@ -398,16 +398,16 @@ pub fn buffer_up_remove_schedule_by_parity_id (client_id:String, parity_id:Strin
 
     let conn = BUFFER_POOL.get_connection().unwrap();
     let result = conn.execute(
-        "DELETE from CommandsTosend where ClientID = ? AND ParityId = ?",
+        "DELETE from ClientCommandsTosend where ClientID = ? AND ParityId = ?",
         params![client_id, parity_id],
     );
 
     match result {
         Ok(_) => {
-            println!("Successfully remove schedule Command in CommandsTosend");
+            println!("Successfully remove schedule Command in ClientCommandsTosend");
         }
         Err(e) => {
-            eprintln!("An error occurred while removing scheduled command of parity_id: {} from client: {} in the CommandsTosend table: {}", client_id, parity_id, e);
+            eprintln!("An error occurred while removing scheduled command of parity_id: {} from client: {} in the ClientCommandsTosend table: {}", client_id, parity_id, e);
         }
     }
 
