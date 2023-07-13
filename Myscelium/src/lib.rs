@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 use lazy_static::lazy_static;   
 
 lazy_static! {
-    pub static ref RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+    pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
 }
 
 
@@ -165,7 +165,7 @@ fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()
 }
 
 fn stop_socket_host() {
-    RUNNING.store(false, Ordering::SeqCst);
+    HOST_IS_RUNING.store(false, Ordering::SeqCst);
 }
 
 #[pyfunction]
@@ -175,7 +175,7 @@ fn initialize_socket_host (py: Python<'_>, ip:String, port:i32, client_id:String
     thread::spawn(|| {
 
         ctrlc::set_handler(move || {
-            if RUNNING.load(Ordering::SeqCst) {
+            if HOST_IS_RUNING.load(Ordering::SeqCst) {
                 println!("\nreceived Ctrl+C!\n");
                 stop_socket_host();
             }
@@ -193,7 +193,7 @@ fn initialize_socket_host (py: Python<'_>, ip:String, port:i32, client_id:String
         initialize_transposer(py);
         println!("Socket transposer exited ssucefully!");
     
-        if !RUNNING.load(Ordering::SeqCst) {
+        if !HOST_IS_RUNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
             thread::sleep(Duration::from_secs(7));
             break;
@@ -272,6 +272,37 @@ fn set_socket_host_allowed_clients (allowed_clients_list: &PyList) -> PyResult<(
     Ok(())
 
 }
+
+// > -----------------------------------------------------------------------------------------------------------------------------------------
+
+// -> Socket Client mainpoints:
+
+fn client_send () {
+
+}
+
+fn set_client_host_taarget () {
+
+}
+
+fn set_client_workers_num () {
+
+}
+
+fn set_client_callbacks () {
+
+}
+
+fn initialize_client () {
+
+}
+
+
+// TODO >>> Add a protocol id in the host to check if the client is outdated compared to the host
+
+// > -----------------------------------------------------------------------------------------------------------------------------------------
+
+// -> Entries:
 
 #[pymodule]
 fn Myscelium (py: Python<'_>, m: &PyModule) -> PyResult<()> {

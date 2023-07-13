@@ -29,7 +29,7 @@ use std::time::Duration;
 
 // > Global Vars Core
 
-use crate::RUNNING;
+use crate::HOST_IS_RUNING;
 use std::sync::atomic::Ordering;
 
 #[derive(Debug, Clone)]
@@ -342,7 +342,7 @@ pub fn initialize_host_buffer (buffer_location:String) {
 fn pool_stoping_event_controler(pool: Arc<Mutex<ThreadPool>>) {
     loop {
         // Stop the thread pool
-        if !RUNNING.load(Ordering::SeqCst) {
+        if !HOST_IS_RUNING.load(Ordering::SeqCst) {
             pool.lock().unwrap().stop();
             println!("Stopped the thread pool!");
             break;
@@ -378,8 +378,8 @@ pub fn initialize_host (address:String, client_id:String) {
 
         println!("Waiting conn!");
 
-        // Keep the thread alive until RUNNING is set to false
-        if !RUNNING.load(Ordering::SeqCst) {
+        // Keep the thread alive until HOST_IS_RUNING is set to false
+        if !HOST_IS_RUNING.load(Ordering::SeqCst) {
             print!("runing is set to false, skipping");
             break;
         }

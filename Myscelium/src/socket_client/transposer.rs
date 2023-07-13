@@ -28,7 +28,7 @@ use std::error::Error;
 
 use pyo3::ToPyObject;
 
-use crate::HOST_IS_RUNING;
+use crate::RUNNING;
 
 use std::fmt;
 
