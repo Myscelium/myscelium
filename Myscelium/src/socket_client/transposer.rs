@@ -28,7 +28,7 @@ use std::error::Error;
 
 use pyo3::ToPyObject;
 
-use crate::RUNNING;
+use crate::CLIENT_IS_RUNING;
 
 use std::fmt;
 
@@ -115,7 +115,7 @@ lazy_static! {
 
 }
 
-pub fn set_workers_num (n_workers:u32) {
+pub fn set_socket_client_transposer_workers_num (n_workers:u32) {
 
     let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
 
@@ -126,7 +126,7 @@ pub fn set_workers_num (n_workers:u32) {
 
 }
 
-pub fn set_transposer_callbacks (commands_patterns:HashMap<String, Value>, callbacks_patterns:HashMap<String, (Py<PyFunction>, Value)>) {
+pub fn set_socket_client_transposer_callbacks (commands_patterns:HashMap<String, Value>, callbacks_patterns:HashMap<String, (Py<PyFunction>, Value)>) {
 
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
     *command_patterns = commands_patterns;
@@ -629,7 +629,7 @@ fn clear_old_data () {
 
 }
 
-pub fn initialize_transposer (py: Python<'_>) {
+pub fn initialize_socket_client_transposer (py: Python<'_>) {
 
     let num_of_workers = NUM_WORKERS.lock().unwrap();
 

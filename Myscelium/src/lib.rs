@@ -7,7 +7,7 @@ use std::collections::HashMap;
 mod socket_host;
 use socket_host::socket_host::{set_socket_host_callbacks, get_available_commands_registered, initialize_host};
 use socket_host::socket_host::{initialize_host_buffer, set_max_conns, register_client};
-use socket_host::transposer::{set_workers_num, set_transposer_callbacks, initialize_transposer};
+use socket_host::transposer::{set_socket_host_transposer_workers_num, set_socket_host_transposer_callbacks, initialize_socket_host_transposer};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList, PyFunction, PyBool};
@@ -27,6 +27,7 @@ use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+    pub static ref CLIENT_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
 }
 
 
@@ -63,7 +64,7 @@ fn set_socket_host_transposer_num_of_workers (n_workers:&PyInt) {
 
     let workers_num:u32 = n_workers.extract().unwrap();
 
-    set_workers_num(workers_num);
+    set_socket_host_transposer_workers_num(workers_num);
 
     return;
 
@@ -159,7 +160,7 @@ fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()
 
     // Now you can use the command_patterns
     set_socket_host_callbacks(command_patterns.clone(), );
-    set_transposer_callbacks(command_patterns.clone(), callbacks_patterns, );
+    set_socket_host_transposer_callbacks(command_patterns.clone(), callbacks_patterns, );
 
     Ok(())
 }
@@ -190,7 +191,7 @@ fn initialize_socket_host (py: Python<'_>, ip:String, port:i32, client_id:String
 
     loop {
 
-        initialize_transposer(py);
+        initialize_socket_host_transposer(py);
         println!("Socket transposer exited ssucefully!");
     
         if !HOST_IS_RUNING.load(Ordering::SeqCst) {
@@ -277,23 +278,101 @@ fn set_socket_host_allowed_clients (allowed_clients_list: &PyList) -> PyResult<(
 
 // -> Socket Client mainpoints:
 
+mod socket_client;
+use socket_client::socket_client::{set_socket_client_callbacks_patterns, get_socket_client_available_commands_registered};
+use socket_client::socket_client::{initialize_client_buffer};
+use socket_client::transposer::{set_socket_client_transposer_workers_num, set_socket_client_transposer_callbacks, initialize_socket_client_transposer};
+
+
+#[pyfunction]
+fn initalize_client_buffer_tables (path:&PyString) {
+
+    let buffer_path:String = path.extract().unwrap();
+
+    initialize_client_buffer(buffer_path);
+
+    return;
+
+}
+
+#[pyfunction]
 fn client_send () {
 
 }
 
-fn set_client_host_taarget () {
+#[pyfunction]
+fn set_client_host_target () {
 
 }
 
+#[pyfunction]
 fn set_client_workers_num () {
 
 }
 
-fn set_client_callbacks () {
+#[pyfunction]
+fn registry_socket_client_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
+    let mut command_patterns = HashMap::new();
+
+    let mut callbacks_patterns =  HashMap::new();
+
+    for command in commands.iter() {
+        
+        let command_dict: &PyDict = command.downcast().unwrap();
+        let function: &PyAny = command_dict.get_item("function").unwrap();
+        
+        let args_item: &PyAny = command_dict.get_item("args").unwrap();
+
+        // Check if args_item is a dict or a string with the value "None"
+        let args_dict: Option<&PyDict>;
+
+        if let Ok(args_as_dict) = args_item.downcast::<PyDict>() {
+            args_dict = Some(args_as_dict);
+        } else if let Ok(args_as_str) = args_item.extract::<String>() {
+            if args_as_str == "None" {
+                args_dict = None;
+            } else {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
+            }
+        } else {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
+        }
+
+        // Extract the Python function name
+        let function_name: &str = function.getattr("__name__")?.extract()?;
+
+        // Extract the argument types
+        let args_types_value;
+        if let Some(args_dict) = args_dict {
+            args_types_value = extract_arg_types(args_dict)?;
+        } else {
+            args_types_value = Value::Array(Vec::new()); // or whatever default value you want to use
+        }
+
+        // Store the function name and argument types in the command patterns
+        command_patterns.insert(function_name.to_string(), args_types_value.clone());
+
+        let function = function.downcast::<PyFunction>()?.clone();
+
+        let function: Py<PyFunction> = function.into_py(py);  // convert &PyAny to Py<PyFunction>
+        callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
+
+    }
+
+    // Now you can use the command_patterns
+    set_socket_client_callbacks_patterns(command_patterns.clone(), );
+    set_socket_client_transposer_callbacks(command_patterns.clone(), callbacks_patterns, );
+
+    Ok(())
+}
+
+#[pyfunction]
+fn initialize_client () {
 
 }
 
-fn initialize_client () {
+#[pyfunction]
+fn initialize_client_buffer_tables () {
 
 }
 
@@ -306,6 +385,8 @@ fn initialize_client () {
 
 #[pymodule]
 fn Myscelium (py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    
+    // -> Host
     m.add_function(wrap_pyfunction!(initalize_host_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
@@ -313,6 +394,14 @@ fn Myscelium (py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_socket_host_max_connections, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_host_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_host_allowed_clients, m)?)?;
+
+    // -> Client
+    m.add_function(wrap_pyfunction!(initalize_client_buffer_tables, m)?)?;
+    m.add_function(wrap_pyfunction!(registry_socket_client_callbacks, m)?)?;
+
+
+
+
     Ok(())
 }
 
