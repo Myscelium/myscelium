@@ -18,10 +18,12 @@ use std::clone;
 use std::sync::{Arc, Mutex};
 
 use std::collections::HashMap;
+use serde_json::{Value, from_str};
 
 use chrono::Utc;
 
-use serde_json::{Value, from_str};
+use crate::socket_client::socket_client::Command;
+
 
 lazy_static! {
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
@@ -68,15 +70,6 @@ lazy_static! {
     pub priority:u8,
     pub command:String,
     pub created_time:f64
-}
-
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct Command {
-    client_id: String,
-    parity_id: String,
-    priority: u8,
-    command: HashMap<String, Value>,
 }
 
 impl UpCommand {

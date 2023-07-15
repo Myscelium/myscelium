@@ -133,11 +133,11 @@ pub fn get_socket_client_available_commands_registered () -> HashMap<String, Val
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Command {
-    client_id: String,
-    parity_id: String,
-    priority: u8,
-    command: HashMap<String, Value>,
+pub struct Command {
+    pub client_id: String,
+    pub parity_id: String,
+    pub priority: u8,
+    pub command: HashMap<String, Value>,
 }
 
 enum Response {
@@ -288,8 +288,6 @@ fn initialize_client (address:String) {
         
         let command_to_request = Command::from_up_command(up_command);
 
-        let response_command;
-
         loop {
 
             let received = send(&mut stream, command_to_request.clone());
@@ -331,27 +329,25 @@ fn initialize_client (address:String) {
                 
                 }
     
-                // ! Make a method to not relly in the syncronous response of the command with the same parity id
-                // > The ideal is to make a system that commands can be received with no relly in the order to 
-                // > make the system more dinamic to the time that some commands can take to run.
+                
 
                 CommandType::Response(r) => { // -> If response is the response to the command
     
                     println!("Received a response!");   
     
-                    let response_parity_id = command_received.parity_id.clone();
-    
-                    if response_parity_id == command_to_request.parity_id.clone() {
-                        println!("Response matches the request parity_id: {:?}", &command_to_request.parity_id);
-    
-                        response_command = command_received.clone();
-    
-                        println!("The receive response is: {:?}", response_command);
-    
-                        break;
-    
-                    }
-                
+                    // ! Make a method to not relly in the syncronous response of the command with the same parity id
+                    // > The ideal is to make a system that commands can be received with no relly in the order to 
+                    // > make the system more dinamic to the time that some commands can take to run.
+
+                    let down_command = DownCommand::from_command(command_received.clone());
+
+                    buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+ 
+                    buffer_down_mananger::buffer_down_schedule(down_command);
+
+
+                    break;
+
                 }
     
                 CommandType::Unknown => {
@@ -359,9 +355,7 @@ fn initialize_client (address:String) {
                 }
             }
 
-            let down_command = DownCommand::from_command(command)
-
-            buffer_down_mananger::buffer_down_schedule()
+            
 
         }
     }   

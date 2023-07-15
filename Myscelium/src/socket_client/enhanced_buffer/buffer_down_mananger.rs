@@ -15,6 +15,9 @@ use buffer_functions::UniqueIdGenerator;
 use buffer_functions::SQLiteConnectionPool;
 use buffer_functions::UniqueParityIdGenerator;
 
+
+use crate::socket_client::socket_client::Command;
+
 use chrono::Utc;
 
 use rusqlite::params;
@@ -72,13 +75,6 @@ pub fn set_workers_num (n_workers:u32) {
     
  */
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct Command {
-    client_id: String,
-    parity_id: String,
-    priority: u8,
-    command: HashMap<String, Value>,
-}
 
  #[derive(Serialize, Deserialize, Debug)]
  pub struct DownCommand {
