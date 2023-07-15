@@ -1,3 +1,4 @@
 pub mod socket_client;
 pub mod transposer;
-pub mod enhanced_buffer;
+mod enhanced_buffer;
+pub mod scheduler;

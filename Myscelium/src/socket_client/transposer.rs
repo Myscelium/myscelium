@@ -1,5 +1,5 @@
 
-use crate::socket_host::enhanced_buffer;
+use crate::socket_client::enhanced_buffer;
 use lazy_static::lazy_static;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
@@ -8,9 +8,9 @@ use serde_json::{Value, from_str};
 
 use serde::{Serialize, Deserialize};
 
-use crate::socket_host::socket_host::is_client_registred;
+// use crate::socket_client::socket_client::is_client_registred;
 
-use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
+use crate::socket_client::enhanced_buffer::buffer_down_mananger::DownCommand;
 
 use std::sync::{Condvar, atomic::{AtomicBool, Ordering}};
 
@@ -479,8 +479,6 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     ResultType::Empty
 }
 
-
-
 fn process (py:Python, down_command:DownCommand) {
 
     println!("Initializing prossesing!");
@@ -489,7 +487,7 @@ fn process (py:Python, down_command:DownCommand) {
     let patters = command_patterns;
 
     let command_is_not_registry:bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
-    let command_id:i32 = down_command.command_id;
+    let command_id:u32 = down_command.command_id.unwrap();
 
     if !command_is_not_registry {
         
@@ -581,31 +579,20 @@ fn process (py:Python, down_command:DownCommand) {
 
                         let redirect_to = m.get("redirect_to").unwrap();
 
-                        if !is_client_registred(&redirect_to.to_string()) {
+                        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id.clone(), down_command.priority, "C210".to_string());
 
-                            println!("Error! Callback response args don't have response kwarg!");
-                            let mut error_map = HashMap::new();
-                            error_map.insert("Error".to_string(), format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()).to_string());
-                            response = serde_json::to_string(&error_map)
+                        client_id = redirect_to.to_string();
+
+                        if m.contains_key("response") {
+                        
+                            response = serde_json::to_string(m.get("response").unwrap());
 
                         } else {
 
-                            enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id.clone(), down_command.priority, "C210".to_string());
-
-                            client_id = redirect_to.to_string();
-
-                            if m.contains_key("response") {
-                            
-                                response = serde_json::to_string(m.get("response").unwrap());
-    
-                            } else {
-    
-                                println!("Error! Callback response args don't have response kwarg!");
-                                let mut error_map = HashMap::new();
-                                error_map.insert("Error".to_string(), "Error! Callback response args don't have response kwarg!".to_string());
-                                response = serde_json::to_string(&error_map)
-    
-                            }
+                            println!("Error! Callback response args don't have response kwarg!");
+                            let mut error_map = HashMap::new();
+                            error_map.insert("Error".to_string(), "Error! Callback response args don't have response kwarg!".to_string());
+                            response = serde_json::to_string(&error_map)
 
                         }
 

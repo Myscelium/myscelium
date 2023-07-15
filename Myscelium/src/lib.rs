@@ -367,12 +367,36 @@ fn registry_socket_client_callbacks (py: Python, commands: &PyList) -> PyResult<
 }
 
 #[pyfunction]
-fn initialize_client () {
+fn initialize_socket_client (py: Python<'_>, ip:String, port:i32, client_id:String) {
+    let address = format!("{}:{}", ip, port);
 
-}
+    thread::spawn(|| {
 
-#[pyfunction]
-fn initialize_client_buffer_tables () {
+        ctrlc::set_handler(move || {
+            if HOST_IS_RUNING.load(Ordering::SeqCst) {
+                println!("\nreceived Ctrl+C!\n");
+                stop_socket_host();
+            }
+        })
+        .expect("Error setting Ctrl-C handler");
+
+        initialize_host(address, client_id);
+        println!("Socket host exited ssucefully!");
+        
+
+    });
+
+    loop {
+
+        initialize_socket_client_transposer(py);
+        println!("Socket transposer exited ssucefully!");
+    
+        if !HOST_IS_RUNING.load(Ordering::SeqCst) {
+            println!("Stop the core!");
+            thread::sleep(Duration::from_secs(7));
+            break;
+        }
+    }
 
 }
 
@@ -398,8 +422,9 @@ fn Myscelium (py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // -> Client
     m.add_function(wrap_pyfunction!(initalize_client_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_client_callbacks, m)?)?;
+    m.add_function(wrap_pyfunction!(initialize_socket_client, m)?)?;
 
-
+    
 
 
     Ok(())
