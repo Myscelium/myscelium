@@ -1,6 +1,7 @@
 use crate::socket_client::enhanced_buffer;
 use crate::socket_client::enhanced_buffer::buffer_up_mananger;
 use crate::socket_client::enhanced_buffer::buffer_down_mananger;
+use crate::socket_client::enhanced_buffer::buffer_down_mananger::DownCommand;
 
 use lazy_static::lazy_static;
 use std::sync::{mpsc, Arc, Mutex};
@@ -10,9 +11,6 @@ use serde_json::{Value, from_str};
 
 use serde::{Serialize, Deserialize};
 
-use crate::socket_host::socket_host::is_client_registred;
-
-use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
 
 use std::sync::{Condvar, atomic::{AtomicBool, Ordering}};
 
@@ -317,12 +315,15 @@ fn initialize_client (address:String) {
                     let function:String = serde_json::from_str(&f).unwrap();
     
                     if command_received.parity_id != "itisaspecialcase" {
+                       
                         if function == "C210".to_string() {
                             println!("Received Confirmation!");
                             break;
+
                         } else if function == "Error".to_string() {
                             println!("An error ocurred in host, the error was: {}", command_received.command.get("Error").unwrap());
                             break;
+                       
                         }
                     }
     
@@ -330,7 +331,11 @@ fn initialize_client (address:String) {
                 
                 }
     
-                CommandType::Response(r) => {
+                // ! Make a method to not relly in the syncronous response of the command with the same parity id
+                // > The ideal is to make a system that commands can be received with no relly in the order to 
+                // > make the system more dinamic to the time that some commands can take to run.
+
+                CommandType::Response(r) => { // -> If response is the response to the command
     
                     println!("Received a response!");   
     
@@ -354,7 +359,9 @@ fn initialize_client (address:String) {
                 }
             }
 
-            buffer_down_mananger::buffer_down_schedule(client_id, parity_id, priority, command)
+            let down_command = DownCommand::from_command(command)
+
+            buffer_down_mananger::buffer_down_schedule()
 
         }
     }   

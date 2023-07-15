@@ -31,6 +31,9 @@ use serde::{Serialize, Deserialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+use std::collections::HashMap;
+use serde_json::{Value, from_str};
+
 
 
 lazy_static! {
@@ -69,14 +72,86 @@ pub fn set_workers_num (n_workers:u32) {
     
  */
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct Command {
+    client_id: String,
+    parity_id: String,
+    priority: u8,
+    command: HashMap<String, Value>,
+}
+
  #[derive(Serialize, Deserialize, Debug)]
  pub struct DownCommand {
-    pub command_id:i32,
+    pub command_id:Option<u32>,
     pub client_id:String,
     pub parity_id:String,
     pub priority:u8,
     pub command:String,
     pub created_time:f64,
+}
+
+
+impl DownCommand {
+
+    pub fn from (command_id:u32, client_id:String, parity_id:String, priority:u8, command:String, created_time:f64) -> Self {
+
+        let now = Utc::now();
+        let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+        Self {
+
+            command_id:Some(command_id),
+            client_id,
+            parity_id,
+            priority,
+            command,
+            created_time,
+
+        }
+
+    }
+
+    pub fn new (command_id:u32, client_id:String, parity_id:String, priority:u8, command:String) -> Self {
+
+        let now = Utc::now();
+        let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+        Self {
+
+            command_id:Some(0000u32),
+            client_id,
+            parity_id,
+            priority,
+            command,
+            created_time:timestamp,
+
+        }
+
+    }
+
+    pub fn from_command (command:Command) -> Self {
+
+        let client_id = command.client_id;
+        let parity_id = command.parity_id;
+        let priority = command.priority;
+        let mut command = serde_json::to_string(&command.command).unwrap();
+
+        let now = Utc::now();
+        let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+        Self {
+
+            command_id:Some(0000u32),
+            client_id,
+            parity_id,
+            priority,
+            command,
+            created_time:timestamp,
+
+        }
+
+    }
+
 }
 
 impl IntoPy <PyObject> for DownCommand {
@@ -164,17 +239,17 @@ pub fn  buffer_down_list_schedule () -> Vec<DownCommand> {
         let mut smtp = conn.prepare("SELECT * FROM ClientCommandsReceived").unwrap();
     
         let commands_iter = smtp.query_map(params![], |row| {
-        
-            Ok (DownCommand{
+            
+            Ok (DownCommand::from(
 
-                    command_id:     row.get(0).unwrap(), 
-                    client_id:      row.get(1).unwrap(),
-                    parity_id:      row.get(2).unwrap(),
-                    priority:       row.get(3).unwrap(),
-                    command:        row.get(4).unwrap(),
-                    created_time:   row.get(5).unwrap()
+                row.get(0).unwrap(), 
+                row.get(1).unwrap(),
+                row.get(2).unwrap(),
+                row.get(3).unwrap(),
+                row.get(4).unwrap(),
+                row.get(5).unwrap()
                 
-                })
+            ))
                 
         }).unwrap();
 
@@ -245,7 +320,7 @@ pub fn buffer_down_clear_old_commands () {
 
         if time_difference >= 30.0 {
 
-            buffer_down_remove_schedule_by_id(dow_command.command_id);
+            buffer_down_remove_schedule_by_id(dow_command.command_id.unwrap());
             println!("\nCommand: {} from client: {}, too old, clearing from the buffer down schedule!\n", dow_command.parity_id, dow_command.client_id);
 
         }
@@ -254,10 +329,10 @@ pub fn buffer_down_clear_old_commands () {
 
 }
 
-pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:u8, command:String) {
+pub fn buffer_down_schedule (command:DownCommand) {
 
-    if check_if_parity_id_is_registred(client_id.clone(), parity_id.clone()) {
-        println!("Parity_id: {} alwready registred to client_id: {}, so skiping...", parity_id, client_id);
+    if check_if_parity_id_is_registred(command.client_id.clone(), command.parity_id.clone()) {
+        println!("Parity_id: {} alwready registred to client_id: {}, so skiping...", command.parity_id, command.client_id);
         return;
     }
 
@@ -272,7 +347,7 @@ pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:u8, co
 
     let result = conn.execute(
         "INSERT INTO ClientCommandsReceived (ID, ClientID, ParityId, Priority, Command, CreatedTime) VALUES (?, ?, ?, ?, ?, ?);",
-        params![id_generator.gen(), client_id, parity_id, priority, command, timestamp],
+        params![id_generator.gen(), command.client_id, command.parity_id, command.priority, command.command, timestamp],
     );
 
     match result {
@@ -360,7 +435,7 @@ pub fn  buffer_down_update_schedule (id:i32, client_id:String, parity_id:String,
 }
 
 
-pub fn  buffer_down_remove_schedule_by_id (id:i32) {
+pub fn  buffer_down_remove_schedule_by_id (id:u32) {
 
     let conn = BUFFER_POOL.get_connection().unwrap();
     let result = conn.execute(

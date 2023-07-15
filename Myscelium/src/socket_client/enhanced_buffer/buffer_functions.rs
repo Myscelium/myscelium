@@ -70,7 +70,6 @@ impl UniqueParityIdGenerator {
     }
 }
 
-
 pub struct UniqueIdGenerator {
     pub registered_ids: Vec<i32>
 }
