@@ -154,12 +154,12 @@ enum CommandType {
 
 impl Command {
 
-    fn new(client_id: &str, parity_id: &str, priority:u8, command:HashMap<String, Value>) -> Self {
+    pub fn new(client_id: String, parity_id: String, priority:u8, command:HashMap<String, Value>) -> Self {
         
         Self {
 
-            client_id: client_id.to_string(),
-            parity_id: parity_id.to_string(),
+            client_id,
+            parity_id,
             priority,
             command,
 
@@ -329,8 +329,6 @@ fn initialize_client (address:String) {
                 
                 }
     
-                
-
                 CommandType::Response(r) => { // -> If response is the response to the command
     
                     println!("Received a response!");   

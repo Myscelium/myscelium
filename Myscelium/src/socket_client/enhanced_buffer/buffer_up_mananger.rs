@@ -92,7 +92,7 @@ impl UpCommand {
 
     }
 
-    pub fn new (command_id:u32, client_id:String, parity_id:String, priority:u8, command:String) -> Self {
+    pub fn new (client_id:String, parity_id:String, priority:u8, command:String) -> Self {
 
         let now = Utc::now();
         let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
@@ -115,7 +115,7 @@ impl UpCommand {
         let client_id = command.client_id;
         let parity_id = command.parity_id;
         let priority = command.priority;
-        let mut command = serde_json::to_string(&command.command).unwrap();
+        let command = serde_json::to_string(&command.command).unwrap();
 
         let now = Utc::now();
         let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
@@ -323,7 +323,7 @@ pub fn buffer_up_list_schedule () -> Vec<UpCommand> {
 }
 
 
-pub fn buffer_up_schedule (client_id:String, parity_id:String, priority:u8, command:String) {
+pub fn buffer_up_schedule (command:UpCommand) {
 
     let registered_ids = get_registred_ids();
 
@@ -336,7 +336,7 @@ pub fn buffer_up_schedule (client_id:String, parity_id:String, priority:u8, comm
 
     let result = conn.execute(
         "INSERT INTO ClientCommandsTosend (ID, ClientID, ParityId, Priority, Command, CreatedTime) VALUES (?, ?, ?, ?, ?, ?);",
-        params![id_generator.gen(), client_id, parity_id, priority, command, timestamp],
+        params![id_generator.gen(), command.client_id, command.parity_id, command.priority, command.command, timestamp],
     );
 
     match result {

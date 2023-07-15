@@ -1,5 +1,6 @@
 
 use crate::socket_client::enhanced_buffer;
+use crate::socket_client::enhanced_buffer::buffer_up_mananger::UpCommand;
 use lazy_static::lazy_static;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
@@ -11,6 +12,8 @@ use serde::{Serialize, Deserialize};
 // use crate::socket_client::socket_client::is_client_registred;
 
 use crate::socket_client::enhanced_buffer::buffer_down_mananger::DownCommand;
+
+use crate::socket_client::socket_client::Command;
 
 use std::sync::{Condvar, atomic::{AtomicBool, Ordering}};
 
@@ -75,51 +78,8 @@ impl UniqueParityIdGenerator {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct Command {
-    client_id: String,
-    parity_id: String,
-    priority: u8,
-    command: HashMap<String, Value>,
-}
 
-enum CommandType {
-    Function(String),
-    Response(String),
-    Redirect(String),
-    Unknown
-}
 
-impl Command {
-
-    fn new (client_id:String, parity_id:String, priority:u8, command:HashMap<String, Value>) -> Self {
-
-        Self {
-
-            client_id,
-            parity_id,
-            priority,
-            command
-
-        }
-
-    }
-
-    fn command_type (&self) -> CommandType {
-
-        if self.command.contains_key("function") {
-            CommandType::Function(self.command.get("function").unwrap().to_string())
-        } else if self.command.contains_key("response") {
-            CommandType::Response(self.command.get("response").unwrap().to_string())
-        } else if self.command.contains_key("redirect") {
-            CommandType::Redirect(self.command.get("redirect").unwrap().to_string())
-        } else {
-            CommandType::Unknown
-        }
-
-    }
-
-}
 
 
 lazy_static! {
@@ -579,7 +539,9 @@ fn process (py:Python, down_command:DownCommand) {
 
                         let redirect_to = m.get("redirect_to").unwrap();
 
-                        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id.clone(), down_command.priority, "C210".to_string());
+                        let up_command = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority, "C210".to_string());
+
+                        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
 
                         client_id = redirect_to.to_string();
 
@@ -648,7 +610,9 @@ fn process (py:Python, down_command:DownCommand) {
 
     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
 
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id, down_command.priority, response.unwrap())
+    let up_command = UpCommand::new(client_id, down_command.parity_id, down_command.priority, response.unwrap());
+
+    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
 
 }
 
