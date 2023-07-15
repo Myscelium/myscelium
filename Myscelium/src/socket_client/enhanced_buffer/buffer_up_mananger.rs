@@ -21,6 +21,8 @@ use std::collections::HashMap;
 
 use chrono::Utc;
 
+use serde_json::{Value, from_str};
+
 lazy_static! {
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
     
@@ -60,7 +62,7 @@ lazy_static! {
 
  #[derive(Serialize, Deserialize, Debug, Clone)]
  pub struct UpCommand {
-    pub command_id:i32,
+    pub command_id:Option<u32>,
     pub client_id:String,
     pub parity_id:String,
     pub priority:u8,
@@ -68,7 +70,80 @@ lazy_static! {
     pub created_time:f64
 }
 
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct Command {
+    client_id: String,
+    parity_id: String,
+    priority: u8,
+    command: HashMap<String, Value>,
+}
+
+impl UpCommand {
+
+    pub fn from (command_id:u32, client_id:String, parity_id:String, priority:u8, command:String, created_time:f64) -> Self {
+
+        let now = Utc::now();
+        let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+        Self {
+
+            command_id:Some(command_id),
+            client_id,
+            parity_id,
+            priority,
+            command,
+            created_time,
+
+        }
+
+    }
+
+    pub fn new (command_id:u32, client_id:String, parity_id:String, priority:u8, command:String) -> Self {
+
+        let now = Utc::now();
+        let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+        Self {
+
+            command_id:Some(0000u32),
+            client_id,
+            parity_id,
+            priority,
+            command,
+            created_time:timestamp,
+
+        }
+
+    }
+
+    pub fn from_command (command:Command) -> Self {
+
+        let client_id = command.client_id;
+        let parity_id = command.parity_id;
+        let priority = command.priority;
+        let mut command = serde_json::to_string(&command.command).unwrap();
+
+        let now = Utc::now();
+        let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+        Self {
+
+            command_id:Some(0000u32),
+            client_id,
+            parity_id,
+            priority,
+            command,
+            created_time:timestamp,
+
+        }
+
+    }
+
+}
+
 impl IntoPy <PyObject> for UpCommand {
+    
     fn into_py (self, py:Python) -> PyObject {
         let dict = PyDict::new(py);
         dict.set_item("command_id", self.command_id).unwrap();
@@ -78,6 +153,7 @@ impl IntoPy <PyObject> for UpCommand {
         dict.set_item("command", self.command).unwrap();
         dict.into()
     }
+
 }
 
 fn get_registred_ids () -> Vec<i32> {
@@ -106,6 +182,7 @@ fn get_registred_ids () -> Vec<i32> {
 
 
 pub fn buffer_up_initialize_table(buffer_path: String) {
+    
     let mut default_buffer_path = BUFFER_PATH.lock().unwrap();
 
     let new_buffer_path = format!("{}{}", buffer_path, default_buffer_path);
@@ -192,12 +269,12 @@ pub fn buffer_up_get_scheduled_by_parity_id (client_id:String, parity_id:String)
     
             Ok (
     
-                UpCommand{command_id:row.get(0).unwrap(), 
-                client_id:row.get(1).unwrap(),
-                parity_id:row.get(2).unwrap(),
-                priority:row.get(3).unwrap(),
-                command:row.get(4).unwrap(),
-                created_time:row.get(5).unwrap()}
+                UpCommand::from(row.get(0).unwrap(), 
+                row.get(1).unwrap(),
+                row.get(2).unwrap(),
+                row.get(3).unwrap(),
+                row.get(4).unwrap(),
+                row.get(5).unwrap())
     
             )
     
@@ -229,12 +306,12 @@ pub fn buffer_up_list_schedule () -> Vec<UpCommand> {
     
             Ok (
     
-                UpCommand{command_id:row.get(0).unwrap(), 
-                client_id:row.get(1).unwrap(),
-                parity_id:row.get(2).unwrap(),
-                priority:row.get(3).unwrap(),
-                command:row.get(4).unwrap(),
-                created_time:row.get(5).unwrap()}
+                UpCommand::from(row.get(0).unwrap(), 
+                row.get(1).unwrap(),
+                row.get(2).unwrap(),
+                row.get(3).unwrap(),
+                row.get(4).unwrap(),
+                row.get(5).unwrap())
     
             )
     
@@ -364,7 +441,7 @@ pub fn buffer_up_clear_old_commands () {
 
         if time_difference >= 30.0 {
 
-            buffer_up_remove_schedule_by_id(up_command.command_id);
+            buffer_up_remove_schedule_by_id(up_command.command_id.unwrap());
             println!("\nCommand: {} from client: {}, too old, clearing from the buffer up schedule!\n", up_command.parity_id, up_command.client_id);
 
         }
@@ -373,7 +450,7 @@ pub fn buffer_up_clear_old_commands () {
 
 }
 
-pub fn buffer_up_remove_schedule_by_id (id:i32) {
+pub fn buffer_up_remove_schedule_by_id (id:u32) {
 
     let conn = BUFFER_POOL.get_connection().unwrap();
     let result = conn.execute(

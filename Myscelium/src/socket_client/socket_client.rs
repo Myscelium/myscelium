@@ -1,5 +1,7 @@
 use crate::socket_client::enhanced_buffer;
-use crate::socket_host::enhanced_buffer::buffer_up_mananger;
+use crate::socket_client::enhanced_buffer::buffer_up_mananger;
+use crate::socket_client::enhanced_buffer::buffer_down_mananger;
+
 use lazy_static::lazy_static;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
@@ -179,7 +181,7 @@ impl Command {
     
     }
 
-    fn from_up_command (&self, up_command: UpCommand) -> Self {
+    fn from_up_command (up_command: UpCommand) -> Self {
 
         let client_id = up_command.client_id.clone();
         let parity_id = up_command.parity_id.clone();
@@ -284,92 +286,76 @@ fn initialize_client (address:String) {
 
     let up_schedule = buffer_up_mananger::buffer_up_list_schedule();
 
-    
-
     for up_command in up_schedule {
         
+        let command_to_request = Command::from_up_command(up_command);
+
+        let response_command;
+
         loop {
 
-            let received = send(&mut stream, );
-            let mut command_received:Command;
+            let received = send(&mut stream, command_to_request.clone());
+            let command_received;
 
+            match received {    
 
-
-
-        }
-
-
-
-    }
-
-
-
-    loop {
-
-        thread::sleep(Duration::from_secs(5));
-
-        let received = send(&mut stream, request_command.clone());
-
-        let mut command_received;
-
-        match received {    
-
-            Response::None => {
-                println!("Received invalid data!");
-                continue;
-            }
-            Response::Command(c) => {
-                println!("Received command: {:?}", c);
-                command_received = c
+                Response::None => {
+                    println!("Received invalid data!");
+                    continue;
+                }
+                Response::Command(c) => {
+                    println!("Received command: {:?}", c);
+                    command_received = c
+                }
+    
             }
 
-        }
-
-        match command_received.command_type() {
+            match command_received.command_type() {
             
-            CommandType::Function(f) => {
+                CommandType::Function(f) => {
 
-                let function:String = serde_json::from_str(&f).unwrap();
-
-                if command_received.parity_id != "itisaspecialcase" {
-                    if function == "C210".to_string() {
-                        println!("Received Confirmation!");
-                        break;
-                    } else if function == "Error".to_string() {
-                        println!("An error ocurred in host, the error was: {}", command_received.command.get("Error").unwrap());
-                        break;
+                    let function:String = serde_json::from_str(&f).unwrap();
+    
+                    if command_received.parity_id != "itisaspecialcase" {
+                        if function == "C210".to_string() {
+                            println!("Received Confirmation!");
+                            break;
+                        } else if function == "Error".to_string() {
+                            println!("An error ocurred in host, the error was: {}", command_received.command.get("Error").unwrap());
+                            break;
+                        }
                     }
+    
+                    println!("Receive a function: {:?}", f);
+                
                 }
-
-                println!("Receive a function: {:?}", f);
-            
-            }
-
-            CommandType::Response(r) => {
-
-                println!("Received a response!");   
-
-                let response_parity_id = command_received.parity_id;
-
-                if response_parity_id == request_command.parity_id {
-                    println!("Response matches the request parity_id: {:?}", request_command.parity_id);
-
-                    let response_command = command_received.command;
-
-                    println!("The receive response is: {:?}", response_command);
-
-                    break;
-
+    
+                CommandType::Response(r) => {
+    
+                    println!("Received a response!");   
+    
+                    let response_parity_id = command_received.parity_id.clone();
+    
+                    if response_parity_id == command_to_request.parity_id.clone() {
+                        println!("Response matches the request parity_id: {:?}", &command_to_request.parity_id);
+    
+                        response_command = command_received.clone();
+    
+                        println!("The receive response is: {:?}", response_command);
+    
+                        break;
+    
+                    }
+                
                 }
-            
+    
+                CommandType::Unknown => {
+                    println!("Received a Unknown command!")
+                }
             }
 
-            CommandType::Unknown => {
-                println!("Received a Unknown command!")
-            }
+            buffer_down_mananger::buffer_down_schedule(client_id, parity_id, priority, command)
 
         }
-
-    }
-
+    }   
 }
