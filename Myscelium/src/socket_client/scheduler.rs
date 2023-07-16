@@ -9,10 +9,11 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use serde_json::{Value, from_str};
 
+use crate::CLIENT_ID;
+
 pub fn schedule (command:HashMap<String, String>, priority:u8) {
 
-    let client_id:&str  = "";
-    let parity_id:&str  = "";
+    let client_id = CLIENT_ID.lock().unwrap().clone();
 
     let command = serde_json::to_string(&command);
 
@@ -31,7 +32,9 @@ pub fn schedule (command:HashMap<String, String>, priority:u8) {
 
     }
 
-    let command_to_schedule = UpCommand::new(client_id.to_string(), parity_id.to_string(), priority, unwraped_command);
+    let parity_id = buffer_up_mananger::buffer_up_gen_valid_parity_id(client_id.clone());
+
+    let command_to_schedule = UpCommand::new(client_id, parity_id, priority, unwraped_command);
 
     buffer_up_mananger::buffer_up_schedule(command_to_schedule);
 
