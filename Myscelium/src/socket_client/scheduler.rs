@@ -9,11 +9,10 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use serde_json::{Value, from_str};
 
-pub fn schedule (command:HashMap<String, Value>) {
+pub fn schedule (command:HashMap<String, String>, priority:u8) {
 
     let client_id:&str  = "";
     let parity_id:&str  = "";
-    let priority:u8     = 8;
 
     let command = serde_json::to_string(&command);
 

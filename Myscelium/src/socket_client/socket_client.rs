@@ -11,7 +11,6 @@ use serde_json::{Value, from_str};
 
 use serde::{Serialize, Deserialize};
 
-
 use std::sync::{Condvar, atomic::{AtomicBool, Ordering}};
 
 use pyo3::types::{IntoPyDict, PyString, PyInt, PyAny, PyDict, PyTuple, PyList, PyFunction, PyBool, PyFloat};
@@ -278,7 +277,7 @@ fn send (stream:&mut TcpStream, command:Command) -> Response {
 
 use buffer_up_mananger::UpCommand;
 
-fn initialize_client (address:String) {
+pub fn initialize_client (address:String, client_id:String) {
     
     let mut stream = TcpStream::connect(address).unwrap();
 

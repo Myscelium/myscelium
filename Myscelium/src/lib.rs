@@ -10,11 +10,14 @@ use socket_host::socket_host::{initialize_host_buffer, set_max_conns, register_c
 use socket_host::transposer::{set_socket_host_transposer_workers_num, set_socket_host_transposer_callbacks, initialize_socket_host_transposer};
 
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList, PyFunction, PyBool};
+use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList, PyFunction, PyBool, PyFloat};
 use pyo3::wrap_pyfunction;
+
+use pyo3::exceptions;
+
 use serde_json::{Value, json};
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use ctrlc::set_handler;
 
@@ -28,6 +31,7 @@ use lazy_static::lazy_static;
 lazy_static! {
     pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref CLIENT_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+    pub static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
 }
 
 
@@ -57,6 +61,7 @@ lazy_static! {
 
 //     Ok(())
 // }
+
 
 
 #[pyfunction]
@@ -279,10 +284,10 @@ fn set_socket_host_allowed_clients (allowed_clients_list: &PyList) -> PyResult<(
 // -> Socket Client mainpoints:
 
 mod socket_client;
-use socket_client::socket_client::{set_socket_client_callbacks_patterns, get_socket_client_available_commands_registered};
-use socket_client::socket_client::{initialize_client_buffer};
+use socket_client::socket_client::{set_socket_client_callbacks_patterns, get_socket_client_available_commands_registered, Command};
+use socket_client::socket_client::{initialize_client_buffer, initialize_client};
 use socket_client::transposer::{set_socket_client_transposer_workers_num, set_socket_client_transposer_callbacks, initialize_socket_client_transposer};
-
+use socket_client::scheduler::{schedule};
 
 #[pyfunction]
 fn initalize_client_buffer_tables (path:&PyString) {
@@ -295,8 +300,107 @@ fn initalize_client_buffer_tables (path:&PyString) {
 
 }
 
+#[derive(Debug, Clone)]
+enum ResultType {
+    Empty,
+    Map(HashMap<String, String>),
+    Error(String),
+}
+
+fn handle_pyobject (py: Python, obj: PyObject) -> ResultType {
+    if let Ok(dict) = obj.cast_as::<PyDict>(py) {
+        // Handle dict
+
+        let mut rust_dict = HashMap::new();  // Declare the HashMap
+    
+        for (key, value) in dict.iter() {
+            let key_str: String = key.extract().unwrap();
+            if let Ok(value_str) = value.extract::<String>() {
+                rust_dict.insert(key_str, value_str);
+            } else if let Ok(value_int) = value.extract::<i32>() {
+                rust_dict.insert(key_str, value_int.to_string());
+            } else if let Ok(value_list) = value.extract::<Vec<String>>() {
+                rust_dict.insert(key_str, format!("{:?}", value_list));
+            } else {
+                // Handle other types as needed
+            }
+        }
+
+        return ResultType::Map(rust_dict);
+
+    } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
+        // Handle tuple
+        for item in tuple {
+            println!("Item: {}", item);
+        }
+    } else if let Ok(list) = obj.cast_as::<PyList>(py) {
+        // Handle list
+        for item in list {
+            println!("Item: {}", item);
+        }
+    } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
+        // Handle int
+        println!("Integer: {}", int);
+    } else if let Ok(float) = obj.cast_as::<PyFloat>(py) {
+        // Handle float
+        println!("Float: {}", float);
+    } else if let Ok(string) = obj.cast_as::<PyString>(py) {
+        // Handle string
+        println!("String: {}", string);
+    } else if let Ok(boolean) = obj.cast_as::<PyBool>(py) {
+        // Handle bool
+        println!("Boolean: {}", boolean);
+    } else if obj.is_none(py) {
+        // Handle None
+        println!("None");
+    } else {
+        return ResultType::Empty;
+    }
+
+    ResultType::Empty
+}
+
 #[pyfunction]
-fn client_send () {
+fn client_send (py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
+    let client_id = CLIENT_ID.lock().unwrap();
+
+    if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+        return Err(PyErr::new::<exceptions::PyValueError, _>("Client isn't running! Please start client before try to send something."));
+    }
+
+    let extracted_priority = priority.extract::<u8>();
+    let mut priority: u8 = 0;
+
+    match extracted_priority {
+        Ok(p) => {
+            priority = p
+        }
+        Err(e) => {
+            return Err(PyErr::new::<exceptions::PyValueError, _>(
+                format!("Failed to extract priority: {}", e),
+            ));
+        }
+    }
+
+    let converted_command = handle_pyobject(py, command);
+
+    match converted_command {
+        ResultType::Map(m) => {
+            schedule(m, priority);
+        }
+        ResultType::Empty => {
+            return Err(PyErr::new::<exceptions::PyValueError, _>(
+                "Command to send is empty!",
+            ));
+        }
+        ResultType::Error(e) => {
+            return Err(PyErr::new::<exceptions::PyValueError, _>(
+                format!("An error occurred while trying to convert command to send in the myscelium engine, the error was: {}", e),
+            ));
+        }
+    }
+
+    Ok("Ok".to_string().into_py(py))
 
 }
 
@@ -368,6 +472,11 @@ fn registry_socket_client_callbacks (py: Python, commands: &PyList) -> PyResult<
 
 #[pyfunction]
 fn initialize_socket_client (py: Python<'_>, ip:String, port:i32, client_id:String) {
+
+    let mut client_id_global = CLIENT_ID.lock().unwrap();
+
+    *client_id_global = client_id.clone();
+
     let address = format!("{}:{}", ip, port);
 
     thread::spawn(|| {
@@ -380,7 +489,7 @@ fn initialize_socket_client (py: Python<'_>, ip:String, port:i32, client_id:Stri
         })
         .expect("Error setting Ctrl-C handler");
 
-        initialize_host(address, client_id);
+        initialize_client(address, client_id);
         println!("Socket host exited ssucefully!");
         
 
@@ -423,9 +532,7 @@ fn Myscelium (py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(initalize_client_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_client_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_client, m)?)?;
-
-    
-
+    m.add_function(wrap_pyfunction!(client_send, m)?)?;
 
     Ok(())
 }
