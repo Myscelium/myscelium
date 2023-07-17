@@ -40,6 +40,41 @@ class MysceliumHost:
 
     def send (self):
          pass
+    
+class HostPatterns:
+
+    def __init__(self) -> None:
+        pass
+
+    def client_pattern (client_type:str, client_id:str) -> dict:
+        return {"client_type":client_type, "client_id":client_id}
+
+    def response_pattern (response:any, response_mode:str, redirect_to_client_id:str=None) -> dict:
+
+        if response_mode == "redirect":
+
+            if redirect_to_client_id != None:
+                pass
+            else:
+                raise ("Invalid redirect! Missing client_id to redirect!")
+
+            return {'response_mode':'redirect', 'response':response, 'redirect_to':redirect_to_client_id}
+
+        elif response_mode == 'same_as_origin':
+            
+            return {'response_mode':'same_as_origin', 'response':response}
+        
+        else:
+            raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
+
+    def callback_pattern (callback, args) -> dict:
+            
+            callback_pattern =  {
+                "function": callback,
+                "args": args,
+            }
+            
+            return callback_pattern
 
 class MysceliumClient:
 
@@ -55,7 +90,7 @@ class MysceliumClient:
         
         callbacks = callbacks + special_functions
 
-        mys.registry_socket_client_callbacks(callbacks)
+        mys.registry_socket_client_callbacks(callbacks) #! We can change this to response handler in the future.
         mys.initalize_client_buffer_tables(buffer_path)
         mys.set_socket_client_allowed_clients(self.allowed_clients)
         mys.set_socket_client_transposer_num_of_workers(n_workers)
@@ -75,40 +110,47 @@ class MysceliumClient:
         # This function will be called when a SIGINT signal is received
         mys.stop_socket_client()
 
-    def send (self):
-         pass
+    def send (self, command:dict, priority:int):
+        mys.client_send(command, priority)
+        
+class ClientPatterns:
+
+    def __init__(self) -> None:
+        pass
+
+    def client_pattern (client_type:str, client_id:str) -> dict:
+        return {"client_type":client_type, "client_id":client_id}
+
+    def response_pattern (response:any, response_mode:str, redirect_to_client_id:str=None) -> dict:
+
+        if response_mode == "redirect":
+
+            if redirect_to_client_id != None:
+                pass
+            else:
+                raise ("Invalid redirect! Missing client_id to redirect!")
+
+            return {'response_mode':'redirect', 'response':response, 'redirect_to':redirect_to_client_id}
+
+        elif response_mode == 'same_as_origin':
+            
+            return {'response_mode':'same_as_origin', 'response':response}
+        
+        else:
+            raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
+
+    def callback_pattern (callback, args) -> dict:
+            
+            callback_pattern =  {
+                "function": callback,
+                "args": args,
+            }
+            
+            return callback_pattern
 
 # -> Functions:
 
-def client_pattern (client_type:str, client_id:str):
-     return {"client_type":client_type, "client_id":client_id}
 
-def response_pattern (response:any, response_mode:str, redirect_to_client_id:str=None):
-
-    if response_mode == "redirect":
-
-        if redirect_to_client_id != None:
-            pass
-        else:
-            raise ("Invalid redirect! Missing client_id to redirect!")
-
-        return {'response_mode':'redirect', 'response':response, 'redirect_to':redirect_to_client_id}
-
-    elif response_mode == 'same_as_origin':
-         
-        return {'response_mode':'same_as_origin', 'response':response}
-    
-    else:
-         raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
-
-def callback_pattern (callback, args):
-         
-        callback_pattern =  {
-            "function": callback,
-            "args": args,
-        }
-        
-        return callback_pattern
 
 def get_registred_commands () -> dict:
         print("Activated the get registred commands")

@@ -1,5 +1,6 @@
-from MysceliumWraper import MysceliumHost
-from MysceliumWraper import callback_pattern, response_pattern, client_pattern
+from MysceliumWraper import MysceliumHost, HostPatterns
+
+host_patterns = HostPatterns()
 
 def python_function(age, birth, name):
 
@@ -10,7 +11,7 @@ def python_function(age, birth, name):
     print (name)
     print (age)
 
-    response = response_pattern(response_mode='same_as_origin', response='hello!')
+    response = host_patterns.response_pattern(response_mode='same_as_origin', response='hello!')
 
     return response
 
@@ -19,7 +20,7 @@ def test_redirect (client_id, data):
     if isinstance(client_id, str):
     
         print (f"Redicrecting data: {data} to client: {client_id}")
-        response = response_pattern(response=data, response_mode='redirect', redirect_to_client_id=client_id)
+        response = host_patterns.response_pattern(response=data, response_mode='redirect', redirect_to_client_id=client_id)
         return response
     
     else:
@@ -29,13 +30,13 @@ def test_redirect (client_id, data):
 
 callbacks = [
 
-    callback_pattern(callback=python_function, args={
+    host_patterns.callback_pattern(callback=python_function, args={
         "birth": "str",
         "name": "str",
         "age": "int",
     }),
 
-    callback_pattern(callback=test_redirect, args={
+    host_patterns.callback_pattern(callback=test_redirect, args={
         "client_id" : "str", 
         "data" : "dict",
     }),
@@ -44,8 +45,8 @@ callbacks = [
 
 allowed_clients = [
 
-    client_pattern(client_type="Interface", client_id="some_client_id"),
-    client_pattern(client_type="Interface", client_id="randomsclientids"),
+    host_patterns.client_pattern(client_type="Interface", client_id="some_client_id"),
+    host_patterns.client_pattern(client_type="Interface", client_id="randomsclientids"),
 
 ]
 
