@@ -436,8 +436,6 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     ResultType::Empty
 }
 
-
-
 fn process (py:Python, down_command:DownCommand) {
 
     println!("Initializing prossesing!");

@@ -121,20 +121,20 @@ class ClientPatterns:
     def client_pattern (client_type:str, client_id:str) -> dict:
         return {"client_type":client_type, "client_id":client_id}
 
-    def response_pattern (response:any, response_mode:str, redirect_to_client_id:str=None) -> dict:
+    def response_pattern (response:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
 
-        if response_mode == "redirect":
+        if response_mode == "retransmit":
 
-            if redirect_to_client_id != None:
+            if retransmit_to_client_id != None:
                 pass
             else:
                 raise ("Invalid redirect! Missing client_id to redirect!")
 
-            return {'response_mode':'redirect', 'response':response, 'redirect_to':redirect_to_client_id}
+            return {'response_mode':'retransmit', 'response':response, 'redirect_to':retransmit_to_client_id}
 
-        elif response_mode == 'same_as_origin':
+        elif response_mode == 'to_host':
             
-            return {'response_mode':'same_as_origin', 'response':response}
+            return {'response_mode':'to_host', 'response':response}
         
         else:
             raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
@@ -149,8 +149,6 @@ class ClientPatterns:
             return callback_pattern
 
 # -> Functions:
-
-
 
 def get_registred_commands () -> dict:
         print("Activated the get registred commands")
