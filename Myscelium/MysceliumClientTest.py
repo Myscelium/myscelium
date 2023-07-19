@@ -25,4 +25,4 @@ if __name__ == '__main__':
 
     # print(mys_host.get_registred_commands())
 
-    mys_host.initialize_host(ip="127.0.0.1", port=4444)
+    mys_host.initialize_client(ip="127.0.0.1", port=4444)
