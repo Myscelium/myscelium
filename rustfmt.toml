@@ -1,0 +1,19 @@
+fn_params_layout = "Tall"
+control_brace_style = "AlwaysSameLine"
+fn_call_width = 150
+max_width = 150
+remove_nested_parens = true
+reorder_impl_items = true
+reorder_imports = true
+group_imports = "StdExternalCrate"
+reorder_modules = true
+short_array_element_width_threshold = 20
+fn_single_line = false
+force_multiline_blocks = true
+format_macro_bodies = true
+indent_style = "Block"
+match_arm_leading_pipes = "Preserve"
+match_block_trailing_comma = true
+where_single_line = true
+tab_spaces = 4
+
