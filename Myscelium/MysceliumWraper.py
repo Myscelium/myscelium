@@ -46,10 +46,10 @@ class HostPatterns:
     def __init__(self) -> None:
         pass
 
-    def client_pattern (client_type:str, client_id:str) -> dict:
+    def client_pattern (self, client_type:str, client_id:str) -> dict:
         return {"client_type":client_type, "client_id":client_id}
 
-    def response_pattern (response:any, response_mode:str, redirect_to_client_id:str=None) -> dict:
+    def response_pattern (self, response:any, response_mode:str, redirect_to_client_id:str=None) -> dict:
 
         if response_mode == "redirect":
 
@@ -67,7 +67,7 @@ class HostPatterns:
         else:
             raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
 
-    def callback_pattern (callback, args) -> dict:
+    def callback_pattern (self, callback, args) -> dict:
             
             callback_pattern =  {
                 "function": callback,
@@ -118,10 +118,10 @@ class ClientPatterns:
     def __init__(self) -> None:
         pass
 
-    def client_pattern (client_type:str, client_id:str) -> dict:
+    def client_pattern (self, client_type:str, client_id:str) -> dict:
         return {"client_type":client_type, "client_id":client_id}
 
-    def response_pattern (response:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
+    def response_pattern (self, response:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
 
         if response_mode == "retransmit":
 
@@ -139,7 +139,7 @@ class ClientPatterns:
         else:
             raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
 
-    def callback_pattern (callback, args) -> dict:
+    def callback_pattern (self, callback, args) -> dict:
             
             callback_pattern =  {
                 "function": callback,
@@ -151,7 +151,7 @@ class ClientPatterns:
 # -> Functions:
 
 def get_registred_commands () -> dict:
-        print("Activated the get registred commands")
-        return mys.get_available_commands()
+    print("Activated the get registred commands")
+    return mys.get_available_commands()
 
 
