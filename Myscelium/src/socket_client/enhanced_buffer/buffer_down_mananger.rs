@@ -65,7 +65,7 @@ pub fn set_workers_num(n_workers: u32) {
 
 */
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DownCommand {
     pub command_id: Option<u32>,
     pub client_id: String,

@@ -136,6 +136,22 @@ enum CommandType {
     Unknown,
 }
 
+macro_rules! create_special_command {
+    ($code:expr) => {{
+        use std::collections::HashMap;
+
+        let mut command_map = HashMap::new();
+        command_map.insert("function".to_string(), Value::String($code.to_string()));
+
+        Command {
+            client_id: "some_client_id".to_string(),
+            parity_id: "itisaspecialcase".to_string(),
+            priority: 11,
+            command: command_map,
+        }
+    }};
+}
+
 impl Command {
     pub fn new(client_id: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
         Self {
@@ -174,15 +190,7 @@ impl Command {
 use serde_json::to_string;
 
 fn verify_connection(stream: &mut TcpStream) -> bool {
-    let mut command_map = HashMap::new();
-    command_map.insert("function".to_string(), Value::String("C202".to_string()));
-
-    let command = Command {
-        client_id: "some_client_id".to_string(),
-        parity_id: "itisaspecialcase".to_string(),
-        priority: 11,
-        command: command_map,
-    };
+    let command = create_special_command!("C202");
 
     let command_json = json!(command).to_string();
 
@@ -244,6 +252,61 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
 
 use buffer_up_mananger::UpCommand;
 
+pub fn send_ping(mut stream: &mut TcpStream) {
+    let command_to_request = create_special_command!("C207");
+    let received = send(&mut stream, command_to_request.clone());
+}
+
+// This function handles the response and returns an appropriate action.
+fn handle_response(received: Response) -> Option<DownCommand> {
+    let command_received;
+
+    match received {
+        Response::None => {
+            println!("Received invalid data!");
+            return None;
+        },
+        Response::Command(c) => {
+            println!("Received command: {:?}", c);
+            command_received = c;
+        },
+    }
+
+    match command_received.command_type() {
+        CommandType::Function(f) => {
+            let function: String = serde_json::from_str(&f).unwrap();
+
+            if command_received.parity_id != "itisaspecialcase" {
+                if function == "C210".to_string() {
+                    println!("Received Confirmation!");
+                    return None;
+                } else if function == "Error".to_string() {
+                    println!("An error occurred in host, the error was: {}", command_received.command.get("Error").unwrap());
+                    return None;
+                }
+            }
+
+            println!("Receive a function: {:?}", f);
+            return None;
+        },
+
+        CommandType::Response(r) => {
+            println!("Received a response!");
+
+            let down_command = DownCommand::from_command(command_received.clone());
+
+            buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+
+            return Some(down_command);
+        },
+
+        CommandType::Unknown => {
+            println!("Received an Unknown command!");
+            return None;
+        },
+    }
+}
+
 pub fn initialize_client(address: String, client_id: String) {
     let mut stream = TcpStream::connect(address).unwrap();
 
@@ -251,12 +314,14 @@ pub fn initialize_client(address: String, client_id: String) {
         let up_schedule = buffer_up_mananger::buffer_up_list_schedule();
 
         if !(up_schedule.len() > 0) {
+            send_ping(&mut stream);
+
             thread::sleep(Duration::from_secs(2));
             continue;
         }
 
         if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
-            print!("runing is set to false, shutdown socket client main process!");
+            print!("running is set to false, shutdown socket client main process!");
             break;
         }
 
@@ -265,57 +330,10 @@ pub fn initialize_client(address: String, client_id: String) {
 
             loop {
                 let received = send(&mut stream, command_to_request.clone());
-                let command_received;
 
-                match received {
-                    Response::None => {
-                        println!("Received invalid data!");
-                        continue;
-                    },
-                    Response::Command(c) => {
-                        println!("Received command: {:?}", c);
-                        command_received = c
-                    },
-                }
-
-                match command_received.command_type() {
-                    CommandType::Function(f) => {
-                        let function: String = serde_json::from_str(&f).unwrap();
-
-                        if command_received.parity_id != "itisaspecialcase" {
-                            if function == "C210".to_string() {
-                                println!("Received Confirmation!");
-                                break;
-                            } else if function == "Error".to_string() {
-                                println!("An error ocurred in host, the error was: {}", command_received.command.get("Error").unwrap());
-                                break;
-                            }
-                        }
-
-                        println!("Receive a function: {:?}", f);
-                    },
-
-                    CommandType::Response(r) => {
-                        // -> If response is the response to the command
-
-                        println!("Received a response!");
-
-                        // ! Make a method to not relly in the syncronous response of the command with the same parity id
-                        // > The ideal is to make a system that commands can be received with no relly in the order to
-                        // > make the system more dinamic to the time that some commands can take to run.
-
-                        let down_command = DownCommand::from_command(command_received.clone());
-
-                        buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-
-                        buffer_down_mananger::buffer_down_schedule(down_command);
-
-                        break;
-                    },
-
-                    CommandType::Unknown => {
-                        println!("Received a Unknown command!")
-                    },
+                if let Some(down_command) = handle_response(received) {
+                    buffer_down_mananger::buffer_down_schedule(down_command.clone());
+                    break;
                 }
             }
         }
