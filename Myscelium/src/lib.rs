@@ -289,6 +289,20 @@ use socket_client::socket_client::{initialize_client_buffer, initialize_client};
 use socket_client::transposer::{set_socket_client_transposer_workers_num, set_socket_client_transposer_callbacks, initialize_socket_client_transposer};
 use socket_client::scheduler::{schedule};
 
+
+
+
+#[pyfunction]
+fn set_socket_client_transposer_num_of_workers (n_workers:&PyInt) {
+
+    let workers_num:u32 = n_workers.extract().unwrap();
+
+    set_socket_client_transposer_workers_num(workers_num);
+
+    return;
+
+}
+
 #[pyfunction]
 fn initalize_client_buffer_tables (path:&PyString) {
 
@@ -532,6 +546,7 @@ fn Myscelium (py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(initalize_client_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_client_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_client, m)?)?;
+    m.add_function(wrap_pyfunction!(set_socket_client_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(client_send, m)?)?;
 
     Ok(())

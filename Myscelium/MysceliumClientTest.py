@@ -21,7 +21,7 @@ callbacks = [
 
 if __name__ == '__main__':
     
-    mys_host = MysceliumClient(callbacks=callbacks, client_uid="some_client_id", buffer_path="ClientData", n_workers=2)
+    mys_host = MysceliumClient(callbacks=callbacks, client_uid="some_client_id", buffer_path="ClientData/", n_workers=2)
 
     # print(mys_host.get_registred_commands())
 

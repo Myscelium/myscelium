@@ -92,7 +92,6 @@ class MysceliumClient:
 
         mys.registry_socket_client_callbacks(callbacks) #! We can change this to response handler in the future.
         mys.initalize_client_buffer_tables(buffer_path)
-        mys.set_socket_client_allowed_clients(self.allowed_clients)
         mys.set_socket_client_transposer_num_of_workers(n_workers)
 
         self.host_thread = None
