@@ -252,9 +252,14 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
 
 use buffer_up_mananger::UpCommand;
 
-pub fn send_ping(mut stream: &mut TcpStream) {
+pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
     let command_to_request = create_special_command!("C207");
     let received = send(&mut stream, command_to_request.clone());
+    if let Some(down_command) = handle_response(received) {
+        return Some(down_command);
+    } else {
+        return None;
+    }
 }
 
 // This function handles the response and returns an appropriate action.
@@ -314,7 +319,9 @@ pub fn initialize_client(address: String, client_id: String) {
         let up_schedule = buffer_up_mananger::buffer_up_list_schedule();
 
         if !(up_schedule.len() > 0) {
-            send_ping(&mut stream);
+            if let Some(down_command) = send_ping(&mut stream) {
+                buffer_down_mananger::buffer_down_schedule(down_command.clone());
+            }
 
             thread::sleep(Duration::from_secs(2));
             continue;
