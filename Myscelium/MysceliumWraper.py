@@ -103,7 +103,7 @@ class MysceliumClient:
         return mys.get_socket_client_available_commands()
 
     def initialize_client (self, ip:str, port:int):
-        mys.initialize_socket_client (ip, port, self.host_id)
+        mys.initialize_socket_client (ip, port, self.client_uid)
 
     def stop_client (self, signal, frame):
         # This function will be called when a SIGINT signal is received
