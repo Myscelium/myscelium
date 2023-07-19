@@ -289,6 +289,11 @@ pub fn initialize_client (address:String, client_id:String) {
             thread::sleep(Duration::from_secs(2));
             continue;
         }
+
+        if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+            print!("runing is set to false, shutdown socket client main process!");
+            break;
+        }
         
         for up_command in up_schedule {
             

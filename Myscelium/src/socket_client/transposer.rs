@@ -637,6 +637,11 @@ pub fn initialize_socket_client_transposer (py: Python<'_>) {
         
         println!("\nSchedule to process:\n{:?}\n", schedule);
         
+        if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+            print!("runing is set to false, shutdown transposer!");
+            break;
+        }
+
         if !(schedule.len() > 0) {
             println!("Nothing in the schedule, skipping >>>");
             clear_old_data ();
