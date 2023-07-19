@@ -1,4 +1,3 @@
-
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
@@ -7,25 +6,23 @@ use std::thread;
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::SystemTime;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use serde_json::{Value, from_str};
+use serde_json::{from_str, Value};
 use std::collections::HashMap;
 
-use serde_json::json;
 use lazy_static::lazy_static;
+use serde_json::json;
 
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyString, PyDict, PyTuple, PyList};
+use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 use pyo3::wrap_pyfunction;
 
 use crate::socket_host::enhanced_buffer;
 
 use crate::socket_host::enhanced_buffer::buffer_up_mananger::UpCommand;
 
-
 use std::time::Duration;
-
 
 // > Global Vars Core
 
@@ -41,7 +38,6 @@ pub struct Client {
 
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
-
         let json_str = r#"{
             "get_symbols_data": {
                 "symbols_data": {
@@ -64,17 +60,12 @@ lazy_static! {
         let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
         Arc::new(Mutex::new(command_patterns))
     };
-
-    
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
-
     static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
-
 }
 
-pub fn is_client_registred (client_id: &String) -> bool {
-
+pub fn is_client_registred(client_id: &String) -> bool {
     let clients;
 
     {
@@ -85,29 +76,25 @@ pub fn is_client_registred (client_id: &String) -> bool {
 }
 
 pub fn register_client(client_id: String, client_type: String) {
-    
-    
     if !is_client_registred(&client_id) {
-        
         let mut clients = CLIENTS_ALLOWED.lock().unwrap();
 
-        clients.insert(client_id.clone(), Client {
-            client_id,
-            last_contact: SystemTime::now(),
-            client_type,
-        });
-        
+        clients.insert(
+            client_id.clone(),
+            Client {
+                client_id,
+                last_contact: SystemTime::now(),
+                client_type,
+            },
+        );
     }
-
 }
 
-pub fn update_last_contact (client_id: String) {
-    
+pub fn update_last_contact(client_id: String) {
     let mut clients = CLIENTS_ALLOWED.lock().unwrap();
-    if let Some (client) = clients.get_mut(&client_id) {
+    if let Some(client) = clients.get_mut(&client_id) {
         client.last_contact = SystemTime::now();
     }
-
 }
 
 // > Commands Manangemement & Checking
@@ -117,7 +104,7 @@ enum CommandType {
     Function(String),
     Response(String),
     Redirect(String),
-    Unknown
+    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -129,22 +116,16 @@ struct Command {
 }
 
 impl Command {
-
-    fn new (client_id:String, parity_id:String, priority:u8, command:HashMap<String, Value>) -> Self {
-
+    fn new(client_id: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
         Self {
-
             client_id,
             parity_id,
             priority,
-            command
-
+            command,
         }
-
     }
 
-    fn command_type (&self) -> CommandType {
-
+    fn command_type(&self) -> CommandType {
         if self.command.contains_key("function") {
             CommandType::Function(self.command.get("function").unwrap().to_string())
         } else if self.command.contains_key("response") {
@@ -154,9 +135,7 @@ impl Command {
         } else {
             CommandType::Unknown
         }
-
     }
-
 }
 
 fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
@@ -185,19 +164,19 @@ fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
                         if !validate_parameters(param_value, pattern_value) {
                             return false;
                         }
-                    }
+                    },
                     None => return false,
                 }
             }
             true
-        }
+        },
         (Value::Array(params_arr), Value::Array(pattern_arr)) => {
             params_arr.len() == pattern_arr.len()
                 && params_arr
                     .iter()
                     .zip(pattern_arr.iter())
                     .all(|(param, pattern)| validate_parameters(param, pattern))
-        }
+        },
         (_, Value::String(pattern_type)) => match pattern_type.as_str() {
             "str" => parameters.is_string(),
             "float" => parameters.is_f64(),
@@ -207,7 +186,6 @@ fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
         _ => false,
     }
 }
-
 
 // > thread Manangement:
 
@@ -222,7 +200,6 @@ struct Worker {
     id: usize,
     thread: Option<thread::JoinHandle<()>>,
 }
-
 
 impl ThreadPool {
     pub fn new(size: usize) -> ThreadPool {
@@ -265,7 +242,6 @@ impl ThreadPool {
             }
         }
     }
-    
 }
 
 impl Worker {
@@ -282,10 +258,7 @@ impl Worker {
             job();
         });
 
-        Worker {
-            id,
-            thread: Some(thread),
-        }
+        Worker { id, thread: Some(thread) }
     }
 }
 
@@ -309,15 +282,12 @@ impl Drop for ThreadPool {
     }
 }
 
-
 // > Socket Interactive Functions:
 
-pub fn set_max_conns (n_max_conns:u32) {
-
+pub fn set_max_conns(n_max_conns: u32) {
     let mut default_max_conns = MAX_CONS.lock().unwrap();
 
     *default_max_conns = n_max_conns;
-
 }
 
 pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
@@ -325,18 +295,16 @@ pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
     *command_patterns = callbacks_patterns;
 }
 
-pub fn initialize_host_buffer (buffer_location:String) {
-
+pub fn initialize_host_buffer(buffer_location: String) {
     println!("\ninicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
 
     enhanced_buffer::buffer_down_mananger::buffer_down_initialize_table(buffer_location.clone());
-    
+
     enhanced_buffer::buffer_up_mananger::buffer_up_initialize_table(buffer_location.clone());
-    
+
     println!("\nAll buffer initialized succefully!\n");
 
     return;
-
 }
 
 fn pool_stoping_event_controler(pool: Arc<Mutex<ThreadPool>>) {
@@ -355,9 +323,7 @@ fn pool_stoping_event_controler(pool: Arc<Mutex<ThreadPool>>) {
     return;
 }
 
-pub fn initialize_host (address:String, client_id:String) {
-
-
+pub fn initialize_host(address: String, client_id: String) {
     let mut actual_client_id = CLIENT_ID.lock().unwrap();
     *actual_client_id = client_id;
 
@@ -370,12 +336,9 @@ pub fn initialize_host (address:String, client_id:String) {
     let pool = Arc::new(Mutex::new(ThreadPool::new(*default_max_conns as usize)));
 
     let pool_clone = Arc::clone(&pool);
-    thread::spawn(move || {
-        pool_stoping_event_controler(pool_clone)
-    });
+    thread::spawn(move || pool_stoping_event_controler(pool_clone));
 
     loop {
-
         println!("Waiting conn!");
 
         // Keep the thread alive until HOST_IS_RUNING is set to false
@@ -390,93 +353,66 @@ pub fn initialize_host (address:String, client_id:String) {
                 pool_clone.lock().unwrap().execute(move || {
                     handle_connection(stream);
                 });
-            }
+            },
             Err(e) => {
                 eprintln!("Failed to accept a connection: {}", e);
-            }
+            },
         }
 
         thread::sleep(Duration::from_secs(1));
     }
-
-    
-    
 }
-    // The incoming method is called on the listener, which returns an iterator that gives us a sequence of 
-    // TCP streams (representing a series of connections). The server will then handle each connection in a loop.
+// The incoming method is called on the listener, which returns an iterator that gives us a sequence of
+// TCP streams (representing a series of connections). The server will then handle each connection in a loop.
 
-    // handle_connection is a function that handles each TCP stream. It reads from the stream into a buffer, 
-    // then writes the contents of the buffer back to the stream.
+// handle_connection is a function that handles each TCP stream. It reads from the stream into a buffer,
+// then writes the contents of the buffer back to the stream.
 
-
-pub fn get_available_commands_registered () -> HashMap<String, Value> {
+pub fn get_available_commands_registered() -> HashMap<String, Value> {
     let command_patterns = COMMAND_PATTERNS.lock().unwrap();
     return command_patterns.clone();
 }
 
 // > Socket main structure:
 
-fn handle_special_functions (function:String) -> Command {
-
+fn handle_special_functions(function: String) -> Command {
     let command;
 
-    if function == "C202" { // -> Connection conf request
-        
+    if function == "C202" {
+        // -> Connection conf request
+
         let mut command_map = HashMap::new();
         command_map.insert("function".to_string(), Value::String("C200".to_string()));
 
-        command = Command::new (
-            "some_client_id".to_string(),
-            "itisaspecialcase".to_string(),
-            11,
-            command_map,
-        );
-
-    } else if function == "C206" { // -> Ping request
+        command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
+    } else if function == "C206" {
+        // -> Ping request
 
         //*  Here we can check if have some data to send back to the client or not
 
         let mut command_map = HashMap::new();
         command_map.insert("function".to_string(), Value::String("C207".to_string()));
 
-        command = Command::new (
-            "some_client_id".to_string(),
-            "itisaspecialcase".to_string(),
-            11,
-            command_map,
-        );
+        command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
+    } else {
+        // -> Receive conf
 
-    } else { // -> Receive conf
-        
         let mut command_map = HashMap::new();
         command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-        command = Command::new (
-            "some_client_id".to_string(),
-            "itisaspecialcase".to_string(),
-            11,
-            command_map,
-        );
-        
+        command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
     }
-    
-    return command;
 
+    return command;
 }
 
-fn handle_commom_function (command:Command) -> Command {
-
+fn handle_commom_function(command: Command) -> Command {
     // let actual_client_id = CLIENT_ID.lock().unwrap();
 
     let mut command_map = HashMap::new();
     command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-    let response_command = Command::new (
-        "some_client_id".to_string(),
-        "itisaspecialcase".to_string(),
-        11,
-        command_map,
-    );
+    let response_command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
 
     // let command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
@@ -497,15 +433,15 @@ fn handle_commom_function (command:Command) -> Command {
 
 enum Response {
     Command(Command),
-    None
+    None,
 }
 
-fn get_response (command:Command) -> Response {
-
-    let up_schedule:Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
+fn get_response(command: Command) -> Response {
+    let up_schedule: Vec<UpCommand> =
+        enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
 
     if !(up_schedule.len() > 0) {
-        return Response::None
+        return Response::None;
     }
 
     let command_response = &up_schedule[0];
@@ -523,11 +459,9 @@ fn get_response (command:Command) -> Response {
     enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
 
     return Response::Command(response_command);
+}
 
-} 
-
-fn handle_connection (mut stream: TcpStream)  {
-
+fn handle_connection(mut stream: TcpStream) {
     loop {
         let mut buffer = [0; 4096];
 
@@ -535,19 +469,19 @@ fn handle_connection (mut stream: TcpStream)  {
             Ok(0) => {
                 // No data was read, break the loop
                 continue;
-            }
+            },
             Ok(bytes_read) => {
                 println!("Data received!");
-            }
+            },
             Err(e) => {
                 // Handle the error
                 eprintln!("Failed to read from the stream: {}", e);
-            }
+            },
         }
-        
+
         let buffer_string = String::from_utf8_lossy(&buffer)
-        .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
-        .to_string();
+            .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
+            .to_string();
 
         let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
@@ -557,18 +491,14 @@ fn handle_connection (mut stream: TcpStream)  {
 
         let command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
-        if !is_client_registred (&command.client_id) { // -> In case client isn't registred in the clients allowed
+        if !is_client_registred(&command.client_id) {
+            // -> In case client isn't registred in the clients allowed
 
             let mut command_map = HashMap::new();
             command_map.insert("function".to_string(), Value::String("Error".to_string()));
             command_map.insert("Error".to_string(), Value::String("Your client isn't registred in the whitelist!".to_string()));
 
-            let response:Command = Command::new (
-                "some_client_id".to_string(),
-                "itisaspecialcase".to_string(),
-                11,
-                command_map,
-            );
+            let response: Command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
 
             let command_response_json = json!(response).to_string();
 
@@ -583,37 +513,36 @@ fn handle_connection (mut stream: TcpStream)  {
 
         match command.command.get("function") {
             Some(Value::String(function)) => {
-
                 println!("Comand function: {}", function);
 
-                if special_functions.contains(&function) { // -> Special Function Handler
+                if special_functions.contains(&function) {
+                    // -> Special Function Handler
 
-                    let response = handle_special_functions (function.clone());
+                    let response = handle_special_functions(function.clone());
 
                     let command_response_json = json!(response).to_string();
 
                     println!("Sending back: {:?}", command_response_json);
 
                     stream.write_all(command_response_json.as_bytes()).unwrap();
-
-                } else if command_patterns.contains_key(function) { // -> Commom Function Handler
+                } else if command_patterns.contains_key(function) {
+                    // -> Commom Function Handler
 
                     println!("Command is in command patterns!");
 
-                    let command_is_not_registry:bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
+                    let command_is_not_registry: bool =
+                        enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
 
-                    let response:Command;
+                    let response: Command;
 
                     if !command_is_not_registry {
-                        
                         println!("Command {}, alwready have a response!", command.parity_id.clone());
 
                         match get_response(command.clone()) {
                             Response::Command(c) => {
                                 response = c;
-                            }
+                            },
                             Response::None => {
-
                                 println!("Response is None!");
 
                                 let mut special_response = HashMap::new();
@@ -621,14 +550,10 @@ fn handle_connection (mut stream: TcpStream)  {
                                 special_response.insert("function".to_string(), Value::String("C210".to_string()));
 
                                 response = Command::new(command.client_id, "itisaspecialcase".to_string(), 11, special_response);
-                            }
+                            },
                         }
-                        
-
-                    } else{
-
-                        response = handle_commom_function(command); 
-
+                    } else {
+                        response = handle_commom_function(command);
                     }
 
                     let command_json = json!(response).to_string();
@@ -636,8 +561,8 @@ fn handle_connection (mut stream: TcpStream)  {
                     println!("Sending back: {:?}", command_json);
 
                     stream.write_all(command_json.as_bytes()).unwrap();
-
-                } else { // -> None of above
+                } else {
+                    // -> None of above
 
                     let mut command_map = HashMap::new();
                     command_map.insert("function".to_string(), Value::String("C210".to_string()));
@@ -654,14 +579,11 @@ fn handle_connection (mut stream: TcpStream)  {
                     println!("Sending back: {:?}", command_json);
 
                     stream.write_all(command_json.as_bytes()).unwrap();
-
                 }
-
-            }
+            },
             _ => {
                 println!("The function name is not found or not a string.");
-            }
+            },
         }
     }
-
 }

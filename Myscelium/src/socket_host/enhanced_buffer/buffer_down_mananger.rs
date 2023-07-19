@@ -1,4 +1,3 @@
-
 // use std::hash::Hash;
 // use std::sync::Mutex;
 
@@ -11,14 +10,14 @@ use pyo3::buffer;
 
 use super::buffer_functions;
 
-use buffer_functions::UniqueIdGenerator;
 use buffer_functions::SQLiteConnectionPool;
+use buffer_functions::UniqueIdGenerator;
 use buffer_functions::UniqueParityIdGenerator;
 
 use chrono::Utc;
 
 use rusqlite::params;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // mod buffer_functions;
 
@@ -31,13 +30,9 @@ use serde::{Serialize, Deserialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
-
-
 lazy_static! {
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
-    
     static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
-
     static ref BUFFER_POOL: SQLiteConnectionPool = {
         let buffer_path_clone;
         let num_workers_clone;
@@ -47,40 +42,36 @@ lazy_static! {
 
             let num_workers = NUM_WORKERS.lock().unwrap();
             num_workers_clone = num_workers.clone() as usize
-
         }
         SQLiteConnectionPool::new(num_workers_clone, buffer_path_clone.as_str()).unwrap()
     };
-
 }
-pub fn set_workers_num (n_workers:u32) {
-    
+pub fn set_workers_num(n_workers: u32) {
     let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
 
     *default_num_of_workers = n_workers;
-
 }
 
 /*
-    However, the rusqlite library in Rust automatically starts a new 
-    transaction before each command and commits it after the command 
-    is executed, unless you explicitly start a transaction. This is 
-    known as "autocommit mode".
-    
- */
+   However, the rusqlite library in Rust automatically starts a new
+   transaction before each command and commits it after the command
+   is executed, unless you explicitly start a transaction. This is
+   known as "autocommit mode".
 
- #[derive(Serialize, Deserialize, Debug, Clone)]
- pub struct DownCommand {
-    pub command_id:i32,
-    pub client_id:String,
-    pub parity_id:String,
-    pub priority:u8,
-    pub command:String,
-    pub created_time:f64,
+*/
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DownCommand {
+    pub command_id: i32,
+    pub client_id: String,
+    pub parity_id: String,
+    pub priority: u8,
+    pub command: String,
+    pub created_time: f64,
 }
 
-impl IntoPy <PyObject> for DownCommand {
-    fn into_py (self, py:Python) -> PyObject {
+impl IntoPy<PyObject> for DownCommand {
+    fn into_py(self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         dict.set_item("command_id", self.command_id).unwrap();
         dict.set_item("client_id", self.client_id).unwrap();
@@ -91,30 +82,29 @@ impl IntoPy <PyObject> for DownCommand {
     }
 }
 
-fn get_registred_ids () -> Vec<i32> {
-
+fn get_registred_ids() -> Vec<i32> {
     let conn = BUFFER_POOL.get_connection().unwrap();
 
-    let mut ids:Vec<i32> = Vec::new();
+    let mut ids: Vec<i32> = Vec::new();
 
     {
         let mut smtp = conn.prepare("SELECT * FROM CommandsReceived").unwrap();
-        let commands_iter = smtp.query_map(params![], |row| {
-            let id: i32 = row.get(0)?;
-            Ok(id)
-        }).unwrap();
+        let commands_iter = smtp
+            .query_map(params![], |row| {
+                let id: i32 = row.get(0)?;
+                Ok(id)
+            })
+            .unwrap();
 
         for command in commands_iter {
             ids.push(command.unwrap());
         }
-
     }
 
     BUFFER_POOL.release_connection(conn);
 
     return ids;
 }
-
 
 pub fn buffer_down_initialize_table(buffer_path: String) {
     let mut default_buffer_path = BUFFER_PATH.lock().unwrap();
@@ -142,92 +132,83 @@ pub fn buffer_down_initialize_table(buffer_path: String) {
     match result {
         Ok(_) => {
             println!("Successfully initialize CommandsReceived table!");
-        }
+        },
         Err(e) => {
             eprintln!("An error occurred while scheduling the command in the CommandsReceived table: {}", e);
-        }
+        },
     }
 
-    buffer_pool.release_connection(conn);  // Corrected line
+    buffer_pool.release_connection(conn); // Corrected line
 
     return;
 }
 
-
-pub fn  buffer_down_list_schedule () -> Vec<DownCommand> {
-
+pub fn buffer_down_list_schedule() -> Vec<DownCommand> {
     let conn = BUFFER_POOL.get_connection().unwrap();
 
-    let mut commands_schedule:Vec<DownCommand> = Vec::new();
+    let mut commands_schedule: Vec<DownCommand> = Vec::new();
 
     {
         let mut smtp = conn.prepare("SELECT * FROM CommandsReceived").unwrap();
-    
-        let commands_iter = smtp.query_map(params![], |row| {
-        
-            Ok (DownCommand{
 
-                    command_id:     row.get(0).unwrap(), 
-                    client_id:      row.get(1).unwrap(),
-                    parity_id:      row.get(2).unwrap(),
-                    priority:       row.get(3).unwrap(),
-                    command:        row.get(4).unwrap(),
-                    created_time:   row.get(5).unwrap()
-                
+        let commands_iter = smtp
+            .query_map(params![], |row| {
+                Ok(DownCommand {
+                    command_id: row.get(0).unwrap(),
+                    client_id: row.get(1).unwrap(),
+                    parity_id: row.get(2).unwrap(),
+                    priority: row.get(3).unwrap(),
+                    command: row.get(4).unwrap(),
+                    created_time: row.get(5).unwrap(),
                 })
-                
-        }).unwrap();
+            })
+            .unwrap();
 
         for command in commands_iter {
             commands_schedule.push(command.unwrap());
         }
     }
-    
-    BUFFER_POOL.release_connection(conn);
-    
-    return commands_schedule;
 
+    BUFFER_POOL.release_connection(conn);
+
+    return commands_schedule;
 }
 
-fn get_registred_parity_ids (client_id:String) -> Vec<String> {
-
+fn get_registred_parity_ids(client_id: String) -> Vec<String> {
     let conn = BUFFER_POOL.get_connection().unwrap();
 
-    let mut parity_ids:Vec<String> = Vec::new();
+    let mut parity_ids: Vec<String> = Vec::new();
 
     {
         let mut smtp = conn.prepare("SELECT * FROM CommandsReceived WHERE ClientID = ? ").unwrap();
-        let commands_iter = smtp.query_map(params![client_id], |row| {
-            let parity_id: String = row.get(2)?;
-            Ok(parity_id)
-        }).unwrap();
+        let commands_iter = smtp
+            .query_map(params![client_id], |row| {
+                let parity_id: String = row.get(2)?;
+                Ok(parity_id)
+            })
+            .unwrap();
 
         for command in commands_iter {
             parity_ids.push(command.unwrap());
         }
-
     }
 
     BUFFER_POOL.release_connection(conn);
 
     return parity_ids;
-
 }
 
-pub fn buffer_down_gen_valid_parity_id (client_id:String) -> String {
-
-    let registred_ids:Vec<String> = get_registred_parity_ids(client_id);
+pub fn buffer_down_gen_valid_parity_id(client_id: String) -> String {
+    let registred_ids: Vec<String> = get_registred_parity_ids(client_id);
 
     let mut unique_parity_id_generator = UniqueParityIdGenerator::new(16, registred_ids);
 
-    let valid_parity_id:String = unique_parity_id_generator.gen();
+    let valid_parity_id: String = unique_parity_id_generator.gen();
 
     return valid_parity_id;
-
 }
 
-pub fn buffer_down_clear_old_commands () {
-
+pub fn buffer_down_clear_old_commands() {
     let now = Utc::now();
     let current_timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
@@ -238,24 +219,21 @@ pub fn buffer_down_clear_old_commands () {
     }
 
     for dow_command in schedule {
-
         let command_timestamp = dow_command.created_time;
 
         let time_difference = (current_timestamp - command_timestamp);
 
         if time_difference >= 30.0 {
-
             buffer_down_remove_schedule_by_id(dow_command.command_id);
-            println!("\nCommand: {} from client: {}, too old, clearing from the buffer down schedule!\n", dow_command.parity_id, dow_command.client_id);
-
+            println!(
+                "\nCommand: {} from client: {}, too old, clearing from the buffer down schedule!\n",
+                dow_command.parity_id, dow_command.client_id
+            );
         }
-
     }
-
 }
 
-pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:u8, command:String) {
-
+pub fn buffer_down_schedule(client_id: String, parity_id: String, priority: u8, command: String) {
     if check_if_parity_id_is_registred(client_id.clone(), parity_id.clone()) {
         println!("Parity_id: {} alwready registred to client_id: {}, so skiping...", parity_id, client_id);
         return;
@@ -263,7 +241,9 @@ pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:u8, co
 
     let registered_ids = get_registred_ids();
 
-    let mut id_generator = UniqueIdGenerator{registered_ids:registered_ids};
+    let mut id_generator = UniqueIdGenerator {
+        registered_ids: registered_ids,
+    };
 
     let conn = BUFFER_POOL.get_connection().unwrap();
 
@@ -282,30 +262,29 @@ pub fn buffer_down_schedule (client_id:String, parity_id:String, priority:u8, co
             } else {
                 println!("No rows were affected.");
             }
-        }
+        },
         Err(e) => {
             eprintln!("An error occurred while inserting the command in the table CommandsReceived: {}", e);
-        }
+        },
     }
 
     BUFFER_POOL.release_connection(conn);
-
 }
 
-pub fn check_if_parity_id_is_registred (client_id:String, parity_id:String) -> bool {
-
+pub fn check_if_parity_id_is_registred(client_id: String, parity_id: String) -> bool {
     let conn = BUFFER_POOL.get_connection().unwrap();
 
-
-    let mut ids:Vec<Result<String, _>> = Vec::new();
+    let mut ids: Vec<Result<String, _>> = Vec::new();
 
     {
         let mut smtp = conn.prepare("SELECT * FROM CommandsReceived WHERE ClientID = ?").unwrap();
-        let commands_iter = smtp.query_map(params![client_id], |row| {
-            let id:String = row.get(2)?;
-            Ok(id)
-        }).unwrap();
-    
+        let commands_iter = smtp
+            .query_map(params![client_id], |row| {
+                let id: String = row.get(2)?;
+                Ok(id)
+            })
+            .unwrap();
+
         for command in commands_iter {
             ids.push(command)
         }
@@ -317,24 +296,19 @@ pub fn check_if_parity_id_is_registred (client_id:String, parity_id:String) -> b
         match id {
             Ok(id) => {
                 if parity_id == id {
-                    return true
+                    return true;
                 }
             },
-            Err (e) => {
+            Err(e) => {
                 eprintln!("And error ocurred when obtaining the ids registred in the table CommandsReceived: {}", e);
-            }                                         
-
+            },
         }
-        
     }
 
-    return false
+    return false;
+}
 
-} 
-
-
-pub fn  buffer_down_update_schedule (id:i32, client_id:String, parity_id:String, priority:i32, command:String) {
-
+pub fn buffer_down_update_schedule(id: i32, client_id: String, parity_id: String, priority: i32, command: String) {
     let conn = BUFFER_POOL.get_connection().unwrap();
 
     let result = conn.execute(
@@ -349,61 +323,44 @@ pub fn  buffer_down_update_schedule (id:i32, client_id:String, parity_id:String,
             } else {
                 println!("Successfully update the command in the table CommandsReceived. No rows were affected.");
             }
-        }
+        },
         Err(e) => {
             eprintln!("An error occurred while update the command in the table CommandsReceived: {}", e);
-        }
+        },
     }
 
     BUFFER_POOL.release_connection(conn);
-
 }
 
-
-pub fn  buffer_down_remove_schedule_by_id (id:i32) {
-
+pub fn buffer_down_remove_schedule_by_id(id: i32) {
     let conn = BUFFER_POOL.get_connection().unwrap();
-    let result = conn.execute(
-        "DELETE from CommandsReceived where ID = ?",
-        params![id],
-    );
+    let result = conn.execute("DELETE from CommandsReceived where ID = ?", params![id]);
 
     match result {
-
         Ok(rows) => {
             println!("Successfully deleted Command of ID: {}. {} rows were affected.", id, rows);
-        }
+        },
         Err(e) => {
             eprintln!("An error occurred while deleting the command: {} from CommandsReceived table: {}", id, e);
-        }
-
+        },
     }
 
     BUFFER_POOL.release_connection(conn)
-
 }
 
-
-pub fn  buffer_down_remove_schedule_by_parity_id (client_id:String, parity_id:String) {
-
+pub fn buffer_down_remove_schedule_by_parity_id(client_id: String, parity_id: String) {
     let conn = BUFFER_POOL.get_connection().unwrap();
-    
-    let result = conn.execute(
-        "DELETE from CommandsReceived where ClientID = ? AND ParityId = ?",
-        params![client_id, parity_id],
-    );
+
+    let result = conn.execute("DELETE from CommandsReceived where ClientID = ? AND ParityId = ?", params![client_id, parity_id]);
 
     match result {
-
         Ok(rows) => {
-            println!("Successfully deleted Command from Client: {} And ParityID: {}. {} rows were affected.",client_id, parity_id, rows);
-        }
+            println!("Successfully deleted Command from Client: {} And ParityID: {}. {} rows were affected.", client_id, parity_id, rows);
+        },
         Err(e) => {
             eprintln!("An error occurred while deleting the Client: {} And ParityID: {} from CommandsReceived table: {}", client_id, parity_id, e);
-        }   
-    
+        },
     }
 
     BUFFER_POOL.release_connection(conn)
-
 }

@@ -1,26 +1,28 @@
-
 use crate::socket_host::enhanced_buffer;
 use lazy_static::lazy_static;
+use serde_json::{from_str, Value};
+use std::collections::HashMap;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use std::collections::HashMap;
-use serde_json::{Value, from_str};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::socket_host::socket_host::is_client_registred;
 
 use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
 
-use std::sync::{Condvar, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Condvar,
+};
 
-use pyo3::types::{IntoPyDict, PyString, PyInt, PyAny, PyDict, PyTuple, PyList, PyFunction, PyBool, PyFloat};
-use pyo3::{Python, PyResult, PyObject, PyErr};
+use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
+use pyo3::{PyErr, PyObject, PyResult, Python};
 
 use pyo3::IntoPy;
 
-use pyo3::Py;
 use pyo3::exceptions::PyException;
+use pyo3::Py;
 
 use std::time::{Duration, Instant};
 
@@ -44,26 +46,20 @@ enum CommandType {
     Function(String),
     Response(String),
     Redirect(String),
-    Unknown
+    Unknown,
 }
 
 impl Command {
-
-    fn new (client_id:String, parity_id:String, priority:u8, command:HashMap<String, Value>) -> Self {
-
+    fn new(client_id: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
         Self {
-
             client_id,
             parity_id,
             priority,
-            command
-
+            command,
         }
-
     }
 
-    fn command_type (&self) -> CommandType {
-
+    fn command_type(&self) -> CommandType {
         if self.command.contains_key("function") {
             CommandType::Function(self.command.get("function").unwrap().to_string())
         } else if self.command.contains_key("response") {
@@ -73,16 +69,11 @@ impl Command {
         } else {
             CommandType::Unknown
         }
-
     }
-
 }
 
-
 lazy_static! {
-
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
-
         let json_str = r#"{
             "get_symbols_data": {
                 "symbols_data": {
@@ -105,35 +96,28 @@ lazy_static! {
         let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
         Arc::new(Mutex::new(command_patterns))
     };
-
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
-        Arc::new(Mutex::new(command_patterns))  
+        Arc::new(Mutex::new(command_patterns))
     };
-
-    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5)); 
-
+    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
 }
 
-pub fn set_socket_host_transposer_workers_num (n_workers:u32) {
-
+pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
     let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
 
     *default_num_of_workers = n_workers;
 
     enhanced_buffer::buffer_down_mananger::set_workers_num(n_workers);
     enhanced_buffer::buffer_up_mananger::set_workers_num(n_workers);
-
 }
 
-pub fn set_socket_host_transposer_callbacks (commands_patterns:HashMap<String, Value>, callbacks_patterns:HashMap<String, (Py<PyFunction>, Value)>) {
-
+pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
     *command_patterns = commands_patterns;
 
     let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     *callback_patterns = callbacks_patterns;
-
 }
 
 // > thread Manangement:
@@ -167,7 +151,11 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&receiver), Arc::clone(&free_condvar)));
         }
 
-        ThreadPool { workers, sender, free_condvar }
+        ThreadPool {
+            workers,
+            sender,
+            free_condvar,
+        }
     }
 
     pub fn execute(&self, f: Job) {
@@ -184,7 +172,8 @@ impl ThreadPool {
     }
 
     pub fn free_workers(&self) -> Vec<usize> {
-        self.workers.iter()
+        self.workers
+            .iter()
             .filter(|worker| !worker.busy.load(Ordering::SeqCst))
             .map(|worker| worker.id)
             .collect()
@@ -203,7 +192,6 @@ impl ThreadPool {
             }
         }
     }
-
 }
 
 impl Worker {
@@ -221,17 +209,23 @@ impl Worker {
             match message {
                 Some(job) => {
                     busy_clone.store(true, Ordering::SeqCst);
-                    println!("\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-
-                              \nTransposer Worker {} got a job; executing.\n", id);
+                    println!(
+                        "\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-
+                              \nTransposer Worker {} got a job; executing.\n",
+                        id
+                    );
                     job();
                     busy_clone.store(false, Ordering::SeqCst);
                     free_condvar_clone.notify_one();
-                }
+                },
                 None => {
-                    println!("\nTransposer Worker {} was told to terminate.
-                              \n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-\n", id);
+                    println!(
+                        "\nTransposer Worker {} was told to terminate.
+                              \n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-\n",
+                        id
+                    );
                     return;
-                }
+                },
             }
         });
 
@@ -246,7 +240,6 @@ impl Worker {
 // > Transposer:
 
 fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<&'l PyTuple> {
-
     // Check if the dict contains the function name as a key
     if !dict.contains_key("args") {
         // If it does not, return an empty Vec since there are no arguments
@@ -330,10 +323,9 @@ fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult
     Ok(kwargs)
 }
 
-fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
-
+fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
     println!("Getting function name...");
-    let function_name:&String = match command.command.get("function") {
+    let function_name: &String = match command.command.get("function") {
         Some(Value::String(function_name)) => function_name,
         _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
     };
@@ -359,9 +351,9 @@ fn handle_command (py:Python<'_>, command:Command) -> PyResult<PyObject> {
         e
     })?;
 
-    let result_obj: PyObject = result.clone().into();  // Convert the result into a PyObject
+    let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
 
-    Ok(result_obj)  // Return the PyObject
+    Ok(result_obj) // Return the PyObject
 }
 
 // Define a custom type that can be either Empty, Map, or Error
@@ -387,8 +379,8 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     if let Ok(dict) = obj.cast_as::<PyDict>(py) {
         // Handle dict
 
-        let mut rust_dict = HashMap::new();  // Declare the HashMap
-    
+        let mut rust_dict = HashMap::new(); // Declare the HashMap
+
         for (key, value) in dict.iter() {
             let key_str: String = key.extract().unwrap();
             if let Ok(value_str) = value.extract::<String>() {
@@ -403,7 +395,6 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
         }
 
         return ResultType::Map(rust_dict);
-
     } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
         // Handle tuple
         for item in tuple {
@@ -445,40 +436,40 @@ macro_rules! error_response {
     }};
 }
 
-fn process (py:Python, down_command:DownCommand) {
-
-    fn handle_redirect (m:HashMap<String, String>, client_id: &mut String, down_command: DownCommand) -> Result<std::string::String, serde_json::Error> {
-
+fn process(py: Python, down_command: DownCommand) {
+    fn handle_redirect(
+        m: HashMap<String, String>,
+        client_id: &mut String,
+        down_command: DownCommand,
+    ) -> Result<std::string::String, serde_json::Error> {
         let response;
 
         if !m.contains_key("redirect_to") {
-            
             return error_response!("Error! Callback response args don't have redirect_to client_id field!");
-        
-        } 
+        }
 
         let redirect_to = m.get("redirect_to").unwrap();
 
         if !is_client_registred(&redirect_to.to_string()) {
-
             return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
+        }
 
-        } 
-
-        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), "C210".to_string());
+        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(
+            client_id.clone(),
+            down_command.parity_id.clone(),
+            down_command.priority.clone(),
+            "C210".to_string(),
+        );
 
         *client_id = redirect_to.to_string();
 
         if !m.contains_key("response") {
-        
             return error_response!("Error! Callback response args don't have response kwarg!");
-            
-        } 
+        }
 
         response = serde_json::to_string(m.get("response").unwrap());
 
-        return response
-
+        return response;
     }
 
     println!("Initializing prossesing!");
@@ -486,25 +477,24 @@ fn process (py:Python, down_command:DownCommand) {
     let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
     let patters = command_patterns;
 
-    let command_is_not_registry:bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
-    let command_id:i32 = down_command.command_id.clone();
+    let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
+    let command_id: i32 = down_command.command_id.clone();
 
     if !command_is_not_registry {
-        
         println!("Command {}, alwready have a response!", down_command.parity_id.clone());
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
         return;
     }
 
-    let command:String = down_command.command.clone();
+    let command: String = down_command.command.clone();
 
-    let hashmap_command:HashMap<String, Value> = serde_json::from_str(&command).unwrap();
+    let hashmap_command: HashMap<String, Value> = serde_json::from_str(&command).unwrap();
 
     // TODO >>> Use the command.command or create a require type field to redirect the command to another client
 
-    // -> One idea is to create a obrigatory key in the command.command and instead of only function create a type kwarg field 
-    // > Type can be: 
-    // >    - same as origin  
+    // -> One idea is to create a obrigatory key in the command.command and instead of only function create a type kwarg field
+    // > Type can be:
+    // >    - same as origin
     // >    - redirect
 
     // > if it is redirect one extra kwarg is necessary that have the client_id to redirect
@@ -512,43 +502,37 @@ fn process (py:Python, down_command:DownCommand) {
     // * and to store when is the last contact of some client, if it is some threshold value
     // * more it will remove the registred client, if it have a contact recent, this will redirect the message
     // * however if the message is becames too old before the client the message is redirected catches it
-    // * The system have to remove this old message from the buffer too.  
+    // * The system have to remove this old message from the buffer too.
 
-    let translated_command:Command = Command::new(
-        down_command.client_id.clone(), 
-        down_command.parity_id.clone(), 
-        down_command.priority.clone(), 
-        hashmap_command.clone()
-    );
+    let translated_command: Command =
+        Command::new(down_command.client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), hashmap_command.clone());
 
     println!("Translated command: {:?}", translated_command);
 
     let function = match translated_command.command.get("function") {
-
         Some(Value::String(function)) => function,
         _ => {
             println!("The function name is not found or not a string.");
             return;
-        }
-
+        },
     };
 
-    if !patters.contains_key(function) { // -> Remove command from schedule if it isn't on the patterns
+    if !patters.contains_key(function) {
+        // -> Remove command from schedule if it isn't on the patterns
 
-    println!("Command isn't registred in the patterns");
+        println!("Command isn't registred in the patterns");
 
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
 
         println!("command skipped and remvoed from schedule");
         return;
-
     }
 
     println!("Command function: {} is a valid function!", function);
     println!("Calling the callback!\n");
     println!("Acquired the GIL");
 
-    let response = handle_command (py, translated_command.clone());
+    let response = handle_command(py, translated_command.clone());
 
     let result = handle_pyobject(py, response.unwrap());
 
@@ -557,70 +541,58 @@ fn process (py:Python, down_command:DownCommand) {
     let response;
 
     match result {
-
         ResultType::Map(m) => {
-            
             if m.contains_key("response_mode") {
-
                 let response_mode = m.get("response_mode").unwrap();
 
-                if response_mode == &"same_as_origin".to_string() { 
-                    
+                if response_mode == &"same_as_origin".to_string() {
                     // -> Handle the cases when command have to be returned to origin!
 
                     response = serde_json::to_string(&m);
-
-                } else if response_mode == &"redirect".to_string() { 
-                    
+                } else if response_mode == &"redirect".to_string() {
                     // -> Handle the cases when command have to be redirected!
 
                     response = handle_redirect(m, &mut client_id, down_command.clone());
-
                 } else {
-                    response = error_response!("Error! Response mode dont match any response mode, please use one of this: ('same_as_origin', 'redirect')!");
+                    response =
+                        error_response!("Error! Response mode dont match any response mode, please use one of this: ('same_as_origin', 'redirect')!");
                 }
-
             } else {
                 response = error_response!("Error! Callback don't implement response mode!");
             }
-
-        }
+        },
 
         ResultType::Empty => {
-        
             response = serde_json::to_string(&"C210".to_string());
-        
-        }
+        },
         ResultType::Error(e) => {
-            
             response = error_response!(format!("An error ocurred while converting python callback response, the error was: {:?}", e));
-
-        }
-    
+        },
     }
 
     println!("Function returned: {:?}", response);
     println!("command: {:?}, processed!", down_command.parity_id.clone());
 
     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap())
-
+    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(
+        client_id,
+        down_command.parity_id.clone(),
+        down_command.priority.clone(),
+        response.unwrap(),
+    )
 }
 
-fn clear_old_data () {
-
+fn clear_old_data() {
     enhanced_buffer::buffer_down_mananger::buffer_down_clear_old_commands();
     enhanced_buffer::buffer_up_mananger::buffer_up_clear_old_commands();
-
 }
 
-pub fn initialize_socket_host_transposer (py: Python<'_>) {
-
+pub fn initialize_socket_host_transposer(py: Python<'_>) {
     let num_of_workers = NUM_WORKERS.lock().unwrap();
 
     let mut pool = ThreadPool::new(*num_of_workers as usize);
 
-    let mut schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
+    let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
     schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
 
@@ -628,7 +600,7 @@ pub fn initialize_socket_host_transposer (py: Python<'_>) {
 
     if !(schedule.len() > 0) {
         println!("Nothing in the schedule, skipping >>>");
-        clear_old_data ();
+        clear_old_data();
         thread::sleep(Duration::from_secs(5));
         return;
     }
@@ -636,32 +608,27 @@ pub fn initialize_socket_host_transposer (py: Python<'_>) {
     println!("\nData found in schedule!");
 
     for dow_command in schedule {
-
         pool.wait_for_free_worker(Box::new(|| {
-
             println!("get a pool worker in tranposer!");
 
             let py;
 
             {
-                let getting_py = unsafe {Python::assume_gil_acquired()};
+                let getting_py = unsafe { Python::assume_gil_acquired() };
 
                 let gil_pool = unsafe { getting_py.clone().new_pool() };
-                
+
                 py = gil_pool.python();
 
-                println! ("Aquired python in a process task!");
+                println!("Aquired python in a process task!");
 
                 process(py, dow_command);
 
-                println! ("Finalize a process task!");
-
+                println!("Finalize a process task!");
             }
-
-        }));      
-
+        }));
     }
-    
+
     pool.join();
 
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
@@ -675,5 +642,4 @@ pub fn initialize_socket_host_transposer (py: Python<'_>) {
     //         handle_connection(stream);
     //     });
     // }
-
 }

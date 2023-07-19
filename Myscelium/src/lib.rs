@@ -1,39 +1,36 @@
-
-
 // use socket_client;
 
 use std::collections::HashMap;
 
 mod socket_host;
-use socket_host::socket_host::{set_socket_host_callbacks, get_available_commands_registered, initialize_host};
-use socket_host::socket_host::{initialize_host_buffer, set_max_conns, register_client};
-use socket_host::transposer::{set_socket_host_transposer_workers_num, set_socket_host_transposer_callbacks, initialize_socket_host_transposer};
+use socket_host::socket_host::{get_available_commands_registered, initialize_host, set_socket_host_callbacks};
+use socket_host::socket_host::{initialize_host_buffer, register_client, set_max_conns};
+use socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
 
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyString, PyInt, PyDict, PyTuple, PyList, PyFunction, PyBool, PyFloat};
+use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 use pyo3::wrap_pyfunction;
 
 use pyo3::exceptions;
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
-use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, Ordering};
 use ctrlc::set_handler;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use serde_json::Value as JsonValue;
 use std::thread;
 
 use std::time::{Duration, Instant};
 
-use lazy_static::lazy_static;   
+use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref CLIENT_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
 }
-
 
 // #[pyfunction]
 // fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
@@ -62,31 +59,25 @@ lazy_static! {
 //     Ok(())
 // }
 
-
-
 #[pyfunction]
-fn set_socket_host_transposer_num_of_workers (n_workers:&PyInt) {
-
-    let workers_num:u32 = n_workers.extract().unwrap();
+fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
+    let workers_num: u32 = n_workers.extract().unwrap();
 
     set_socket_host_transposer_workers_num(workers_num);
 
     return;
-
 }
 
 #[pyfunction]
-fn set_socket_host_max_connections (n_max_conns:&PyInt) {
-
-    let max_conns:u32 = n_max_conns.extract().unwrap();
+fn set_socket_host_max_connections(n_max_conns: &PyInt) {
+    let max_conns: u32 = n_max_conns.extract().unwrap();
 
     set_max_conns(max_conns);
 
     return;
 }
 
-
-fn extract_arg_types (arg: &PyAny) -> PyResult<Value> {
+fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
     if let Ok(arg_dict) = arg.downcast::<PyDict>() {
         // If the argument is a dictionary, recursively extract the argument types
         let mut args_types = HashMap::new();
@@ -104,27 +95,24 @@ fn extract_arg_types (arg: &PyAny) -> PyResult<Value> {
 }
 
 #[pyfunction]
-fn initalize_host_buffer_tables (path:&PyString) {
-
-    let buffer_path:String = path.extract().unwrap();
+fn initalize_host_buffer_tables(path: &PyString) {
+    let buffer_path: String = path.extract().unwrap();
 
     initialize_host_buffer(buffer_path);
 
     return;
-
 }
 
 #[pyfunction]
-fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
+fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
 
-    let mut callbacks_patterns =  HashMap::new();
+    let mut callbacks_patterns = HashMap::new();
 
     for command in commands.iter() {
-        
         let command_dict: &PyDict = command.downcast().unwrap();
         let function: &PyAny = command_dict.get_item("function").unwrap();
-        
+
         let args_item: &PyAny = command_dict.get_item("args").unwrap();
 
         // Check if args_item is a dict or a string with the value "None"
@@ -158,14 +146,13 @@ fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()
 
         let function = function.downcast::<PyFunction>()?.clone();
 
-        let function: Py<PyFunction> = function.into_py(py);  // convert &PyAny to Py<PyFunction>
+        let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
         callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
-
     }
 
     // Now you can use the command_patterns
-    set_socket_host_callbacks(command_patterns.clone(), );
-    set_socket_host_transposer_callbacks(command_patterns.clone(), callbacks_patterns, );
+    set_socket_host_callbacks(command_patterns.clone());
+    set_socket_host_transposer_callbacks(command_patterns.clone(), callbacks_patterns);
 
     Ok(())
 }
@@ -175,11 +162,10 @@ fn stop_socket_host() {
 }
 
 #[pyfunction]
-fn initialize_socket_host (py: Python<'_>, ip:String, port:i32, client_id:String) {
+fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: String) {
     let address = format!("{}:{}", ip, port);
 
     thread::spawn(|| {
-
         ctrlc::set_handler(move || {
             if HOST_IS_RUNING.load(Ordering::SeqCst) {
                 println!("\nreceived Ctrl+C!\n");
@@ -190,25 +176,21 @@ fn initialize_socket_host (py: Python<'_>, ip:String, port:i32, client_id:String
 
         initialize_host(address, client_id);
         println!("Socket host exited ssucefully!");
-        
-
     });
 
     loop {
-
         initialize_socket_host_transposer(py);
         println!("Socket transposer exited ssucefully!");
-    
+
         if !HOST_IS_RUNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
             thread::sleep(Duration::from_secs(7));
             break;
         }
     }
-
 }
 
-fn translate_value_to_py (py: Python<'_>, value: JsonValue) -> PyResult<PyObject> {
+fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject> {
     // Convert the JSON value to the appropriate Python object
     match value {
         JsonValue::Null => Ok(py.None()),
@@ -222,7 +204,7 @@ fn translate_value_to_py (py: Python<'_>, value: JsonValue) -> PyResult<PyObject
                 py_list.append(py_item)?;
             }
             Ok(py_list.into())
-        }
+        },
         JsonValue::Object(obj) => {
             let py_dict: &PyDict = PyDict::new(py);
             for (k, v) in obj {
@@ -231,7 +213,7 @@ fn translate_value_to_py (py: Python<'_>, value: JsonValue) -> PyResult<PyObject
                 py_dict.set_item(py_key, py_value)?;
             }
             Ok(py_dict.into())
-        }
+        },
     }
 }
 
@@ -250,33 +232,25 @@ fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
 }
 
 #[pyfunction]
-fn set_socket_host_allowed_clients (allowed_clients_list: &PyList) -> PyResult<()> {
-
+fn set_socket_host_allowed_clients(allowed_clients_list: &PyList) -> PyResult<()> {
     for client_allowed in allowed_clients_list.iter() {
-        
         let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
 
         let client_type: &PyAny = allowed_clients_dict.get_item("client_type").unwrap();
         let client_id: &PyAny = allowed_clients_dict.get_item("client_id").unwrap();
 
         if let Ok(extracted_client_type) = client_type.extract::<String>() {
-            
             if let Ok(extracted_client_id) = client_id.extract::<String>() {
-                
                 register_client(extracted_client_id, extracted_client_type);
-
             } else {
                 return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_id must be a String with 16 characters!"));
             }
-
         } else {
             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_type must be a String!"));
         }
-
     }
 
     Ok(())
-
 }
 
 // > -----------------------------------------------------------------------------------------------------------------------------------------
@@ -284,34 +258,29 @@ fn set_socket_host_allowed_clients (allowed_clients_list: &PyList) -> PyResult<(
 // -> Socket Client mainpoints:
 
 mod socket_client;
-use socket_client::socket_client::{set_socket_client_callbacks_patterns, get_socket_client_available_commands_registered, Command};
-use socket_client::socket_client::{initialize_client_buffer, initialize_client};
-use socket_client::transposer::{set_socket_client_transposer_workers_num, set_socket_client_transposer_callbacks, initialize_socket_client_transposer};
-use socket_client::scheduler::{schedule};
-
-
-
+use socket_client::scheduler::schedule;
+use socket_client::socket_client::{get_socket_client_available_commands_registered, set_socket_client_callbacks_patterns, Command};
+use socket_client::socket_client::{initialize_client, initialize_client_buffer};
+use socket_client::transposer::{
+    initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num,
+};
 
 #[pyfunction]
-fn set_socket_client_transposer_num_of_workers (n_workers:&PyInt) {
-
-    let workers_num:u32 = n_workers.extract().unwrap();
+fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
+    let workers_num: u32 = n_workers.extract().unwrap();
 
     set_socket_client_transposer_workers_num(workers_num);
 
     return;
-
 }
 
 #[pyfunction]
-fn initalize_client_buffer_tables (path:&PyString) {
-
-    let buffer_path:String = path.extract().unwrap();
+fn initalize_client_buffer_tables(path: &PyString) {
+    let buffer_path: String = path.extract().unwrap();
 
     initialize_client_buffer(buffer_path);
 
     return;
-
 }
 
 #[derive(Debug, Clone)]
@@ -321,12 +290,12 @@ enum ResultType {
     Error(String),
 }
 
-fn handle_pyobject (py: Python, obj: PyObject) -> ResultType {
+fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     if let Ok(dict) = obj.cast_as::<PyDict>(py) {
         // Handle dict
 
-        let mut rust_dict = HashMap::new();  // Declare the HashMap
-    
+        let mut rust_dict = HashMap::new(); // Declare the HashMap
+
         for (key, value) in dict.iter() {
             let key_str: String = key.extract().unwrap();
             if let Ok(value_str) = value.extract::<String>() {
@@ -341,7 +310,6 @@ fn handle_pyobject (py: Python, obj: PyObject) -> ResultType {
         }
 
         return ResultType::Map(rust_dict);
-
     } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
         // Handle tuple
         for item in tuple {
@@ -375,7 +343,7 @@ fn handle_pyobject (py: Python, obj: PyObject) -> ResultType {
 }
 
 #[pyfunction]
-fn client_send (py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
+fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
     let client_id = CLIENT_ID.lock().unwrap();
 
     if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
@@ -386,14 +354,10 @@ fn client_send (py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<
     let mut priority: u8 = 0;
 
     match extracted_priority {
-        Ok(p) => {
-            priority = p
-        }
+        Ok(p) => priority = p,
         Err(e) => {
-            return Err(PyErr::new::<exceptions::PyValueError, _>(
-                format!("Failed to extract priority: {}", e),
-            ));
-        }
+            return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Failed to extract priority: {}", e)));
+        },
     }
 
     let converted_command = handle_pyobject(py, command);
@@ -401,44 +365,37 @@ fn client_send (py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<
     match converted_command {
         ResultType::Map(m) => {
             schedule(m, priority);
-        }
+        },
         ResultType::Empty => {
-            return Err(PyErr::new::<exceptions::PyValueError, _>(
-                "Command to send is empty!",
-            ));
-        }
+            return Err(PyErr::new::<exceptions::PyValueError, _>("Command to send is empty!"));
+        },
         ResultType::Error(e) => {
-            return Err(PyErr::new::<exceptions::PyValueError, _>(
-                format!("An error occurred while trying to convert command to send in the myscelium engine, the error was: {}", e),
-            ));
-        }
+            return Err(PyErr::new::<exceptions::PyValueError, _>(format!(
+                "An error occurred while trying to convert command to send in the myscelium engine, the error was: {}",
+                e
+            )));
+        },
     }
 
     Ok("Ok".to_string().into_py(py))
-
 }
 
 #[pyfunction]
-fn set_client_host_target () {
-
-}
+fn set_client_host_target() {}
 
 #[pyfunction]
-fn set_client_workers_num () {
-
-}
+fn set_client_workers_num() {}
 
 #[pyfunction]
-fn registry_socket_client_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
+fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
 
-    let mut callbacks_patterns =  HashMap::new();
+    let mut callbacks_patterns = HashMap::new();
 
     for command in commands.iter() {
-        
         let command_dict: &PyDict = command.downcast().unwrap();
         let function: &PyAny = command_dict.get_item("function").unwrap();
-        
+
         let args_item: &PyAny = command_dict.get_item("args").unwrap();
 
         // Check if args_item is a dict or a string with the value "None"
@@ -472,21 +429,19 @@ fn registry_socket_client_callbacks (py: Python, commands: &PyList) -> PyResult<
 
         let function = function.downcast::<PyFunction>()?.clone();
 
-        let function: Py<PyFunction> = function.into_py(py);  // convert &PyAny to Py<PyFunction>
+        let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
         callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
-
     }
 
     // Now you can use the command_patterns
-    set_socket_client_callbacks_patterns(command_patterns.clone(), );
-    set_socket_client_transposer_callbacks(command_patterns.clone(), callbacks_patterns, );
+    set_socket_client_callbacks_patterns(command_patterns.clone());
+    set_socket_client_transposer_callbacks(command_patterns.clone(), callbacks_patterns);
 
     Ok(())
 }
 
 #[pyfunction]
-fn initialize_socket_client (py: Python<'_>, ip:String, port:i32, client_id:String) {
-
+fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: String) {
     let mut client_id_global = CLIENT_ID.lock().unwrap();
 
     *client_id_global = client_id.clone();
@@ -494,7 +449,6 @@ fn initialize_socket_client (py: Python<'_>, ip:String, port:i32, client_id:Stri
     let address = format!("{}:{}", ip, port);
 
     thread::spawn(|| {
-
         ctrlc::set_handler(move || {
             if HOST_IS_RUNING.load(Ordering::SeqCst) {
                 println!("\nreceived Ctrl+C!\n");
@@ -505,25 +459,20 @@ fn initialize_socket_client (py: Python<'_>, ip:String, port:i32, client_id:Stri
 
         initialize_client(address, client_id);
         println!("Socket host exited ssucefully!");
-        
-
     });
 
     loop {
-
         initialize_socket_client_transposer(py);
-        
+
         if !HOST_IS_RUNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
             thread::sleep(Duration::from_secs(7));
             break;
         }
     }
-    
-    println!("Socket transposer exited ssucefully!");
-    
-}
 
+    println!("Socket transposer exited ssucefully!");
+}
 
 // TODO >>> Add a protocol id in the host to check if the client is outdated compared to the host
 
@@ -532,8 +481,7 @@ fn initialize_socket_client (py: Python<'_>, ip:String, port:i32, client_id:Stri
 // -> Entries:
 
 #[pymodule]
-fn Myscelium (py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    
+fn Myscelium(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // -> Host
     m.add_function(wrap_pyfunction!(initalize_host_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
