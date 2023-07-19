@@ -629,60 +629,64 @@ pub fn initialize_socket_client_transposer (py: Python<'_>) {
 
     let mut pool = ThreadPool::new(*num_of_workers as usize);
 
-    let mut schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
+    loop {
 
-    schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
+        let mut schedule:Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
+        
+        schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
+        
+        println!("\nSchedule to process:\n{:?}\n", schedule);
+        
+        if !(schedule.len() > 0) {
+            println!("Nothing in the schedule, skipping >>>");
+            clear_old_data ();
+            thread::sleep(Duration::from_secs(5));
+            continue;
+        }
+        
+        println!("\nData found in schedule!");
 
-    println!("\nSchedule to process:\n{:?}\n", schedule);
-
-    if !(schedule.len() > 0) {
-        println!("Nothing in the schedule, skipping >>>");
-        clear_old_data ();
-        thread::sleep(Duration::from_secs(5));
-        return;
-    }
-
-    println!("\nData found in schedule!");
-
-    for dow_command in schedule {
-
-        pool.wait_for_free_worker(Box::new(|| {
-
-            println!("get a pool worker in tranposer!");
-
-            let py;
-
-            {
-                let getting_py = unsafe {Python::assume_gil_acquired()};
-
-                let gil_pool = unsafe { getting_py.clone().new_pool() };
+        for dow_command in schedule {
+            
+            pool.wait_for_free_worker(Box::new(|| {
                 
-                py = gil_pool.python();
+                println!("get a pool worker in tranposer!");
+                
+                let py;
+                
+                {
+                    let getting_py = unsafe {Python::assume_gil_acquired()};
+                    
+                    let gil_pool = unsafe { getting_py.clone().new_pool() };
+                    
+                    py = gil_pool.python();
+                    
+                    println! ("Aquired python in a process task!");
+                    
+                    process(py, dow_command);
+                    
+                    println! ("Finalize a process task!");
+                    
+                }
+                
+            }));      
+            
+        }
+        
+        pool.join();
 
-                println! ("Aquired python in a process task!");
-
-                process(py, dow_command);
-
-                println! ("Finalize a process task!");
-
-            }
-
-        }));      
-
+        let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+        
+        continue;
+        
+        // for stream in listener.incoming() {
+            //     let stream = stream.unwrap();
+            
+            //     pool.execute(|| {
+                //         handle_connection(stream);
+                //     });
+                // }
+                
     }
-    
-    pool.join();
-
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-
-    return;
-
-    // for stream in listener.incoming() {
-    //     let stream = stream.unwrap();
-
-    //     pool.execute(|| {
-    //         handle_connection(stream);
-    //     });
-    // }
-
 }
+        

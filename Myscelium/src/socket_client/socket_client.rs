@@ -280,80 +280,86 @@ use buffer_up_mananger::UpCommand;
 pub fn initialize_client (address:String, client_id:String) {
     
     let mut stream = TcpStream::connect(address).unwrap();
-
-    let up_schedule = buffer_up_mananger::buffer_up_list_schedule();
-
-    for up_command in up_schedule {
+    
+    loop{
         
-        let command_to_request = Command::from_up_command(up_command);
-
-        loop {
-
-            let received = send(&mut stream, command_to_request.clone());
-            let command_received;
-
-            match received {    
-
-                Response::None => {
-                    println!("Received invalid data!");
-                    continue;
-                }
-                Response::Command(c) => {
-                    println!("Received command: {:?}", c);
-                    command_received = c
-                }
-    
-            }
-
-            match command_received.command_type() {
+        let up_schedule = buffer_up_mananger::buffer_up_list_schedule();
+        
+        if !(up_schedule.len() > 0) {
+            thread::sleep(Duration::from_secs(2));
+            continue;
+        }
+        
+        for up_command in up_schedule {
             
-                CommandType::Function(f) => {
-
-                    let function:String = serde_json::from_str(&f).unwrap();
-    
-                    if command_received.parity_id != "itisaspecialcase" {
-                       
-                        if function == "C210".to_string() {
-                            println!("Received Confirmation!");
-                            break;
-
-                        } else if function == "Error".to_string() {
-                            println!("An error ocurred in host, the error was: {}", command_received.command.get("Error").unwrap());
-                            break;
-                       
-                        }
+            let command_to_request = Command::from_up_command(up_command);
+            
+            loop {
+                
+                let received = send(&mut stream, command_to_request.clone());
+                let command_received;
+                
+                match received {    
+                    
+                    Response::None => {
+                        println!("Received invalid data!");
+                        continue;
                     }
-    
-                    println!("Receive a function: {:?}", f);
+                    Response::Command(c) => {
+                        println!("Received command: {:?}", c);
+                        command_received = c
+                    }
                 
                 }
-    
-                CommandType::Response(r) => { // -> If response is the response to the command
-    
-                    println!("Received a response!");   
-    
-                    // ! Make a method to not relly in the syncronous response of the command with the same parity id
-                    // > The ideal is to make a system that commands can be received with no relly in the order to 
-                    // > make the system more dinamic to the time that some commands can take to run.
-
-                    let down_command = DownCommand::from_command(command_received.clone());
-
-                    buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
- 
-                    buffer_down_mananger::buffer_down_schedule(down_command);
-
-
-                    break;
-
-                }
-    
-                CommandType::Unknown => {
-                    println!("Received a Unknown command!")
-                }
-            }
-
             
+                match command_received.command_type() {
+                    
+                    CommandType::Function(f) => {
+                        
+                        let function:String = serde_json::from_str(&f).unwrap();
+                        
+                        if command_received.parity_id != "itisaspecialcase" {
+                            
+                            if function == "C210".to_string() {
+                                println!("Received Confirmation!");
+                                break;
 
+                            } else if function == "Error".to_string() {
+                                println!("An error ocurred in host, the error was: {}", command_received.command.get("Error").unwrap());
+                                break;
+                                
+                            }
+                        }
+                        
+                        println!("Receive a function: {:?}", f);
+                        
+                    }
+                    
+                    CommandType::Response(r) => { // -> If response is the response to the command
+                        
+                        println!("Received a response!");   
+                        
+                        // ! Make a method to not relly in the syncronous response of the command with the same parity id
+                        // > The ideal is to make a system that commands can be received with no relly in the order to 
+                        // > make the system more dinamic to the time that some commands can take to run.
+                        
+                        let down_command = DownCommand::from_command(command_received.clone());
+                        
+                        buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                        
+                        buffer_down_mananger::buffer_down_schedule(down_command);
+
+
+                        break;
+                        
+                    }
+                    
+                    CommandType::Unknown => {
+                        println!("Received a Unknown command!")
+                    }
+                }
+            
+            }
         }
     }   
 }
