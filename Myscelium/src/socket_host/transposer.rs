@@ -447,24 +447,56 @@ macro_rules! error_response {
 
 fn process (py:Python, down_command:DownCommand) {
 
+    fn handle_redirect (m:HashMap<String, String>, client_id: &mut String, down_command: DownCommand) -> Result<std::string::String, serde_json::Error> {
+
+        let response;
+
+        if !m.contains_key("redirect_to") {
+            
+            return error_response!("Error! Callback response args don't have redirect_to client_id field!");
+        
+        } 
+
+        let redirect_to = m.get("redirect_to").unwrap();
+
+        if !is_client_registred(&redirect_to.to_string()) {
+
+            return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
+
+        } 
+
+        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), "C210".to_string());
+
+        *client_id = redirect_to.to_string();
+
+        if !m.contains_key("response") {
+        
+            return error_response!("Error! Callback response args don't have response kwarg!");
+            
+        } 
+
+        response = serde_json::to_string(m.get("response").unwrap());
+
+        return response
+
+    }
+
     println!("Initializing prossesing!");
 
     let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
     let patters = command_patterns;
 
     let command_is_not_registry:bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
-    let command_id:i32 = down_command.command_id;
+    let command_id:i32 = down_command.command_id.clone();
 
     if !command_is_not_registry {
         
         println!("Command {}, alwready have a response!", down_command.parity_id.clone());
-    
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
-
         return;
     }
 
-    let command:String = down_command.command;
+    let command:String = down_command.command.clone();
 
     let hashmap_command:HashMap<String, Value> = serde_json::from_str(&command).unwrap();
 
@@ -483,45 +515,46 @@ fn process (py:Python, down_command:DownCommand) {
     // * The system have to remove this old message from the buffer too.  
 
     let translated_command:Command = Command::new(
-                                                    down_command.client_id.clone(), 
-                                                    down_command.parity_id.clone(), 
-                                                    down_command.priority.clone(), 
-                                                    hashmap_command.clone()
-                                                );
-
+        down_command.client_id.clone(), 
+        down_command.parity_id.clone(), 
+        down_command.priority.clone(), 
+        hashmap_command.clone()
+    );
 
     println!("Translated command: {:?}", translated_command);
 
     let function = match translated_command.command.get("function") {
+
         Some(Value::String(function)) => function,
         _ => {
             println!("The function name is not found or not a string.");
             return;
         }
+
     };
 
     if !patters.contains_key(function) { // -> Remove command from schedule if it isn't on the patterns
-        println!("Command isn't registred in the patterns");
 
-        enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
+    println!("Command isn't registred in the patterns");
+
+        enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
 
         println!("command skipped and remvoed from schedule");
         return;
+
     }
 
     println!("Command function: {} is a valid function!", function);
-
     println!("Calling the callback!\n");
-    	
     println!("Acquired the GIL");
 
     let response = handle_command (py, translated_command.clone());
 
     let result = handle_pyobject(py, response.unwrap());
 
-    let response;
+    let mut client_id = down_command.client_id.clone();
 
-    let mut client_id = down_command.client_id;
+    let response;
 
     match result {
 
@@ -531,39 +564,17 @@ fn process (py:Python, down_command:DownCommand) {
 
                 let response_mode = m.get("response_mode").unwrap();
 
-                if response_mode == &"same_as_origin".to_string() { // -> Handle the cases when command have to be returned to origin!
+                if response_mode == &"same_as_origin".to_string() { 
+                    
+                    // -> Handle the cases when command have to be returned to origin!
 
                     response = serde_json::to_string(&m);
 
-                } else if response_mode == &"redirect".to_string() { // -> Handle the cases when command have to be redirected!
+                } else if response_mode == &"redirect".to_string() { 
+                    
+                    // -> Handle the cases when command have to be redirected!
 
-                    if m.contains_key("redirect_to") {
-
-                        let redirect_to = m.get("redirect_to").unwrap();
-
-                        if !is_client_registred(&redirect_to.to_string()) {
-
-                            response = error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
-
-                        } else {
-
-                            enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id.clone(), down_command.priority, "C210".to_string());
-
-                            client_id = redirect_to.to_string();
-
-                            if m.contains_key("response") {
-                            
-                                response = serde_json::to_string(m.get("response").unwrap());
-    
-                            } else {    
-                                response = error_response!("Error! Callback response args don't have response kwarg!");
-                            }
-
-                        }
-
-                    } else {
-                        response = error_response!("Error! Callback response args don't have redirect_to client_id field!");
-                    }
+                    response = handle_redirect(m, &mut client_id, down_command.clone());
 
                 } else {
                     response = error_response!("Error! Response mode dont match any response mode, please use one of this: ('same_as_origin', 'redirect')!");
@@ -582,22 +593,17 @@ fn process (py:Python, down_command:DownCommand) {
         }
         ResultType::Error(e) => {
             
-            println!("An error ocurred while converting python callback response, the error was: {:?}", e);
-            let mut error_map = HashMap::new();
-            error_map.insert("Error".to_string(), e.to_string());
-            response = serde_json::to_string(&error_map)
+            response = error_response!(format!("An error ocurred while converting python callback response, the error was: {:?}", e));
 
         }
     
     }
 
     println!("Function returned: {:?}", response);
+    println!("command: {:?}, processed!", down_command.parity_id.clone());
 
-    println!("command: {:?}, processed!", &down_command.parity_id);
-
-    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
-
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id, down_command.priority, response.unwrap())
+    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
+    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap())
 
 }
 
