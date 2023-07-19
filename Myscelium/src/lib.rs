@@ -512,15 +512,16 @@ fn initialize_socket_client (py: Python<'_>, ip:String, port:i32, client_id:Stri
     loop {
 
         initialize_socket_client_transposer(py);
-        println!("Socket transposer exited ssucefully!");
-    
+        
         if !HOST_IS_RUNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
             thread::sleep(Duration::from_secs(7));
             break;
         }
     }
-
+    
+    println!("Socket transposer exited ssucefully!");
+    
 }
 
 
