@@ -436,6 +436,15 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     ResultType::Empty
 }
 
+macro_rules! error_response {
+    ($msg:expr) => {{
+        println!("{:?}", $msg);
+        let mut error_map = HashMap::new();
+        error_map.insert("Error".to_string(), $msg.to_string());
+        serde_json::to_string(&error_map)
+    }};
+}
+
 fn process (py:Python, down_command:DownCommand) {
 
     println!("Initializing prossesing!");
@@ -522,15 +531,11 @@ fn process (py:Python, down_command:DownCommand) {
 
                 let response_mode = m.get("response_mode").unwrap();
 
-                if response_mode == &"same_as_origin".to_string() {
-
-                    // -> Handle the cases when command have to be returned to origin!
+                if response_mode == &"same_as_origin".to_string() { // -> Handle the cases when command have to be returned to origin!
 
                     response = serde_json::to_string(&m);
 
-                } else if response_mode == &"redirect".to_string() {
-
-                    // -> Handle the cases when command have to be redirected!
+                } else if response_mode == &"redirect".to_string() { // -> Handle the cases when command have to be redirected!
 
                     if m.contains_key("redirect_to") {
 
@@ -538,10 +543,7 @@ fn process (py:Python, down_command:DownCommand) {
 
                         if !is_client_registred(&redirect_to.to_string()) {
 
-                            println!("Error! Callback response args don't have response kwarg!");
-                            let mut error_map = HashMap::new();
-                            error_map.insert("Error".to_string(), format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()).to_string());
-                            response = serde_json::to_string(&error_map)
+                            response = error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
 
                         } else {
 
@@ -553,45 +555,26 @@ fn process (py:Python, down_command:DownCommand) {
                             
                                 response = serde_json::to_string(m.get("response").unwrap());
     
-                            } else {
-    
-                                println!("Error! Callback response args don't have response kwarg!");
-                                let mut error_map = HashMap::new();
-                                error_map.insert("Error".to_string(), "Error! Callback response args don't have response kwarg!".to_string());
-                                response = serde_json::to_string(&error_map)
-    
+                            } else {    
+                                response = error_response!("Error! Callback response args don't have response kwarg!");
                             }
 
                         }
 
                     } else {
-
-                        println!("Error! Callback response args don't have redirect_to client_id field!");
-                        let mut error_map = HashMap::new();
-                        error_map.insert("Error".to_string(), "Error! Callback response args don't have redirect_to client_id field!".to_string());
-                        response = serde_json::to_string(&error_map)
-
+                        response = error_response!("Error! Callback response args don't have redirect_to client_id field!");
                     }
 
                 } else {
-
-                    println!("Error! Response mode dont match any response mode, please use one of this: ('same_as_origin', 'redirect')!");
-                    let mut error_map = HashMap::new();
-                    error_map.insert("Error".to_string(), "Error! Callback response args don't have redirect_to client_id field!".to_string());
-                    response = serde_json::to_string(&error_map)
-
+                    response = error_response!("Error! Response mode dont match any response mode, please use one of this: ('same_as_origin', 'redirect')!");
                 }
 
             } else {
-                
-                println!("Error! Callback don't implement response mode!");
-                let mut error_map = HashMap::new();
-                error_map.insert("Error".to_string(), "Error Callback don't implement response mode!".to_string());
-                response = serde_json::to_string(&error_map)
-
+                response = error_response!("Error! Callback don't implement response mode!");
             }
 
         }
+
         ResultType::Empty => {
         
             response = serde_json::to_string(&"C210".to_string());
@@ -609,8 +592,6 @@ fn process (py:Python, down_command:DownCommand) {
     }
 
     println!("Function returned: {:?}", response);
-
-    // println!("Function returned: {:?}", result_dict);  // Print the extracted value
 
     println!("command: {:?}, processed!", &down_command.parity_id);
 
