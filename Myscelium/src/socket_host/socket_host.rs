@@ -480,15 +480,8 @@ fn get_response(command: Command) -> Response {
 
     let command_response = &up_schedule[0];
 
-    let mut command_map = HashMap::new();
-    command_map.insert("response".to_string(), Value::String(command_response.command.to_string()));
-
-    let response_command = Command {
-        client_id: command_response.client_id.clone(),
-        parity_id: command_response.parity_id.clone(),
-        priority: 11,
-        command: command_map,
-    };
+    let response_command =
+        create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response.command);
 
     enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
 
