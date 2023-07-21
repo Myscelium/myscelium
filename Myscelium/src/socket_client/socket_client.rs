@@ -133,6 +133,7 @@ enum Response {
 enum CommandType {
     Function(String),
     Response(String),
+    Error(String),
     Unknown,
 }
 
@@ -167,6 +168,8 @@ impl Command {
             CommandType::Function(self.command.get("function").unwrap().to_string())
         } else if self.command.contains_key("response") {
             CommandType::Response(self.command.get("response").unwrap().to_string())
+        } else if self.command.contains_key("error") {
+            CommandType::Error(self.command.get("error").unwrap().to_string())
         } else {
             CommandType::Unknown
         }
@@ -230,8 +233,6 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
         return Response::None;
     }
 
-    println!("Connected!!");
-
     let command_json = json!(command).to_string();
 
     stream.write_all(command_json.as_bytes()).unwrap();
@@ -253,7 +254,11 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
 use buffer_up_mananger::UpCommand;
 
 pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
-    let command_to_request = create_special_command!("C207");
+    if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+        return None;
+    }
+
+    let command_to_request = create_special_command!("C206");
     let received = send(&mut stream, command_to_request.clone());
     if let Some(down_command) = handle_response(received) {
         return Some(down_command);
@@ -272,7 +277,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
             return None;
         },
         Response::Command(c) => {
-            println!("Received command: {:?}", c);
+            println!("\nReceived command: {:?}", c);
             command_received = c;
         },
     }
@@ -286,7 +291,8 @@ fn handle_response(received: Response) -> Option<DownCommand> {
                     println!("Received Confirmation!");
                     return None;
                 } else if function == "Error".to_string() {
-                    println!("An error occurred in host, the error was: {}", command_received.command.get("Error").unwrap());
+                    println!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap());
+                    CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
                     return None;
                 }
             }
@@ -305,6 +311,17 @@ fn handle_response(received: Response) -> Option<DownCommand> {
             return Some(down_command);
         },
 
+        CommandType::Error(e) => {
+            let down_command = DownCommand::from_command(command_received.clone());
+
+            buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+
+            println!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("error").unwrap());
+            CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+
+            return None;
+        },
+
         CommandType::Unknown => {
             println!("Received an Unknown command!");
             return None;
@@ -316,6 +333,11 @@ pub fn initialize_client(address: String, client_id: String) {
     let mut stream = TcpStream::connect(address).unwrap();
 
     loop {
+        if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+            print!("running is set to false, shutdown socket client main process!");
+            break;
+        }
+
         let up_schedule = buffer_up_mananger::buffer_up_list_schedule();
 
         if !(up_schedule.len() > 0) {
@@ -325,11 +347,6 @@ pub fn initialize_client(address: String, client_id: String) {
 
             thread::sleep(Duration::from_secs(2));
             continue;
-        }
-
-        if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
-            print!("running is set to false, shutdown socket client main process!");
-            break;
         }
 
         for up_command in up_schedule {

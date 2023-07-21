@@ -474,9 +474,6 @@ fn process(py: Python, down_command: DownCommand) {
 
     println!("Initializing prossesing!");
 
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-    let patters = command_patterns;
-
     let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
     let command_id: i32 = down_command.command_id.clone();
 
@@ -517,7 +514,10 @@ fn process(py: Python, down_command: DownCommand) {
         },
     };
 
-    if !patters.contains_key(function) {
+    let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+    let patterns = command_patterns;
+
+    if !patterns.contains_key(function) {
         // -> Remove command from schedule if it isn't on the patterns
 
         println!("Command isn't registred in the patterns");

@@ -451,6 +451,7 @@ fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: St
     thread::spawn(|| {
         ctrlc::set_handler(move || {
             if HOST_IS_RUNING.load(Ordering::SeqCst) {
+                CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
                 println!("\nreceived Ctrl+C!\n");
                 stop_socket_host();
             }
@@ -464,9 +465,8 @@ fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: St
     loop {
         initialize_socket_client_transposer(py);
 
-        if !HOST_IS_RUNING.load(Ordering::SeqCst) {
+        if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
-            thread::sleep(Duration::from_secs(7));
             break;
         }
     }

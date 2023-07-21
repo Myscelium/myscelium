@@ -65,6 +65,51 @@ lazy_static! {
     static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
 }
 
+macro_rules! create_command_error {
+    ($client_id:expr, $parity_id:expr, $error:expr) => {{
+        let mut command_map = HashMap::new();
+        command_map.insert("error".to_string(), Value::String($error.to_string()));
+
+        let command = Command {
+            client_id: $client_id.to_string(),
+            parity_id: $parity_id.to_string(),
+            priority: 11,
+            command: command_map,
+        };
+        command
+    }};
+}
+
+macro_rules! create_sepecial_command {
+    ($client_id:expr, $response:expr) => {{
+        let mut command_map = HashMap::new();
+        command_map.insert("function".to_string(), Value::String($response.to_string()));
+
+        let command = Command {
+            client_id: $client_id.to_string(),
+            parity_id: "itisaspecialcase".to_string(),
+            priority: 11,
+            command: command_map,
+        };
+        command
+    }};
+}
+
+macro_rules! create_response_command {
+    ($client_id:expr, $parity_id:expr, $priority:expr, $response:expr) => {{
+        let mut command_map = HashMap::new();
+        command_map.insert("response".to_string(), Value::String($response.to_string()));
+
+        let command = Command {
+            client_id: $client_id.to_string(),
+            parity_id: $parity_id.to_string(),
+            priority: $priority,
+            command: command_map,
+        };
+        command
+    }};
+}
+
 pub fn is_client_registred(client_id: &String) -> bool {
     let clients;
 
@@ -375,32 +420,19 @@ pub fn get_available_commands_registered() -> HashMap<String, Value> {
 
 // > Socket main structure:
 
-fn handle_special_functions(function: String) -> Command {
+fn handle_special_functions(client_id: String, function: String) -> Command {
     let command;
 
     if function == "C202" {
         // -> Connection conf request
-
-        let mut command_map = HashMap::new();
-        command_map.insert("function".to_string(), Value::String("C200".to_string()));
-
-        command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
+        command = create_sepecial_command!(client_id, "C200");
     } else if function == "C206" {
         // -> Ping request
-
-        //*  Here we can check if have some data to send back to the client or not
-
-        let mut command_map = HashMap::new();
-        command_map.insert("function".to_string(), Value::String("C207".to_string()));
-
-        command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
+        command = create_sepecial_command!(client_id, "C207");
+        // TODO >>>  Here we can check if have some data to send back to the client or not
     } else {
         // -> Receive conf
-
-        let mut command_map = HashMap::new();
-        command_map.insert("function".to_string(), Value::String("C210".to_string()));
-
-        command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
+        command = create_sepecial_command!(client_id, "C210");
     }
 
     return command;
@@ -413,6 +445,8 @@ fn handle_commom_function(command: Command) -> Command {
     command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
     let response_command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
+
+    // TODO >> If have responses in the dabase to the client here is a good idea to send back
 
     // let command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
@@ -494,11 +528,7 @@ fn handle_connection(mut stream: TcpStream) {
         if !is_client_registred(&command.client_id) {
             // -> In case client isn't registred in the clients allowed
 
-            let mut command_map = HashMap::new();
-            command_map.insert("function".to_string(), Value::String("Error".to_string()));
-            command_map.insert("Error".to_string(), Value::String("Your client isn't registred in the whitelist!".to_string()));
-
-            let response: Command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
+            let response = create_command_error!(command.client_id, command.parity_id, "Your client isn't registred in the whitelist!");
 
             let command_response_json = json!(response).to_string();
 
@@ -518,7 +548,7 @@ fn handle_connection(mut stream: TcpStream) {
                 if special_functions.contains(&function) {
                     // -> Special Function Handler
 
-                    let response = handle_special_functions(function.clone());
+                    let response = handle_special_functions(command.client_id, function.clone());
 
                     let command_response_json = json!(response).to_string();
 
@@ -545,11 +575,7 @@ fn handle_connection(mut stream: TcpStream) {
                             Response::None => {
                                 println!("Response is None!");
 
-                                let mut special_response = HashMap::new();
-
-                                special_response.insert("function".to_string(), Value::String("C210".to_string()));
-
-                                response = Command::new(command.client_id, "itisaspecialcase".to_string(), 11, special_response);
+                                response = create_sepecial_command!(command.client_id, "C210");
                             },
                         }
                     } else {
@@ -564,15 +590,7 @@ fn handle_connection(mut stream: TcpStream) {
                 } else {
                     // -> None of above
 
-                    let mut command_map = HashMap::new();
-                    command_map.insert("function".to_string(), Value::String("C210".to_string()));
-
-                    let command = Command {
-                        client_id: "some_client_id".to_string(),
-                        parity_id: "itisaspecialcase".to_string(),
-                        priority: 11,
-                        command: command_map,
-                    };
+                    let command = create_command_error!(command.client_id, command.parity_id, format!("Function: {}, Doesn't exist!", function));
 
                     let command_json = json!(command).to_string();
 
