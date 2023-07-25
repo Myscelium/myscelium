@@ -11,7 +11,7 @@ def python_function(age, birth, name):
     print (name)
     print (age)
 
-    response = host_patterns.response_pattern(response_mode='same_as_origin', response='hello!')
+    response = host_patterns.response_pattern(response_mode='to_origin', response='hello!')
 
     return response
 

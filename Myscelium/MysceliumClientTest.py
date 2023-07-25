@@ -2,9 +2,10 @@ from MysceliumWraper import MysceliumClient, ClientPatterns
 from threading import Thread
 from _thread import *
 
+from multiprocessing import Process
+import os
 
 client_patterns = ClientPatterns ()
-
 
 def test_handler (data):
 
@@ -21,26 +22,43 @@ callbacks = [
 
 ]
 
-def send_some_data (data):
+
+def send_some_data ():
+
+    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+
+    mys_client.set_client_uid(client_uid="some_client_id")
+
+    mys_client.runing = True
+
+    command = client_patterns.command_pattern("get_registred_commands", args=None)
+
+    result = mys_client.send(command, priority=10)
+
+    print (result)
+
     pass
 
+def initialize_client ():
+
+    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+
+    mys_client.set_callbacks(callbacks=callbacks)
+    mys_client.set_workers_num(n_workers=2)
+
+    mys_client.initialize_client("127.0.0.1",4444)
+
+import time
 
 if __name__ == '__main__':
     
-    mys_host = MysceliumClient(callbacks=callbacks, client_uid="some_client_id", buffer_path="ClientData/", n_workers=2)
+    # print(mys_client.get_registred_commands())
 
-    # print(mys_host.get_registred_commands())
+    p1 = Process(target=initialize_client, args=())
+    p2 = Process(target=send_some_data, args=())
 
-    t1 = Thread(target=mys_host.initialize_client, args=("127.0.0.1",4444)) 
-    t1.daemon = True
-    t1.start()
+    p1.start()
+    p2.start()
 
-    t2 = Thread(target=send_some_data, args=());
-    t2.daemon = True
-    t2.start()
-
-    t1.start()
-    t2.start()
-
-    while True:
-        pass
+    p1.join()
+    p2.join()

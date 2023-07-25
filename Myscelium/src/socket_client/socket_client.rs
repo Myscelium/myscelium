@@ -65,6 +65,29 @@ lazy_static! {
         let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
         Arc::new(Mutex::new(command_patterns))
     };
+    static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
+        let json_str = r#"{
+            "get_symbols_data": {
+                "symbols_data": {
+                    "data-type": "str",
+                    "symbols": "str",
+                    "start-ts": "float",
+                    "end-ts": "float"
+                }
+            },
+            "get_other_symbols_data": {
+                "symbols_data": {
+                    "data-type": "str",
+                    "symbols": "str",
+                    "start-ts": "float",
+                    "end-ts": "float"
+                }
+            }
+        }"#;
+
+        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
+        Arc::new(Mutex::new(command_patterns))
+    };
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
 }
 

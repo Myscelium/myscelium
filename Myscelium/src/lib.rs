@@ -258,7 +258,7 @@ fn set_socket_host_allowed_clients(allowed_clients_list: &PyList) -> PyResult<()
 // -> Socket Client mainpoints:
 
 mod socket_client;
-use socket_client::scheduler::schedule;
+use socket_client::scheduler::{self, schedule};
 use socket_client::socket_client::{get_socket_client_available_commands_registered, set_socket_client_callbacks_patterns, Command};
 use socket_client::socket_client::{initialize_client, initialize_client_buffer};
 use socket_client::transposer::{
@@ -344,9 +344,14 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 
 #[pyfunction]
 fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
-    let client_id = CLIENT_ID.lock().unwrap();
+    let mut client_id;
+
+    {
+        client_id = CLIENT_ID.lock().unwrap().clone();
+    }
 
     if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+        println!("Error, client isn't runing, pls run the client before try to send something!");
         return Err(PyErr::new::<exceptions::PyValueError, _>("Client isn't running! Please start client before try to send something."));
     }
 
@@ -364,6 +369,7 @@ fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<P
 
     match converted_command {
         ResultType::Map(m) => {
+            println!("Scheduling to send {:?}", m);
             schedule(m, priority);
         },
         ResultType::Empty => {
@@ -442,9 +448,12 @@ fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<(
 
 #[pyfunction]
 fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: String) {
-    let mut client_id_global = CLIENT_ID.lock().unwrap();
+    CLIENT_IS_RUNING.store(true, Ordering::SeqCst);
 
-    *client_id_global = client_id.clone();
+    {
+        let mut client_id_global = CLIENT_ID.lock().unwrap();
+        *client_id_global = client_id.clone();
+    }
 
     let address = format!("{}:{}", ip, port);
 
@@ -474,6 +483,11 @@ fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: St
     println!("Socket transposer exited ssucefully!");
 }
 
+#[pyfunction]
+fn set_client_uid(py: Python<'_>, client_uid: String) {
+    scheduler::set_client_id(client_uid);
+}
+
 // TODO >>> Add a protocol id in the host to check if the client is outdated compared to the host
 
 // > -----------------------------------------------------------------------------------------------------------------------------------------
@@ -497,6 +511,7 @@ fn Myscelium(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(initialize_socket_client, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_client_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(client_send, m)?)?;
+    m.add_function(wrap_pyfunction!(set_client_uid, m)?)?;
 
     Ok(())
 }
