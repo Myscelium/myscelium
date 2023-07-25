@@ -145,7 +145,7 @@ pub fn update_last_contact(client_id: String) {
 // > Commands Manangemement & Checking
 
 #[derive(Debug)]
-enum CommandType {
+pub enum CommandType {
     Function(String),
     Response(String),
     Redirect(String),
@@ -153,15 +153,45 @@ enum CommandType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Command {
-    client_id: String,
-    parity_id: String,
-    priority: u8,
-    command: HashMap<String, Value>,
+pub struct Command {
+    pub client_id: String,
+    pub parity_id: String,
+    pub priority: u8,
+    pub command: HashMap<String, Value>,
 }
+
+use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
 
 impl Command {
     fn new(client_id: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
+        Self {
+            client_id,
+            parity_id,
+            priority,
+            command,
+        }
+    }
+
+    pub fn from_down_command(down_command: DownCommand) -> Self {
+        let client_id = down_command.client_id.clone();
+        let parity_id = down_command.parity_id.clone();
+        let priority = down_command.priority.clone();
+        let command: HashMap<String, Value> = serde_json::from_str(&down_command.command).unwrap();
+
+        Self {
+            client_id,
+            parity_id,
+            priority,
+            command,
+        }
+    }
+
+    pub fn from_up_command(up_command: UpCommand) -> Self {
+        let client_id = up_command.client_id.clone();
+        let parity_id = up_command.parity_id.clone();
+        let priority = up_command.priority.clone();
+        let command: HashMap<String, Value> = serde_json::from_str(&up_command.command).unwrap();
+
         Self {
             client_id,
             parity_id,

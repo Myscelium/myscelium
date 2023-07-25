@@ -176,6 +176,28 @@ macro_rules! create_special_command {
     }};
 }
 
+fn transform_value(value: &Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let mut new_map = HashMap::new();
+            for (key, val) in map {
+                if let Some(inner_val) = val.get("Map") {
+                    new_map.insert(key.clone(), transform_value(inner_val));
+                } else if let Some(inner_val) = val.get("List") {
+                    new_map.insert(key.clone(), transform_value(inner_val));
+                } else if let Some(Value::String(s)) = val.get("Str") {
+                    new_map.insert(key.clone(), Value::String(s.clone()));
+                } else {
+                    // Handle other cases if necessary
+                }
+            }
+            Value::Object(serde_json::Map::from_iter(new_map)) // Convert HashMap to serde_json::Map using into()
+        },
+        Value::Array(arr) => Value::Array(arr.iter().map(|v| transform_value(v)).collect()),
+        _ => value.clone(),
+    }
+}
+
 impl Command {
     pub fn new(client_id: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
         Self {
@@ -198,7 +220,48 @@ impl Command {
         }
     }
 
-    fn from_up_command(up_command: UpCommand) -> Self {
+    pub fn from_down_command(down_command: DownCommand) -> Self {
+        let client_id = down_command.client_id.clone();
+        let parity_id = down_command.parity_id.clone();
+        let priority = down_command.priority.clone();
+
+        let outer_value: Value = serde_json::from_str(&down_command.command).unwrap();
+
+        let mut command: HashMap<String, Value>;
+
+        // Extract the inner JSON string and deserialize it again
+        if let Value::Object(outer_map) = &outer_value {
+            if let Some(Value::String(inner_json)) = outer_map.get("response") {
+                command = serde_json::from_str(inner_json).unwrap();
+
+                // Transform the command right after deserialization
+                let transformed_value = transform_value(&Value::Object(serde_json::Map::from_iter(command.into_iter()))); // Convert HashMap to serde_json::Map using into()
+
+                if let Value::Object(transformed_map) = transformed_value {
+                    command = transformed_map.into_iter().collect(); // Convert serde_json::Map back to HashMap
+                } else {
+                    println!("Unexpected format after transformation");
+                    command = HashMap::new();
+                }
+            } else {
+                command = HashMap::new();
+                println!("Command has other case other than Response");
+                // Handle the case where the "response" key is not a string
+            }
+        } else {
+            command = HashMap::new();
+            println!("Command isn't an object");
+            // Handle the case where the outer_value is not an object
+        }
+        Self {
+            client_id,
+            parity_id,
+            priority,
+            command,
+        }
+    }
+
+    pub fn from_up_command(up_command: UpCommand) -> Self {
         let client_id = up_command.client_id.clone();
         let parity_id = up_command.parity_id.clone();
         let priority = up_command.priority.clone();
@@ -355,6 +418,8 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 pub fn initialize_client(address: String, client_id: String) {
     let mut stream = TcpStream::connect(address).unwrap();
 
+    thread::sleep(Duration::from_secs(2));
+
     loop {
         if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
             print!("running is set to false, shutdown socket client main process!");
@@ -367,7 +432,6 @@ pub fn initialize_client(address: String, client_id: String) {
             if let Some(down_command) = send_ping(&mut stream) {
                 buffer_down_mananger::buffer_down_schedule(down_command.clone());
             }
-
             thread::sleep(Duration::from_secs(2));
             continue;
         }
@@ -382,6 +446,8 @@ pub fn initialize_client(address: String, client_id: String) {
                     buffer_down_mananger::buffer_down_schedule(down_command.clone());
                     break;
                 }
+
+                thread::sleep(Duration::from_secs(2));
             }
         }
     }

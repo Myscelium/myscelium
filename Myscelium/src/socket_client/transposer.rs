@@ -449,10 +449,6 @@ fn process(py: Python, down_command: DownCommand) {
         return;
     }
 
-    let command: String = down_command.command;
-
-    let hashmap_command: HashMap<String, Value> = serde_json::from_str(&command).unwrap();
-
     // TODO >>> Use the command.command or create a require type field to redirect the command to another client
 
     // -> One idea is to create a obrigatory key in the command.command and instead of only function create a type kwarg field
@@ -467,8 +463,7 @@ fn process(py: Python, down_command: DownCommand) {
     // * however if the message is becames too old before the client the message is redirected catches it
     // * The system have to remove this old message from the buffer too.
 
-    let translated_command: Command =
-        Command::new(down_command.client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), hashmap_command.clone());
+    let translated_command: Command = Command::from_down_command(down_command.clone());
 
     println!("Translated command: {:?}", translated_command);
 
@@ -583,6 +578,8 @@ fn clear_old_data() {
 }
 
 pub fn initialize_socket_client_transposer(py: Python<'_>) {
+    thread::sleep(Duration::from_secs(2));
+
     let num_of_workers = NUM_WORKERS.lock().unwrap();
 
     let mut pool = ThreadPool::new(*num_of_workers as usize);
