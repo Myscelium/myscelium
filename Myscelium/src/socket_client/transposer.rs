@@ -362,11 +362,17 @@ fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
 }
 
 // Define a custom type that can be either Empty, Map, or Error
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Serialize, Deserialize)]
 enum ResultType {
+    Map(HashMap<String, ResultType>),
+    List(Vec<ResultType>),
+    Str(String),
+    Int(i32),
+    Float(f64),
+    Bool(bool),
     Empty,
-    Map(HashMap<String, String>),
-    Error(String),
+    Error(String), // Assuming Error variant holds a String
+                   // ... any other variants you might have
 }
 
 // Implement Display for ResultType to be able to print it
@@ -374,7 +380,32 @@ impl fmt::Display for ResultType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ResultType::Empty => write!(f, "Empty"),
-            ResultType::Map(map) => write!(f, "{:?}", map),
+            ResultType::Str(s) => write!(f, "\"{}\"", s),
+            ResultType::Int(i) => write!(f, "{}", i),
+            ResultType::Float(fl) => write!(f, "{}", fl),
+            ResultType::Bool(b) => write!(f, "{}", b),
+            ResultType::List(list) => {
+                write!(f, "[")?;
+                for (index, item) in list.iter().enumerate() {
+                    if index != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, "]")
+            },
+            ResultType::Map(map) => {
+                write!(f, "{{")?;
+                let mut first = true;
+                for (key, value) in map {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "\"{}\": {}", key, value)?;
+                    first = false;
+                }
+                write!(f, "}}")
+            },
             ResultType::Error(err) => write!(f, "Error: {}", err),
         }
     }
@@ -382,18 +413,20 @@ impl fmt::Display for ResultType {
 
 fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     if let Ok(dict) = obj.cast_as::<PyDict>(py) {
-        // Handle dict
-
-        let mut rust_dict = HashMap::new(); // Declare the HashMap
+        let mut rust_dict = HashMap::new();
 
         for (key, value) in dict.iter() {
             let key_str: String = key.extract().unwrap();
             if let Ok(value_str) = value.extract::<String>() {
-                rust_dict.insert(key_str, value_str);
+                rust_dict.insert(key_str, ResultType::Str(value_str));
             } else if let Ok(value_int) = value.extract::<i32>() {
-                rust_dict.insert(key_str, value_int.to_string());
+                rust_dict.insert(key_str, ResultType::Int(value_int));
             } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-                rust_dict.insert(key_str, format!("{:?}", value_list));
+                let rust_list = value_list.into_iter().map(ResultType::Str).collect();
+                rust_dict.insert(key_str, ResultType::List(rust_list));
+            } else if let Ok(nested_dict) = value.cast_as::<PyDict>() {
+                let inner_map = handle_pyobject(py, nested_dict.into());
+                rust_dict.insert(key_str, inner_map);
             } else {
                 // Handle other types as needed
             }
@@ -432,21 +465,22 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     ResultType::Empty
 }
 
-fn process(py: Python, down_command: DownCommand) {
+enum ProcessError {
+    CommandAlwreadyProcessed(String),
+    MissingCommandFunction(String),
+    CommandNotRegistred(String),
+    InvalidCallbackResponse(String, String),
+}
+
+fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     println!("Initializing prossesing!");
 
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-    let patters = command_patterns;
-
     let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
-    let command_id: u32 = down_command.command_id.unwrap();
+    let command_id: u32 = down_command.command_id.unwrap().clone();
 
     if !command_is_not_registry {
-        println!("Command {}, alwready have a response!", down_command.parity_id.clone());
-
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
-
-        return;
+        return Err(ProcessError::CommandAlwreadyProcessed(down_command.parity_id.clone()));
     }
 
     // TODO >>> Use the command.command or create a require type field to redirect the command to another client
@@ -470,106 +504,92 @@ fn process(py: Python, down_command: DownCommand) {
     let function = match translated_command.command.get("function") {
         Some(Value::String(function)) => function,
         _ => {
-            println!("The function name is not found or not a string.");
-            return;
+            // println!("The function name is not found or not a string.");
+            return Err(ProcessError::MissingCommandFunction(serde_json::to_string(&translated_command).unwrap()));
         },
     };
 
-    if !patters.contains_key(function) {
+    let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+    let patterns = command_patterns;
+
+    if !patterns.contains_key(function) {
         // -> Remove command from schedule if it isn't on the patterns
+
         println!("Command isn't registred in the patterns");
 
-        enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
+        enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
 
         println!("command skipped and remvoed from schedule");
-        return;
+        return Err(ProcessError::CommandNotRegistred(function.clone()));
     }
 
     println!("Command function: {} is a valid function!", function);
-
     println!("Calling the callback!\n");
-
     println!("Acquired the GIL");
 
     let response = handle_command(py, translated_command.clone());
 
     let result = handle_pyobject(py, response.unwrap());
 
-    let response;
+    let client_id = down_command.client_id.clone();
 
-    let mut client_id = down_command.client_id;
+    let response: String;
 
     match result {
-        // TODO >>> Remove the redirect patterns becasue them isn't necessary on client
         ResultType::Map(m) => {
             if m.contains_key("response_mode") {
                 let response_mode = m.get("response_mode").unwrap();
 
-                if response_mode == &"same_as_origin".to_string() {
-                    // -> Handle the cases when command have to be returned to origin!
-
-                    response = serde_json::to_string(&m);
-                } else if response_mode == &"redirect".to_string() {
-                    // -> Handle the cases when command have to be redirected!
-
-                    if m.contains_key("redirect_to") {
-                        let redirect_to = m.get("redirect_to").unwrap();
-
-                        let up_command = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority, "C210".to_string());
-
-                        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
-
-                        client_id = redirect_to.to_string();
-
-                        if m.contains_key("response") {
-                            response = serde_json::to_string(m.get("response").unwrap());
-                        } else {
-                            println!("Error! Callback response args don't have response kwarg!");
-                            let mut error_map = HashMap::new();
-                            error_map.insert("Error".to_string(), "Error! Callback response args don't have response kwarg!".to_string());
-                            response = serde_json::to_string(&error_map)
-                        }
-                    } else {
-                        println!("Error! Callback response args don't have redirect_to client_id field!");
-                        let mut error_map = HashMap::new();
-                        error_map.insert("Error".to_string(), "Error! Callback response args don't have redirect_to client_id field!".to_string());
-                        response = serde_json::to_string(&error_map)
-                    }
+                if *response_mode == ResultType::Str("to_host".to_string()) {
+                    response = serde_json::to_string(&m).unwrap();
                 } else {
-                    println!("Error! Response mode dont match any response mode, please use one of this: ('same_as_origin', 'redirect')!");
-                    let mut error_map = HashMap::new();
-                    error_map.insert("Error".to_string(), "Error! Callback response args don't have redirect_to client_id field!".to_string());
-                    response = serde_json::to_string(&error_map)
+                    return Err(ProcessError::InvalidCallbackResponse(
+                        function.clone(),
+                        "Response mode doesn't match any known mode. Please use one of: ('to_host', 'retransmit')!".to_string(),
+                    ));
                 }
             } else {
-                println!("Error! Callback don't implement response mode!");
-                let mut error_map = HashMap::new();
-                error_map.insert("Error".to_string(), "Error Callback don't implement response mode!".to_string());
-                response = serde_json::to_string(&error_map)
+                return Err(ProcessError::InvalidCallbackResponse(function.clone(), "Callback doesn't implement response mode!".to_string()));
             }
         },
+        ResultType::Str(s) => {
+            response = s.clone();
+        },
+        ResultType::Int(i) => {
+            response = i.to_string();
+        },
+        ResultType::Float(fl) => {
+            response = fl.to_string();
+        },
+        ResultType::Bool(b) => {
+            response = b.to_string();
+        },
+        ResultType::List(_) => {
+            // eprintln!("Error! Received a list, but expected a map!");
+            return Err(ProcessError::InvalidCallbackResponse(function.clone(), "Received a list, but expected a map!".to_string()));
+        },
         ResultType::Empty => {
-            response = serde_json::to_string(&"C210".to_string());
+            println!("Response is None!");
+            return Ok(());
         },
         ResultType::Error(e) => {
-            println!("An error ocurred while converting python callback response, the error was: {:?}", e);
-            let mut error_map = HashMap::new();
-            error_map.insert("Error".to_string(), e.to_string());
-            response = serde_json::to_string(&error_map)
+            // eprintln!();
+            return Err(ProcessError::InvalidCallbackResponse(
+                function.clone(),
+                format!("An error occurred while converting the Python callback response. The error was: {:?}", e),
+            ));
         },
     }
 
     println!("Function returned: {:?}", response);
+    println!("Command: {:?}, processed!", down_command.parity_id.clone());
 
-    // println!("Function returned: {:?}", result_dict);  // Print the extracted value
+    let up_command: UpCommand = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response);
 
-    println!("command: {:?}, processed!", &down_command.parity_id);
-
-    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
-
-    let up_command = UpCommand::new(client_id, down_command.parity_id, down_command.priority, response.unwrap());
-
+    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
     enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
+
+    return Ok(());
 }
 
 fn clear_old_data() {
@@ -619,9 +639,36 @@ pub fn initialize_socket_client_transposer(py: Python<'_>) {
 
                 println!("Aquired python in a process task!");
 
-                process(py, dow_command);
+                let result = process(py, dow_command).map_err(|e| {
+                    let error = match e {
+                        ProcessError::CommandAlwreadyProcessed(m) => {
+                            format!("Command: {:?} Alwready processed! So skipping", m)
+                        },
 
-                println!("Finalize a process task!");
+                        ProcessError::CommandNotRegistred(m) => {
+                            format!("Command function {:?} no registred in the callbacks! So skipping", m)
+                        },
+
+                        ProcessError::MissingCommandFunction(m) => {
+                            format!("Command: {:?}, missing command function", m)
+                        },
+
+                        ProcessError::InvalidCallbackResponse(m, r) => {
+                            format!("Calback function: {:?} invalid response: {:?}", m, r)
+                        },
+                    };
+
+                    error
+                });
+
+                match result {
+                    Ok(_) => {
+                        println!("Finalize a process task!");
+                    },
+                    Err(e) => {
+                        println!("{:?}", e);
+                    },
+                }
             }
         }));
     }
