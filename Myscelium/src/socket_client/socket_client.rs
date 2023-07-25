@@ -153,7 +153,7 @@ enum Response {
 }
 
 #[derive(Serialize, Deserialize)]
-enum CommandType {
+pub enum CommandType {
     Function(String),
     Response(String),
     Error(String),
@@ -208,7 +208,7 @@ impl Command {
         }
     }
 
-    fn command_type(&self) -> CommandType {
+    pub fn command_type(&self) -> CommandType {
         if self.command.contains_key("function") {
             CommandType::Function(self.command.get("function").unwrap().to_string())
         } else if self.command.contains_key("response") {

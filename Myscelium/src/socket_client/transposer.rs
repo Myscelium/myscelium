@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::socket_client::enhanced_buffer::buffer_down_mananger::DownCommand;
 
-use crate::socket_client::socket_client::Command;
+use crate::socket_client::socket_client::{Command, CommandType};
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -470,6 +470,8 @@ enum ProcessError {
     MissingCommandFunction(String),
     CommandNotRegistred(String),
     InvalidCallbackResponse(String, String),
+    Error(String),
+    UnknownCommandType,
 }
 
 fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
@@ -501,18 +503,39 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     println!("Translated command: {:?}", translated_command);
 
-    let function = match translated_command.command.get("function") {
-        Some(Value::String(function)) => function,
-        _ => {
-            // println!("The function name is not found or not a string.");
-            return Err(ProcessError::MissingCommandFunction(serde_json::to_string(&translated_command).unwrap()));
+    let activation_key;
+
+    match translated_command.command_type() {
+        CommandType::Function(f) => {
+            activation_key = match translated_command.command.get("function") {
+                Some(Value::String(activation_key)) => activation_key,
+                _ => {
+                    // println!("The function name is not found or not a string.");
+                    return Err(ProcessError::MissingCommandFunction(serde_json::to_string(&translated_command).unwrap()));
+                },
+            };
         },
-    };
+        CommandType::Response(r) => {
+            activation_key = match translated_command.command.get("response") {
+                Some(Value::String(activation_key)) => activation_key,
+                _ => {
+                    // println!("The function name is not found or not a string.");
+                    return Err(ProcessError::MissingCommandFunction(serde_json::to_string(&translated_command).unwrap()));
+                },
+            };
+        },
+        CommandType::Error(e) => {
+            return Err(ProcessError::Error(e));
+        },
+        CommandType::Unknown => {
+            return Err(ProcessError::UnknownCommandType);
+        },
+    }
 
     let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
     let patterns = command_patterns;
 
-    if !patterns.contains_key(function) {
+    if !patterns.contains_key(activation_key) {
         // -> Remove command from schedule if it isn't on the patterns
 
         println!("Command isn't registred in the patterns");
@@ -520,10 +543,10 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
 
         println!("command skipped and remvoed from schedule");
-        return Err(ProcessError::CommandNotRegistred(function.clone()));
+        return Err(ProcessError::CommandNotRegistred(activation_key.clone()));
     }
 
-    println!("Command function: {} is a valid function!", function);
+    println!("Command function: {} is a valid function!", activation_key);
     println!("Calling the callback!\n");
     println!("Acquired the GIL");
 
@@ -544,12 +567,12 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
                     response = serde_json::to_string(&m).unwrap();
                 } else {
                     return Err(ProcessError::InvalidCallbackResponse(
-                        function.clone(),
+                        activation_key.clone(),
                         "Response mode doesn't match any known mode. Please use one of: ('to_host', 'retransmit')!".to_string(),
                     ));
                 }
             } else {
-                return Err(ProcessError::InvalidCallbackResponse(function.clone(), "Callback doesn't implement response mode!".to_string()));
+                return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Callback doesn't implement response mode!".to_string()));
             }
         },
         ResultType::Str(s) => {
@@ -566,7 +589,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
         ResultType::List(_) => {
             // eprintln!("Error! Received a list, but expected a map!");
-            return Err(ProcessError::InvalidCallbackResponse(function.clone(), "Received a list, but expected a map!".to_string()));
+            return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Received a list, but expected a map!".to_string()));
         },
         ResultType::Empty => {
             println!("Response is None!");
@@ -575,7 +598,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         ResultType::Error(e) => {
             // eprintln!();
             return Err(ProcessError::InvalidCallbackResponse(
-                function.clone(),
+                activation_key.clone(),
                 format!("An error occurred while converting the Python callback response. The error was: {:?}", e),
             ));
         },
@@ -656,6 +679,12 @@ pub fn initialize_socket_client_transposer(py: Python<'_>) {
                         ProcessError::InvalidCallbackResponse(m, r) => {
                             format!("Calback function: {:?} invalid response: {:?}", m, r)
                         },
+
+                        ProcessError::Error(e) => {
+                            format!("An error occurred while processing command, the error was: {:?}", e)
+                        },
+
+                        ProcessError::UnknownCommandType => "Unknown Command type".to_string(),
                     };
 
                     error
