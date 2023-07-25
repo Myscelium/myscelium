@@ -357,11 +357,17 @@ fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
 }
 
 // Define a custom type that can be either Empty, Map, or Error
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Serialize, Deserialize)]
 enum ResultType {
+    Map(HashMap<String, ResultType>),
+    List(Vec<ResultType>),
+    Str(String),
+    Int(i32),
+    Float(f64),
+    Bool(bool),
     Empty,
-    Map(HashMap<String, String>),
-    Error(String),
+    Error(String), // Assuming Error variant holds a String
+                   // ... any other variants you might have
 }
 
 // Implement Display for ResultType to be able to print it
@@ -369,7 +375,32 @@ impl fmt::Display for ResultType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ResultType::Empty => write!(f, "Empty"),
-            ResultType::Map(map) => write!(f, "{:?}", map),
+            ResultType::Str(s) => write!(f, "\"{}\"", s),
+            ResultType::Int(i) => write!(f, "{}", i),
+            ResultType::Float(fl) => write!(f, "{}", fl),
+            ResultType::Bool(b) => write!(f, "{}", b),
+            ResultType::List(list) => {
+                write!(f, "[")?;
+                for (index, item) in list.iter().enumerate() {
+                    if index != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, "]")
+            },
+            ResultType::Map(map) => {
+                write!(f, "{{")?;
+                let mut first = true;
+                for (key, value) in map {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "\"{}\": {}", key, value)?;
+                    first = false;
+                }
+                write!(f, "}}")
+            },
             ResultType::Error(err) => write!(f, "Error: {}", err),
         }
     }
@@ -377,18 +408,20 @@ impl fmt::Display for ResultType {
 
 fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     if let Ok(dict) = obj.cast_as::<PyDict>(py) {
-        // Handle dict
-
-        let mut rust_dict = HashMap::new(); // Declare the HashMap
+        let mut rust_dict = HashMap::new();
 
         for (key, value) in dict.iter() {
             let key_str: String = key.extract().unwrap();
             if let Ok(value_str) = value.extract::<String>() {
-                rust_dict.insert(key_str, value_str);
+                rust_dict.insert(key_str, ResultType::Str(value_str));
             } else if let Ok(value_int) = value.extract::<i32>() {
-                rust_dict.insert(key_str, value_int.to_string());
+                rust_dict.insert(key_str, ResultType::Int(value_int));
             } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-                rust_dict.insert(key_str, format!("{:?}", value_list));
+                let rust_list = value_list.into_iter().map(ResultType::Str).collect();
+                rust_dict.insert(key_str, ResultType::List(rust_list));
+            } else if let Ok(nested_dict) = value.cast_as::<PyDict>() {
+                let inner_map = handle_pyobject(py, nested_dict.into());
+                rust_dict.insert(key_str, inner_map);
             } else {
                 // Handle other types as needed
             }
@@ -545,33 +578,53 @@ fn process(py: Python, down_command: DownCommand) {
             if m.contains_key("response_mode") {
                 let response_mode = m.get("response_mode").unwrap();
 
-                if response_mode == &"same_as_origin".to_string() {
-                    // -> Handle the cases when command have to be returned to origin!
+                if *response_mode == ResultType::Str("to_origin".to_string()) {
+                    response = Ok(serde_json::to_string(&m).unwrap());
+                } else if *response_mode == ResultType::Str("redirect".to_string()) {
+                    let string_map: HashMap<String, String> = m
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if let ResultType::Str(s) = v {
+                                Some((k.clone(), s.clone()))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
 
-                    response = serde_json::to_string(&m);
-                } else if response_mode == &"redirect".to_string() {
-                    // -> Handle the cases when command have to be redirected!
-
-                    response = handle_redirect(m, &mut client_id, down_command.clone());
+                    response = handle_redirect(string_map, &mut client_id, down_command.clone());
                 } else {
-                    response =
-                        error_response!("Error! Response mode dont match any response mode, please use one of this: ('same_as_origin', 'redirect')!");
+                    response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
                 }
             } else {
-                response = error_response!("Error! Callback don't implement response mode!");
+                response = error_response!("Error! Callback doesn't implement response mode!");
             }
         },
-
+        ResultType::Str(s) => {
+            response = Ok(s.clone());
+        },
+        ResultType::Int(i) => {
+            response = Ok(i.to_string());
+        },
+        ResultType::Float(fl) => {
+            response = Ok(fl.to_string());
+        },
+        ResultType::Bool(b) => {
+            response = Ok(b.to_string());
+        },
+        ResultType::List(_) => {
+            response = error_response!("Error! Received a list, but expected a map!");
+        },
         ResultType::Empty => {
-            response = serde_json::to_string(&"C210".to_string());
+            response = Ok(serde_json::to_string(&"C210".to_string()).unwrap());
         },
         ResultType::Error(e) => {
-            response = error_response!(format!("An error ocurred while converting python callback response, the error was: {:?}", e));
+            response = error_response!(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
         },
     }
 
     println!("Function returned: {:?}", response);
-    println!("command: {:?}, processed!", down_command.parity_id.clone());
+    println!("Command: {:?}, processed!", down_command.parity_id.clone());
 
     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
     enhanced_buffer::buffer_up_mananger::buffer_up_schedule(
