@@ -35,7 +35,7 @@ use pyo3::ToPyObject;
 
 use crate::CLIENT_IS_RUNING;
 
-use std::fmt;
+use std::fmt::{self, format};
 
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -472,6 +472,7 @@ enum ProcessError {
     InvalidCallbackResponse(String, String),
     Error(String),
     UnknownCommandType,
+    MissingResponseKey(String),
 }
 
 fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
@@ -507,20 +508,23 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     match translated_command.command_type() {
         CommandType::Function(f) => {
-            activation_key = match translated_command.command.get("function") {
-                Some(Value::String(activation_key)) => activation_key,
-                _ => {
-                    // println!("The function name is not found or not a string.");
-                    return Err(ProcessError::MissingCommandFunction(serde_json::to_string(&translated_command).unwrap()));
-                },
-            };
+            if let Some(Value::Object(function_obj)) = translated_command.command.get("function") {
+                activation_key = match function_obj.get("function") {
+                    // Replace "desired_inner_key" with the key you want to access
+                    Some(Value::String(activation_key)) => activation_key,
+                    _ => {
+                        return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
+                    },
+                };
+            } else {
+                return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
+            }
         },
         CommandType::Response(r) => {
-            activation_key = match translated_command.command.get("response") {
+            activation_key = match translated_command.command.get("response_activation_function") {
                 Some(Value::String(activation_key)) => activation_key,
                 _ => {
-                    // println!("The function name is not found or not a string.");
-                    return Err(ProcessError::MissingCommandFunction(serde_json::to_string(&translated_command).unwrap()));
+                    return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
                 },
             };
         },
@@ -672,6 +676,10 @@ pub fn initialize_socket_client_transposer(py: Python<'_>) {
                             format!("Command function {:?} no registred in the callbacks! So skipping", m)
                         },
 
+                        ProcessError::MissingResponseKey(m) => {
+                            format!("Command: {:?}, missing command response key", m)
+                        },
+
                         ProcessError::MissingCommandFunction(m) => {
                             format!("Command: {:?}, missing command function", m)
                         },
@@ -695,7 +703,7 @@ pub fn initialize_socket_client_transposer(py: Python<'_>) {
                         println!("Finalize a process task!");
                     },
                     Err(e) => {
-                        println!("{:?}", e);
+                        println!("\nWarning: {:?}\n", e);
                     },
                 }
             }

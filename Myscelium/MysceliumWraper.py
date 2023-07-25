@@ -49,7 +49,7 @@ class HostPatterns:
     def client_pattern (self, client_type:str, client_id:str) -> dict:
         return {"client_type":client_type, "client_id":client_id}
 
-    def response_pattern (self, response:any, response_mode:str, redirect_to_client_id:str=None) -> dict:
+    def response_pattern (self, response:any, response_activation_function:str, response_mode:str, redirect_to_client_id:str=None) -> dict:
 
         if response_mode == "redirect":
 
@@ -58,13 +58,13 @@ class HostPatterns:
             else:
                 raise ("Invalid redirect! Missing client_id to redirect!")
 
-            return {'response_mode':'redirect', 'response':response, 'redirect_to':redirect_to_client_id}
+            return {'response_mode':'redirect', 'response_activation_function':response_activation_function, 'response':response, 'redirect_to':redirect_to_client_id}
 
         elif response_mode == 'to_origin':
 
             print("Response mode set to origin")
             
-            return {'response_mode':'to_origin', 'response':response}
+            return {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
         
         else:
             raise ("Response mode invalid! Please use one of this: ('redirect', 'to_origin')")
@@ -184,7 +184,7 @@ def get_registred_commands () -> dict:
 
     print(f"\nAvaliable commands:\n{response}\n")
 
-    response = host_patterns.response_pattern(response=response, response_mode='to_origin')
+    response = host_patterns.response_pattern(response=response, response_activation_function='update_avaliable_host_commands',  response_mode='to_origin')
 
     print(f"Response to return to rust myscelium engine: {response}")
 
