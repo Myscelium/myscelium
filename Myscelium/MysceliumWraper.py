@@ -52,7 +52,10 @@ class HostPatterns:
     def client_pattern (self, client_type:str, client_id:str) -> dict:
         return {"client_type":client_type, "client_id":client_id}
 
-    def response_pattern (self, response:any, response_activation_function:str, response_mode:str, redirect_to_client_id:str=None) -> dict:
+    def response_pattern (self, response:any, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict:
+
+        if response_activation_function == "" or response_activation_function == None:
+            raise ("Missing response_activation_function!")
 
         if response_mode == "redirect":
 
@@ -141,9 +144,9 @@ class ClientPatterns:
     def client_pattern (self, client_type:str, client_id:str) -> dict:
         return {"client_type":client_type, "client_id":client_id}
 
-    def command_pattern (self, command_function:str, args):
+    def command_pattern (self, command_function:str, args=None):
 
-        if args == None:
+        if args != None:
             return {"function":command_function, "args":args}
         else:
             pass

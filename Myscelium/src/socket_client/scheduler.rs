@@ -52,7 +52,7 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
 
     let command_to_schedule = UpCommand::new(client_id, parity_id, priority, unwraped_command);
 
-    buffer_up_mananger::buffer_up_schedule(command_to_schedule);
+    buffer_up_mananger::buffer_up_schedule(command_to_schedule.clone());
 
-    println!("Command scheduled!");
+    println!("\nCommand: {:?} scheduled\n!", command_to_schedule);
 }

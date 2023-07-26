@@ -98,6 +98,29 @@ lazy_static! {
         let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
         Arc::new(Mutex::new(command_patterns))
     };
+    static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
+        let json_str = r#"{
+            "get_symbols_data": {
+                "symbols_data": {
+                    "data-type": "str",
+                    "symbols": "str",
+                    "start-ts": "float",
+                    "end-ts": "float"
+                }
+            },
+            "get_other_symbols_data": {
+                "symbols_data": {
+                    "data-type": "str",
+                    "symbols": "str",
+                    "start-ts": "float",
+                    "end-ts": "float"
+                }
+            }
+        }"#;
+
+        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
+        Arc::new(Mutex::new(command_patterns))
+    };
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -289,18 +312,18 @@ fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<
 
 fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
     // Check if the dict contains the function name as a key
-    if !dict.contains_key("args") {
+    if !dict.contains_key("response") {
         // If it does not, return an empty HashMap since there are no arguments
         let kwargs: HashMap<String, PyObject> = HashMap::new();
         return Ok(kwargs);
     }
 
-    let args_string = match dict.get("args") {
-        Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
+    let args_string = match dict.get("response") {
+        Some(Value::Object(s)) => s,
+        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a object.")),
     };
 
-    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
+    let sub_dict: HashMap<String, Value> = args_string.clone().into_iter().collect();
 
     println!("Args extracted: {:?}", sub_dict);
 
@@ -330,7 +353,7 @@ fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult
 
 fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
     println!("Getting function name...");
-    let function_name: &String = match command.command.get("function") {
+    let function_name: &String = match command.command.get("response_activation_function") {
         Some(Value::String(function_name)) => function_name,
         _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
     };
@@ -546,7 +569,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
             // Lock the COMMAND_PATTERNS and insert the new map
 
             {
-                let mut actual_patterns = COMMAND_PATTERNS.lock().unwrap();
+                let mut actual_patterns = HOST_ALLOWED_COMMANDS.lock().unwrap();
                 *actual_patterns = response_map;
             }
 
@@ -598,12 +621,14 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
                 if *response_mode == ResultType::Str("to_host".to_string()) {
                     response = serde_json::to_string(&m).unwrap();
                 } else {
+                    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
                     return Err(ProcessError::InvalidCallbackResponse(
                         activation_key.clone(),
                         "Response mode doesn't match any known mode. Please use one of: ('to_host', 'retransmit')!".to_string(),
                     ));
                 }
             } else {
+                enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
                 return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Callback doesn't implement response mode!".to_string()));
             }
         },
@@ -621,10 +646,12 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
         ResultType::List(_) => {
             // eprintln!("Error! Received a list, but expected a map!");
+            enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
             return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Received a list, but expected a map!".to_string()));
         },
         ResultType::Empty => {
             println!("Response is None!");
+            enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
             return Ok(());
         },
         ResultType::Error(e) => {

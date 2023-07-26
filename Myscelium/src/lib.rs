@@ -337,26 +337,30 @@ enum ResultType {
     Error(String),
 }
 
+fn handle_dict(py: Python, dict: &PyDict) -> HashMap<String, String> {
+    let mut rust_dict = HashMap::new();
+
+    for (key, value) in dict.iter() {
+        let key_str: String = key.extract().unwrap();
+        if let Ok(value_str) = value.extract::<String>() {
+            rust_dict.insert(key_str, value_str);
+        } else if let Ok(value_int) = value.extract::<i32>() {
+            rust_dict.insert(key_str, value_int.to_string());
+        } else if let Ok(value_list) = value.extract::<Vec<String>>() {
+            rust_dict.insert(key_str, format!("{:?}", value_list));
+        } else if let Ok(nested_dict) = value.cast_as::<PyDict>() {
+            rust_dict.insert(key_str, format!("{:?}", handle_dict(py, &nested_dict)));
+        } else {
+            // Handle other types as needed
+        }
+    }
+
+    rust_dict
+}
+
 fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     if let Ok(dict) = obj.cast_as::<PyDict>(py) {
-        // Handle dict
-
-        let mut rust_dict = HashMap::new(); // Declare the HashMap
-
-        for (key, value) in dict.iter() {
-            let key_str: String = key.extract().unwrap();
-            if let Ok(value_str) = value.extract::<String>() {
-                rust_dict.insert(key_str, value_str);
-            } else if let Ok(value_int) = value.extract::<i32>() {
-                rust_dict.insert(key_str, value_int.to_string());
-            } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-                rust_dict.insert(key_str, format!("{:?}", value_list));
-            } else {
-                // Handle other types as needed
-            }
-        }
-
-        return ResultType::Map(rust_dict);
+        return ResultType::Map(handle_dict(py, &dict));
     } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
         // Handle tuple
         for item in tuple {
@@ -413,6 +417,8 @@ fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<P
     }
 
     let converted_command = handle_pyobject(py, command);
+
+    println!("\nConverted Command to schedule: {:?}\n", converted_command);
 
     match converted_command {
         ResultType::Map(m) => {
