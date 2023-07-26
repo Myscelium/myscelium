@@ -536,8 +536,41 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
     }
 
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-    let patterns = command_patterns;
+    if activation_key == &"update_avaliable_host_commands".to_string() {
+        println!("Receive Host Allowed Commands");
+
+        if let Some(Value::Object(response_obj)) = translated_command.command.get("response") {
+            // Clone the object to get a HashMap<String, Value>
+            let response_map = response_obj.clone();
+
+            // Lock the COMMAND_PATTERNS and insert the new map
+            let mut patterns;
+            {
+                patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+                patterns.insert("response".to_string(), Value::Object(response_map));
+            }
+
+            {
+                let mut actual_patterns = COMMAND_PATTERNS.lock().unwrap();
+                *actual_patterns = patterns;
+            }
+
+            println!("Succesfuly actualize the host avalaible commands!");
+
+            enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
+
+            return Ok(());
+        } else {
+            return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
+        }
+    }
+
+    let patterns;
+
+    {
+        let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+        patterns = command_patterns;
+    }
 
     if !patterns.contains_key(activation_key) {
         // -> Remove command from schedule if it isn't on the patterns
