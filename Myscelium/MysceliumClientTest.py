@@ -31,11 +31,11 @@ def send_some_data ():
 
     mys_client.runing = True
 
-    command = client_patterns.command_pattern("get_registred_commands", args=None)
+    # command = client_patterns.command_pattern("get_registred_commands", args=None)
 
-    result = mys_client.send(command, priority=10)
+    # result = mys_client.send(command, priority=10)
 
-    print (result)
+    # print (result)
 
     pass
 

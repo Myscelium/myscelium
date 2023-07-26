@@ -20,6 +20,13 @@ pub fn set_client_id(client_uid: String) {
     }
 }
 
+pub fn request_host_avaliable_commands() {
+    let mut request_host_commands: HashMap<String, String> = HashMap::new();
+    request_host_commands.insert("function".to_string(), "get_registred_commands".to_string());
+
+    schedule(request_host_commands, 11)
+}
+
 pub fn schedule(command: HashMap<String, String>, priority: u8) {
     println!("Enter Schedule");
 
