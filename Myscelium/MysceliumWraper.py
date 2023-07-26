@@ -26,6 +26,9 @@ class MysceliumHost:
         self.host_thread = None
 
         pass
+
+    def set_client_heartbeat_handler (self, callback):
+        mys.registry_socket_host_client_heartbeat_contact_callback(callback)
     
     def get_registred_commands (self) -> dict:
         print("Activated the get registred commands")

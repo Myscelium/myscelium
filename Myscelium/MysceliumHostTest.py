@@ -27,6 +27,11 @@ def test_redirect (client_id, data):
 
         print ("Client id isn't a string, failed to redirect data!")
         return None
+    
+def handle_client_contact (client_id:str):
+    print("Access heartbeat handler")
+    print(f"Client: {client_id}, made contact")
+    return None
 
 callbacks = [
 
@@ -53,6 +58,12 @@ allowed_clients = [
 if __name__ == '__main__':
     
     mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2)
+
+    client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={
+        "client_id": "str",
+    }),]
+
+    mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
 
     # print(mys_host.get_registred_commands())
 

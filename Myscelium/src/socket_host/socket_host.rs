@@ -29,6 +29,9 @@ use std::time::Duration;
 use crate::HOST_IS_RUNING;
 use std::sync::atomic::Ordering;
 
+use pyo3::exceptions::PyException;
+use pyo3::types::PyFunction;
+
 #[derive(Debug, Clone)]
 pub struct Client {
     client_id: String,
@@ -63,6 +66,10 @@ lazy_static! {
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
     static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref HEARTBEAT_CALLBACK: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
+        let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
+        Arc::new(Mutex::new(command_patterns))
+    };
 }
 
 macro_rules! create_command_error {
@@ -110,6 +117,13 @@ macro_rules! create_response_command {
     }};
 }
 
+pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>) {
+    {
+        let mut heart_beat_callback = HEARTBEAT_CALLBACK.lock().unwrap();
+        *heart_beat_callback = callback_pattern;
+    }
+}
+
 pub fn is_client_registred(client_id: &String) -> bool {
     let clients;
 
@@ -135,11 +149,91 @@ pub fn register_client(client_id: String, client_type: String) {
     }
 }
 
-pub fn update_last_contact(client_id: String) {
+fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
+    // Check if the dict contains the function name as a key
+    if !dict.contains_key("args") {
+        // If it does not, return an empty HashMap since there are no arguments
+        let kwargs: HashMap<String, PyObject> = HashMap::new();
+        return Ok(kwargs);
+    }
+
+    let args_string = match dict.get("args") {
+        Some(Value::String(s)) => s,
+        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
+    };
+
+    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
+
+    println!("Args extracted: {:?}", sub_dict);
+
+    let mut kwargs: HashMap<String, PyObject> = HashMap::new();
+    for (key, value) in sub_dict.iter() {
+        let py_value = match value {
+            Value::String(s) => s.into_py(py),
+            Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    i.into_py(py)
+                } else if let Some(f) = n.as_f64() {
+                    f.into_py(py)
+                } else {
+                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
+                }
+            },
+            Value::Bool(b) => b.into_py(py),
+            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
+        };
+        kwargs.insert(key.clone(), py_value);
+    }
+
+    println!("kwargs: {:?}", kwargs);
+
+    Ok(kwargs)
+}
+
+pub fn update_last_contact(py: Python<'_>, client_id: String) {
     let mut clients = CLIENTS_ALLOWED.lock().unwrap();
     if let Some(client) = clients.get_mut(&client_id) {
         client.last_contact = SystemTime::now();
     }
+
+    let function_name = "handle_client_contact";
+
+    let callback_patterns = HEARTBEAT_CALLBACK.lock().unwrap();
+
+    let function = match callback_patterns.get(function_name) {
+        Some(function) => function.clone(),
+        _ => return,
+    };
+
+    // Get the function and args_types from the CALLBACK_PATTERNS
+
+    // let mut command: HashMap<String, Value> = HashMap::new();
+
+    // command.insert("client_id".to_string(), );
+
+    // let kwargs_map = dict_to_kwargs(py, &command)
+    //     .map_err(|e| {
+    //         eprintln!("Error converting arguments to kwargs: {:?}", e);
+    //         PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e))
+    //     })
+    //     .unwrap();
+
+    // let kwargs = PyDict::new(py);
+    // for (key, value) in kwargs_map {
+    //     kwargs.set_item(key, value).unwrap();
+    // }
+
+    let kwargs = PyDict::new(py);
+
+    let py_client_id = &client_id.into_py(py);
+
+    kwargs.set_item("client_id".to_string(), py_client_id).unwrap();
+
+    // Call the Python function with the converted arguments
+    let result = function.0.call(py, (), Some(kwargs)).map_err(|e| {
+        eprintln!("Error calling function: {:?}", e);
+        e
+    });
 }
 
 // > Commands Manangemement & Checking
@@ -562,7 +656,19 @@ fn handle_connection(mut stream: TcpStream) {
             return;
         }
 
-        update_last_contact(command.client_id.clone());
+        let py;
+
+        {
+            let getting_py = unsafe { Python::assume_gil_acquired() };
+
+            let gil_pool = unsafe { getting_py.clone().new_pool() };
+
+            py = gil_pool.python();
+
+            println!("Aquired python to call client heart beat handler callback!");
+
+            update_last_contact(py, command.client_id.clone());
+        }
 
         match command.command.get("function") {
             Some(Value::String(function)) => {
