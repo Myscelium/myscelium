@@ -541,18 +541,13 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
         if let Some(Value::Object(response_obj)) = translated_command.command.get("response") {
             // Clone the object to get a HashMap<String, Value>
-            let response_map = response_obj.clone();
+            let response_map: HashMap<String, Value> = response_obj.clone().into_iter().collect();
 
             // Lock the COMMAND_PATTERNS and insert the new map
-            let mut patterns;
-            {
-                patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-                patterns.insert("response".to_string(), Value::Object(response_map));
-            }
 
             {
                 let mut actual_patterns = COMMAND_PATTERNS.lock().unwrap();
-                *actual_patterns = patterns;
+                *actual_patterns = response_map;
             }
 
             println!("Succesfuly actualize the host avalaible commands!");
