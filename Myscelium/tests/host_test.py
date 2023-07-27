@@ -1,4 +1,4 @@
-from ..myscelium.wrapper import MysceliumHost, HostPatterns
+from myscelium.wrapper import MysceliumHost, HostPatterns
 
 host_patterns = HostPatterns()
 

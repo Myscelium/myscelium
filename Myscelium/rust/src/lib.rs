@@ -550,7 +550,7 @@ fn set_client_uid(py: Python<'_>, client_uid: String) {
 // -> Entries:
 
 #[pymodule]
-fn myscelium_rust(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // -> Host
     m.add_function(wrap_pyfunction!(initalize_host_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
