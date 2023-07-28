@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 target/
 *.log
+build
+myscelium.egg-info
