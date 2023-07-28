@@ -1,5 +1,4 @@
-import signal
-import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
+from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
 
 class MysceliumHost:
 
