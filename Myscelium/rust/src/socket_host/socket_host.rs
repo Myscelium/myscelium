@@ -32,8 +32,8 @@ use std::sync::atomic::Ordering;
 use pyo3::exceptions::PyException;
 use pyo3::types::PyFunction;
 
-use super::host_logger::log_handler;
-
+use super::host_logger::log_handler::Logger;
+use crate::HOST_LOG_LEVEL;
 #[derive(Debug, Clone)]
 pub struct Client {
     client_id: String,
@@ -86,6 +86,16 @@ macro_rules! create_command_error {
             command: command_map,
         };
         command
+    }};
+}
+
+macro_rules! acquire_logger {
+    ($section_name:expr) => {{
+        let host_log_level;
+        {
+            host_log_level = HOST_LOG_LEVEL.lock().unwrap().clone();
+        }
+        Logger::new(host_log_level, $section_name)
     }};
 }
 
@@ -152,6 +162,8 @@ pub fn register_client(client_id: String, client_type: String) {
 }
 
 fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
+    let logger = acquire_logger!("py dict to kwargs converter");
+
     // Check if the dict contains the function name as a key
     if !dict.contains_key("args") {
         // If it does not, return an empty HashMap since there are no arguments
@@ -166,7 +178,7 @@ fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult
 
     let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
 
-    println!("Args extracted: {:?}", sub_dict);
+    logger.debug(format!("Args extracted: {:?}", sub_dict));
 
     let mut kwargs: HashMap<String, PyObject> = HashMap::new();
     for (key, value) in sub_dict.iter() {
@@ -187,7 +199,7 @@ fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult
         kwargs.insert(key.clone(), py_value);
     }
 
-    println!("kwargs: {:?}", kwargs);
+    logger.debug(format!("kwargs: {:?}", kwargs));
 
     Ok(kwargs)
 }
@@ -231,9 +243,11 @@ pub fn update_last_contact(py: Python<'_>, client_id: String) {
 
     kwargs.set_item("client_id".to_string(), py_client_id).unwrap();
 
+    let logger = acquire_logger!("Heartbeat Callback Handler");
+
     // Call the Python function with the converted arguments
     let result = function.0.call(py, (), Some(kwargs)).map_err(|e| {
-        eprintln!("Error calling function: {:?}", e);
+        logger.exception(format!("Error calling function: {:?}", e));
         e
     });
 }
@@ -397,16 +411,18 @@ impl ThreadPool {
     }
 
     pub fn stop(&mut self) {
-        println!("Sending terminate message to all workers.");
+        let logger = acquire_logger!("Socket Trhead Pool");
+
+        logger.debug(format!("Sending terminate message to all workers."));
 
         for _ in &self.workers {
             self.sender.send(None).unwrap();
         }
 
-        println!("Shutting down all workers.");
+        logger.debug(format!("Shutting down all workers."));
 
         for worker in &mut self.workers {
-            println!("Shutting down worker {}", worker.id);
+            logger.debug(format!("Shutting down worker {}", worker.id));
 
             if let Some(thread) = worker.thread.take() {
                 thread.join().unwrap();
@@ -417,6 +433,8 @@ impl ThreadPool {
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let logger = acquire_logger!("Socket Trhead Pool");
+
         let thread = thread::spawn(move || loop {
             let job = match receiver.lock().unwrap().recv() {
                 Ok(Some(job)) => job,
@@ -424,7 +442,7 @@ impl Worker {
                 Err(_) => return,
             };
 
-            println!("Worker {} got a job; executing.", id);
+            logger.debug(format!("Worker {} got a job; executing.", id));
 
             job();
         });
@@ -435,16 +453,18 @@ impl Worker {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
-        println!("Sending terminate message to all workers.");
+        let logger = acquire_logger!("Socket Trhead Pool");
+
+        logger.debug(format!("Sending terminate message to all workers."));
 
         for _ in &self.workers {
             self.sender.send(None).unwrap();
         }
 
-        println!("Shutting down all workers.");
+        logger.debug(format!("Shutting down all workers."));
 
         for worker in &mut self.workers {
-            println!("Shutting down worker {}", worker.id);
+            logger.debug(format!("Shutting down worker {}", worker.id));
 
             if let Some(thread) = worker.thread.take() {
                 thread.join().unwrap();
@@ -467,13 +487,15 @@ pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
 }
 
 pub fn initialize_host_buffer(buffer_location: String) {
-    println!("\ninicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
+    let logger = acquire_logger!("Buffer Controler");
+
+    logger.info(format!("\ninicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location));
 
     enhanced_buffer::buffer_down_mananger::buffer_down_initialize_table(buffer_location.clone());
 
     enhanced_buffer::buffer_up_mananger::buffer_up_initialize_table(buffer_location.clone());
 
-    println!("\nAll buffer initialized succefully!\n");
+    logger.info(format!("\nAll buffer initialized succefully!\n"));
 
     return;
 }
@@ -495,6 +517,8 @@ fn pool_stoping_event_controler(pool: Arc<Mutex<ThreadPool>>) {
 }
 
 pub fn initialize_host(address: String, client_id: String) {
+    let logger = acquire_logger!("Core");
+
     let mut actual_client_id = CLIENT_ID.lock().unwrap();
     *actual_client_id = client_id;
 
@@ -502,7 +526,7 @@ pub fn initialize_host(address: String, client_id: String) {
 
     let listener = TcpListener::bind(&address).unwrap();
 
-    println!("Listening: {}", address);
+    logger.info(format!("Listening: {}", address));
 
     let pool = Arc::new(Mutex::new(ThreadPool::new(*default_max_conns as usize)));
 
@@ -514,7 +538,7 @@ pub fn initialize_host(address: String, client_id: String) {
 
         // Keep the thread alive until HOST_IS_RUNING is set to false
         if !HOST_IS_RUNING.load(Ordering::SeqCst) {
-            print!("runing is set to false, skipping");
+            logger.warn(format!("runing is set to false, skipping"));
             break;
         }
 
@@ -526,7 +550,7 @@ pub fn initialize_host(address: String, client_id: String) {
                 });
             },
             Err(e) => {
-                eprintln!("Failed to accept a connection: {}", e);
+                logger.warn(format!("Failed to accept a connection: {}", e));
             },
         }
 
@@ -615,6 +639,9 @@ fn get_response(command: Command) -> Response {
 }
 
 fn handle_connection(mut stream: TcpStream) {
+    // Aquire logger to section Handle Conn
+    let logger = acquire_logger!("Core");
+
     loop {
         let mut buffer = [0; 4096];
 
@@ -624,11 +651,11 @@ fn handle_connection(mut stream: TcpStream) {
                 continue;
             },
             Ok(bytes_read) => {
-                println!("Data received!");
+                logger.debug("Data received!".to_string());
             },
             Err(e) => {
                 // Handle the error
-                eprintln!("Failed to read from the stream: {}", e);
+                logger.exception(format!("Failed to read from the stream: {}", e));
             },
         }
 
@@ -638,7 +665,7 @@ fn handle_connection(mut stream: TcpStream) {
 
         let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
-        println!("\nCommand received:\n{:?}\n", command);
+        logger.debug(format!("\nCommand received:\n{:?}\n", command));
 
         let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
@@ -651,7 +678,7 @@ fn handle_connection(mut stream: TcpStream) {
 
             let command_response_json = json!(response).to_string();
 
-            println!("WARNING: Client isn't registred, sending back: {:?}", command_response_json);
+            logger.exception(format!("WARNING: Client isn't registred, sending back: {:?}", command_response_json));
 
             stream.write_all(command_response_json.as_bytes()).unwrap();
 
@@ -667,14 +694,14 @@ fn handle_connection(mut stream: TcpStream) {
 
             py = gil_pool.python();
 
-            println!("Aquired python to call client heart beat handler callback!");
+            logger.debug("Aquired python to call client heart beat handler callback!".to_string());
 
             update_last_contact(py, command.client_id.clone());
         }
 
         match command.command.get("function") {
             Some(Value::String(function)) => {
-                println!("Comand function: {}", function);
+                logger.debug(format!("Comand function: {}", function));
 
                 if special_functions.contains(&function) {
                     // -> Special Function Handler
@@ -683,13 +710,13 @@ fn handle_connection(mut stream: TcpStream) {
 
                     let command_response_json = json!(response).to_string();
 
-                    println!("Sending back: {:?}", command_response_json);
+                    logger.debug(format!("Sending back: {:?}", command_response_json));
 
                     stream.write_all(command_response_json.as_bytes()).unwrap();
                 } else if command_patterns.contains_key(function) {
                     // -> Commom Function Handler
 
-                    println!("Command is in command patterns!");
+                    logger.debug("Command is in command patterns!".to_string());
 
                     let command_is_not_registry: bool =
                         enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
@@ -697,14 +724,14 @@ fn handle_connection(mut stream: TcpStream) {
                     let response: Command;
 
                     if !command_is_not_registry {
-                        println!("Command {}, alwready have a response!", command.parity_id.clone());
+                        logger.warn(format!("Command {}, alwready have a response!", command.parity_id.clone()));
 
                         match get_response(command.clone()) {
                             Response::Command(c) => {
                                 response = c;
                             },
                             Response::None => {
-                                println!("Response is None!");
+                                logger.info("Response is None!".to_string());
 
                                 response = create_sepecial_command!(command.client_id, "C210");
                             },
@@ -715,7 +742,7 @@ fn handle_connection(mut stream: TcpStream) {
 
                     let command_json = json!(response).to_string();
 
-                    println!("Sending back: {:?}", command_json);
+                    logger.debug(format!("Sending back: {:?}", command_json));
 
                     stream.write_all(command_json.as_bytes()).unwrap();
                 } else {
@@ -725,13 +752,13 @@ fn handle_connection(mut stream: TcpStream) {
 
                     let command_json = json!(command).to_string();
 
-                    println!("Sending back: {:?}", command_json);
+                    logger.debug(format!("Sending back: {:?}", command_json));
 
                     stream.write_all(command_json.as_bytes()).unwrap();
                 }
             },
             _ => {
-                println!("The function name is not found or not a string.");
+                logger.warn("The function name is not found or not a string.".to_string());
             },
         }
     }

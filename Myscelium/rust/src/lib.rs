@@ -27,11 +27,17 @@ use std::time::{Duration, Instant};
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+
+    // CLIENT
     pub static ref CLIENT_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
-    pub static ref HOST_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref CLIENT_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+
+    // HOST:
+    pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+    pub static ref HOST_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+    pub static ref HOST_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+
 }
 
 // #[pyfunction]

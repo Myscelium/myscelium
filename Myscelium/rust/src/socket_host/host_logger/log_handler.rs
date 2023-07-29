@@ -12,6 +12,7 @@ use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::HOST_LOG_LEVEL;
 use crate::HOST_NODE_NAME;
 
 lazy_static! {
@@ -19,7 +20,6 @@ lazy_static! {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
     };
-    static ref LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
 }
 
 // TODO >>> Add a mecanism to set the node host name, to be able to indentify in the logs
@@ -30,12 +30,12 @@ pub fn set_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunctio
         *heart_beat_callback = callback_pattern;
     }
     {
-        let mut current_log_level = LOG_LEVEL.lock().unwrap();
+        let mut current_log_level = HOST_LOG_LEVEL.lock().unwrap();
         *current_log_level = log_level;
     }
 }
 
-pub fn log_event(node_name: String, log_time: f64, log_name: String, log_level: String, log_msg: String) {
+fn log_event(node_name: String, log_time: f64, log_name: String, log_level: String, log_msg: String) {
     let function_name = "logs_handler";
 
     let callback_patterns = LOGS_HANDLER_CALLBACK.lock().unwrap();
@@ -74,14 +74,14 @@ pub fn log_event(node_name: String, log_time: f64, log_name: String, log_level: 
     }
 }
 
-struct Logger {
+pub struct Logger {
     log_level: String,
     section: String,
     node_name: String,
 }
 
 impl Logger {
-    pub fn new(log_level: &str, section: &str) -> Self {
+    pub fn new(log_level: String, section: &str) -> Self {
         // Placeholder for other initializations
 
         let node_name: String = HOST_NODE_NAME.lock().unwrap().clone();
@@ -93,7 +93,7 @@ impl Logger {
         }
     }
 
-    pub fn debug(&self, log: &str) {
+    pub fn debug(&self, log: String) {
         if self.log_level == "DEBUG" {
             // Placeholder implementation
             let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
@@ -101,7 +101,7 @@ impl Logger {
         }
     }
 
-    pub fn info(&self, log: &str) {
+    pub fn info(&self, log: String) {
         if (self.log_level == "INFO") || (self.log_level == "DEBUG") {
             // Placeholder implementation
             let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
@@ -109,7 +109,7 @@ impl Logger {
         }
     }
 
-    pub fn warn(&self, log: &str) {
+    pub fn warn(&self, log: String) {
         if (self.log_level == "INFO") || (self.log_level == "WARN") || (self.log_level == "DEBUG") {
             // Placeholder implementation
             let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
@@ -117,7 +117,7 @@ impl Logger {
         }
     }
 
-    pub fn exception(&self, log: &str) {
+    pub fn exception(&self, log: String) {
         if (self.log_level == "INFO") || (self.log_level == "WARN") || (self.log_level == "DEBUG") || (self.log_level == "EXCEPTION") {
             // Placeholder implementation
             let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();

@@ -36,6 +36,19 @@ use std::fmt;
 
 use crate::socket_host::socket_host::{Command, CommandType};
 
+use super::host_logger::log_handler::Logger;
+use crate::HOST_LOG_LEVEL;
+
+macro_rules! acquire_logger {
+    ($section_name:expr) => {{
+        let host_log_level;
+        {
+            host_log_level = HOST_LOG_LEVEL.lock().unwrap().clone();
+        }
+        Logger::new(host_log_level, $section_name)
+    }};
+}
+
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
@@ -164,6 +177,8 @@ impl Worker {
         let busy_clone = Arc::clone(&busy);
         let free_condvar_clone = Arc::clone(&free_condvar);
 
+        let logger = acquire_logger!("Transposer - Thread Pool");
+
         let thread = thread::spawn(move || loop {
             let message = match receiver.lock().unwrap().recv() {
                 Ok(message) => message,
@@ -173,21 +188,13 @@ impl Worker {
             match message {
                 Some(job) => {
                     busy_clone.store(true, Ordering::SeqCst);
-                    println!(
-                        "\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-
-                              \nTransposer Worker {} got a job; executing.\n",
-                        id
-                    );
+                    logger.debug(format!("Transposer Worker {} got a job; executing.", id));
                     job();
                     busy_clone.store(false, Ordering::SeqCst);
                     free_condvar_clone.notify_one();
                 },
                 None => {
-                    println!(
-                        "\nTransposer Worker {} was told to terminate.
-                              \n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-\n",
-                        id
-                    );
+                    logger.debug(format!("Transposer Worker {} was told to terminate.", id));
                     return;
                 },
             }
@@ -204,6 +211,8 @@ impl Worker {
 // > Transposer:
 
 fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<&'l PyTuple> {
+    let logger = acquire_logger!("Transposer - Py Dict to Tuple Converter");
+
     // Check if the dict contains the function name as a key
     if !dict.contains_key("args") {
         // If it does not, return an empty Vec since there are no arguments
@@ -218,7 +227,7 @@ fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<
 
     let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
 
-    println!("Args extracted: {:?}", sub_dict);
+    logger.debug(format!("Args extracted: {:?}", sub_dict));
 
     let mut values: Vec<PyObject> = Vec::new();
     for value in sub_dict.values() {
@@ -241,12 +250,14 @@ fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<
 
     let py_tuple = PyTuple::new(py, &values);
 
-    println!("py_tuple: {}", py_tuple);
+    logger.debug(format!("py_tuple: {}", py_tuple));
 
     Ok(py_tuple)
 }
 
 fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
+    let logger = acquire_logger!("Transposer - Py Dict to kwargs Converter");
+
     // Check if the dict contains the function name as a key
     if !dict.contains_key("args") {
         // If it does not, return an empty HashMap since there are no arguments
@@ -261,7 +272,7 @@ fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult
 
     let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
 
-    println!("Args extracted: {:?}", sub_dict);
+    logger.debug(format!("Args extracted: {:?}", sub_dict));
 
     let mut kwargs: HashMap<String, PyObject> = HashMap::new();
     for (key, value) in sub_dict.iter() {
@@ -282,25 +293,27 @@ fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult
         kwargs.insert(key.clone(), py_value);
     }
 
-    println!("kwargs: {:?}", kwargs);
+    logger.debug(format!("kwargs: {:?}", kwargs));
 
     Ok(kwargs)
 }
 
 fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
-    println!("Getting function name...");
+    let logger = acquire_logger!("Transposer - Handle Command");
+
+    logger.debug(format!("Getting function name..."));
     let function_name: &String = match command.command.get("function") {
         Some(Value::String(function_name)) => function_name,
         _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
     };
-    println!("Got function name: {}", function_name);
+    logger.debug(format!("Got function name: {}", function_name));
 
     // Get the function and args_types from the CALLBACK_PATTERNS
     let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     let (function, _) = callback_patterns.get(function_name).unwrap();
 
     let kwargs_map = dict_to_kwargs(py, &command.command).map_err(|e| {
-        eprintln!("Error converting arguments to kwargs: {:?}", e);
+        logger.exception(format!("Error converting arguments to kwargs: {:?}", e));
         PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e))
     })?;
 
@@ -311,7 +324,7 @@ fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
 
     // Call the Python function with the converted arguments
     let result = function.call(py, (), Some(kwargs)).map_err(|e| {
-        eprintln!("Error calling function: {:?}", e);
+        logger.exception(format!("Error calling function: {:?}", e));
         e
     })?;
 
@@ -434,6 +447,8 @@ macro_rules! error_response {
 }
 
 fn process(py: Python, down_command: DownCommand) {
+    let logger = acquire_logger!("Transposer - Process");
+
     fn handle_redirect(
         m: HashMap<String, String>,
         client_id: &mut String,
@@ -469,13 +484,13 @@ fn process(py: Python, down_command: DownCommand) {
         return response;
     }
 
-    println!("Initializing prossesing!");
+    logger.debug(format!("Initializing prossesing!"));
 
     let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
     let command_id: i32 = down_command.command_id.clone();
 
     if !command_is_not_registry {
-        println!("Command {}, alwready have a response!", down_command.parity_id.clone());
+        logger.debug(format!("Command {}, alwready have a response!", down_command.parity_id.clone()));
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
         return;
     }
@@ -496,12 +511,12 @@ fn process(py: Python, down_command: DownCommand) {
 
     let translated_command: Command = Command::from_down_command(down_command.clone());
 
-    println!("Translated command: {:?}", translated_command);
+    logger.debug(format!("Translated command: {:?}", translated_command));
 
     let function = match translated_command.command.get("function") {
         Some(Value::String(function)) => function,
         _ => {
-            println!("The function name is not found or not a string.");
+            logger.warn(format!("The function name is not found or not a string."));
             return;
         },
     };
@@ -512,17 +527,17 @@ fn process(py: Python, down_command: DownCommand) {
     if !patterns.contains_key(function) {
         // -> Remove command from schedule if it isn't on the patterns
 
-        println!("Command isn't registred in the patterns");
+        logger.warn(format!("Command isn't registred in the patterns"));
 
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
 
-        println!("command skipped and remvoed from schedule");
+        logger.warn(format!("command skipped and remvoed from schedule"));
         return;
     }
 
-    println!("Command function: {} is a valid function!", function);
-    println!("Calling the callback!\n");
-    println!("Acquired the GIL");
+    logger.debug(format!("Command function: {} is a valid function!", function));
+    logger.debug(format!("Calling the callback!\n"));
+    logger.debug(format!("Acquired the GIL"));
 
     let response = handle_command(py, translated_command.clone());
 
@@ -582,8 +597,8 @@ fn process(py: Python, down_command: DownCommand) {
         },
     }
 
-    println!("Function returned: {:?}", response);
-    println!("Command: {:?}, processed!", down_command.parity_id.clone());
+    logger.debug(format!("Function returned: {:?}", response));
+    logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
     enhanced_buffer::buffer_up_mananger::buffer_up_schedule(
@@ -600,6 +615,8 @@ fn clear_old_data() {
 }
 
 pub fn initialize_socket_host_transposer(py: Python<'_>) {
+    let logger = acquire_logger!("Transposer");
+
     let num_of_workers = NUM_WORKERS.lock().unwrap();
 
     let mut pool = ThreadPool::new(*num_of_workers as usize);
@@ -608,20 +625,22 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
 
     schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
 
-    println!("\nSchedule to process:\n{:?}\n", schedule);
+    logger.debug(format!("\nSchedule to process:\n{:?}\n", schedule));
 
     if !(schedule.len() > 0) {
-        println!("Nothing in the schedule, skipping >>>");
+        logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
         thread::sleep(Duration::from_secs(5));
         return;
     }
 
-    println!("\nData found in schedule!");
+    logger.info(format!("\nData found in schedule!"));
 
     for dow_command in schedule {
         pool.wait_for_free_worker(Box::new(|| {
-            println!("get a pool worker in tranposer!");
+            let logger = acquire_logger!("Transposer");
+
+            logger.info(format!("get a pool worker in tranposer!"));
 
             let py;
 
@@ -632,11 +651,11 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
 
                 py = gil_pool.python();
 
-                println!("Aquired python in a process task!");
+                logger.debug(format!("Aquired python in a process task!"));
 
                 process(py, dow_command);
 
-                println!("Finalize a process task!");
+                logger.debug(format!("Finalize a process task!"));
             }
         }));
     }
