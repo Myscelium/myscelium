@@ -24,14 +24,17 @@ lazy_static! {
 
 // TODO >>> Add a mecanism to set the node host name, to be able to indentify in the logs
 
-pub fn set_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>, log_level: String) {
-    {
-        let mut heart_beat_callback = LOGS_HANDLER_CALLBACK.lock().unwrap();
-        *heart_beat_callback = callback_pattern;
-    }
+pub fn set_host_log_level(log_level: String) {
     {
         let mut current_log_level = HOST_LOG_LEVEL.lock().unwrap();
         *current_log_level = log_level;
+    }
+}
+
+pub fn set_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>) {
+    {
+        let mut heart_beat_callback = LOGS_HANDLER_CALLBACK.lock().unwrap();
+        *heart_beat_callback = callback_pattern;
     }
 }
 

@@ -7,6 +7,8 @@ use socket_host::socket_host::{get_available_commands_registered, initialize_hos
 use socket_host::socket_host::{initialize_host_buffer, register_client, set_heartbeat_callback, set_max_conns};
 use socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
 
+use socket_host::host_logger::log_handler::{set_host_log_level, set_logs_handler_callback};
+
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -154,12 +156,21 @@ fn initalize_host_buffer_tables(path: &PyString) {
 }
 
 #[pyfunction]
+fn set_socket_host_log_level(log_level: &PyString) {
+    let log_level: String = log_level.extract().unwrap();
+
+    set_host_log_level(log_level);
+
+    return;
+}
+
+#[pyfunction]
 fn registry_host_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
     let mut callback_pattern = HashMap::new();
 
     process_commands!(py, commands, callback_pattern);
 
-    // set_log_handler_callback(callback_pattern);
+    set_logs_handler_callback(callback_pattern);
 
     Ok(())
 }
