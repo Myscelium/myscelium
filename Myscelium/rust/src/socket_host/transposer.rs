@@ -536,7 +536,7 @@ fn process(py: Python, down_command: DownCommand) {
     }
 
     logger.debug(format!("Command function: {} is a valid function!", function));
-    logger.debug(format!("Calling the callback!\n"));
+    logger.debug(format!("Calling the callback!"));
     logger.debug(format!("Acquired the GIL"));
 
     let response = handle_command(py, translated_command.clone());
@@ -625,7 +625,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
 
     schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
 
-    logger.debug(format!("\nSchedule to process:\n{:?}\n", schedule));
+    logger.debug(format!("Schedule to process:\n{:?}\n", schedule));
 
     if !(schedule.len() > 0) {
         logger.debug(format!("Nothing in the schedule, skipping >>>"));
@@ -634,7 +634,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
         return;
     }
 
-    logger.info(format!("\nData found in schedule!"));
+    logger.info(format!("Data found in schedule!"));
 
     for dow_command in schedule {
         pool.wait_for_free_worker(Box::new(|| {

@@ -1,4 +1,4 @@
-from myscelium.wrapper import MysceliumHost, HostPatterns
+from myscelium import MysceliumHost, HostPatterns
 
 host_patterns = HostPatterns()
 
@@ -29,8 +29,8 @@ def test_redirect (client_id, data):
         return None
     
 def handle_client_contact (client_id:str):
-    print("Access heartbeat handler")
-    print(f"Client: {client_id}, made contact")
+    # print("Access heartbeat handler")
+    # print(f"Client: {client_id}, made contact")
     return None
 
 callbacks = [
@@ -57,7 +57,7 @@ allowed_clients = [
 
 if __name__ == '__main__':
     
-    mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2)
+    mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="INFO")
 
     client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={
         "client_id": "str",

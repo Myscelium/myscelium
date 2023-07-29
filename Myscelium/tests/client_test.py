@@ -1,4 +1,4 @@
-from myscelium.wrapper import MysceliumClient, ClientPatterns
+from myscelium import MysceliumClient, ClientPatterns
 from threading import Thread
 from _thread import *
 

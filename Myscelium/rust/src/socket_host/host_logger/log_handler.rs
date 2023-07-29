@@ -27,7 +27,8 @@ lazy_static! {
 pub fn set_host_log_level(log_level: String) {
     {
         let mut current_log_level = HOST_LOG_LEVEL.lock().unwrap();
-        *current_log_level = log_level;
+        *current_log_level = log_level.clone();
+        println!("log levels seted to: {:?}", log_level);
     }
 }
 
@@ -45,8 +46,8 @@ fn log_event(node_name: String, log_time: f64, log_name: String, log_level: Stri
 
     if callback_patterns.is_empty() {
         match log_level.as_str() {
-            "DEBUG" | "INFO" | "WARN" => println!("{}", log_msg),
-            "EXCEPTION" => eprintln!("{}", log_msg),
+            "DEBUG" | "INFO" | "WARN" => println!("[{}] - {}", log_level, log_msg),
+            "EXCEPTION" => eprintln!("[{}] - {}", log_level, log_msg),
             _ => {},
         }
         return;

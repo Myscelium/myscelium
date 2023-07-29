@@ -263,7 +263,6 @@ fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: Stri
 
     loop {
         initialize_socket_host_transposer(py);
-        println!("Socket transposer exited ssucefully!");
 
         if !HOST_IS_RUNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
@@ -271,6 +270,8 @@ fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: Stri
             break;
         }
     }
+
+    println!("Socket transposer exited ssucefully!");
 }
 
 fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject> {
@@ -599,6 +600,7 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_socket_host_allowed_clients, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_client_heartbeat_contact_callback, m)?)?;
     m.add_function(wrap_pyfunction!(registry_host_logs_handler, m)?)?;
+    m.add_function(wrap_pyfunction!(set_socket_host_log_level, m)?)?;
 
     // -> Client
     m.add_function(wrap_pyfunction!(initalize_client_buffer_tables, m)?)?;

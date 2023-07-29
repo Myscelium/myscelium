@@ -2,7 +2,7 @@ from . import myscelium_engine as mys # Maybe change the rust myscelium lib to M
 
 class MysceliumHost:
 
-    def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5) -> None:
+    def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="WARN") -> None:
 
         self.allowed_clients = allowed_clients
 
@@ -16,6 +16,13 @@ class MysceliumHost:
         
         callbacks = callbacks + special_functions
 
+        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
+            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+        else:
+            pass
+
+        mys.set_socket_host_log_level(log_level)
+
         mys.registry_socket_host_callbacks(callbacks)
         mys.initalize_host_buffer_tables(buffer_path)
         mys.set_socket_host_allowed_clients(self.allowed_clients)
@@ -26,6 +33,9 @@ class MysceliumHost:
 
         pass
 
+    def set_logs_callback_handler (self, logs_handler:list):
+        mys.registry_host_logs_handler(logs_handler)
+    
     def set_client_heartbeat_handler (self, callback):
         mys.registry_socket_host_client_heartbeat_contact_callback(callback)
     
