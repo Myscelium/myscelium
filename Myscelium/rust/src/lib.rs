@@ -30,6 +30,8 @@ lazy_static! {
     pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref CLIENT_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+    pub static ref HOST_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+    pub static ref CLIENT_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
 }
 
 // #[pyfunction]
@@ -565,6 +567,8 @@ fn set_client_uid(py: Python<'_>, client_uid: String) {
 // > -----------------------------------------------------------------------------------------------------------------------------------------
 
 // -> Entries:
+
+// TODO >> Create a configs file that automatically be created by Host to configure, client key, or host ip, credentials, data dir, etc..
 
 #[pymodule]
 fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
