@@ -40,6 +40,15 @@ fn log_event(node_name: String, log_time: f64, log_name: String, log_level: Stri
 
     let callback_patterns = LOGS_HANDLER_CALLBACK.lock().unwrap();
 
+    if callback_patterns.is_empty() {
+        match log_level.as_str() {
+            "DEBUG" | "INFO" | "WARN" => println!("{}", log_msg),
+            "EXCEPTION" => eprintln!("{}", log_msg),
+            _ => {},
+        }
+        return;
+    }
+
     let function = match callback_patterns.get(function_name) {
         Some(function) => function.clone(),
         _ => return,
@@ -95,7 +104,6 @@ impl Logger {
 
     pub fn debug(&self, log: String) {
         if self.log_level == "DEBUG" {
-            // Placeholder implementation
             let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
             log_event(self.node_name.clone(), ts, self.section.clone(), "DEBUG".to_string(), log.to_string());
         }
@@ -103,7 +111,6 @@ impl Logger {
 
     pub fn info(&self, log: String) {
         if (self.log_level == "INFO") || (self.log_level == "DEBUG") {
-            // Placeholder implementation
             let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
             log_event(self.node_name.clone(), ts, self.section.clone(), "INFO".to_string(), log.to_string());
         }
@@ -111,15 +118,13 @@ impl Logger {
 
     pub fn warn(&self, log: String) {
         if (self.log_level == "INFO") || (self.log_level == "WARN") || (self.log_level == "DEBUG") {
-            // Placeholder implementation
             let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
-            log_event(self.node_name.clone(), ts, self.section.clone(), "INFO".to_string(), log.to_string());
+            log_event(self.node_name.clone(), ts, self.section.clone(), "WARN".to_string(), log.to_string());
         }
     }
 
     pub fn exception(&self, log: String) {
         if (self.log_level == "INFO") || (self.log_level == "WARN") || (self.log_level == "DEBUG") || (self.log_level == "EXCEPTION") {
-            // Placeholder implementation
             let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
             log_event(self.node_name.clone(), ts, self.section.clone(), "EXCEPTION".to_string(), log.to_string());
         }
