@@ -32,6 +32,8 @@ use std::sync::atomic::Ordering;
 use pyo3::exceptions::PyException;
 use pyo3::types::PyFunction;
 
+use super::host_logger::log_handler;
+
 #[derive(Debug, Clone)]
 pub struct Client {
     client_id: String,
