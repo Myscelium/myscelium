@@ -97,10 +97,10 @@ if __name__ == '__main__':
     # print(mys_client.get_registred_commands())
 
     p1 = Process(target=initialize_client, args=())
-    p2 = Process(target=send_some_data, args=())
+    # p2 = Process(target=send_some_data, args=())
 
     p1.start()
-    p2.start()
+    # p2.start()
 
     p1.join()
-    p2.join()
+    # p2.join()
