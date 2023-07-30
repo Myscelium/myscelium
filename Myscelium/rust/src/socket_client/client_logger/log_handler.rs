@@ -15,8 +15,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use crate::HOST_LOG_LEVEL;
-use crate::HOST_NODE_NAME;
+use crate::CLIENT_LOG_LEVEL;
+use crate::CLIENT_NODE_NAME;
 
 lazy_static! {
     static ref CALLBACK_SET: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -28,15 +28,15 @@ lazy_static! {
 
 // TODO >>> Add a mecanism to set the node host name, to be able to indentify in the logs
 
-pub fn set_host_log_level(log_level: String) {
+pub fn set_client_log_level(log_level: String) {
     {
-        let mut current_log_level = HOST_LOG_LEVEL.lock().unwrap();
+        let mut current_log_level = CLIENT_LOG_LEVEL.lock().unwrap();
         *current_log_level = log_level.clone();
         println!("log levels seted to: {:?}", log_level);
     }
 }
 
-pub fn set_host_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>) {
+pub fn set_client_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>) {
     {
         let mut heart_beat_callback = LOGS_HANDLER_CALLBACK.lock().unwrap();
         *heart_beat_callback = callback_pattern;
@@ -102,7 +102,7 @@ impl Logger {
     pub fn new(log_level: String, section: &str) -> Self {
         // Placeholder for other initializations
 
-        let node_name: String = HOST_NODE_NAME.lock().unwrap().clone();
+        let node_name: String = CLIENT_NODE_NAME.lock().unwrap().clone();
 
         Logger {
             log_level: log_level.to_string(),
