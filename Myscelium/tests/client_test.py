@@ -3,9 +3,12 @@ from threading import Thread
 from _thread import *
 
 from multiprocessing import Process
+import time
 import os
 
 client_patterns = ClientPatterns ()
+
+# -> Response callbacks
 
 def test_handler (data):
 
@@ -21,6 +24,8 @@ callbacks = [
     }),
 
 ]
+
+# -> Send Mecanism
 
 def send_some_data ():
 
@@ -40,16 +45,37 @@ def send_some_data ():
 
     pass
 
+
+# -> Initializers
+
+def logs_handler (node_name:str, log_time:float, log_name:str, log_msg:str):
+    print(f"{log_time} - {log_name} - {log_msg}")
+    pass
+
 def initialize_client ():
 
     mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+
+    # > ----------------------------------------------------------------------------------
+    # > Logs
+
+    logs_handler = [client_patterns.callback_pattern(callback=logs_handler, args={
+        "node_name":"str",
+        "log_time":"float",
+        "log_name":"str",
+        "log_msg":"str",
+    }),]
+
+    mys_client.set_logs_callback_handler()
+
+    # > ----------------------------------------------------------------------------------
+    # > Initialization
 
     mys_client.set_callbacks(callbacks=callbacks)
     mys_client.set_workers_num(n_workers=2)
 
     mys_client.initialize_client("127.0.0.1",4444)
 
-import time
 
 if __name__ == '__main__':
     
