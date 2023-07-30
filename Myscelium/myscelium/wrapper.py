@@ -33,8 +33,9 @@ class MysceliumHost:
 
         pass
 
-    def set_logs_callback_handler (self, logs_handler:list):
-        mys.registry_host_logs_handler(logs_handler)
+    def set_logs_callback_handler (self, logs_handler_callback:list):
+        print("active py set log callback")
+        mys.registry_host_logs_handler(logs_handler_callback)
     
     def set_client_heartbeat_handler (self, callback):
         mys.registry_socket_host_client_heartbeat_contact_callback(callback)

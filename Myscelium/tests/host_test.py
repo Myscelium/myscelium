@@ -33,6 +33,10 @@ def handle_client_contact (client_id:str):
     # print(f"Client: {client_id}, made contact")
     return None
 
+def logs_handler (node_name:str, log_time:float, log_name:str, log_msg:str):
+    print(f"{log_time} - {log_name} - {log_msg}")
+    pass
+
 callbacks = [
 
     host_patterns.callback_pattern(callback=python_function, args={
@@ -64,6 +68,15 @@ if __name__ == '__main__':
     }),]
 
     mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+
+    logs_handler = [host_patterns.callback_pattern(callback=logs_handler, args={
+        "node_name":"str",
+        "log_time":"float",
+        "log_name":"str",
+        "log_msg":"str",
+    }),]
+
+    mys_host.set_logs_callback_handler(logs_handler_callback=logs_handler)
 
     # print(mys_host.get_registred_commands())
 

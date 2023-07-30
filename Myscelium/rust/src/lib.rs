@@ -172,6 +172,8 @@ fn registry_host_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
 
     set_logs_handler_callback(callback_pattern);
 
+    println!("set the log callback");
+
     Ok(())
 }
 

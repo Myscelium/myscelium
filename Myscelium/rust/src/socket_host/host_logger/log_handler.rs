@@ -12,10 +12,14 @@ use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+
 use crate::HOST_LOG_LEVEL;
 use crate::HOST_NODE_NAME;
 
 lazy_static! {
+    static ref CALLBACK_SET: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     static ref LOGS_HANDLER_CALLBACK: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -37,17 +41,18 @@ pub fn set_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunctio
         let mut heart_beat_callback = LOGS_HANDLER_CALLBACK.lock().unwrap();
         *heart_beat_callback = callback_pattern;
     }
+    CALLBACK_SET.store(true, Ordering::Relaxed);
 }
 
 fn log_event(node_name: String, log_time: f64, log_name: String, log_level: String, log_msg: String) {
     let function_name = "logs_handler";
 
-    let callback_patterns = LOGS_HANDLER_CALLBACK.lock().unwrap();
+    let callback_patterns = LOGS_HANDLER_CALLBACK.lock().unwrap().clone();
 
-    if callback_patterns.is_empty() {
+    if !CALLBACK_SET.load(Ordering::Relaxed) {
         match log_level.as_str() {
-            "DEBUG" | "INFO" | "WARN" => println!("[{}] - {}", log_level, log_msg),
-            "EXCEPTION" => eprintln!("[{}] - {}", log_level, log_msg),
+            "DEBUG" | "INFO" | "WARN" => println!("Default Handler: [{}] - {}", log_level, log_msg),
+            "EXCEPTION" => eprintln!("Default Handler: [{}] - {}", log_level, log_msg),
             _ => {},
         }
         return;
