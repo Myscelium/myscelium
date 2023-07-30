@@ -29,7 +29,22 @@ callbacks = [
 
 def send_some_data ():
 
-    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/", log_level="DEBUG")
+
+    # > ----------------------------------------------------------------------------------
+    # > Logs
+
+    logs_callback_handler = [client_patterns.callback_pattern(callback=logs_handler, args={
+        "node_name":"str",
+        "log_time":"float",
+        "log_name":"str",
+        "log_msg":"str",
+    }),]
+
+    mys_client.set_logs_callback_handler (logs_callback_handler)
+
+    # > ----------------------------------------------------------------------------------
+    # > Initialization
 
     mys_client.set_client_uid(client_uid="some_client_id")
 
@@ -54,19 +69,19 @@ def logs_handler (node_name:str, log_time:float, log_name:str, log_msg:str):
 
 def initialize_client ():
 
-    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/", log_level="DEBUG")
 
     # > ----------------------------------------------------------------------------------
     # > Logs
 
-    logs_handler = [client_patterns.callback_pattern(callback=logs_handler, args={
+    logs_callback_handler = [client_patterns.callback_pattern(callback=logs_handler, args={
         "node_name":"str",
         "log_time":"float",
         "log_name":"str",
         "log_msg":"str",
     }),]
 
-    mys_client.set_logs_callback_handler()
+    mys_client.set_logs_callback_handler (logs_callback_handler)
 
     # > ----------------------------------------------------------------------------------
     # > Initialization

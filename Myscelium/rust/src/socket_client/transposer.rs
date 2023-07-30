@@ -247,7 +247,7 @@ impl Worker {
                 Err(_) => return,
             };
 
-            let logger = acquire_logger!("Transposer - Dict To Tuple");
+            let logger = acquire_logger!("Transposer - Workers Pool");
 
             match message {
                 Some(job) => {
@@ -274,52 +274,52 @@ impl Worker {
 
 // > Transposer:
 
-fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<&'l PyTuple> {
-    let logger = acquire_logger!("Transposer - Dict To Tuple");
+// fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<&'l PyTuple> {
+//     let logger = acquire_logger!("Transposer - Dict To Tuple");
 
-    // Check if the dict contains the function name as a key
-    if !dict.contains_key("args") {
-        // If it does not, return an empty Vec since there are no arguments
-        let mut values: Vec<PyObject> = Vec::new();
-        return Ok(PyTuple::new(py, values));
-    }
+//     // Check if the dict contains the function name as a key
+//     if !dict.contains_key("args") {
+//         // If it does not, return an empty Vec since there are no arguments
+//         let mut values: Vec<PyObject> = Vec::new();
+//         return Ok(PyTuple::new(py, values));
+//     }
 
-    let args_string = match dict.get("args") {
-        Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
-    };
+//     let args_string = match dict.get("args") {
+//         Some(Value::String(s)) => s,
+//         _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
+//     };
 
-    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
+//     let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
 
-    logger.debug(format!("Args extracted: {:?}", sub_dict));
+//     logger.debug(format!("Args extracted: {:?}", sub_dict));
 
-    let mut values: Vec<PyObject> = Vec::new();
-    for value in sub_dict.values() {
-        let py_value = match value {
-            Value::String(s) => s.into_py(py),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    i.into_py(py)
-                } else if let Some(f) = n.as_f64() {
-                    f.into_py(py)
-                } else {
-                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
-                }
-            },
-            Value::Bool(b) => b.into_py(py),
-            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
-        };
-        values.push(py_value);
-    }
+//     let mut values: Vec<PyObject> = Vec::new();
+//     for value in sub_dict.values() {
+//         let py_value = match value {
+//             Value::String(s) => s.into_py(py),
+//             Value::Number(n) => {
+//                 if let Some(i) = n.as_i64() {
+//                     i.into_py(py)
+//                 } else if let Some(f) = n.as_f64() {
+//                     f.into_py(py)
+//                 } else {
+//                     return Err(PyErr::new::<PyException, _>("Unsupported number type."));
+//                 }
+//             },
+//             Value::Bool(b) => b.into_py(py),
+//             _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
+//         };
+//         values.push(py_value);
+//     }
 
-    let py_tuple = PyTuple::new(py, &values);
+//     let py_tuple = PyTuple::new(py, &values);
 
-    logger.debug(format!("py_tuple: {}", py_tuple));
+//     logger.debug(format!("py_tuple: {}", py_tuple));
 
-    Ok(py_tuple)
-}
+//     Ok(py_tuple)
+// }
 
-fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
+fn dict_to_kwargs(dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
     let logger = acquire_logger!("Transposer - Dict To Kwargs");
 
     // Check if the dict contains the function name as a key
@@ -339,22 +339,33 @@ fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult
     logger.debug(format!("Args extracted: {:?}", sub_dict));
 
     let mut kwargs: HashMap<String, PyObject> = HashMap::new();
-    for (key, value) in sub_dict.iter() {
-        let py_value = match value {
-            Value::String(s) => s.into_py(py),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    i.into_py(py)
-                } else if let Some(f) = n.as_f64() {
-                    f.into_py(py)
-                } else {
-                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
-                }
-            },
-            Value::Bool(b) => b.into_py(py),
-            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
-        };
-        kwargs.insert(key.clone(), py_value);
+
+    let py;
+
+    {
+        let getting_py = unsafe { Python::assume_gil_acquired() };
+
+        let gil_pool = unsafe { getting_py.clone().new_pool() };
+
+        py = gil_pool.python();
+
+        for (key, value) in sub_dict.iter() {
+            let py_value = match value {
+                Value::String(s) => s.into_py(py),
+                Value::Number(n) => {
+                    if let Some(i) = n.as_i64() {
+                        i.into_py(py)
+                    } else if let Some(f) = n.as_f64() {
+                        f.into_py(py)
+                    } else {
+                        return Err(PyErr::new::<PyException, _>("Unsupported number type."));
+                    }
+                },
+                Value::Bool(b) => b.into_py(py),
+                _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
+            };
+            kwargs.insert(key.clone(), py_value);
+        }
     }
 
     logger.debug(format!("kwargs: {:?}", kwargs));
@@ -362,7 +373,7 @@ fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult
     Ok(kwargs)
 }
 
-fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
+fn handle_command(command: Command) -> PyResult<PyObject> {
     let logger = acquire_logger!("Transposer - Handle Command");
 
     logger.debug(format!("Getting function name..."));
@@ -376,21 +387,33 @@ fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
     let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     let (function, _) = callback_patterns.get(function_name).unwrap();
 
-    let kwargs_map = dict_to_kwargs(py, &command.command).map_err(|e| {
+    let kwargs_map = dict_to_kwargs(&command.command).map_err(|e| {
         logger.exception(format!("Error converting arguments to kwargs: {:?}", e));
         PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e))
     })?;
 
-    let kwargs = PyDict::new(py);
-    for (key, value) in kwargs_map {
-        kwargs.set_item(key, value).unwrap();
-    }
+    let py;
 
-    // Call the Python function with the converted arguments
-    let result = function.call(py, (), Some(kwargs)).map_err(|e| {
-        logger.exception(format!("Error calling function: {:?}", e));
-        e
-    })?;
+    let result;
+
+    {
+        let getting_py = unsafe { Python::assume_gil_acquired() };
+
+        let gil_pool = unsafe { getting_py.clone().new_pool() };
+
+        py = gil_pool.python();
+
+        let kwargs = PyDict::new(py);
+        for (key, value) in kwargs_map {
+            kwargs.set_item(key, value).unwrap();
+        }
+
+        // Call the Python function with the converted arguments
+        result = function.call(py, (), Some(kwargs)).map_err(|e| {
+            logger.exception(format!("Error calling function: {:?}", e));
+            e
+        })?;
+    }
 
     let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
 
@@ -620,7 +643,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     logger.debug(format!("Calling the callback!\n"));
     logger.debug(format!("Acquired the GIL"));
 
-    let response = handle_command(py, translated_command.clone());
+    let response = handle_command(translated_command.clone());
 
     let result = handle_pyobject(py, response.unwrap());
 

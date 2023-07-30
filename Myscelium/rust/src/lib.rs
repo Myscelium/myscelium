@@ -477,7 +477,7 @@ fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<P
         },
     }
 
-    Ok("Ok".to_string().into_py(py))
+    Ok("Sended!".to_string().into_py(py))
 }
 
 #[pyfunction]

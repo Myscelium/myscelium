@@ -69,5 +69,5 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
 
     buffer_up_mananger::buffer_up_schedule(command_to_schedule.clone());
 
-    logger.info(format!("Command: {:?} scheduled\n!", command_to_schedule));
+    logger.info(format!("Command: {:?} scheduled!", command_to_schedule));
 }
