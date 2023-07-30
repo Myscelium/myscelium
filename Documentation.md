@@ -11,7 +11,7 @@ This guide provides a detailed overview of setting up a Myscelium host and clien
   - [Setting Up the Host](#setting-up-the-host)
   - [MysceliumHost Class](#mysceliumhost-class)
   - [HostPatterns Class](#hostpatterns-class)
-  - [Usage Example for Host](#usage-example-for-host)
+  - [Myscelium Host Usage Guide](#myscelium-host-usage-guide) 
 - [Myscelium Client](#myscelium-client)
   - [Setting Up the Client](#setting-up-the-client)
   - [MysceliumClient Class](#mysceliumclient-class)
@@ -58,66 +58,84 @@ The `HostPatterns` class provides patterns for the host.
 - `response_pattern(response:any, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict`: Returns a response pattern.
 - `callback_pattern(callback, args) -> dict`: Returns a callback pattern.
 
-### Usage Example for Host
+Certainly! Let's enhance the documentation to specify the requirements for the callback function names:
 
-1. **Import Necessary Modules:**
+---
 
-   ```python
-   from myscelium import MysceliumHost, HostPatterns
-   ```
+## Myscelium Host Usage Guide
 
-2. **Initialize Host Patterns:**
+### Introduction
+The Myscelium Host provides an interface to set up a server that can handle various callbacks and manage client connections. This guide will walk you through setting up a basic host and the necessary callbacks.
 
-   ```python
-   host_patterns = HostPatterns()
-   ```
+### Callback Requirements
+Certain callback functions must have specific names for the system to recognize and use them correctly:
 
-3. **Define Callback Functions:**
+1. **Logs Handler Callback**: This callback is responsible for handling logs from the library engine. The function must be named `logs_handler` and should have the following signature:
+    ```python
+    def logs_handler(node_name: str, log_time: float, log_name: str, log_msg: str):
+        # Your implementation here
+    ```
 
-   ```python
-   def python_function(age, birth, name):
-       # Your function logic here
-       # ...
-   ```
+2. **Client Contact Callback**: This callback is triggered when a client makes contact. The function must be named `handle_client_contact` and should have the following signature:
+    ```python
+    def handle_client_contact(client_id: str):
+        # Your implementation here
+    ```
 
-4. **Setup Callbacks:**
+### Setting Up the Host
 
-   ```python
-   callbacks = [
-       host_patterns.callback_pattern(callback=python_function, args={
-           "birth": "str",
-           "name": "str",
-           "age": "int",
-       }),
-   ]
-   ```
+1. **Define Your Callbacks**: Start by defining the necessary callback functions. For example, a function to handle incoming data might look like this:
+    ```python
+    def python_function(age, birth, name):
+        # Your function logic here
+    ```
 
-5. **Specify Allowed Clients:**
+2. **Initialize Host Patterns**: This will help in creating the required patterns for clients and responses.
+    ```python
+    host_patterns = HostPatterns()
+    ```
 
-   ```python
-   allowed_clients = [
-       host_patterns.client_pattern(client_type="Interface", client_id="some_client_id"),
-   ]
-   ```
+3. **Create Callback List**: Add all your callback functions to a list. This list will be passed to the Myscelium Host during initialization.
+    ```python
+    callbacks = [
+        host_patterns.callback_pattern(callback=python_function, args={...}),
+        # Add other callbacks here
+    ]
+    ```
 
-6. **Initialize the Host:**
+4. **Specify Allowed Clients**: Define which clients are allowed to connect to your host.
+    ```python
+    allowed_clients = [
+        host_patterns.client_pattern(client_type="Interface", client_id="some_client_id"),
+        # Add other clients here
+    ]
+    ```
 
-   ```python
-   mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="INFO")
-   ```
+5. **Initialize the Myscelium Host**: Create an instance of the `MysceliumHost` class and set the necessary parameters.
+    ```python
+    mys_host = MysceliumHost(callbacks=callbacks, host_id="your_host_id", allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="INFO")
+    ```
 
-7. **Set Client Heartbeat Handler:**
+6. **Set Client Heartbeat Handler**: This is where you specify the function that will handle client heartbeats.
+    ```python
+    client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={"client_id": "str"})]
+    mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+    ```
 
-   ```python
-   client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={"client_id": "str"})]
-   mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
-   ```
+7. **Set Logs Callback Handler**: Specify the function that will handle logs from the library engine.
+    ```python
+    logs_handler_callback = [host_patterns.callback_pattern(callback=logs_handler, args={...})]
+    mys_host.set_logs_callback_handler(logs_handler_callback=logs_handler_callback)
+    ```
 
-8. **Start the Host:**
+8. **Start the Host**: Finally, initialize the host to start listening for incoming connections.
+    ```python
+    mys_host.initialize_host(ip="127.0.0.1", port=4444)
+    ```
 
-   ```python
-   mys_host.initialize_host(ip="127.0.0.1", port=4444)
-   ```
+### Conclusion
+By following the steps above, you can set up a Myscelium Host and handle various callbacks. Ensure that the required callback functions have the correct names and signatures as specified in the "Callback Requirements" section.
+
 
 
 ## Myscelium Client
