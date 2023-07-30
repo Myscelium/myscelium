@@ -2,6 +2,8 @@ from myscelium import MysceliumHost, HostPatterns
 
 host_patterns = HostPatterns()
 
+# -> Callbacks python functions
+
 def python_function(age, birth, name):
 
     #! Don't forget to put the args in the alphabetic order
@@ -28,6 +30,8 @@ def test_redirect (client_id, data):
         print ("Client id isn't a string, failed to redirect data!")
         return None
     
+# -> Host handlers
+
 def handle_client_contact (client_id:str):
     # print("Access heartbeat handler")
     # print(f"Client: {client_id}, made contact")
@@ -36,6 +40,8 @@ def handle_client_contact (client_id:str):
 def logs_handler (node_name:str, log_time:float, log_name:str, log_msg:str):
     print(f"{log_time} - {log_name} - {log_msg}")
     pass
+
+# -> Set Host callbacks
 
 callbacks = [
 
@@ -52,12 +58,16 @@ callbacks = [
 
 ]
 
+# -> Set host allowed clients whitelist
+
 allowed_clients = [
 
     host_patterns.client_pattern(client_type="Interface", client_id="some_client_id"),
     host_patterns.client_pattern(client_type="Interface", client_id="randomsclientids"),
 
 ]
+
+# -> Initialize
 
 if __name__ == '__main__':
     
