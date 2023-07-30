@@ -717,7 +717,7 @@ fn clear_old_data() {
     enhanced_buffer::buffer_up_mananger::buffer_up_clear_old_commands();
 }
 
-pub fn initialize_socket_client_transposer(py: Python<'_>) {
+pub fn initialize_socket_client_transposer() {
     let logger = acquire_logger!("Transposer");
 
     thread::sleep(Duration::from_secs(2));

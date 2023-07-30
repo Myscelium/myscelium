@@ -590,7 +590,7 @@ fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: St
     scheduler::request_host_avaliable_commands();
 
     loop {
-        initialize_socket_client_transposer(py);
+        initialize_socket_client_transposer();
 
         if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
