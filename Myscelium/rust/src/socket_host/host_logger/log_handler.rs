@@ -36,60 +36,60 @@ pub fn set_host_log_level(log_level: String) {
     }
 }
 
-pub fn set_host_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>) {
-    {
-        let mut heart_beat_callback = LOGS_HANDLER_CALLBACK.lock().unwrap();
-        *heart_beat_callback = callback_pattern;
-    }
-    CALLBACK_SET.store(true, Ordering::Relaxed);
-}
+// pub fn set_host_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>) {
+//     {
+//         let mut heart_beat_callback = LOGS_HANDLER_CALLBACK.lock().unwrap();
+//         *heart_beat_callback = callback_pattern;
+//     }
+//     CALLBACK_SET.store(true, Ordering::Relaxed);
+// }
 
 fn log_event(node_name: String, log_time: f64, log_name: String, log_level: String, log_msg: String) {
-    let function_name = "logs_handler";
+    // let function_name = "logs_handler";
 
-    let callback_patterns = LOGS_HANDLER_CALLBACK.lock().unwrap().clone();
+    // let callback_patterns = LOGS_HANDLER_CALLBACK.lock().unwrap().clone();
 
     if !CALLBACK_SET.load(Ordering::Relaxed) {
         match log_level.as_str() {
-            "DEBUG" | "INFO" | "WARN" => println!("Default Handler: [{}] - {}", log_level, log_msg),
-            "EXCEPTION" => eprintln!("Default Handler: [{}] - {}", log_level, log_msg),
+            "DEBUG" | "INFO" | "WARN" => println!("Default Handler: [{}][{}] - {}", log_time, log_level, log_msg),
+            "EXCEPTION" => eprintln!("Default Handler: [{}][{}] - {}", log_time, log_level, log_msg),
             _ => {},
         }
         return;
     }
 
-    let function = match callback_patterns.get(function_name) {
-        Some(function) => function.clone(),
-        _ => return,
-    };
+    // let function = match callback_patterns.get(function_name) {
+    //     Some(function) => function.clone(),
+    //     _ => return,
+    // };
 
-    let py;
+    // let py;
 
-    {
-        let getting_py = unsafe { Python::assume_gil_acquired() };
+    // {
+    //     let getting_py = unsafe { Python::assume_gil_acquired() };
 
-        let gil_pool = unsafe { getting_py.clone().new_pool() };
+    //     let gil_pool = unsafe { getting_py.clone().new_pool() };
 
-        py = gil_pool.python();
+    //     py = gil_pool.python();
 
-        let kwargs = PyDict::new(py);
+    //     let kwargs = PyDict::new(py);
 
-        let py_node_name = &node_name.into_py(py);
-        let py_log_time = &log_time.into_py(py);
-        let py_log_name = &log_name.into_py(py);
-        let py_log_msg = &log_msg.into_py(py);
+    //     let py_node_name = &node_name.into_py(py);
+    //     let py_log_time = &log_time.into_py(py);
+    //     let py_log_name = &log_name.into_py(py);
+    //     let py_log_msg = &log_msg.into_py(py);
 
-        kwargs.set_item("node_name".to_string(), py_node_name).unwrap();
-        kwargs.set_item("log_time".to_string(), py_log_time).unwrap();
-        kwargs.set_item("log_name".to_string(), py_log_name).unwrap();
-        kwargs.set_item("log_msg".to_string(), py_log_msg).unwrap();
+    //     kwargs.set_item("node_name".to_string(), py_node_name).unwrap();
+    //     kwargs.set_item("log_time".to_string(), py_log_time).unwrap();
+    //     kwargs.set_item("log_name".to_string(), py_log_name).unwrap();
+    //     kwargs.set_item("log_msg".to_string(), py_log_msg).unwrap();
 
-        // Call the Python function with the converted arguments
-        let result = function.0.call(py, (), Some(kwargs)).map_err(|e| {
-            eprintln!("Error calling function: {:?}", e);
-            e
-        });
-    }
+    //     // Call the Python function with the converted arguments
+    //     let result = function.0.call(py, (), Some(kwargs)).map_err(|e| {
+    //         eprintln!("Error calling function: {:?}", e);
+    //         e
+    //     });
+    // }
 }
 
 pub struct Logger {

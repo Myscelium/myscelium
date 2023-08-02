@@ -637,27 +637,25 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
     logger.info(format!("Data found in schedule!"));
 
     for dow_command in schedule {
-        pool.wait_for_free_worker(Box::new(|| {
-            let logger = acquire_logger!("Transposer");
+        let logger = acquire_logger!("Transposer");
 
-            logger.info(format!("get a pool worker in tranposer!"));
+        logger.info(format!("get a pool worker in tranposer!"));
 
-            let py;
+        let py;
 
-            {
-                let getting_py = unsafe { Python::assume_gil_acquired() };
+        {
+            let getting_py = unsafe { Python::assume_gil_acquired() };
 
-                let gil_pool = unsafe { getting_py.clone().new_pool() };
+            let gil_pool = unsafe { getting_py.clone().new_pool() };
 
-                py = gil_pool.python();
+            py = gil_pool.python();
 
-                logger.debug(format!("Aquired python in a process task!"));
+            logger.debug(format!("Aquired python in a process task!"));
 
-                process(py, dow_command);
+            process(py, dow_command);
 
-                logger.debug(format!("Finalize a process task!"));
-            }
-        }));
+            logger.debug(format!("Finalize a process task!"));
+        }
     }
 
     pool.join();

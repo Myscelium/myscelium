@@ -685,19 +685,21 @@ fn handle_connection(mut stream: TcpStream) {
             return;
         }
 
-        let py;
+        // ! WE CAN USE THIS PY AQUIRE UNTILL THE PYTHON POOL IS FINISHED
 
-        {
-            let getting_py = unsafe { Python::assume_gil_acquired() };
+        // let py;
 
-            let gil_pool = unsafe { getting_py.clone().new_pool() };
+        // {
+        //     let getting_py = unsafe { Python::assume_gil_acquired() };
 
-            py = gil_pool.python();
+        //     let gil_pool = unsafe { getting_py.clone().new_pool() };
 
-            logger.debug("Aquired python to call client heart beat handler callback!".to_string());
+        //     py = gil_pool.python();
 
-            update_last_contact(py, command.client_id.clone());
-        }
+        //     logger.debug("Aquired python to call client heart beat handler callback!".to_string());
+
+        //     update_last_contact(py, command.client_id.clone());
+        // }
 
         match command.command.get("function") {
             Some(Value::String(function)) => {

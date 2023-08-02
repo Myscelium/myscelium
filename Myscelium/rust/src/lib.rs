@@ -7,8 +7,8 @@ use socket_host::socket_host::{get_available_commands_registered, initialize_hos
 use socket_host::socket_host::{initialize_host_buffer, register_client, set_heartbeat_callback, set_max_conns};
 use socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
 
-use socket_client::client_logger::log_handler::{set_client_log_level, set_client_logs_handler_callback};
-use socket_host::host_logger::log_handler::{set_host_log_level, set_host_logs_handler_callback};
+use socket_client::client_logger::log_handler::set_client_log_level;
+use socket_host::host_logger::log_handler::set_host_log_level;
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
@@ -166,18 +166,18 @@ fn set_socket_host_log_level(log_level: &PyString) {
     return;
 }
 
-#[pyfunction]
-fn registry_host_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
-    let mut callback_pattern = HashMap::new();
+// #[pyfunction]
+// fn registry_host_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
+//     let mut callback_pattern = HashMap::new();
 
-    process_commands!(py, commands, callback_pattern);
+//     process_commands!(py, commands, callback_pattern);
 
-    set_host_logs_handler_callback(callback_pattern);
+//     set_host_logs_handler_callback(callback_pattern);
 
-    println!("set the log callback");
+//     println!("set the log callback");
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 #[pyfunction]
 fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
@@ -495,18 +495,18 @@ fn set_socket_client_log_level(log_level: &PyString) {
     return;
 }
 
-#[pyfunction]
-fn registry_client_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
-    let mut callback_pattern = HashMap::new();
+// #[pyfunction]
+// fn registry_client_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
+//     let mut callback_pattern = HashMap::new();
 
-    process_commands!(py, commands, callback_pattern);
+//     process_commands!(py, commands, callback_pattern);
 
-    set_client_logs_handler_callback(callback_pattern);
+//     set_client_logs_handler_callback(callback_pattern);
 
-    println!("set the log callback");
+//     println!("set the log callback");
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 #[pyfunction]
 fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
@@ -625,7 +625,7 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_socket_host_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_host_allowed_clients, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_client_heartbeat_contact_callback, m)?)?;
-    m.add_function(wrap_pyfunction!(registry_host_logs_handler, m)?)?;
+    // m.add_function(wrap_pyfunction!(registry_host_logs_handler, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_host_log_level, m)?)?;
 
     // -> Client
@@ -636,7 +636,7 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(client_send, m)?)?;
     m.add_function(wrap_pyfunction!(set_client_uid, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_client_log_level, m)?)?;
-    m.add_function(wrap_pyfunction!(registry_client_logs_handler, m)?)?;
+    // m.add_function(wrap_pyfunction!(registry_client_logs_handler, m)?)?;
 
     Ok(())
 }

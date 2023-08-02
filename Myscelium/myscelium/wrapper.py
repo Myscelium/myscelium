@@ -36,12 +36,12 @@ class MysceliumHost:
 
         pass
 
-    def set_logs_callback_handler (self, logs_handler_callback:list):
-        print("active py set log callback")
-        mys.registry_host_logs_handler(logs_handler_callback)
+    # def set_logs_callback_handler (self, logs_handler_callback:list):
+    #     print("active py set log callback")
+    #     mys.registry_host_logs_handler(logs_handler_callback)
     
-    def set_client_heartbeat_handler (self, callback):
-        mys.registry_socket_host_client_heartbeat_contact_callback(callback)
+    # def set_client_heartbeat_handler (self, callback): #! THIS WILL NOT WORK UNTILL PYTHON POOL IS FINISHED
+    #     mys.registry_socket_host_client_heartbeat_contact_callback(callback)
     
     def get_registred_commands (self) -> dict:
         print("Activated the get registred commands")
@@ -119,9 +119,9 @@ class MysceliumClient:
         
         pass
 
-    def set_logs_callback_handler (self, logs_handler_callback:list):
-        print("active py set log callback")
-        mys.registry_client_logs_handler(logs_handler_callback)
+    # def set_logs_callback_handler (self, logs_handler_callback:list):
+    #     print("active py set log callback")
+    #     mys.registry_client_logs_handler(logs_handler_callback)
 
     def set_client_uid (self, client_uid):
         mys.set_client_uid(client_uid)
