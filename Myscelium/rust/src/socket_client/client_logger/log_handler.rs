@@ -18,6 +18,10 @@ use std::sync::atomic::Ordering;
 use crate::CLIENT_LOG_LEVEL;
 use crate::CLIENT_NODE_NAME;
 
+use crate::socket_client::client_logger::register::register_mananger;
+
+// TODO >>> REMOVE CALLBACK SET AND CALLBACKS SYSTEM FOR LOG FOR NOW BECAUSE WE WILL USE CUSTOM REGISTRER
+
 lazy_static! {
     static ref CALLBACK_SET: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     static ref LOGS_HANDLER_CALLBACK: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
@@ -60,6 +64,8 @@ fn log_event(node_name: String, log_time: f64, log_name: String, log_level: Stri
         }
         return;
     }
+
+    register_mananger::registry_log(node_name, log_time, log_name, log_level, log_msg);
 
     // let function = match callback_patterns.get(function_name) {
     //     Some(function) => function.clone(),

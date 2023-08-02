@@ -63,19 +63,19 @@ impl UniqueParityIdGenerator {
 }
 
 pub struct UniqueIdGenerator {
-    pub registered_ids: Vec<i32>,
+    pub registered_ids: Vec<u32>,
 }
 
 impl UniqueIdGenerator {
-    pub fn _new(registered_ids: Vec<i32>) -> Self {
+    pub fn _new(registered_ids: Vec<u32>) -> Self {
         Self { registered_ids }
     }
 
-    pub fn _update_registered_ids(&mut self, registered_ids: Vec<i32>) {
+    pub fn _update_registered_ids(&mut self, registered_ids: Vec<u32>) {
         self.registered_ids = registered_ids;
     }
 
-    pub fn gen(&mut self) -> i32 {
+    pub fn gen(&mut self) -> u32 {
         loop {
             let buffer_id = self.gen_buffer_id();
             if self.validate(buffer_id) {
@@ -84,13 +84,13 @@ impl UniqueIdGenerator {
         }
     }
 
-    fn gen_buffer_id(&self) -> i32 {
+    fn gen_buffer_id(&self) -> u32 {
         let length = ID_LENGTH.lock().unwrap();
         let mut rng = rand::thread_rng();
-        rng.gen_range(0..*length)
+        rng.gen_range(0..*length) as u32
     }
 
-    fn validate(&self, buffer_id: i32) -> bool {
+    fn validate(&self, buffer_id: u32) -> bool {
         !self.registered_ids.contains(&buffer_id)
     }
 }
