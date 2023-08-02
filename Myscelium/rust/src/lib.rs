@@ -7,8 +7,8 @@ use socket_host::socket_host::{get_available_commands_registered, initialize_hos
 use socket_host::socket_host::{initialize_host_buffer, register_client, set_heartbeat_callback, set_max_conns};
 use socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
 
-use socket_client::client_logger::log_handler::set_client_log_level;
-use socket_host::host_logger::log_handler::set_host_log_level;
+use socket_client::client_logger::log_handler::{initialize_client_logs_databse_dir, set_client_log_level};
+use socket_host::host_logger::log_handler::{initialize_host_logs_databse_dir, set_host_log_level};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
@@ -152,7 +152,8 @@ fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
 fn initalize_host_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
-    initialize_host_buffer(buffer_path);
+    initialize_host_buffer(buffer_path.clone());
+    initialize_host_logs_databse_dir(buffer_path.clone());
 
     return;
 }
@@ -366,7 +367,8 @@ fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
 fn initalize_client_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
-    initialize_client_buffer(buffer_path);
+    initialize_client_buffer(buffer_path.clone());
+    initialize_client_logs_databse_dir(buffer_path.clone());
 
     return;
 }

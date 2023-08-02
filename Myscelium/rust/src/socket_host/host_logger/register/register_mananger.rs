@@ -160,8 +160,8 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
 pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_level: String, log_msg: String) {
     let conn = LOGS_REGISTERS_POOL.get_connection().unwrap();
 
-    let now = Utc::now();
-    let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+    // let now = Utc::now();
+    // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
     let registered_ids = get_registred_ids();
 

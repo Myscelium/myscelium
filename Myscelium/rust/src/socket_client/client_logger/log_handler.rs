@@ -40,6 +40,10 @@ pub fn set_client_log_level(log_level: String) {
     }
 }
 
+pub fn initialize_client_logs_databse_dir(path: String) {
+    register_mananger::logs_registrer_initialize_table(path);
+}
+
 // pub fn set_client_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>) {
 //     //! THIS FEATURE WILL NOT WORK FOR NOW
 //     {
