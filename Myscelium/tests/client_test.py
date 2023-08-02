@@ -33,15 +33,16 @@ def send_some_data ():
 
     # > ----------------------------------------------------------------------------------
     # > Logs
+    #! Feature removed for now.
 
-    logs_callback_handler = [client_patterns.callback_pattern(callback=logs_handler, args={
-        "node_name":"str",
-        "log_time":"float",
-        "log_name":"str",
-        "log_msg":"str",
-    }),]
+    # logs_callback_handler = [client_patterns.callback_pattern(callback=logs_handler, args={
+    #     "node_name":"str",
+    #     "log_time":"float",
+    #     "log_name":"str",
+    #     "log_msg":"str",
+    # }),]
 
-    mys_client.set_logs_callback_handler (logs_callback_handler)
+    # mys_client.set_logs_callback_handler (logs_callback_handler)
 
     # > ----------------------------------------------------------------------------------
     # > Initialization
@@ -63,9 +64,9 @@ def send_some_data ():
 
 # -> Initializers
 
-def logs_handler (node_name:str, log_time:float, log_name:str, log_msg:str):
-    print(f"{log_time} - {log_name} - {log_msg}")
-    pass
+# def logs_handler (node_name:str, log_time:float, log_name:str, log_msg:str):
+#     print(f"{log_time} - {log_name} - {log_msg}")
+#     pass
 
 def initialize_client ():
 
@@ -73,15 +74,16 @@ def initialize_client ():
 
     # > ----------------------------------------------------------------------------------
     # > Logs
+    #! Feature removed for now.
 
-    logs_callback_handler = [client_patterns.callback_pattern(callback=logs_handler, args={
-        "node_name":"str",
-        "log_time":"float",
-        "log_name":"str",
-        "log_msg":"str",
-    }),]
+    # logs_callback_handler = [client_patterns.callback_pattern(callback=logs_handler, args={
+    #     "node_name":"str",
+    #     "log_time":"float",
+    #     "log_name":"str",
+    #     "log_msg":"str",
+    # }),]
 
-    mys_client.set_logs_callback_handler (logs_callback_handler)
+    # mys_client.set_logs_callback_handler (logs_callback_handler)
 
     # > ----------------------------------------------------------------------------------
     # > Initialization
@@ -97,10 +99,10 @@ if __name__ == '__main__':
     # print(mys_client.get_registred_commands())
 
     p1 = Process(target=initialize_client, args=())
-    # p2 = Process(target=send_some_data, args=())
+    p2 = Process(target=send_some_data, args=())
 
     p1.start()
-    # p2.start()
+    p2.start()
 
     p1.join()
-    # p2.join()
+    p2.join()

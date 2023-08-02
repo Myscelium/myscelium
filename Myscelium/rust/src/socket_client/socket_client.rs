@@ -114,15 +114,13 @@ pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, 
 }
 
 pub fn initialize_client_buffer(buffer_location: String) {
-    let logger = acquire_logger!("Core");
-
-    logger.info(format!("inicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location));
+    println!("inicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
 
     enhanced_buffer::buffer_down_mananger::buffer_down_initialize_table(buffer_location.clone());
 
     enhanced_buffer::buffer_up_mananger::buffer_up_initialize_table(buffer_location.clone());
 
-    logger.info(format!("All buffer initialized succefully!"));
+    println!("All buffer initialized succefully!");
 
     return;
 }

@@ -73,20 +73,20 @@ if __name__ == '__main__':
     
     mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="INFO")
 
-    client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={
-        "client_id": "str",
-    }),]
+    # client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={
+    #     "client_id": "str",
+    # }),] #! Feature removed for now.
 
-    mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+    # mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
 
-    logs_handler = [host_patterns.callback_pattern(callback=logs_handler, args={
-        "node_name":"str",
-        "log_time":"float",
-        "log_name":"str",
-        "log_msg":"str",
-    }),]
+    # logs_handler = [host_patterns.callback_pattern(callback=logs_handler, args={
+    #     "node_name":"str",
+    #     "log_time":"float",
+    #     "log_name":"str",
+    #     "log_msg":"str",
+    # }),]
 
-    mys_host.set_logs_callback_handler(logs_handler_callback=logs_handler)
+    # mys_host.set_logs_callback_handler(logs_handler_callback=logs_handler)
 
     # print(mys_host.get_registred_commands())
 

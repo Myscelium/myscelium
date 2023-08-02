@@ -57,14 +57,14 @@ fn log_event(node_name: String, log_time: f64, log_name: String, log_level: Stri
 
     // let callback_patterns = LOGS_HANDLER_CALLBACK.lock().unwrap().clone();
 
-    if !CALLBACK_SET.load(Ordering::Relaxed) {
-        match log_level.as_str() {
-            "DEBUG" | "INFO" | "WARN" => println!("Default Handler: [{}][{}] - {}", log_time, log_level, log_msg),
-            "EXCEPTION" => eprintln!("Default Handler: [{}][{}] - {}", log_time, log_level, log_msg),
-            _ => {},
-        }
-        return;
-    }
+    // if !CALLBACK_SET.load(Ordering::Relaxed) {
+    //     match log_level.as_str() {
+    //         "DEBUG" | "INFO" | "WARN" => println!("Default Handler: [{}][{}] - {}", log_time, log_level, log_msg),
+    //         "EXCEPTION" => eprintln!("Default Handler: [{}][{}] - {}", log_time, log_level, log_msg),
+    //         _ => {},
+    //     }
+    //     return;
+    // }
 
     register_mananger::registry_log(node_name, log_time, log_name, log_level, log_msg);
 
