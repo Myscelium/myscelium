@@ -124,7 +124,7 @@ def worker_2():
 
     pool.release_connection(connection) 
 
-class Clients_SQL_Interface:
+class Logs_Buffer_Retriver:
 
     def __init__ (self):
 
@@ -135,11 +135,12 @@ class Clients_SQL_Interface:
         con = pool.get_connection()
         cur = con.cursor ()
 
-        cur.execute('''CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY,
-                                                               NAME TEXT,
-                                                               KEY TEXT,
-                                                               TYPE TEXT,
-                                                               LASTCONTACT FLOAT
+        cur.execute('''CREATE TABLE IF NOT EXISTS Logs (ID INT PRIMARY KEY,
+                                                               NodeName TEXT,
+                                                               LogTime FLOAT,
+                                                               LogName TEXT,
+                                                               LogLevel TEXT,
+                                                               LogMsg TEXT, 
                                                                )''')
         
 
@@ -147,18 +148,18 @@ class Clients_SQL_Interface:
 
         return
 
-    def List_Clients (self) -> dict:
+    def List_Logs (self) -> dict:
         
         con = pool.get_connection()
         cur = con.cursor ()
 
-        sqlite_select_query = """SELECT * FROM Clients"""
+        sqlite_select_query = """SELECT * FROM Logs"""
 
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
 
-        df = pd.DataFrame(df, columns=['ID', 'Name', 'Key', 'Type', 'LastContact'])
+        df = pd.DataFrame(df, columns=['ID', 'NodeName', 'LogTime', 'LogName', 'LogLevel', 'LogMsg'])
 
         # Convert JSON coluns to actual values and save in place on data-frame
         # df['File_Info']             = df['File_Info'].apply(lambda i: json.loads(i))
@@ -169,79 +170,12 @@ class Clients_SQL_Interface:
 
         return dict_df
 
-    def Registry_New_Client (self, Name:str, Key:str, Type:str):
+    def Remove_Log (self, ID:int):
 
         con = pool.get_connection()
         cur = con.cursor ()
 
-        self.AutoId.Update_Registred_Ids(registred_ids = self.List_Clients())
-
-        ID = self.AutoId.Gen()
-
-        # getting the timestamp
-        LastContact = None
-
-        Data = ((ID, Name, Key, Type, LastContact))
-
-        sqlite_insert_with_param = """INSERT INTO Clients (ID, NAME, KEY, TYPE, LastContact) VALUES (?, ?, ?, ?, ?);"""
-        cur.execute(sqlite_insert_with_param, Data)
-        con.commit()
-
-        pool.release_connection(con) 
-
-        return
-        
-    def Update_Client (self, ID:int, Name:str, Key:str, Type:str): # TODO >>> Need veryfi the part that uses ID to update
-
-        con = pool.get_connection()
-        cur = con.cursor ()
-
-        # Getting the current date and time
-        dt = datetime.now()
-
-        # getting the timestamp
-        LastContact =  datetime.timestamp(dt)
-
-        Data = (Name, Key, Type, LastContact, ID)
-
-        sql_update_query = f"""Update Clients set NAME = ?, KEY = ?, TYPE = ?, LastContact = ? WHERE ID = ?"""
-      
-        cur.execute(sql_update_query, Data)
-        con.commit()
-        
-        pool.release_connection(con) 
-
-        return
-    
-    def Update_Client_Ts (self, Key:str):
-
-        con = pool.get_connection()
-        cur = con.cursor ()
-
-        # Getting the current date and time
-        dt = datetime.now()
-
-        # getting the timestamp
-        LastContact =  datetime.timestamp(dt)
-
-        Data = (LastContact, Key)
-
-        sql_update_query = f"""Update Clients set LastContact = ? WHERE KEY = ?"""
-      
-        cur.execute(sql_update_query, Data)
-       
-        con.commit()
-
-        pool.release_connection(con) 
-
-        return
-
-    def Remove_Client_By_Id (self, ID:int):
-
-        con = pool.get_connection()
-        cur = con.cursor ()
-
-        sql_update_query = """DELETE from Clients WHERE ID = ?"""
+        sql_update_query = """DELETE from Logs WHERE ID = ?"""
         cur.execute(sql_update_query, (ID, ))
         con.commit()
 
@@ -249,17 +183,3 @@ class Clients_SQL_Interface:
 
         return  
 
-    def Remove_Client_By_Key (self, Key:str):
-
-        con = pool.get_connection()
-        cur = con.cursor ()
-
-        print (f"[Buffer][ClientInterface] - Removing Client by Key: {Key}")
-
-        sql_update_query = """DELETE from Clients where KEY = ?"""
-        cur.execute(sql_update_query, (Key, ))
-        con.commit()
-
-        pool.release_connection(con) 
-
-        return  
