@@ -132,7 +132,7 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
         std::fs::create_dir_all(&dir_path).unwrap();
     }
 
-    println!("initializing buffer in: {}", new_loggs_storage_path);
+    println!("initializing Logs table in: {}", new_loggs_storage_path);
 
     let buffer_pool = SQLiteConnectionPool::new(10, default_loggs_storage_path.as_str()).unwrap();
     let conn = buffer_pool.get_connection().unwrap();
@@ -160,8 +160,8 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
 pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_level: String, log_msg: String) {
     let conn = LOGS_REGISTERS_POOL.get_connection().unwrap();
 
-    let now = Utc::now();
-    let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+    // let now = Utc::now();
+    // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
     let registered_ids = get_registred_ids();
 
@@ -177,13 +177,13 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
     match result {
         Ok(rows) => {
             if rows > 0 {
-                println!("Successfully inserted command in the table Logs. {} row(s) were affected.", rows);
+                println!("Successfully inserted Log in the table Logs. {} row(s) were affected.", rows);
             } else {
                 println!("No rows were affected.");
             }
         },
         Err(e) => {
-            eprintln!("An error occurred while inserting the command in the table Logs: {}", e);
+            eprintln!("An error occurred while inserting the Log in the table Logs: {}", e);
         },
     }
 
@@ -194,12 +194,12 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
 pub fn list_logs() -> Vec<Log> {
     let conn = LOGS_REGISTERS_POOL.get_connection().unwrap();
 
-    let mut commands_schedule: Vec<Log> = Vec::new();
+    let mut registred_logs: Vec<Log> = Vec::new();
 
     {
         let mut smtp = conn.prepare("SELECT * FROM Logs").unwrap();
 
-        let commands_iter = smtp
+        let logs_iter = smtp
             .query_map(params![], |row| {
                 Ok(Log {
                     log_id: row.get(0).unwrap(),
@@ -212,14 +212,22 @@ pub fn list_logs() -> Vec<Log> {
             })
             .unwrap();
 
-        for command in commands_iter {
-            commands_schedule.push(command.unwrap());
+        for log in logs_iter {
+            match log {
+                Ok(l) => {
+                    registred_logs.push(l);
+                },
+
+                Err(e) => {
+                    println!("An error occurred while getting the Logs vec in list_logs, the error was: {}", e);
+                },
+            }
         }
     }
 
     LOGS_REGISTERS_POOL.release_connection(conn);
 
-    return commands_schedule;
+    return registred_logs;
 }
 
 pub fn remove_log_by_id(log_id: u32) {
@@ -228,10 +236,10 @@ pub fn remove_log_by_id(log_id: u32) {
 
     match result {
         Ok(rows) => {
-            println!("Successfully deleted Command of ID: {}. {} rows were affected.", log_id, rows);
+            println!("Successfully deleted Log of ID: {}. {} rows were affected.", log_id, rows);
         },
         Err(e) => {
-            eprintln!("An error occurred while deleting the command: {} from Logs table: {}", log_id, e);
+            eprintln!("An error occurred while deleting the Log: {} from Logs table: {}", log_id, e);
         },
     }
 
