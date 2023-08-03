@@ -1,5 +1,5 @@
 from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
-
+from . import logs_retriver
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
 
