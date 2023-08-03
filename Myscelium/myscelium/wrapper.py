@@ -1,7 +1,58 @@
 from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
 from . import logs_retriver
+
+from multiprocessing import Process
+import time
+
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
+
+
+
+class MysceliumHostInterface:
+
+    def __init__(self, buffer_path:str) -> None:
+        
+        self.logs_retriver = logs_retriver.Logs_Buffer_Retriver(buffer_path)
+
+        self.log_callback
+
+        self.stats = False
+
+        self.process
+
+        pass
+
+    def retrive_logs (self):
+
+        while self.stats:
+            
+            # Retrive logs and call the callback
+            
+            pass
+
+        pass
+
+    def set_logs_callback (self, callback:str):
+        self.log_callbacK = callback
+        pass
+
+    def stop_logs_reriver (self):
+        
+        self.stats = False
+        self.process.join()
+        
+        return
+
+    def start_logs_retriver (self):
+
+        self.stats = True
+
+        self.process = Process(target=self.retrive_logs, args=())
+        self.process.start()
+
+        while True:
+            pass
 
 class MysceliumHost:
 
