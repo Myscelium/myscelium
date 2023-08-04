@@ -83,7 +83,7 @@ class MysceliumHostInterface:
                 log_level       = logs_df.loc[i, 'LogLevel']         
                 log_msg         = logs_df.loc[i, 'LogMsg']         
 
-                self.log_callback(log_time, log_level, log_from_node, log_msg)
+                self.log_callback({"log_time":log_time, "log_level":log_level, "log_from_node":log_from_node, "log_msg":log_msg})
 
                 self.logs_retriver.Remove_Log(log_id)
                 
