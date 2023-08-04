@@ -37,9 +37,9 @@ class SQLiteConnectionPool:
 
 class Logs_Buffer_Retriver:
 
-    def __init__ (self, database_path:str):
+    def __init__ (self, database_path:str, workers:int=1):
 
-        self.pool = SQLiteConnectionPool(5, database_path)
+        self.pool = SQLiteConnectionPool(workers, database_path)
 
         con = self.pool.get_connection()
         cur = con.cursor ()

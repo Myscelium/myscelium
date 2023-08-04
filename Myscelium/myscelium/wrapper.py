@@ -20,9 +20,9 @@ class MysceliumHostInterface:
         Parameters:
         - buffer_path: Path to the buffer for logs retrieval.
         """
-        
-        self.logs_retriver = logs_retriver.Logs_Buffer_Retriver(buffer_path)
 
+        self.buffer_path = buffer_path
+    
         self.log_callback
 
         self.stats = False
@@ -178,6 +178,9 @@ class MysceliumHostInterface:
         """
         Start the logs retriever process in a separate process.
         """
+
+        # This auto set the number of thread workes and sql pool workers, to each thread have one sql pool worker garanted
+        self.logs_retriver = logs_retriver.Logs_Buffer_Retriver(self.buffer_path, workers=self.transposition_threads)
 
         self.stats = True
 
