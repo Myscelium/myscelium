@@ -1,6 +1,7 @@
 pyproject.toml
 setup.py
 myscelium/__init__.py
+myscelium/logs_retriver.py
 myscelium/wrapper.py
 myscelium.egg-info/PKG-INFO
 myscelium.egg-info/SOURCES.txt

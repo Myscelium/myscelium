@@ -4,6 +4,7 @@ from . import logs_retriver
 from multiprocessing import Process
 import pandas as pd
 import time
+import os
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
@@ -23,15 +24,17 @@ class MysceliumHostInterface:
 
         self.buffer_path = buffer_path
     
-        self.log_callback
+        self.log_callback = ""
 
         self.stats = False
 
-        self.process
+        self.process = ""
 
         self.transposition_threads = 1
 
-        pass
+        # self.pool = logs_retriver.SQLiteConnectionPool(2, os.path.join(self.buffer_path, "Logs.db"))
+
+        return
 
     def retrive_logs (self):
 
@@ -39,6 +42,12 @@ class MysceliumHostInterface:
         Retrieve logs and process them. If multiple threads are set, it will split the logs 
         and process them in parallel.
         """
+
+        pool = logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+
+        connection = pool.get_connection()
+        
+        logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
 
         def split_dataframe(df, num_chunks):
             
@@ -73,7 +82,11 @@ class MysceliumHostInterface:
             
             return chunks
 
-        def transpose (logs_df):
+        def transpose (logs_df, pool):
+
+            connection = pool.get_connection()
+        
+            logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
 
             for i in logs_df.index:
 
@@ -85,15 +98,17 @@ class MysceliumHostInterface:
 
                 self.log_callback({"log_time":log_time, "log_level":log_level, "log_from_node":log_from_node, "log_msg":log_msg})
 
-                self.logs_retriver.Remove_Log(log_id)
+                logs_retriever_access.Remove_Log(log_id)
                 
                 continue
+            
+            pool.release_connection(connection)
 
             return
 
         while self.stats:
 
-            logs_dict_df = self.logs_retriver.List_Logs()
+            logs_dict_df = logs_retriever_access.List_Logs()
             logs_df = pd.DataFrame.from_dict(logs_dict_df)
 
             if logs_df.empty:
@@ -112,7 +127,7 @@ class MysceliumHostInterface:
                 threads = []
                 
                 for chunk in logs_df_chunks:
-                    threads.append(Process(target=self.transpose, args=(chunk)))
+                    threads.append(Process(target=self.transpose, args=(chunk, pool)))
                     continue
                 
                 for t in threads:
@@ -127,15 +142,34 @@ class MysceliumHostInterface:
             
             else:
 
-                transpose(logs_df)
+                transpose(logs_df, pool)
                 pass
             
             time.sleep(5)
 
             continue
+
+        pool.release_connection(connection)
             
         return
     
+    # def check_if_all_logs_was_transposed (self):
+
+    #     connection = self.pool.get_connection()
+        
+    #     logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
+
+    #     logs_dict_df = logs_retriever_access.List_Logs()
+
+    #     self.pool.release_connection(connection)
+
+    #     logs_df = pd.DataFrame.from_dict(logs_dict_df)
+
+    #     if logs_df.empty:
+    #         return True
+    #     else:
+    #         return False
+
     def active_multi_handlers (self, threads_num=2):
 
         """
@@ -167,6 +201,13 @@ class MysceliumHostInterface:
         """
         Stop the logs retriever process.
         """
+
+        # while True:
+
+        #     if self.check_if_all_logs_was_transposed:
+        #         break
+        #     else:
+        #         continue
         
         self.stats = False
         self.process.join()
@@ -178,9 +219,6 @@ class MysceliumHostInterface:
         """
         Start the logs retriever process in a separate process.
         """
-
-        # This auto set the number of thread workes and sql pool workers, to each thread have one sql pool worker garanted
-        self.logs_retriver = logs_retriver.Logs_Buffer_Retriver(self.buffer_path, workers=self.transposition_threads)
 
         self.stats = True
 
