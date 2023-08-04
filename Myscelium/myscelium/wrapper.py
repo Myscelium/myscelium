@@ -78,12 +78,13 @@ class MysceliumHostInterface:
         self.process = Process(target=self.retrive_logs, args=())
         self.process.start()
 
-        while True:
-            pass
+        return
 
 class MysceliumHost:
 
     def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="WARN") -> None:
+
+        self.host_interface = MysceliumHostInterface(buffer_path)
 
         self.allowed_clients = allowed_clients
 
@@ -114,9 +115,9 @@ class MysceliumHost:
 
         pass
 
-    # def set_logs_callback_handler (self, logs_handler_callback:list):
-    #     print("active py set log callback")
-    #     mys.registry_host_logs_handler(logs_handler_callback)
+    def set_logs_callback_handler (self, logs_handler_callback:object):
+        self.host_interface.set_logs_callback(logs_handler_callback)
+        return
     
     # def set_client_heartbeat_handler (self, callback): #! THIS WILL NOT WORK UNTILL PYTHON POOL IS FINISHED
     #     mys.registry_socket_host_client_heartbeat_contact_callback(callback)
@@ -126,11 +127,19 @@ class MysceliumHost:
         return mys.get_socket_host_available_commands()
 
     def initialize_host (self, ip:str, port:int):
+        
+        self.host_interface.start_logs_retriver()
         mys.initialize_socket_host (ip, port, self.host_id)
+        
+        return
 
     def stop_host (self, signal, frame):
         # This function will be called when a SIGINT signal is received
+        
         mys.stop_socket_host()
+        self.host_interface.stop_logs_reriver()
+
+        return
 
     def send (self):
          pass
