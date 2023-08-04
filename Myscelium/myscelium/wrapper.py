@@ -2,6 +2,7 @@ from . import myscelium_engine as mys # Maybe change the rust myscelium lib to M
 from . import logs_retriver
 
 from multiprocessing import Process
+import pandas as pd
 import time
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -26,15 +27,41 @@ class MysceliumHostInterface:
     def retrive_logs (self):
 
         while self.stats:
-            
-            # Retrive logs and call the callback
-            
-            pass
 
-        pass
+            logs_dict_df = self.logs_retriver.List_Logs()
+            logs_df = pd.DataFrame.from_dict(logs_dict_df)
+
+            if logs_df.empty:
+                time.sleep(5)
+                continue
+            else:
+                pass
+
+            logs_df = logs_df.sort_values('LogTime')
+            logs_df = logs_df.reset_index(drop=True)
+
+            for i in logs_df.index:
+
+                log_id          = logs_df.loc[i, 'ID']
+                log_time        = logs_df.loc[i, 'LogTime']         
+                log_from_node   = logs_df.loc[i, 'NodeName']         
+                log_level       = logs_df.loc[i, 'LogLevel']         
+                log_msg         = logs_df.loc[i, 'LogMsg']         
+
+                self.log_callback(log_time, log_level, log_from_node, log_msg)
+
+                self.logs_retriver.Remove_Log(log_id)
+                
+                continue
+            
+            time.sleep(5)
+
+            continue
+            
+        return
 
     def set_logs_callback (self, callback:str):
-        self.log_callbacK = callback
+        self.log_callback = callback
         pass
 
     def stop_logs_reriver (self):
