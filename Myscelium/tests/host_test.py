@@ -39,11 +39,15 @@ def handle_client_contact (client_id:str):
 
 def logs_handler (log:dict):
 
-    log_time  = log["log_time"]
-    log_level = log["log_level"]
-    log_msg   = log["log_msg"]
+    try:
+        log_time  = log["log_time"]
+        log_level = log["log_level"]
+        log_msg   = log["log_msg"]
 
-    print(f"{log_time} - {log_level} - {log_msg}")
+        print(f"{log_time} - {log_level} - {log_msg}")
+    except:
+        pass
+
     pass
 
 # -> Set Host callbacks
@@ -96,6 +100,8 @@ if __name__ == '__main__':
     host_logs_interface = MysceliumHostInterface(buffer_path=BUFFER_PATH)
 
     host_logs_interface.set_logs_callback(callback=logs_handler)
+
+    host_logs_interface.allow_multi_handlers(workers_num=3)
 
     host_logs_interface.start_logs_retriver()
 

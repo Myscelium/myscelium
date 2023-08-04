@@ -9,7 +9,74 @@ import os
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
 
+def split_dataframe(df, num_chunks):
+            
+    """
+    Split a DataFrame into num_chunks parts.
+    
+    If the DataFrame cannot be split exactly into num_chunks, the remainder will be 
+    distributed among the chunks.
+    
+    Parameters:
+    - df: DataFrame to be split
+    - num_chunks: Number of chunks
+    
+    Returns:
+    - List of DataFrames
+    """
 
+    n = len(df)
+    chunk_size = n // num_chunks
+    remainder = n % num_chunks
+    
+    chunks = []
+    start = 0
+    for i in range(num_chunks):
+        end = start + chunk_size
+        # Distribute the remainder across the initial chunks
+        if remainder:
+            end += 1
+            remainder -= 1
+        chunks.append(df.iloc[start:end])
+        start = end
+    
+    return chunks
+
+def transpose(logs_df, buffer_path, log_callback):
+    pool = logs_retriver.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
+    connection = pool.get_connection()
+    logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
+
+    for i in logs_df.index:
+        try:
+            log_id = logs_df.loc[i, 'ID']
+            log_time = logs_df.loc[i, 'LogTime']
+            log_from_node = logs_df.loc[i, 'NodeName']
+            log_level = logs_df.loc[i, 'LogLevel']
+            log_msg = logs_df.loc[i, 'LogMsg']
+
+            log_callback({"log_time": log_time, "log_level": log_level, "log_from_node": log_from_node, "log_msg": log_msg})
+        except:
+            pass
+
+        logs_retriever_access.Remove_Log(log_id)
+        continue
+
+    pool.release_connection(connection)
+    return
+    
+def check_if_all_logs_was_transposed(pool):
+
+    connection = pool.get_connection()
+    
+    logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
+    logs_dict_df = logs_retriever_access.List_Logs()
+    
+    pool.release_connection(connection)
+    
+    logs_df = pd.DataFrame.from_dict(logs_dict_df)
+
+    return logs_df.empty
 
 class MysceliumHostInterface:
 
@@ -32,8 +99,6 @@ class MysceliumHostInterface:
 
         self.transposition_threads = 1
 
-        # self.pool = logs_retriver.SQLiteConnectionPool(2, os.path.join(self.buffer_path, "Logs.db"))
-
         return
 
     def retrive_logs (self):
@@ -49,64 +114,22 @@ class MysceliumHostInterface:
         
         logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
 
-        def split_dataframe(df, num_chunks):
-            
-            """
-            Split a DataFrame into num_chunks parts.
-            
-            If the DataFrame cannot be split exactly into num_chunks, the remainder will be 
-            distributed among the chunks.
-            
-            Parameters:
-            - df: DataFrame to be split
-            - num_chunks: Number of chunks
-            
-            Returns:
-            - List of DataFrames
-            """
+        while True:
 
-            n = len(df)
-            chunk_size = n // num_chunks
-            remainder = n % num_chunks
-            
-            chunks = []
-            start = 0
-            for i in range(num_chunks):
-                end = start + chunk_size
-                # Distribute the remainder across the initial chunks
-                if remainder:
-                    end += 1
-                    remainder -= 1
-                chunks.append(df.iloc[start:end])
-                start = end
-            
-            return chunks
+            if not self.stats:
 
-        def transpose (logs_df, pool):
+                while True:
 
-            connection = pool.get_connection()
-        
-            logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
-
-            for i in logs_df.index:
-
-                log_id          = logs_df.loc[i, 'ID']
-                log_time        = logs_df.loc[i, 'LogTime']         
-                log_from_node   = logs_df.loc[i, 'NodeName']         
-                log_level       = logs_df.loc[i, 'LogLevel']         
-                log_msg         = logs_df.loc[i, 'LogMsg']         
-
-                self.log_callback({"log_time":log_time, "log_level":log_level, "log_from_node":log_from_node, "log_msg":log_msg})
-
-                logs_retriever_access.Remove_Log(log_id)
+                    if check_if_all_logs_was_transposed:
+                        break
+                    else:
+                        continue
                 
-                continue
-            
-            pool.release_connection(connection)
+                break
 
-            return
+            else:
+                pass
 
-        while self.stats:
 
             logs_dict_df = logs_retriever_access.List_Logs()
             logs_df = pd.DataFrame.from_dict(logs_dict_df)
@@ -127,7 +150,7 @@ class MysceliumHostInterface:
                 threads = []
                 
                 for chunk in logs_df_chunks:
-                    threads.append(Process(target=self.transpose, args=(chunk, pool)))
+                    threads.append(Process(target=transpose, args=(chunk, self.buffer_path, self.log_callback)))
                     continue
                 
                 for t in threads:
@@ -142,7 +165,7 @@ class MysceliumHostInterface:
             
             else:
 
-                transpose(logs_df, pool)
+                transpose(logs_df, self.buffer_path, self.log_callback)
                 pass
             
             time.sleep(5)
@@ -152,25 +175,8 @@ class MysceliumHostInterface:
         pool.release_connection(connection)
             
         return
-    
-    # def check_if_all_logs_was_transposed (self):
 
-    #     connection = self.pool.get_connection()
-        
-    #     logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
-
-    #     logs_dict_df = logs_retriever_access.List_Logs()
-
-    #     self.pool.release_connection(connection)
-
-    #     logs_df = pd.DataFrame.from_dict(logs_dict_df)
-
-    #     if logs_df.empty:
-    #         return True
-    #     else:
-    #         return False
-
-    def active_multi_handlers (self, threads_num=2):
+    def allow_multi_handlers (self, workers_num=2):
 
         """
         Activate multiple handlers for processing logs.
@@ -179,7 +185,7 @@ class MysceliumHostInterface:
         - threads_num: Number of threads to be used for processing logs.
         """
 
-        self.transposition_threads = threads_num
+        self.transposition_threads = workers_num
 
         return
 
@@ -201,13 +207,6 @@ class MysceliumHostInterface:
         """
         Stop the logs retriever process.
         """
-
-        # while True:
-
-        #     if self.check_if_all_logs_was_transposed:
-        #         break
-        #     else:
-        #         continue
         
         self.stats = False
         self.process.join()
