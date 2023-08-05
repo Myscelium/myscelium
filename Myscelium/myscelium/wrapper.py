@@ -135,7 +135,7 @@ class MysceliumHostInterface:
             logs_df = pd.DataFrame.from_dict(logs_dict_df)
 
             if logs_df.empty:
-                time.sleep(5)
+                time.sleep(2)
                 continue
             else:
                 pass
@@ -168,7 +168,7 @@ class MysceliumHostInterface:
                 transpose(logs_df, self.buffer_path, self.log_callback)
                 pass
             
-            time.sleep(5)
+            time.sleep(1)
 
             continue
 
