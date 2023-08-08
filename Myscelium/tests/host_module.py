@@ -1,11 +1,12 @@
 from myscelium import MysceliumHost, HostPatterns
+from multiprocessing import Process, Event
+import time
 
 class MyHost:
     events = {}  # Class level dictionary to hold event references by key
 
-    @staticmethod
-    def store_event(event_key, event_obj):
-        MyHost.events[event_key] = event_obj
+    def __init__(self):
+        self.host_patterns = HostPatterns()
 
     @classmethod
     def set_event(cls, key, event):
@@ -13,14 +14,15 @@ class MyHost:
         cls.events[key] = event
 
     @staticmethod
+    def store_event(event_key, event_obj):
+        MyHost.events[event_key] = event_obj
+
+    @staticmethod
     def get_event(event_key):
         event = MyHost.events.get(event_key, None)
         if not event:
             print(f"No event found for key: {event_key}")
         return event
-
-    def __init__(self):
-        self.host_patterns = HostPatterns()
 
     @staticmethod
     def python_function(age, birth, name, event_key=None):
@@ -66,10 +68,16 @@ class MyHost:
             print("Heartbeat handler is setting the client_contact event!")
             event.set()
 
-    def run(self, ip="127.0.0.1", port=4444, event=None):
+    def monitor_stop_event(self):
+        
+        while not MyHost.get_event('stop_host').is_set():
+            time.sleep(1)
 
-        self.event = event
+        print("Receive stop host")
 
+        self.stop()
+
+    def run_host(self, ip, port):
         callbacks = [
             self.host_patterns.callback_pattern(callback=self.python_function,
                                                 args={"birth": "str", "name": "str", "age": "int", "event_key": "str"}),
@@ -89,12 +97,27 @@ class MyHost:
                                                                          args={"client_id": "str", "event_key": "str"}), ]
 
         mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+        
         mys_host.initialize_host(ip=ip, port=port)
 
-        return mys_host
+    def run(self, ip="127.0.0.1", port=4444, event=None):
+
+        self.event = event
+        self.host_process = Process(target=self.run_host, args=(ip, port))
+        self.monitor_process = Process(target=self.monitor_stop_event)
+        
+        self.host_process.start()
+        self.monitor_process.start()
+
+        return 
     
     def stop(self):
+        
         if hasattr(self, 'mys_host') and self.mys_host:
             self.mys_host.stop_host()  # assuming MysceliumHost has a stop() method
+        if hasattr(self, 'host_process'):
+            self.host_process.terminate()
+        if hasattr(self, 'monitor_process'):
+            self.monitor_process.terminate()
     
 

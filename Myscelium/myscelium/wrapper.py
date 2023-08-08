@@ -95,18 +95,30 @@ class HostPatterns:
             return callback_pattern
 
 class MysceliumClient:
+    
+    _instance = None  # Singleton instance
 
-    def __init__(self, client_uid:int, buffer_path:str) -> None:
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(MysceliumClient, cls).__new__(cls)
+        return cls._instance
 
-        self.client_uid = client_uid
+    def __init__(self, client_uid:int, buffer_path:str):
+        # Initialize only if attributes don't exist, preventing overwriting on multiple init calls
+        if not hasattr(self, 'initialized'):
+            self.client_uid = client_uid
+            self.runing = False
+            mys.initalize_client_buffer_tables(buffer_path)
+            self.host_thread = None
+            self.initialized = True
+            # ... rest of your __init__ code ...
 
-        self.runing = False
-
-        mys.initalize_client_buffer_tables(buffer_path)
-
-        self.host_thread = None
-
-        pass
+    @classmethod
+    def new_instance(cls, client_uid:int, buffer_path:str):
+        # Create a fresh instance
+        cls._instance = super(MysceliumClient, cls).__new__(cls)
+        instance = MysceliumClient(client_uid, buffer_path)
+        return instance
 
     def set_client_uid (self, client_uid):
         mys.set_client_uid(client_uid)
@@ -195,6 +207,7 @@ class ClientPatterns:
 host_patterns = HostPatterns()
 
 def get_registred_commands () -> dict:
+
     print("Activated the get registred commands")
     response = mys.get_socket_host_available_commands()
 

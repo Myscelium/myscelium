@@ -4,7 +4,9 @@ import time
 
 client_patterns = ClientPatterns()
 
-from threading import Event
+
+from multiprocessing import Process, Event
+
 
 
 class MyClient:
@@ -36,14 +38,17 @@ class MyClient:
         MyClient.instance.stop() 
 
     @staticmethod
-    def send_some_data(mys_client):
-        mys_client.running = True
+    def send_some_data():
         time.sleep(10)
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+        mys_client.runing = True
+        mys_client.set_client_uid(client_uid="some_client_id")
         command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
         result = mys_client.send(command, priority=10)
         print(result)
 
-    def initialize_client(self, event_key):
+    def initialize(self, event_key):
+
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
         mys_client.set_client_uid(client_uid="some_client_id")
 
@@ -52,20 +57,32 @@ class MyClient:
                 "data": "dict"
             }),
         ]
+        
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
+        
         mys_client.initialize_client("127.0.0.1", 4444)
-        return mys_client
+
+        return
 
     def run(self, event_key):
         
-        client = self.initialize_client(event_key)
-        
-        # Store the client instance
-        self.client_instance = client
-        
-        self.send_some_data(client, event_key)
+        t1 = Process(target=self.initialize, args=(event_key, ))
+
+        t2 = Process(target=self.send_some_data, args=())
+
+        t1.start()
+        time.sleep(5)
+        t2.start()
+
+        t2.join()
+        t1.join()  # Wait for the process to finish
+
+        return
+
 
     def stop(self):
         if hasattr(self, 'client_instance') and self.client_instance:
             self.client_instance.stop_client()  # assuming MysceliumClient has a stop() method
+
+
