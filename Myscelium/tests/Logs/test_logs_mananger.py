@@ -7,6 +7,9 @@ from datetime import datetime
 from queue import Queue
 from threading import Lock, Thread
 
+# TODO >>> Create a client table to set the logs and the client state and the host state
+# TODO >>> if the host or client state in the table was set to false it will close the host or the client
+
 class SQLiteConnectionPool:
     def __init__(self, max_connections:int, database_path:str):
         self.data_base = database_path
