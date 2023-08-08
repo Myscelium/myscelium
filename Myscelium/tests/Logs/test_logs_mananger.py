@@ -68,55 +68,58 @@ class SQLiteConnectionPool:
             connection = self.connections.get()
             connection.close()
 
-class Logs_Buffer_Retriver:
+class Events_Mananger:
 
-    def __init__(self):
+    def __init__(self, Unit:str, path:str):
 
-        pool = SQLiteConnectionPool(3, os.path.join("Logs.db"))
+        pool = SQLiteConnectionPool(3, os.path.join(path, "Data.db"))
         self.connection = pool.get_connection()
+
+        self.Unit = Unit
 
         self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
     
         cur = self.connection.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS Logs (ID INT PRIMARY KEY,
+        cur.execute('''CREATE TABLE IF NOT EXISTS Events (ID INT PRIMARY KEY,
+                                                        Unit TEXT,
                                                         StepCompleted TEXT
                                                         )''')
 
-    def List_Steps_Completed(self) -> dict:
+    def List_Events(self) -> dict:
         
         cur = self.connection.cursor()
         
-        sqlite_select_query = """SELECT * FROM Logs"""
+        sqlite_select_query = """SELECT * FROM Events"""
         
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
-        df = pd.DataFrame(df, columns=['ID', 'StepCompleted'])
+        df = pd.DataFrame(df, columns=['ID', 'Unit', 'StepCompleted'])
         dict_df = df.to_dict()
         
         return dict_df
     
-    def Add_Step_Completed (self, Step:str):
+    def Set_Event (self, Step:str):
 
         cur = self.connection.cursor()
 
-        self.AutoId.Update_Registred_Ids(registred_ids = self.List_Steps_Completed())
+        self.AutoId.Update_Registred_Ids(registred_ids = self.List_Events())
 
         ID = self.AutoId.Gen()
 
-        Data = ((ID, Step))
+        Data = ((ID, self.Unit, Step))
 
-        sqlite_insert_with_param = """INSERT INTO Clients (ID, StepCompleted) VALUES (?, ?);"""
+        sqlite_insert_with_param = """INSERT INTO Events (ID, Unit, StepCompleted) VALUES (?, ?, ?);"""
         cur.execute(sqlite_insert_with_param, Data)
         self.connection.commit()
 
         return
 
-    def Remove_Steps_Completed(self, ID:int):
+    def Remove_Events(self, ID:int):
         
         cur = self.connection.cursor()
         
-        sql_update_query = """DELETE from Logs WHERE ID = ?"""
+        sql_update_query = """DELETE FROM Events WHERE ID = ?"""
         
         cur.execute(sql_update_query, (int(ID),))
         
@@ -124,19 +127,21 @@ class Logs_Buffer_Retriver:
 
 class System_Status:
 
-    def __init__(self):
+    def __init__(self, path:str):
 
-        pool = SQLiteConnectionPool(3, os.path.join("Logs.db"))
+        pool = SQLiteConnectionPool(3, os.path.join(path, "Data.db"))
         self.connection = pool.get_connection()
 
         self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
         
         cur = self.connection.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS SystemStatus (ID INT PRIMARY KEY,
-                                                                Unit TEXT
-                                                                Runing BOOL)''')
+                                                                Unit TEXT,
+                                                                RuningStatus BOOL)''')
 
-    def list_unit_status (self) -> dict:
+    
+
+    def list_units (self) -> dict:
         
         cur = self.connection.cursor()
         
@@ -145,18 +150,47 @@ class System_Status:
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
-        df = pd.DataFrame(df, columns=['ID', 'Unit', 'Runing'])
+        df = pd.DataFrame(df, columns=['ID', 'Unit', 'RuningStatus'])
         dict_df = df.to_dict()
         
         return dict_df
     
-    def get_unit_status (self, Unit:str) -> dict:
+    def create_unit (self, Unit:str):
+
+        units = pd.DataFrame.from_dict(self.list_units())
+        unit = units[units['Unit'] == Unit]   
+
+        if not unit.empty:
+            print("Unit alwready created!")
+            return
+        else:
+            pass
+
+        cur = self.connection.cursor()
+
+        self.AutoId.Update_Registred_Ids(registred_ids = self.list_units())
+
+        ID = self.AutoId.Gen()
+
+        Data = ((ID, Unit, False))
+
+        sqlite_insert_with_param = """INSERT INTO SystemStatus (ID, Unit, RuningStatus) VALUES (?, ?, ?);"""
+        cur.execute(sqlite_insert_with_param, Data)
+        self.connection.commit()
+
+        return
+    
+    def get_unit_status (self, Unit:str) -> bool:
         
-        units = pd.DataFrame.from_dict(self.list_unit_status())
-        unit = units[units['Unit'] == Unit]    
+        units = pd.DataFrame.from_dict(self.list_units())
+        unit = units[units['Unit'] == Unit]   
+
+        if unit.empty:
+            raise f"Unit: {Unit} doesn't exist!"
+
         unit = unit.reset_index(drop=True)
 
-        status = unit.loc[0, 'Status']
+        status = unit.loc[0, 'RuningStatus']
 
         return status
 
@@ -166,7 +200,7 @@ class System_Status:
 
         Data = (Status, Unit)
 
-        sql_update_query = f"""Update Clients set Status = ? WHERE Unit = ?"""
+        sql_update_query = f"""UPDATE SystemStatus SET RuningStatus = ? WHERE Unit = ?"""
       
         cur.execute(sql_update_query, Data)
         self.connection.commit()

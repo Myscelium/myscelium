@@ -1,5 +1,6 @@
 from myscelium import MysceliumHost, HostPatterns
 from multiprocessing import Process, Event, Manager
+from .Logs.test_logs_mananger import Events_Mananger, System_Status
 
 import time
 
@@ -15,7 +16,8 @@ class MyHost:
         print(name)
         print(age)
 
-        response = MyHost.host_patterns.response_pattern(
+        host_patterns = HostPatterns()
+        response = host_patterns.response_pattern(
             response_mode='to_origin',
             response_activation_function="test_handler",
             response={"data": 'hello!'}
@@ -29,7 +31,8 @@ class MyHost:
     def test_redirect(client_id, data, event_key=None):
         if isinstance(client_id, str):
             print(f"Redirecting data: {data} to client: {client_id}")
-            response = MyHost.host_patterns.response_pattern(
+            host_patterns = HostPatterns()
+            response = host_patterns.response_pattern(
                 response=data,
                 response_mode='redirect',
                 redirect_to_client_id=client_id
@@ -47,12 +50,22 @@ class MyHost:
         # TODO >>> Save event in the test databse log
 
     def monitor_stop_event(self):
+
+        time.sleep(5)
         
-        # TODO >>> Implement database checking
+        while True:
 
-        print("Receive stop host")
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client")
 
-        self.stop()
+            if not client_status:
+                print("Receive stop host")
+                System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+                break
+            else:
+                time.sleep(5)
+                continue
+
+        return
 
     def run_host(self, ip, port):
         callbacks = [
@@ -70,11 +83,15 @@ class MyHost:
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
                                  allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2)
 
+        self.mys_host = mys_host
+
         client_heart_beat_handler = [self.host_patterns.callback_pattern(callback=self.handle_client_contact,
                                                                          args={"client_id": "str", "event_key": "str"}), ]
 
         mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
-        
+
+        System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+
         mys_host.initialize_host(ip=ip, port=port)
 
     def run(self, ip="127.0.0.1", port=4444, event=None):
@@ -82,15 +99,21 @@ class MyHost:
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self.monitor_stop_event)
         
+
         host_process.start()
         monitor_process.start()
 
+        monitor_process.join()
+
+        host_process.kill()
+
+
         return 
-    
-    def stop(self):
+
+            
+
+
         
-        if hasattr(self, 'mys_host') and self.mys_host:
-            self.mys_host.stop_host()  # assuming MysceliumHost has a stop() method
 
     
 

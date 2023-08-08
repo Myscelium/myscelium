@@ -6,33 +6,42 @@ client_patterns = ClientPatterns()
 
 
 from multiprocessing import Process, Event, Manager
-
+from .Logs.test_logs_mananger import Events_Mananger, System_Status
 
 
 class MyClient:
 
     @staticmethod
     def test_handler(data):
+
+        EVMananger = Events_Mananger(Unit="Client", path="Logs")
+        EVMananger.Set_Event("Activate test handler")
+
         print("Received data: ", data)
         
-        # TODO >>> Save event in the test databse log
-        
-        # This will stop the client
-        MyClient.instance.stop() 
+        System_Status(path="Logs").change_unit_status(Unit="Client", Status=False)
 
     @staticmethod
     def send_some_data():
+
         time.sleep(10)
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")
         command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
         result = mys_client.send(command, priority=10)
+
+        EVMananger = Events_Mananger(Unit="Client", path="Logs")
+        EVMananger.Set_Event("Data Sended")
+
         print(result)
 
-    def initializer(self, event_key):
+    def initializer(self):
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+
+        self.mys_client = mys_client
+
         mys_client.set_client_uid(client_uid="some_client_id")
 
         callbacks = [
@@ -43,29 +52,50 @@ class MyClient:
         
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
+
+        System_Status(path="Logs").change_unit_status(Unit="Client", Status=True)
         
         mys_client.initialize_client("127.0.0.1", 4444)
 
         return
-
-    def run(self, event_key):
+    
+    def monitor_stop_event(self):
         
-        t1 = Process(target=self.initializer, args=(event_key, ))
+        time.sleep(5)
 
+        while True:
+
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client")
+
+            if not client_status:
+                print("Receive stop client")
+                System_Status(path="Logs").change_unit_status(Unit="Client", Status=False)
+                break
+            else:
+                time.sleep(5)
+                continue
+
+        return
+
+    def run(self):
+
+        t1 = Process(target=self.initializer, args=())
         t2 = Process(target=self.send_some_data, args=())
+        t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
         time.sleep(5)
         t2.start()
+        t3.start()
 
         t2.join()
+        t3.join()  
+
+        t1.kill()
+
         t1.join()  # Wait for the process to finish
 
         return
 
-
-    def stop(self):
-        if hasattr(self, 'client_instance') and self.client_instance:
-            self.client_instance.stop_client()  # assuming MysceliumClient has a stop() method
 
 

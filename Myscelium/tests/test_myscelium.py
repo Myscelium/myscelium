@@ -10,6 +10,9 @@ import shutil
 from .host_module import MyHost
 from .client_module import MyClient
 
+
+from .Logs.test_logs_mananger import Events_Mananger, System_Status
+
 def host_thread(event_host_received):
     print("Starting host thread...")
     
@@ -25,7 +28,7 @@ def client_thread(event_client_received):
     print("Starting client thread...")
     
     client_instance = MyClient()
-    client_instance.run(event_key=event_client_received) 
+    client_instance.run() 
     
     print("Client thread finished.")
 
@@ -36,6 +39,13 @@ def test_communication():
 
     # Instead of having separate events for client and host, we use a shared event for simplicity
     # The event_key 'main_event' will be used to identify this event
+
+    System_Status(path="Logs").create_unit("Client")
+    System_Status(path="Logs").create_unit("Host")
+
+    System_Status(path="Logs").change_unit_status(Unit="Client", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+
 
     if os.path.exists("ClientData/"):
         shutil.rmtree("ClientData/")
