@@ -52,6 +52,24 @@ def test_communication():
     t2.join()
     t1.join()  # Wait for the process to finish
 
+    #* To test:
+
+    #> Client Initializes
+    #> Host initializes
+
+    #> Client make contact
+    #> Client sync commands avalaible
+    #> Client schedule to send things
+    #> Client send command
+    
+    #> Host received client comamnd
+    #> Host Returned command to client
+
+    #> Client Receive Host response
+    
+    #> Finish Client
+    #> Finish Host
+
     # event = my_host.get_event('client_contact')
     # assert event.is_set(), "Client contact event was not set!"
 
