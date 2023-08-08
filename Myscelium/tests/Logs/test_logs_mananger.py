@@ -73,3 +73,25 @@ class Logs_Buffer_Retriver:
         
         self.connection.commit()
 
+def transpose(logs_df, buffer_path, log_callback):
+    pool = SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
+    connection = pool.get_connection()
+    logs_retriever_access = Logs_Buffer_Retriver(connection)
+
+    for i in logs_df.index:
+        try:
+            log_id = logs_df.loc[i, 'ID']
+            log_time = logs_df.loc[i, 'LogTime']
+            log_from_node = logs_df.loc[i, 'NodeName']
+            log_level = logs_df.loc[i, 'LogLevel']
+            log_msg = logs_df.loc[i, 'LogMsg']
+
+            log_callback({"log_time": log_time, "log_level": log_level, "log_from_node": log_from_node, "log_msg": log_msg})
+        except:
+            pass
+
+        logs_retriever_access.Remove_Log(log_id)
+        continue
+
+    pool.release_connection(connection)
+    return
