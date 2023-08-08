@@ -15,7 +15,7 @@ class MyClient:
     def test_handler(data):
 
         EVMananger = Events_Mananger(Unit="Client", path="Logs")
-        EVMananger.Set_Event("Activate test handler")
+        EVMananger.Set_Event("Activate Basic Response Test callback handler")
 
         print("Received data: ", data)
         
