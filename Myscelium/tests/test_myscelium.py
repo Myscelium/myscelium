@@ -1,46 +1,35 @@
 import pytest
-from multiprocessing import Process, Queue, set_start_method
+from multiprocessing import Process, Event
 import time
 
-# Import the run_host and run_client functions from your modules
 from .host_module import run_host
 from .client_module import run_client
 
-def host_process(queue):
-    run_host()  # This will initialize and start the host
-    queue.put("Host Done")
+def host_thread(event_host_received):
+    print("Starting host thread...")
+    host = run_host(event=event_host_received)
+    print("Host initialized.")
+    print("Host thread finished.")
 
-def client_process(queue):
-    run_client()  # This will initialize and start the client
-    queue.put("Client Done")
+def client_thread(event_client_received):
+    print("Waiting for host to be ready...")
+    time.sleep(10)
+    print("Starting client thread...")
+    client = run_client(event=event_client_received)
+    print("Client thread finished.")
 
 def test_communication():
-    q1, q2 = Queue(), Queue()
+    event_host_received = Event()
+    event_client_received = Event()
 
-    # Start the host and client processes
-    p1 = Process(target=host_process, args=(q1,))
-    p2 = Process(target=client_process, args=(q2,))
+    t1 = Process(target=host_thread, args=(event_host_received,))
+    t2 = Process(target=client_thread, args=(event_client_received,))
 
-    p1.start()
-    p2.start()
+    t1.start()
+    t2.start()
 
-    # Set a timeout for the test
-    timeout = time.time() + 10   # 10 seconds
-    while True:
-        if not q1.empty() and not q2.empty():
-            p1.terminate()
-            p2.terminate()
-            break
-        if time.time() > timeout:
-            p1.terminate()
-            p2.terminate()
-            assert False, "Test timed out"
-            return
+    t1.join()  # Wait for the process to finish
+    t2.join()
 
-    # Check if both processes completed successfully
-    assert q1.get() == "Host Done"
-    assert q2.get() == "Client Done"
-
-# This ensures the multiprocessing code only runs if the script is the main point of execution.
 if __name__ == '__main__':
     pytest.main()

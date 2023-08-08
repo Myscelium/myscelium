@@ -2,12 +2,24 @@ from myscelium import MysceliumHost, HostPatterns
 
 host_patterns = HostPatterns()
 
-def python_function(age, birth, name):
+global_event = None
+
+def python_function(age, birth, name, event=None):
+
+    global global_event
+    print("Access python function")
+    
     print(birth)
     print(name)
     print(age)
     response = host_patterns.response_pattern(response_mode='to_origin', response_activation_function="test_handler", response={"data":'hello!'})
+    
+    # Setting the event using the global variable
+    if global_event:
+        global_event.set()
+
     return response
+
 
 def test_redirect(client_id, data):
     if isinstance(client_id, str):
@@ -19,11 +31,23 @@ def test_redirect(client_id, data):
         return None
 
 def handle_client_contact(client_id:str):
+    global global_event
     print("Access heartbeat handler")
     print(f"Client: {client_id}, made contact")
+    
+    
+    # Setting the event using the global variable
+    if global_event:
+        global_event.set()
+    
     return None
 
-def run_host(ip="127.0.0.1", port=4444):
+def run_host(ip="127.0.0.1", port=4444, event=None):
+
+    global global_event
+    global_event = event
+    
+    # Modifying the callback pattern to pass the event to python_function
     callbacks = [
         host_patterns.callback_pattern(callback=python_function, args={
             "birth": "str",
