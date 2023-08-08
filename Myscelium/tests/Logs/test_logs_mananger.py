@@ -10,6 +10,37 @@ from threading import Lock, Thread
 # TODO >>> Create a client table to set the logs and the client state and the host state
 # TODO >>> if the host or client state in the table was set to false it will close the host or the client
 
+class Interface_Unique_ID_Generator:
+
+    def __init__(self, length:int, registred_ids:list):
+        self.length = length        # length of BufferId
+        self.registred_ids = registred_ids
+
+    def Update_Registred_Ids (self, registred_ids:list):
+        self.registred_ids = registred_ids
+        return
+
+    def Gen (self) -> int: # Gera um id para alocação dos dados no buffer de dados
+        GenBufferId = lambda: random.randint(0, self.length)
+        while True:
+            BufferId = GenBufferId()
+            if (self.Validate(BufferId)):
+                break
+            else:
+                pass
+        return BufferId
+
+    def Validate (self, BufferId:int) -> bool:  # Valida o id gerado e verifica se já existe, caso exista um id novoé gerado até que seja valido
+        DataList = [i[0] for i in self.registred_ids]
+        # DataList = self.dtr.list_schedule.iloc[:, ['Id']].to_list()
+        for i in DataList:
+            if BufferId == i :
+                return False
+            else:
+                pass
+        return True
+
+
 class SQLiteConnectionPool:
     def __init__(self, max_connections:int, database_path:str):
         self.data_base = database_path
@@ -40,19 +71,17 @@ class SQLiteConnectionPool:
 class Logs_Buffer_Retriver:
 
     def __init__(self, connection):
+
+        self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
     
         self.connection = connection
     
         cur = self.connection.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS Logs (ID INT PRIMARY KEY,
-                                                        NodeName TEXT,
-                                                        LogTime FLOAT,
-                                                        LogName TEXT,
-                                                        LogLevel TEXT,
-                                                        LogMsg TEXT 
+                                                        StepCompleted TEXT
                                                         )''')
 
-    def List_Logs(self) -> dict:
+    def List_Steps_Completed(self) -> dict:
         
         cur = self.connection.cursor()
         
@@ -61,12 +90,28 @@ class Logs_Buffer_Retriver:
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
-        df = pd.DataFrame(df, columns=['ID', 'NodeName', 'LogTime', 'LogName', 'LogLevel', 'LogMsg'])
+        df = pd.DataFrame(df, columns=['ID', 'StepCompleted'])
         dict_df = df.to_dict()
         
         return dict_df
+    
+    def Add_Step_Completed (self, Step:str):
 
-    def Remove_Log(self, ID:int):
+        cur = self.connection.cursor()
+
+        self.AutoId.Update_Registred_Ids(registred_ids = self.List_Steps_Completed())
+
+        ID = self.AutoId.Gen()
+
+        Data = ((ID, Step))
+
+        sqlite_insert_with_param = """INSERT INTO Clients (ID, StepCompleted) VALUES (?, ?);"""
+        cur.execute(sqlite_insert_with_param, Data)
+        self.connection.commit()
+
+        return
+
+    def Remove_Steps_Completed(self, ID:int):
         
         cur = self.connection.cursor()
         
