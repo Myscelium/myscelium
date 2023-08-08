@@ -5,34 +5,17 @@ import time
 client_patterns = ClientPatterns()
 
 
-from multiprocessing import Process, Event
+from multiprocessing import Process, Event, Manager
 
 
 
 class MyClient:
-    events = {}  # shared events dictionary
-
-    @staticmethod
-    def store_event(event_key, event_obj):
-        MyClient.events[event_key] = event_obj
-
-    @classmethod
-    def set_event(cls, key, event):
-        cls.events[key] = event
-
-    @staticmethod
-    def get_event(event_key):
-        event = MyClient.events.get(event_key, None)
-        if not event:
-            print(f"No event found for key: {event_key}")
-        return event
 
     @staticmethod
     def test_handler(data):
         print("Received data: ", data)
-        event = MyClient.get_event('main_event')
-        if event:
-            event.set()
+        
+        # TODO >>> Save event in the test databse log
         
         # This will stop the client
         MyClient.instance.stop() 
@@ -47,7 +30,7 @@ class MyClient:
         result = mys_client.send(command, priority=10)
         print(result)
 
-    def initialize(self, event_key):
+    def initializer(self, event_key):
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
         mys_client.set_client_uid(client_uid="some_client_id")
@@ -67,7 +50,7 @@ class MyClient:
 
     def run(self, event_key):
         
-        t1 = Process(target=self.initialize, args=(event_key, ))
+        t1 = Process(target=self.initializer, args=(event_key, ))
 
         t2 = Process(target=self.send_some_data, args=())
 
