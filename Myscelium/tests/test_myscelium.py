@@ -9,7 +9,7 @@ def host_thread(event_host_received):
     print("Starting host thread...")
 
     my_host = MyHost()
-    host = my_host.run(event=event_host_received)
+    host = my_host.run(event_key='main_event') # modified this to pass event_key instead of the event object directly
 
     print("Host initialized.")
     print("Host thread finished.")
@@ -18,17 +18,21 @@ def client_thread(event_client_received):
     print("Waiting for host to be ready...")
     time.sleep(10)
     print("Starting client thread...")
-    event=event_client_received
+
     client_instance = MyClient()
-    client_instance.run(event)
+    client_instance.run(event_key='main_event') # modified this to pass event_key instead of the event object directly
+
     print("Client thread finished.")
 
 def test_communication():
-    event_host_received = Event()
-    event_client_received = Event()
+    # Instead of having separate events for client and host, we use a shared event for simplicity
+    # The event_key 'main_event' will be used to identify this event
 
-    t1 = Process(target=host_thread, args=(event_host_received,))
-    t2 = Process(target=client_thread, args=(event_client_received,))
+    MyHost.set_event('main_event', Event())  # Creating a new event for the host
+    MyClient.set_event('main_event', Event()) # Creating a new event for the client
+
+    t1 = Process(target=host_thread, args=('main_event',)) # Passing event_key
+    t2 = Process(target=client_thread, args=('main_event',)) # Passing event_key
 
     t1.start()
     t2.start()

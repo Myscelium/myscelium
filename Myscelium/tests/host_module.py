@@ -1,12 +1,23 @@
 from myscelium import MysceliumHost, HostPatterns
 
 class MyHost:
+    events = {}  # Class level dictionary to hold event references by key
+
+    @classmethod
+    def set_event(cls, key, event):
+        """Sets an event for a given key."""
+        cls.events[key] = event
+
+    @classmethod
+    def get_event(cls, key):
+        """Fetches an event for a given key."""
+        return cls.events.get(key)
+
     def __init__(self):
         self.host_patterns = HostPatterns()
-        self.event = None
 
-    @staticmethod # Decorator to convert instace method into static method
-    def python_function(self, age, birth, name):
+    @staticmethod
+    def python_function(age, birth, name, event_key=None):
         print("Access python function")
         print(birth)
         print(name)
@@ -18,14 +29,15 @@ class MyHost:
             response={"data": 'hello!'}
         )
 
-        if self.event:
+        event = MyHost.get_event(event_key)
+        if event:
             print("Python function is setting the event!")
-            self.event.set()
+            event.set()
 
         return response
 
     @staticmethod
-    def test_redirect(self, client_id, data):
+    def test_redirect(client_id, data, event_key=None):
         if isinstance(client_id, str):
             print(f"Redirecting data: {data} to client: {client_id}")
             response = MyHost.host_patterns.response_pattern(
@@ -39,24 +51,24 @@ class MyHost:
             return None
 
     @staticmethod
-    def handle_client_contact(self, client_id):
+    def handle_client_contact(client_id, event_key=None):
         print("Access heartbeat handler")
         print(f"Client: {client_id}, made contact")
 
-        if self.event:
+        event = MyHost.get_event(event_key)
+        if event:
             print("Heartbeat handler is setting the event!")
-            self.event.set()
+            event.set()
 
         return None
 
-    def run(self, ip="127.0.0.1", port=4444, event=None):
-        self.event = event
+    def run(self, ip="127.0.0.1", port=4444, event_key=None):
 
         callbacks = [
             self.host_patterns.callback_pattern(callback=self.python_function,
-                                                args={"birth": "str", "name": "str", "age": "int"}),
+                                                args={"birth": "str", "name": "str", "age": "int", "event_key": "str"}),
             self.host_patterns.callback_pattern(callback=self.test_redirect,
-                                                args={"client_id": "str", "data": "dict"}),
+                                                args={"client_id": "str", "data": "dict", "event_key": "str"}),
         ]
 
         allowed_clients = [
@@ -68,7 +80,7 @@ class MyHost:
                                  allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2)
 
         client_heart_beat_handler = [self.host_patterns.callback_pattern(callback=self.handle_client_contact,
-                                                                         args={"client_id": "str"}), ]
+                                                                         args={"client_id": "str", "event_key": "str"}), ]
 
         mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
         mys_host.initialize_host(ip=ip, port=port)
