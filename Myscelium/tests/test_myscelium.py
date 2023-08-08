@@ -2,12 +2,15 @@ import pytest
 from multiprocessing import Process, Event
 import time
 
-from .host_module import run_host
-from .client_module import run_client
+from .host_module import MyHost
+from .client_module import MyClient
 
 def host_thread(event_host_received):
     print("Starting host thread...")
-    host = run_host(event=event_host_received)
+
+    my_host = MyHost()
+    host = my_host.run(event=event_host_received)
+
     print("Host initialized.")
     print("Host thread finished.")
 
@@ -15,7 +18,9 @@ def client_thread(event_client_received):
     print("Waiting for host to be ready...")
     time.sleep(10)
     print("Starting client thread...")
-    client = run_client(event=event_client_received)
+    event=event_client_received
+    client_instance = MyClient()
+    client_instance.run(event)
     print("Client thread finished.")
 
 def test_communication():
