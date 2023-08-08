@@ -70,11 +70,12 @@ class SQLiteConnectionPool:
 
 class Logs_Buffer_Retriver:
 
-    def __init__(self, connection):
+    def __init__(self):
+
+        pool = SQLiteConnectionPool(3, os.path.join("Logs.db"))
+        self.connection = pool.get_connection()
 
         self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
-    
-        self.connection = connection
     
         cur = self.connection.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS Logs (ID INT PRIMARY KEY,
@@ -121,25 +122,56 @@ class Logs_Buffer_Retriver:
         
         self.connection.commit()
 
-def transpose(logs_df, buffer_path, log_callback):
-    pool = SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
-    connection = pool.get_connection()
-    logs_retriever_access = Logs_Buffer_Retriver(connection)
+class System_Status:
 
-    for i in logs_df.index:
-        try:
-            log_id = logs_df.loc[i, 'ID']
-            log_time = logs_df.loc[i, 'LogTime']
-            log_from_node = logs_df.loc[i, 'NodeName']
-            log_level = logs_df.loc[i, 'LogLevel']
-            log_msg = logs_df.loc[i, 'LogMsg']
+    def __init__(self):
 
-            log_callback({"log_time": log_time, "log_level": log_level, "log_from_node": log_from_node, "log_msg": log_msg})
-        except:
-            pass
+        pool = SQLiteConnectionPool(3, os.path.join("Logs.db"))
+        self.connection = pool.get_connection()
 
-        logs_retriever_access.Remove_Log(log_id)
-        continue
+        self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
+        
+        cur = self.connection.cursor()
+        cur.execute('''CREATE TABLE IF NOT EXISTS SystemStatus (ID INT PRIMARY KEY,
+                                                                Unit TEXT
+                                                                Runing BOOL)''')
 
-    pool.release_connection(connection)
-    return
+    def list_unit_status (self) -> dict:
+        
+        cur = self.connection.cursor()
+        
+        sqlite_select_query = """SELECT * FROM SystemStatus"""
+        
+        cur.execute(sqlite_select_query)
+        
+        df = cur.fetchall()
+        df = pd.DataFrame(df, columns=['ID', 'Unit', 'Runing'])
+        dict_df = df.to_dict()
+        
+        return dict_df
+    
+    def get_unit_status (self, Unit:str) -> dict:
+        
+        units = pd.DataFrame.from_dict(self.list_unit_status())
+        unit = units[units['Unit'] == Unit]    
+        unit = unit.reset_index(drop=True)
+
+        status = unit.loc[0, 'Status']
+
+        return status
+
+    def change_unit_status (self, Unit:str, Status:bool):
+
+        cur = self.connection.cursor()
+
+        Data = (Status, Unit)
+
+        sql_update_query = f"""Update Clients set Status = ? WHERE Unit = ?"""
+      
+        cur.execute(sql_update_query, Data)
+        self.connection.commit()
+
+        return
+
+
+
