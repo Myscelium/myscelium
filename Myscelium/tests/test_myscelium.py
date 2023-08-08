@@ -10,6 +10,9 @@ def host_thread(event_host_received):
     
     my_host = MyHost()
     my_host.set_event('client_contact', Event())
+
+    # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
+
     host_instance = my_host.run(event=event_host_received)
     
     print("Host initialized.")
