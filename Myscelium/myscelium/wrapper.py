@@ -1,47 +1,69 @@
-from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
+
+import sys
+import os
+import importlib
+
+# Add the path to the site-packages where myscelium_engine resides.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".venv", "lib", "site-packages"))
+
+engine_module = importlib.import_module('myscelium_engine')
 
 class MysceliumHost:
 
-    def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5) -> None:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(MysceliumHost, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self, callbacks:list=None, host_id:int=None, allowed_clients:list=None, buffer_path:str=None, n_workers=2, n_max_conns:int=5):
+
+        if hasattr(self, 'initialized') and self.initialized:
+            # If we've already initialized the instance before, skip further initialization
+            return
 
         self.allowed_clients = allowed_clients
 
         self.host_id = host_id
 
         special_functions = [{
-            "function": get_registred_commands,
-            "response_type":"same_as_origin",
+            "function": self.get_registred_commands,
+            "response_type": "same_as_origin",
             "args": "None",
-        }, ]
+        }]
         
+        if callbacks is None:
+            callbacks = []
+            
         callbacks = callbacks + special_functions
 
-        mys.registry_socket_host_callbacks(callbacks)
-        mys.initalize_host_buffer_tables(buffer_path)
-        mys.set_socket_host_allowed_clients(self.allowed_clients)
-        mys.set_socket_host_transposer_num_of_workers(n_workers)
-        mys.set_socket_host_max_connections(n_max_conns)
+        engine_module.registry_socket_host_callbacks(callbacks)
+        engine_module.initalize_host_buffer_tables(buffer_path)
+        engine_module.set_socket_host_allowed_clients(self.allowed_clients)
+        engine_module.set_socket_host_transposer_num_of_workers(n_workers)
+        engine_module.set_socket_host_max_connections(n_max_conns)
 
         self.host_thread = None
+        
+        # Mark this instance as initialized
+        self.initialized = True
 
-        pass
-
-    def set_client_heartbeat_handler (self, callback):
-        mys.registry_socket_host_client_heartbeat_contact_callback(callback)
+    def set_client_heartbeat_handler(self, callback):
+        engine_module.registry_socket_host_client_heartbeat_contact_callback(callback)
     
-    def get_registred_commands (self) -> dict:
+    def get_registred_commands(self) -> dict:
         print("Activated the get registred commands")
-        return mys.get_socket_host_available_commands()
+        return engine_module.get_socket_host_available_commands()
 
-    def initialize_host (self, ip:str, port:int):
-        mys.initialize_socket_host (ip, port, self.host_id)
+    def initialize_host(self, ip:str, port:int):
+        engine_module.initialize_socket_host(ip, port, self.host_id)
 
-    def stop_host (self, signal, frame):
-        # This function will be called when a SIGINT signal is received
-        mys.stop_socket_host()
+    def stop_host(self, signal, frame):
+        engine_module.stop_socket_host()
 
-    def send (self):
-         pass
+    def send(self):
+        pass
     
 class HostPatterns:
 
@@ -85,56 +107,74 @@ class HostPatterns:
 
 class MysceliumClient:
 
-    def __init__(self, client_uid:int, buffer_path:str) -> None:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(MysceliumClient, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self, client_uid:int=None, buffer_path:str=None, n_workers=2):
+
+        # Check if already initialized
+        if hasattr(self, 'initialized') and self.initialized:
+            return
 
         self.client_uid = client_uid
-
-        self.runing = False
-
-        mys.initalize_client_buffer_tables(buffer_path)
-
-        self.host_thread = None
-
-        pass
-
-    def set_client_uid (self, client_uid):
-        mys.set_client_uid(client_uid)
-
-    def set_workers_num (self, n_workers=2):
-        mys.set_socket_client_transposer_num_of_workers(n_workers)
-
-    def set_callbacks (self,callbacks:list):
+        self.running = False
 
         special_functions = [{
-            "function": get_registred_commands,
-            "response_type":"same_as_origin",
+            "function": self.get_registred_commands,
+            "response_type": "same_as_origin",
             "args": "None",
-        }, ]
+        }]
 
-        callbacks = callbacks + special_functions
+        engine_module.initalize_client_buffer_tables(buffer_path)
+        engine_module.set_socket_client_transposer_num_of_workers(n_workers)
 
-        mys.registry_socket_client_callbacks(callbacks) #! We can change this to response handler in the future.
-
-    def get_registred_commands (self) -> dict:
-        print("Activated the get registred commands")
-        return mys.get_socket_client_available_commands()
-
-    def initialize_client (self, ip:str, port:int):
-        self.runing = True
-        mys.initialize_socket_client (ip, port, self.client_uid)
-
-    def stop_client (self, signal, frame):
-        # This function will be called when a SIGINT signal is received
-        mys.stop_socket_client()
-
-    def send (self, command:dict, priority:int):
-        print(self.runing)
-        if not self.runing:
-            raise "Client need to be runing before try to send something"
-        else:
-            pass
-        return mys.client_send(command, priority)
+        self.host_thread = None
         
+        # Mark this instance as initialized
+        self.initialized = True
+
+    def set_client_uid(self, client_uid):
+        engine_module.set_client_uid(client_uid)
+
+    def set_workers_num(self, n_workers=2):
+        engine_module.set_socket_client_transposer_num_of_workers(n_workers)
+
+    def set_callbacks(self, callbacks:list):
+
+        if callbacks is None:
+            callbacks = []
+
+        special_functions = [{
+            "function": self.get_registred_commands,
+            "response_type": "same_as_origin",
+            "args": "None",
+        }]
+        
+        callbacks = callbacks + special_functions
+        engine_module.registry_socket_client_callbacks(callbacks) #! We can change this to response handler in the future.
+
+    def get_registred_commands(self) -> dict:
+        print("Activated the get registred commands")
+        return engine_module.get_socket_client_available_commands()
+
+    def initialize_client(self, ip:str, port:int):
+        self.running = True
+        engine_module.initialize_socket_client(ip, port, self.client_uid)
+
+    def stop_client(self, signal, frame):
+        engine_module.stop_socket_client()
+
+    def send(self, command:dict, priority:int):
+        if not self.running:
+            raise Exception("Client needs to be running before attempting to send something")
+        return engine_module.client_send(command, priority)
+        
+
+
 class ClientPatterns:
 
     def __init__(self) -> None:
@@ -185,7 +225,7 @@ host_patterns = HostPatterns()
 
 def get_registred_commands () -> dict:
     print("Activated the get registred commands")
-    response = mys.get_socket_host_available_commands()
+    response = engine_module.get_socket_host_available_commands()
 
     print(f"\nAvaliable commands:\n{response}\n")
 
