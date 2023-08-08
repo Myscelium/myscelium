@@ -3,15 +3,21 @@ from myscelium import MysceliumHost, HostPatterns
 class MyHost:
     events = {}  # Class level dictionary to hold event references by key
 
+    @staticmethod
+    def store_event(event_key, event_obj):
+        MyHost.events[event_key] = event_obj
+
     @classmethod
     def set_event(cls, key, event):
         """Sets an event for a given key."""
         cls.events[key] = event
 
-    @classmethod
-    def get_event(cls, key):
-        """Fetches an event for a given key."""
-        return cls.events.get(key)
+    @staticmethod
+    def get_event(event_key):
+        event = MyHost.events.get(event_key, None)
+        if not event:
+            print(f"No event found for key: {event_key}")
+        return event
 
     def __init__(self):
         self.host_patterns = HostPatterns()
@@ -51,18 +57,18 @@ class MyHost:
             return None
 
     @staticmethod
-    def handle_client_contact(client_id, event_key=None):
+    def handle_client_contact(client_id, event_key='client_contact'):
         print("Access heartbeat handler")
         print(f"Client: {client_id}, made contact")
 
         event = MyHost.get_event(event_key)
         if event:
-            print("Heartbeat handler is setting the event!")
+            print("Heartbeat handler is setting the client_contact event!")
             event.set()
 
-        return None
+    def run(self, ip="127.0.0.1", port=4444, event=None):
 
-    def run(self, ip="127.0.0.1", port=4444, event_key=None):
+        self.event = event
 
         callbacks = [
             self.host_patterns.callback_pattern(callback=self.python_function,
@@ -86,5 +92,9 @@ class MyHost:
         mys_host.initialize_host(ip=ip, port=port)
 
         return mys_host
+    
+    def stop(self):
+        if hasattr(self, 'mys_host') and self.mys_host:
+            self.mys_host.stop_host()  # assuming MysceliumHost has a stop() method
     
 

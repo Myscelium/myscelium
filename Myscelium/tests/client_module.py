@@ -10,13 +10,20 @@ from threading import Event
 class MyClient:
     events = {}  # shared events dictionary
 
+    @staticmethod
+    def store_event(event_key, event_obj):
+        MyClient.events[event_key] = event_obj
+
     @classmethod
     def set_event(cls, key, event):
         cls.events[key] = event
 
-    @classmethod
-    def get_event(cls, key):
-        return cls.events.get(key)
+    @staticmethod
+    def get_event(event_key):
+        event = MyClient.events.get(event_key, None)
+        if not event:
+            print(f"No event found for key: {event_key}")
+        return event
 
     @staticmethod
     def test_handler(data):
@@ -24,6 +31,9 @@ class MyClient:
         event = MyClient.get_event('main_event')
         if event:
             event.set()
+        
+        # This will stop the client
+        MyClient.instance.stop() 
 
     @staticmethod
     def send_some_data(mys_client):
@@ -48,6 +58,14 @@ class MyClient:
         return mys_client
 
     def run(self, event_key):
-        MyClient.set_event(event_key, Event())
-        self.client = self.initialize_client(event_key)
-        MyClient.send_some_data(self.client)
+        
+        client = self.initialize_client(event_key)
+        
+        # Store the client instance
+        self.client_instance = client
+        
+        self.send_some_data(client, event_key)
+
+    def stop(self):
+        if hasattr(self, 'client_instance') and self.client_instance:
+            self.client_instance.stop_client()  # assuming MysceliumClient has a stop() method
