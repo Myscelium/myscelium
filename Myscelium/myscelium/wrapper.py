@@ -146,7 +146,7 @@ class MysceliumClient:
         self.runing = True
         mys.initialize_socket_client (ip, port, self.client_uid)
 
-    def stop_client (self, signal, frame):
+    def stop_client (self, signal, frame): #! Revise impl (does not const in rust lib)
         # This function will be called when a SIGINT signal is received
         mys.stop_socket_client()
 

@@ -1,6 +1,8 @@
 from myscelium import MysceliumClient, ClientPatterns
 import os
 import time
+import signal
+
 
 client_patterns = ClientPatterns()
 
@@ -15,7 +17,7 @@ class MyClient:
     def test_handler(data):
 
         EVMananger = Events_Mananger(Unit="Client", path="Logs")
-        EVMananger.Set_Event("Activate test handler")
+        EVMananger.Set_Event("Activate Basic Response Test callback handler")
 
         print("Received data: ", data)
         
@@ -57,7 +59,7 @@ class MyClient:
         
         mys_client.initialize_client("127.0.0.1", 4444)
 
-        return
+        return 
     
     def monitor_stop_event(self):
         
@@ -66,8 +68,9 @@ class MyClient:
         while True:
 
             client_status = System_Status(path="Logs").get_unit_status(Unit="Client")
+            host_status = System_Status(path="Logs").get_unit_status(Unit="Host")
 
-            if not client_status:
+            if (not client_status) or (not host_status):
                 print("Receive stop client")
                 System_Status(path="Logs").change_unit_status(Unit="Client", Status=False)
                 break
@@ -90,6 +93,10 @@ class MyClient:
 
         t2.join()
         t3.join()  
+
+        # PID is the process ID of the process you want to send the signal to.
+        # You would typically get this from the 'pid' attribute of a process.
+        os.kill(t1.pid, signal.SIGINT)
 
         t1.kill()
 

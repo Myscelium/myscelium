@@ -1,6 +1,9 @@
 from myscelium import MysceliumHost, HostPatterns
 from multiprocessing import Process, Event, Manager
 from .Logs.test_logs_mananger import Events_Mananger, System_Status
+import os
+import signal
+import time
 
 import time
 
@@ -23,7 +26,8 @@ class MyHost:
             response={"data": 'hello!'}
         )
 
-        # TODO >>> Save event in the test databse log
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Basic Callback")
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
 
         return response
 
@@ -47,22 +51,29 @@ class MyHost:
         print("Access heartbeat handler")
         print(f"Client: {client_id}, made contact")
 
-        # TODO >>> Save event in the test databse log
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
 
     def monitor_stop_event(self):
 
         time.sleep(5)
-        
+
+        # -> Define how much time host will be alive!
+        # TODO >>> In the future change to use 100% timeout
+        n = 0 
+        COUNTER = 10 # Each counter is 5 secs of waiting
+
+
         while True:
 
             client_status = System_Status(path="Logs").get_unit_status(Unit="Client")
 
-            if not client_status:
+            if (not client_status) or (n >= COUNTER):
                 print("Receive stop host")
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
             else:
                 time.sleep(5)
+                n += 1
                 continue
 
         return
@@ -93,20 +104,22 @@ class MyHost:
         System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
         mys_host.initialize_host(ip=ip, port=port)
+        
 
     def run(self, ip="127.0.0.1", port=4444, event=None):
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self.monitor_stop_event)
-        
 
         host_process.start()
         monitor_process.start()
 
         monitor_process.join()
 
-        host_process.kill()
+        # Send SIGINT to the process
+        os.kill(host_process.pid, signal.SIGINT)
 
+        host_process.terminate()
 
         return 
 

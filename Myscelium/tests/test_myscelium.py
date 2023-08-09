@@ -5,7 +5,7 @@ from multiprocessing import Process, Event
 import time
 import os
 import shutil
-
+import pandas as pd
 
 from .host_module import MyHost
 from .client_module import MyClient
@@ -79,6 +79,52 @@ def test_communication():
     
     #> Finish Client
     #> Finish Host
+
+    host_events = Events_Mananger(Unit="Client", path="Logs").List_Events()
+    host_events_df = pd.DataFrame.from_dict(host_events)
+
+    client_events = Events_Mananger(Unit="Client", path="Logs").List_Events() 
+    client_events_df = pd.DataFrame.from_dict(client_events)
+
+    # -> Host events:
+
+    client_contact  = False
+    basic_callback  = False 
+
+    # -> Client events:
+
+    send_data               = False
+    basic_response_handler  = False
+
+    for i in host_events_df.index:
+        event = host_events_df.loc[i, 'StepCompleted']
+
+        if "Contact received from Client: some_client_id" in event:
+            client_contact = True
+
+        if "Active Basic Callback" in event:
+            basic_callback = True
+
+    for i in client_events_df.index:
+        event = client_events_df.loc[i, 'StepCompleted']
+
+        if "Data Sended" in event:
+            send_data = True
+
+        if "Activate Basic Response Test callback handler" in event:
+            basic_response_handler = True
+    
+ 
+    # -> Client
+
+    assert send_data, "Cant send data"
+    assert basic_response_handler, "Don't called basic response handler"
+    
+    # -> Host
+
+    assert client_contact, "Client doesn't made any contact"
+    assert basic_callback, "Baisc callback not called"
+
 
     # event = my_host.get_event('client_contact')
     # assert event.is_set(), "Client contact event was not set!"

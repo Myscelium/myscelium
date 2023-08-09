@@ -78,12 +78,29 @@ class Events_Mananger:
         self.Unit = Unit
 
         self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
-    
+
         cur = self.connection.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS Events (ID INT PRIMARY KEY,
                                                         Unit TEXT,
                                                         StepCompleted TEXT
                                                         )''')
+        
+        
+    def drop_events_table(self) -> None:
+        """Drop the Events table from the database."""
+    
+        try:
+            cur = self.connection.cursor()
+            
+            sql_drop_table_query = """DROP TABLE IF EXISTS Events"""
+            cur.execute(sql_drop_table_query)
+            
+            self.connection.commit()
+            print("Events table has been removed.")
+            
+        except Exception as e:
+            print(f"Error occurred while removing the Events table. Error: {e}")
+
 
     def List_Events(self) -> dict:
         
@@ -99,7 +116,15 @@ class Events_Mananger:
         
         return dict_df
     
-    def Set_Event (self, Step:str):
+    def Set_Event (self, Step:str):     
+
+        events = pd.DataFrame.from_dict(self.List_Events())   
+
+        for i in events.index:
+            if events.loc[i, "StepCompleted"] == Step:
+                return
+            else:
+                continue
 
         cur = self.connection.cursor()
 
@@ -115,15 +140,7 @@ class Events_Mananger:
 
         return
 
-    def Remove_Events(self, ID:int):
-        
-        cur = self.connection.cursor()
-        
-        sql_update_query = """DELETE FROM Events WHERE ID = ?"""
-        
-        cur.execute(sql_update_query, (int(ID),))
-        
-        self.connection.commit()
+ 
 
 class System_Status:
 
@@ -206,6 +223,3 @@ class System_Status:
         self.connection.commit()
 
         return
-
-
-
