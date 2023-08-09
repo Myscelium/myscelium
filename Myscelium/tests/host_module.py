@@ -13,7 +13,7 @@ class MyHost:
         self.host_patterns = HostPatterns()
 
     @staticmethod
-    def python_function(age, birth, name, event_key=None):
+    def python_function(age, birth, name):
         print("Access python function")
         print(birth)
         print(name)
@@ -28,6 +28,11 @@ class MyHost:
 
         Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Basic Callback")
         Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
+<<<<<<< HEAD
+=======
+
+        #                                                            (callback name) - Receive Data: [Data received list for comparison]
+>>>>>>> 43deeb1c4ac62571547dd343e50b3fe48fa3464c
 
         return response
 
@@ -52,6 +57,11 @@ class MyHost:
         print(f"Client: {client_id}, made contact")
 
         Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
+<<<<<<< HEAD
+=======
+
+        # TODO >>> Save event in the test databse log
+>>>>>>> 43deeb1c4ac62571547dd343e50b3fe48fa3464c
 
     def monitor_stop_event(self):
 
@@ -107,6 +117,7 @@ class MyHost:
         
 
     def run(self, ip="127.0.0.1", port=4444, event=None):
+        
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self.monitor_stop_event)
