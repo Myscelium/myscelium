@@ -13,19 +13,6 @@ import os
 import signal
 import time
 
-# -> Timeout handlers:
-
-import psutil
-
-def teardown_function(function):
-    for proc in psutil.process_iter():
-        try:
-            # This is just an example; replace the condition with your specific criteria.
-            if 'specific_marker_or_name' in proc.name():
-                proc.terminate()
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-
 
 # -> Tests:
 
@@ -48,9 +35,8 @@ def client_thread(event_client_received):
     
     print("Client thread finished.")
 
-
-def test_communication_process ():
-
+def test_communication():
+    
     # multiprocessing.set_start_method('spawn')
     # dill.settings['recurse'] = True
 
@@ -150,24 +136,6 @@ def test_communication_process ():
 
     # my_host.clear_events()
     # MyClient.clear_events()
-
-def test_communication():
-    
-    p = Process(target=test_communication_process)
-    p.start()
-
-    # Monitor the process for timeout
-    p.join(timeout=5)  # Let's say a 5-second timeout
-
-    # If process is alive after timeout, terminate it
-    if p.is_alive():
-        print("Test timed out! Terminating...")
-        p.terminate()
-        p.join()  # Make sure the process has finished cleanup
-
-    # Asserts or any post-processing for the test can go here.
-    # Note: if you have asserts within test_communication_process, those will not affect this outer test.
-    # You'd need to communicate results using multiprocessing primitives or other methods to perform asserts here.
 
 if __name__ == '__main__':
     pytest.main()

@@ -20,6 +20,8 @@ class MyClient:
         EVMananger.Set_Event("Activate Basic Response Test callback handler")
 
         print("Received data: ", data)
+
+        time.sleep(5)
         
         System_Status(path="Logs").change_unit_status(Unit="Client", Status=False)
 
@@ -94,11 +96,11 @@ class MyClient:
         t2.join()
         t3.join()  
 
+        time.sleep(5)
+
         # PID is the process ID of the process you want to send the signal to.
         # You would typically get this from the 'pid' attribute of a process.
         os.kill(t1.pid, signal.SIGINT)
-
-        t1.kill()
 
         t1.join()  # Wait for the process to finish
 

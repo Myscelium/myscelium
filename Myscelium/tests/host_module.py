@@ -28,11 +28,8 @@ class MyHost:
 
         Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Basic Callback")
         Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
-<<<<<<< HEAD
-=======
 
         #                                                            (callback name) - Receive Data: [Data received list for comparison]
->>>>>>> 43deeb1c4ac62571547dd343e50b3fe48fa3464c
 
         return response
 
@@ -57,11 +54,8 @@ class MyHost:
         print(f"Client: {client_id}, made contact")
 
         Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
-<<<<<<< HEAD
-=======
 
         # TODO >>> Save event in the test databse log
->>>>>>> 43deeb1c4ac62571547dd343e50b3fe48fa3464c
 
     def monitor_stop_event(self):
 
@@ -70,7 +64,7 @@ class MyHost:
         # -> Define how much time host will be alive!
         # TODO >>> In the future change to use 100% timeout
         n = 0 
-        COUNTER = 10 # Each counter is 5 secs of waiting
+        COUNTER = 12 # Each counter is 5 secs of waiting
 
 
         while True:
@@ -130,7 +124,7 @@ class MyHost:
         # Send SIGINT to the process
         os.kill(host_process.pid, signal.SIGINT)
 
-        host_process.terminate()
+        host_process.join()
 
         return 
 
