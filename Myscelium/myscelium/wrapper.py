@@ -4,9 +4,9 @@ import os
 import importlib
 
 # Add the path to the site-packages where myscelium_engine resides.
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".venv", "lib", "site-packages"))
+# sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".venv", "lib", "site-packages"))
 
-mys = importlib.import_module('myscelium_engine')
+from . import myscelium_engine as mys
 
 class MysceliumHost:
 
