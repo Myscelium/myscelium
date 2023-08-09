@@ -38,3 +38,18 @@
 
 ### Updates
 - Initial pre-alpha release.
+
+## v1.0.0 - ReliseCandidate
+
+### Updates
+- Basic and fundamental functionalities are working!
+
+
+## v1.1.0 - ReliseCandidate
+
+### Updates
+- Add a automatica pytest to test all the lib making connections from client to host and testisng remote function callbacks activationa and client response handlers
+- Improve lib code
+- Improve wrappers
+- Add better exemples of usage
+- Create a way to use classes to run host and client all using Classes
