@@ -1,4 +1,12 @@
-from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
+
+import sys
+import os
+import importlib
+
+# Add the path to the site-packages where myscelium_engine resides.
+# sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".venv", "lib", "site-packages"))
+
+from . import myscelium_engine as mys
 
 class MysceliumHost:
 
@@ -13,6 +21,9 @@ class MysceliumHost:
             "response_type":"same_as_origin",
             "args": "None",
         }, ]
+
+        if callbacks is None:
+            callbacks = []
         
         callbacks = callbacks + special_functions
 
@@ -84,18 +95,30 @@ class HostPatterns:
             return callback_pattern
 
 class MysceliumClient:
+    
+    _instance = None  # Singleton instance
 
-    def __init__(self, client_uid:int, buffer_path:str) -> None:
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(MysceliumClient, cls).__new__(cls)
+        return cls._instance
 
-        self.client_uid = client_uid
+    def __init__(self, client_uid:int, buffer_path:str):
+        # Initialize only if attributes don't exist, preventing overwriting on multiple init calls
+        if not hasattr(self, 'initialized'):
+            self.client_uid = client_uid
+            self.runing = False
+            mys.initalize_client_buffer_tables(buffer_path)
+            self.host_thread = None
+            self.initialized = True
+            # ... rest of your __init__ code ...
 
-        self.runing = False
-
-        mys.initalize_client_buffer_tables(buffer_path)
-
-        self.host_thread = None
-
-        pass
+    @classmethod
+    def new_instance(cls, client_uid:int, buffer_path:str):
+        # Create a fresh instance
+        cls._instance = super(MysceliumClient, cls).__new__(cls)
+        instance = MysceliumClient(client_uid, buffer_path)
+        return instance
 
     def set_client_uid (self, client_uid):
         mys.set_client_uid(client_uid)
@@ -123,7 +146,7 @@ class MysceliumClient:
         self.runing = True
         mys.initialize_socket_client (ip, port, self.client_uid)
 
-    def stop_client (self, signal, frame):
+    def stop_client (self, signal, frame): #! Revise impl (does not const in rust lib)
         # This function will be called when a SIGINT signal is received
         mys.stop_socket_client()
 
@@ -184,6 +207,7 @@ class ClientPatterns:
 host_patterns = HostPatterns()
 
 def get_registred_commands () -> dict:
+
     print("Activated the get registred commands")
     response = mys.get_socket_host_available_commands()
 

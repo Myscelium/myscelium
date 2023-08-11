@@ -154,6 +154,10 @@ fn stop_socket_host() {
     HOST_IS_RUNING.store(false, Ordering::SeqCst);
 }
 
+fn stop_socket_client() {
+    CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+}
+
 #[pyfunction]
 fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
@@ -515,7 +519,7 @@ fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: St
             if HOST_IS_RUNING.load(Ordering::SeqCst) {
                 CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
                 println!("\nreceived Ctrl+C!\n");
-                stop_socket_host();
+                stop_socket_client();
             }
         })
         .expect("Error setting Ctrl-C handler");
