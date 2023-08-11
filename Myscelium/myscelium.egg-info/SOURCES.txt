@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 setup.py
 myscelium/__init__.py
@@ -7,3 +8,4 @@ myscelium.egg-info/SOURCES.txt
 myscelium.egg-info/dependency_links.txt
 myscelium.egg-info/not-zip-safe
 myscelium.egg-info/top_level.txt
+tests/test_myscelium.py

@@ -7,3 +7,15 @@
 -> activate .venv
 -> run: python setup.py bdist_wheel
 
+## New way to install
+cd \Myscelium
+. /.venv/bin/activate
+cd \Myscelium
+then run `pip install -e .` (This guaranties that the binnaries will be installed too)
+
+## To test:
+cd \Myscelium
+. /.venv/bin/activate
+cd \Myscelium\tests
+then:
+-> run: `pytest -v -s ./test_myscelium.py`
