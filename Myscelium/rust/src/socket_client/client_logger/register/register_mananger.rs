@@ -30,11 +30,11 @@ use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
-// TODO >>> Add a mecanism toa utomatically save the Logs intoa  database and the client
-//*         Add a system to store Logs from host
+// TODO >>> Add a mecanism toa utomatically save the ClientLogs intoa  database and the client
+//*         Add a system to store ClientLogs from host
 //*         Add a system to store clients last contact
 
-//>     	Then make a interface in the python side to retirve the Logs from the database
+//>     	Then make a interface in the python side to retirve the ClientLogs from the database
 //>         And a system to retrive the client last contact from the databse
 
 // -> DONE
@@ -100,7 +100,7 @@ fn get_registred_ids() -> Vec<u32> {
     let mut ids: Vec<u32> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM Logs").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientClientLogs").unwrap();
         let commands_iter = smtp
             .query_map(params![], |row| {
                 let id: u32 = row.get(0)?;
@@ -132,22 +132,22 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
         std::fs::create_dir_all(&dir_path).unwrap();
     }
 
-    println!("initializing Logs table in: {}", new_loggs_storage_path);
+    println!("initializing ClientLogs table in: {}", new_loggs_storage_path);
 
     let buffer_pool = SQLiteConnectionPool::new(10, default_loggs_storage_path.as_str()).unwrap();
     let conn = buffer_pool.get_connection().unwrap();
 
     let result = conn.execute(
-        "CREATE TABLE IF NOT EXISTS Logs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)",
+        "CREATE TABLE IF NOT EXISTS ClientLogs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)",
         params![],
     );
 
     match result {
         Ok(_) => {
-            println!("Successfully initialize Logs table!");
+            println!("Successfully initialize ClientLogs table!");
         },
         Err(e) => {
-            eprintln!("An error occurred while scheduling the command in the Logs table: {}", e);
+            eprintln!("An error occurred while scheduling the command in the ClientLogs table: {}", e);
         },
     }
 
@@ -170,20 +170,20 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
     };
 
     let result = conn.execute(
-        "INSERT INTO Logs (ID, NodeName, LogTime, LogName, LogLevel, LogMsg) VALUES (?, ?, ?, ?, ?, ?);",
+        "INSERT INTO ClientLogs (ID, NodeName, LogTime, LogName, LogLevel, LogMsg) VALUES (?, ?, ?, ?, ?, ?);",
         params![id_generator.gen(), node_name, log_time, log_name, log_level, log_msg],
     );
 
     match result {
         Ok(rows) => {
             if rows > 0 {
-                println!("Successfully inserted Log in the table Logs. {} row(s) were affected.", rows);
+                println!("Successfully inserted Log in the table ClientLogs. {} row(s) were affected.", rows);
             } else {
                 println!("No rows were affected.");
             }
         },
         Err(e) => {
-            eprintln!("An error occurred while inserting the Log in the table Logs: {}", e);
+            eprintln!("An error occurred while inserting the Log in the table ClientLogs: {}", e);
         },
     }
 
@@ -197,7 +197,7 @@ pub fn list_logs() -> Vec<Log> {
     let mut registred_logs: Vec<Log> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM Logs").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientLogs").unwrap();
 
         let logs_iter = smtp
             .query_map(params![], |row| {
@@ -219,7 +219,7 @@ pub fn list_logs() -> Vec<Log> {
                 },
 
                 Err(e) => {
-                    println!("An error occurred while getting the Logs vec in list_logs, the error was: {}", e);
+                    println!("An error occurred while getting the ClientLogs vec in list_logs, the error was: {}", e);
                 },
             }
         }
@@ -232,14 +232,14 @@ pub fn list_logs() -> Vec<Log> {
 
 pub fn remove_log_by_id(log_id: u32) {
     let conn = LOGS_REGISTERS_POOL.get_connection().unwrap();
-    let result = conn.execute("DELETE from Logs where ID = ?", params![log_id]);
+    let result = conn.execute("DELETE from ClientLogs where ID = ?", params![log_id]);
 
     match result {
         Ok(rows) => {
             println!("Successfully deleted Log of ID: {}. {} rows were affected.", log_id, rows);
         },
         Err(e) => {
-            eprintln!("An error occurred while deleting the Log: {} from Logs table: {}", log_id, e);
+            eprintln!("An error occurred while deleting the Log: {} from ClientLogs table: {}", log_id, e);
         },
     }
 
