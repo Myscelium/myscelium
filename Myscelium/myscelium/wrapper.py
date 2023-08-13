@@ -1,5 +1,6 @@
 from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
 from . import host_logs_retriver
+from . import client_logs_retriver
 
 from multiprocessing import Process
 import pandas as pd
@@ -108,11 +109,11 @@ class MysceliumHostInterface:
         and process them in parallel.
         """
 
-        pool = host_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = client_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
-        logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = client_logs_retriver.Logs_Buffer_Retriver(connection)
 
         while True:
 
