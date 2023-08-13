@@ -1,5 +1,5 @@
 from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
-from . import logs_retriver
+from . import host_logs_retriver
 
 from multiprocessing import Process
 import pandas as pd
@@ -43,9 +43,9 @@ def split_dataframe(df, num_chunks):
     return chunks
 
 def transpose(logs_df, buffer_path, log_callback):
-    pool = logs_retriver.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
+    pool = host_logs_retriver.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
     connection = pool.get_connection()
-    logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
+    logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
 
     for i in logs_df.index:
         try:
@@ -69,7 +69,7 @@ def check_if_all_logs_was_transposed(pool):
 
     connection = pool.get_connection()
     
-    logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
+    logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
     logs_dict_df = logs_retriever_access.List_Logs()
     
     pool.release_connection(connection)
@@ -108,11 +108,11 @@ class MysceliumHostInterface:
         and process them in parallel.
         """
 
-        pool = logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = host_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
-        logs_retriever_access = logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
 
         while True:
 

@@ -41,7 +41,7 @@ class Logs_Buffer_Retriver:
         self.connection = connection
     
         cur = self.connection.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS Logs (ID INT PRIMARY KEY,
+        cur.execute('''CREATE TABLE IF NOT EXISTS HostLogs (ID INT PRIMARY KEY,
                                                         NodeName TEXT,
                                                         LogTime FLOAT,
                                                         LogName TEXT,
@@ -53,7 +53,7 @@ class Logs_Buffer_Retriver:
         
         cur = self.connection.cursor()
         
-        sqlite_select_query = """SELECT * FROM Logs"""
+        sqlite_select_query = """SELECT * FROM HostLogs"""
         
         cur.execute(sqlite_select_query)
         
@@ -67,7 +67,7 @@ class Logs_Buffer_Retriver:
         
         cur = self.connection.cursor()
         
-        sql_update_query = """DELETE from Logs WHERE ID = ?"""
+        sql_update_query = """DELETE from HostLogs WHERE ID = ?"""
         
         cur.execute(sql_update_query, (int(ID),))
         

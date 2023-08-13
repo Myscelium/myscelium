@@ -30,11 +30,11 @@ use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
-// TODO >>> Add a mecanism toa utomatically save the Logs intoa  database and the client
-//*         Add a system to store Logs from host
+// TODO >>> Add a mecanism toa utomatically save the HostLogs intoa  database and the client
+//*         Add a system to store HostLogs from host
 //*         Add a system to store clients last contact
 
-//>     	Then make a interface in the python side to retirve the Logs from the database
+//>     	Then make a interface in the python side to retirve the HostLogs from the database
 //>         And a system to retrive the client last contact from the databse
 
 // -> DONE
@@ -100,7 +100,7 @@ fn get_registred_ids() -> Vec<u32> {
     let mut ids: Vec<u32> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM Logs").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM HostLogs").unwrap();
         let commands_iter = smtp
             .query_map(params![], |row| {
                 let id: u32 = row.get(0)?;
@@ -138,16 +138,16 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
     let conn = buffer_pool.get_connection().unwrap();
 
     let result = conn.execute(
-        "CREATE TABLE IF NOT EXISTS Logs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)",
+        "CREATE TABLE IF NOT EXISTS HostLogs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)",
         params![],
     );
 
     match result {
         Ok(_) => {
-            println!("Successfully initialize Logs table!");
+            println!("Successfully initialize HostLogs table!");
         },
         Err(e) => {
-            eprintln!("An error occurred while scheduling the command in the Logs table: {}", e);
+            eprintln!("An error occurred while scheduling the command in the HostLogs table: {}", e);
         },
     }
 
@@ -170,20 +170,20 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
     };
 
     let result = conn.execute(
-        "INSERT INTO Logs (ID, NodeName, LogTime, LogName, LogLevel, LogMsg) VALUES (?, ?, ?, ?, ?, ?);",
+        "INSERT INTO HostLogs (ID, NodeName, LogTime, LogName, LogLevel, LogMsg) VALUES (?, ?, ?, ?, ?, ?);",
         params![id_generator.gen(), node_name, log_time, log_name, log_level, log_msg],
     );
 
     match result {
         Ok(rows) => {
             if rows > 0 {
-                println!("Successfully inserted command in the table Logs. {} row(s) were affected.", rows);
+                println!("Successfully inserted command in the table HostLogs. {} row(s) were affected.", rows);
             } else {
                 println!("No rows were affected.");
             }
         },
         Err(e) => {
-            eprintln!("An error occurred while inserting the command in the table Logs: {}", e);
+            eprintln!("An error occurred while inserting the command in the table HostLogs: {}", e);
         },
     }
 
@@ -197,7 +197,7 @@ pub fn list_logs() -> Vec<Log> {
     let mut commands_schedule: Vec<Log> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM Logs").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM HostLogs").unwrap();
 
         let commands_iter = smtp
             .query_map(params![], |row| {
@@ -224,14 +224,14 @@ pub fn list_logs() -> Vec<Log> {
 
 pub fn remove_log_by_id(log_id: u32) {
     let conn = LOGS_REGISTERS_POOL.get_connection().unwrap();
-    let result = conn.execute("DELETE from Logs where ID = ?", params![log_id]);
+    let result = conn.execute("DELETE from HostLogs where ID = ?", params![log_id]);
 
     match result {
         Ok(rows) => {
             println!("Successfully deleted Command of ID: {}. {} rows were affected.", log_id, rows);
         },
         Err(e) => {
-            eprintln!("An error occurred while deleting the command: {} from Logs table: {}", log_id, e);
+            eprintln!("An error occurred while deleting the command: {} from HostLogs table: {}", log_id, e);
         },
     }
 

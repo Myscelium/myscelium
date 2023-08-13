@@ -5,3 +5,6 @@ target/
 *.log
 build
 myscelium.egg-info
+ClientData
+Data
+Logs/
