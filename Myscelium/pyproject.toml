@@ -1,4 +1,4 @@
 [build-system]
-requires = ["setuptools", "wheel", "setuptools_rust", "pandas", "Process", "sqlite3", "simplejson"]
+requires = ["setuptools", "wheel", "setuptools_rust", "pandas", "simplejson"]
 
 

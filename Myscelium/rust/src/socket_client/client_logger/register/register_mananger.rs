@@ -100,7 +100,7 @@ fn get_registred_ids() -> Vec<u32> {
     let mut ids: Vec<u32> = Vec::new();
 
     {
-        let mut smtp = conn.prepare("SELECT * FROM ClientClientLogs").unwrap();
+        let mut smtp = conn.prepare("SELECT * FROM ClientLogs").unwrap();
         let commands_iter = smtp
             .query_map(params![], |row| {
                 let id: u32 = row.get(0)?;

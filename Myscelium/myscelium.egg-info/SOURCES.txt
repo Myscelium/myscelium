@@ -1,10 +1,12 @@
 pyproject.toml
 setup.py
 myscelium/__init__.py
-myscelium/logs_retriver.py
+myscelium/client_logs_retriver.py
+myscelium/host_logs_retriver.py
 myscelium/wrapper.py
 myscelium.egg-info/PKG-INFO
 myscelium.egg-info/SOURCES.txt
 myscelium.egg-info/dependency_links.txt
 myscelium.egg-info/not-zip-safe
 myscelium.egg-info/top_level.txt
+tests/test.py

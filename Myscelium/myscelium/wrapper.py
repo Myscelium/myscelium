@@ -109,11 +109,11 @@ class MysceliumHostInterface:
         and process them in parallel.
         """
 
-        pool = client_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = host_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
-        logs_retriever_access = client_logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
 
         while True:
 
@@ -624,11 +624,11 @@ class MysceliumClientInterface:
         and process them in parallel.
         """
 
-        pool = host_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = client_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
-        logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = client_logs_retriver.Logs_Buffer_Retriver(connection)
 
         while True:
 

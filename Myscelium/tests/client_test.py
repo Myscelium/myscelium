@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns
+from myscelium import MysceliumClient, ClientPatterns, MysceliumClientInterface
 from threading import Thread
 from _thread import *
 
@@ -7,6 +7,19 @@ import time
 import os
 
 client_patterns = ClientPatterns ()
+
+def logs_handler (log:dict):
+
+    try:
+        log_time  = log["log_time"]
+        log_level = log["log_level"]
+        log_msg   = log["log_msg"]
+
+        print(f"{log_time} - {log_level} - {log_msg}")
+    except:
+        pass
+
+    pass
 
 # -> Response callbacks
 
@@ -61,7 +74,6 @@ def send_some_data ():
 
     pass
 
-
 # -> Initializers
 
 # def logs_handler (node_name:str, log_time:float, log_name:str, log_msg:str):
@@ -70,7 +82,9 @@ def send_some_data ():
 
 def initialize_client ():
 
-    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/", log_level="DEBUG")
+    BUFFER_PATH = "ClientData/"
+
+    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path=BUFFER_PATH, log_level="DEBUG")
 
     # > ----------------------------------------------------------------------------------
     # > Logs
@@ -90,6 +104,14 @@ def initialize_client ():
 
     mys_client.set_callbacks(callbacks=callbacks)
     mys_client.set_workers_num(n_workers=2)
+
+    client_logs_interface = MysceliumClientInterface(buffer_path=BUFFER_PATH)
+
+    client_logs_interface.set_logs_callback(callback=logs_handler)
+
+    client_logs_interface.allow_multi_handlers(workers_num=3)
+
+    client_logs_interface.start_logs_retriver()
 
     mys_client.initialize_client("127.0.0.1",4444)
 
