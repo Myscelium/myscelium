@@ -109,11 +109,11 @@ class MysceliumHostInterface:
         and process them in parallel.
         """
 
-        pool = client_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = host_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
-        logs_retriever_access = client_logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
 
         while True:
 
@@ -229,7 +229,7 @@ class MysceliumHostInterface:
 
 class MysceliumHost:
 
-    def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="") -> None:
+    def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="DEBUG") -> None:
 
         """
         Initialize the MysceliumHost.
@@ -261,11 +261,14 @@ class MysceliumHost:
             "response_type":"same_as_origin",
             "args": "None",
         }, ]
+
+        if callbacks is None:
+            callbacks = []
         
         callbacks = callbacks + special_functions
 
         if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION", ""]:
-            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+            raise f"Client log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
         else:
             pass
 
@@ -455,9 +458,11 @@ class HostPatterns:
 # > CLIENT
 
 class MysceliumClient:
+    
+    _instance = None  # Singleton instance 
 
-    def __init__(self, client_uid:int, buffer_path:str, log_level:str="WARN") -> None:
-
+    def __init__(self, client_uid:int, buffer_path:str, log_level:str="DEBUG"):
+        
         """
         Initialize the MysceliumClient.
 
@@ -467,20 +472,27 @@ class MysceliumClient:
         - log_level: Logging level.
         """
 
-        self.client_uid = client_uid
+        if not hasattr(self, 'initialized'):
+            self.client_uid = client_uid
+            self.runing = False
+            mys.initalize_client_buffer_tables(buffer_path)
+            self.host_thread = None
+            self.initialized = True
 
-        self.runing = False
+            if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
+                raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+            else:
+                pass
 
-        mys.initalize_client_buffer_tables(buffer_path)
+            mys.set_socket_client_log_level(log_level)
 
-        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
-            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
-        else:
-            pass
 
-        mys.set_socket_client_log_level(log_level)
-        
-        pass
+    @classmethod
+    def new_instance(cls, client_uid:int, buffer_path:str):
+        # Create a fresh instance
+        cls._instance = super(MysceliumClient, cls).__new__(cls)
+        instance = MysceliumClient(client_uid, buffer_path)
+        return instance
 
     # def set_logs_callback_handler (self, logs_handler_callback:list):
     #     print("active py set log callback")
@@ -624,11 +636,11 @@ class MysceliumClientInterface:
         and process them in parallel.
         """
 
-        pool = host_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = client_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
-        logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = client_logs_retriver.Logs_Buffer_Retriver(connection)
 
         while True:
 

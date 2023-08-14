@@ -229,7 +229,7 @@ class MysceliumHostInterface:
 
 class MysceliumHost:
 
-    def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="") -> None:
+    def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="DEBUG") -> None:
 
         """
         Initialize the MysceliumHost.
@@ -268,7 +268,7 @@ class MysceliumHost:
         callbacks = callbacks + special_functions
 
         if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION", ""]:
-            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+            raise f"Client log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
         else:
             pass
 
@@ -459,10 +459,10 @@ class HostPatterns:
 
 class MysceliumClient:
     
-    _instance = None  # Singleton instance
+    _instance = None  # Singleton instance 
 
-    def __init__(self, client_uid:int, buffer_path:str, log_level:str="WARN") -> None:
-
+    def __init__(self, client_uid:int, buffer_path:str, log_level:str="DEBUG"):
+        
         """
         Initialize the MysceliumClient.
 
@@ -472,15 +472,20 @@ class MysceliumClient:
         - log_level: Logging level.
         """
 
-    def __init__(self, client_uid:int, buffer_path:str):
-        # Initialize only if attributes don't exist, preventing overwriting on multiple init calls
         if not hasattr(self, 'initialized'):
             self.client_uid = client_uid
             self.runing = False
             mys.initalize_client_buffer_tables(buffer_path)
             self.host_thread = None
             self.initialized = True
-            # ... rest of your __init__ code ...
+
+            if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
+                raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+            else:
+                pass
+
+            mys.set_socket_client_log_level(log_level)
+
 
     @classmethod
     def new_instance(cls, client_uid:int, buffer_path:str):

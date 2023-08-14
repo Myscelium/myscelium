@@ -36,7 +36,7 @@ pub fn set_client_log_level(log_level: String) {
     {
         let mut current_log_level = CLIENT_LOG_LEVEL.lock().unwrap();
         *current_log_level = log_level.clone();
-        println!("log levels seted to: {:?}", log_level);
+        println!("Client log levels seted to: {:?}", log_level);
     }
 }
 

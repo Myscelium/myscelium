@@ -132,7 +132,7 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
         std::fs::create_dir_all(&dir_path).unwrap();
     }
 
-    println!("initializing buffer in: {}", new_loggs_storage_path);
+    println!("initializing Logs Table in: {}", new_loggs_storage_path);
 
     let buffer_pool = SQLiteConnectionPool::new(10, default_loggs_storage_path.as_str()).unwrap();
     let conn = buffer_pool.get_connection().unwrap();
