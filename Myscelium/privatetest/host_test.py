@@ -1,6 +1,8 @@
-from myscelium.wrapper import MysceliumHost, HostPatterns
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
 
 host_patterns = HostPatterns()
+
+# -> Callbacks python functions
 
 def python_function(age, birth, name):
 
@@ -28,10 +30,27 @@ def test_redirect (client_id, data):
         print ("Client id isn't a string, failed to redirect data!")
         return None
     
+# -> Host handlers
+
 def handle_client_contact (client_id:str):
-    print("Access heartbeat handler")
-    print(f"Client: {client_id}, made contact")
+    # print("Access heartbeat handler")
+    # print(f"Client: {client_id}, made contact")
     return None
+
+def logs_handler (log:dict):
+
+    try:
+        log_time  = log["log_time"]
+        log_level = log["log_level"]
+        log_msg   = log["log_msg"]
+
+        print(f"{log_time} - {log_level} - {log_msg}")
+    except:
+        pass
+
+    pass
+
+# -> Set Host callbacks
 
 callbacks = [
 
@@ -48,6 +67,8 @@ callbacks = [
 
 ]
 
+# -> Set host allowed clients whitelist
+
 allowed_clients = [
 
     host_patterns.client_pattern(client_type="Interface", client_id="some_client_id"),
@@ -55,16 +76,39 @@ allowed_clients = [
 
 ]
 
+# -> Initialize
+
 if __name__ == '__main__':
-    
-    mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2)
 
-    client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={
-        "client_id": "str",
-    }),]
+    BUFFER_PATH = "Data/"
 
-    mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+    mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path=BUFFER_PATH, n_workers=2, log_level="DEBUG")
+
+    # client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={
+    #     "client_id": "str",
+    # }),] #! Feature removed for now.
+
+    # mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+
+    # logs_handler = [host_patterns.callback_pattern(callback=logs_handler, args={
+    #     "node_name":"str",
+    #     "log_time":"float",
+    #     "log_name":"str",
+    #     "log_msg":"str",
+    # }),]
+
+    host_logs_interface = MysceliumHostInterface(buffer_path=BUFFER_PATH)
+
+    host_logs_interface.set_logs_callback(callback=logs_handler)
+
+    host_logs_interface.allow_multi_handlers(workers_num=3)
+
+    host_logs_interface.start_logs_retriver()
+
+    # mys_host.set_logs_callback_handler(logs_handler_callback=logs_handler)
 
     # print(mys_host.get_registred_commands())
 
     mys_host.initialize_host(ip="127.0.0.1", port=4444)
+
+    

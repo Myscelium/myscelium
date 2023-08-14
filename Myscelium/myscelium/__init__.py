@@ -1,2 +1,1 @@
-from .wrapper import MysceliumClient, ClientPatterns, MysceliumHost, HostPatterns
-from .myscelium_engine import *
+from .wrapper import MysceliumClient, ClientPatterns, MysceliumClientInterface, MysceliumHost, HostPatterns, MysceliumHostInterface

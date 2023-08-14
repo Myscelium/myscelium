@@ -41,6 +41,19 @@ use std::io::Write;
 
 use serde_json::json;
 
+use super::client_logger::log_handler::Logger;
+use crate::CLIENT_LOG_LEVEL;
+
+macro_rules! acquire_logger {
+    ($section_name:expr) => {{
+        let client_log_level;
+        {
+            client_log_level = CLIENT_LOG_LEVEL.lock().unwrap().clone();
+        }
+        Logger::new(client_log_level, $section_name)
+    }};
+}
+
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
@@ -101,13 +114,13 @@ pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, 
 }
 
 pub fn initialize_client_buffer(buffer_location: String) {
-    println!("\ninicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
+    println!("inicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
 
     enhanced_buffer::buffer_down_mananger::buffer_down_initialize_table(buffer_location.clone());
 
     enhanced_buffer::buffer_up_mananger::buffer_up_initialize_table(buffer_location.clone());
 
-    println!("\nAll buffer initialized succefully!\n");
+    println!("All buffer initialized succefully!");
 
     return;
 }
@@ -221,6 +234,8 @@ impl Command {
     }
 
     pub fn from_down_command(down_command: DownCommand) -> Self {
+        let logger = acquire_logger!("Core");
+
         let client_id = down_command.client_id.clone();
         let parity_id = down_command.parity_id.clone();
         let priority = down_command.priority.clone();
@@ -240,17 +255,17 @@ impl Command {
                 if let Value::Object(transformed_map) = transformed_value {
                     command = transformed_map.into_iter().collect(); // Convert serde_json::Map back to HashMap
                 } else {
-                    println!("Unexpected format after transformation");
+                    logger.warn(format!("Unexpected format after transformation"));
                     command = HashMap::new();
                 }
             } else {
                 command = HashMap::new();
-                println!("Command has other case other than Response");
+                logger.warn(format!("Command has other case other than Response"));
                 // Handle the case where the "response" key is not a string
             }
         } else {
             command = HashMap::new();
-            println!("Command isn't an object");
+            logger.warn(format!("Command isn't an object"));
             // Handle the case where the outer_value is not an object
         }
         Self {
@@ -279,6 +294,8 @@ impl Command {
 use serde_json::to_string;
 
 fn verify_connection(stream: &mut TcpStream) -> bool {
+    let logger = acquire_logger!("Core");
+
     let command = create_special_command!("C202");
 
     let command_json = json!(command).to_string();
@@ -294,7 +311,7 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
-    println!("{:?}", command);
+    logger.debug(format!("{:?}", command));
 
     match command.command.get("function") {
         Some(Value::String(function)) => {
@@ -305,17 +322,19 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
             }
         },
         _ => {
-            println!("The function name is not found or not a string.");
+            logger.warn(format!("The function name is not found or not a string."));
             return false;
         },
     }
 }
 
 fn send(stream: &mut TcpStream, command: Command) -> Response {
+    let logger = acquire_logger!("Core");
+
     let conn: bool = verify_connection(stream);
 
     if !conn {
-        println!("Not connected!");
+        logger.info(format!("Not connected!"));
         return Response::None;
     }
 
@@ -332,7 +351,7 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
-    println!("Received: {:?}", command);
+    logger.debug(format!("Received: {:?}", command));
 
     return Response::Command(command);
 }
@@ -355,15 +374,17 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
 
 // This function handles the response and returns an appropriate action.
 fn handle_response(received: Response) -> Option<DownCommand> {
+    let logger = acquire_logger!("Core");
+
     let command_received;
 
     match received {
         Response::None => {
-            println!("Received invalid data!");
+            logger.warn(format!("Received invalid data!"));
             return None;
         },
         Response::Command(c) => {
-            println!("\nReceived command: {:?}", c);
+            logger.debug(format!("\nReceived command: {:?}", c));
             command_received = c;
         },
     }
@@ -374,21 +395,21 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             if command_received.parity_id != "itisaspecialcase" {
                 if function == "C210".to_string() {
-                    println!("Received Confirmation!");
+                    logger.info(format!("Received Confirmation!"));
                     return None;
                 } else if function == "Error".to_string() {
-                    println!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap());
+                    logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
                     CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
                     return None;
                 }
             }
 
-            println!("Receive a function: {:?}", f);
+            logger.debug(format!("Receive a function: {:?}", f));
             return None;
         },
 
         CommandType::Response(r) => {
-            println!("Received a response!");
+            logger.info(format!("Received a response!"));
 
             let down_command = DownCommand::from_command(command_received.clone());
 
@@ -402,27 +423,29 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
 
-            println!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("error").unwrap());
+            logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("error").unwrap()));
             CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
 
             return None;
         },
 
         CommandType::Unknown => {
-            println!("Received an Unknown command!");
+            logger.warn(format!("Received an Unknown command!"));
             return None;
         },
     }
 }
 
 pub fn initialize_client(address: String, client_id: String) {
+    let logger = acquire_logger!("Core");
+
     let mut stream = TcpStream::connect(address).unwrap();
 
     thread::sleep(Duration::from_secs(2));
 
     loop {
         if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
-            print!("running is set to false, shutdown socket client main process!");
+            logger.info(format!("running is set to false, shutdown socket client main process!"));
             break;
         }
 

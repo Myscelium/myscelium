@@ -100,10 +100,12 @@ class MyHost:
 
         self.mys_host = mys_host
 
-        client_heart_beat_handler = [self.host_patterns.callback_pattern(callback=self.handle_client_contact,
-                                                                         args={"client_id": "str", "event_key": "str"}), ]
+        # client_heart_beat_handler = [self.host_patterns.callback_pattern(callback=self.handle_client_contact,
+        #                                                                  args={"client_id": "str", "event_key": "str"}), ]
 
-        mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+        # mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+
+        # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTecnologie})
 
         System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 

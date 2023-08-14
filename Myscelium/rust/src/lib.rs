@@ -7,6 +7,9 @@ use socket_host::socket_host::{get_available_commands_registered, initialize_hos
 use socket_host::socket_host::{initialize_host_buffer, register_client, set_heartbeat_callback, set_max_conns};
 use socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
 
+use socket_client::client_logger::log_handler::{initialize_client_logs_databse_dir, set_client_log_level};
+use socket_host::host_logger::log_handler::{initialize_host_logs_databse_dir, set_host_log_level};
+
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -27,9 +30,18 @@ use std::time::{Duration, Instant};
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+
+    // CLIENT
     pub static ref CLIENT_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+    pub static ref CLIENT_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+    pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+
+    // HOST:
+    pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+    pub static ref HOST_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+    pub static ref HOST_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+
 }
 
 // #[pyfunction]
@@ -58,6 +70,48 @@ lazy_static! {
 
 //     Ok(())
 // }
+
+macro_rules! process_commands {
+    ($py:expr, $commands:expr, $callback_pattern:expr) => {
+        for command in $commands.iter() {
+            let command_dict: &PyDict = command.downcast().unwrap();
+            let function: &PyAny = command_dict.get_item("function").unwrap();
+
+            let args_item: &PyAny = command_dict.get_item("args").unwrap();
+
+            // Check if args_item is a dict or a string with the value "None"
+            let args_dict: Option<&PyDict>;
+
+            if let Ok(args_as_dict) = args_item.downcast::<PyDict>() {
+                args_dict = Some(args_as_dict);
+            } else if let Ok(args_as_str) = args_item.extract::<String>() {
+                if args_as_str == "None" {
+                    args_dict = None;
+                } else {
+                    return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
+                }
+            } else {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
+            }
+
+            // Extract the Python function name
+            let function_name: &str = function.getattr("__name__")?.extract()?;
+
+            // Extract the argument types
+            let args_types_value;
+            if let Some(args_dict) = args_dict {
+                args_types_value = extract_arg_types(args_dict)?;
+            } else {
+                args_types_value = Value::Array(Vec::new()); // or whatever default value you want to use
+            }
+
+            let function = function.downcast::<PyFunction>()?.clone();
+
+            let function: Py<PyFunction> = function.into_py($py); // convert &PyAny to Py<PyFunction>
+            $callback_pattern.insert(function_name.to_string(), (function, args_types_value));
+        }
+    };
+}
 
 #[pyfunction]
 fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
@@ -98,52 +152,39 @@ fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
 fn initalize_host_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
-    initialize_host_buffer(buffer_path);
+    initialize_host_buffer(buffer_path.clone());
+    initialize_host_logs_databse_dir(buffer_path.clone());
 
     return;
 }
 
 #[pyfunction]
+fn set_socket_host_log_level(log_level: &PyString) {
+    let log_level: String = log_level.extract().unwrap();
+
+    set_host_log_level(log_level);
+
+    return;
+}
+
+// #[pyfunction]
+// fn registry_host_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
+//     let mut callback_pattern = HashMap::new();
+
+//     process_commands!(py, commands, callback_pattern);
+
+//     set_host_logs_handler_callback(callback_pattern);
+
+//     println!("set the log callback");
+
+//     Ok(())
+// }
+
+#[pyfunction]
 fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
     let mut callback_pattern = HashMap::new();
 
-    for command in commands.iter() {
-        let command_dict: &PyDict = command.downcast().unwrap();
-        let function: &PyAny = command_dict.get_item("function").unwrap();
-
-        let args_item: &PyAny = command_dict.get_item("args").unwrap();
-
-        // Check if args_item is a dict or a string with the value "None"
-        let args_dict: Option<&PyDict>;
-
-        if let Ok(args_as_dict) = args_item.downcast::<PyDict>() {
-            args_dict = Some(args_as_dict);
-        } else if let Ok(args_as_str) = args_item.extract::<String>() {
-            if args_as_str == "None" {
-                args_dict = None;
-            } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
-            }
-        } else {
-            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
-        }
-
-        // Extract the Python function name
-        let function_name: &str = function.getattr("__name__")?.extract()?;
-
-        // Extract the argument types
-        let args_types_value;
-        if let Some(args_dict) = args_dict {
-            args_types_value = extract_arg_types(args_dict)?;
-        } else {
-            args_types_value = Value::Array(Vec::new()); // or whatever default value you want to use
-        }
-
-        let function = function.downcast::<PyFunction>()?.clone();
-
-        let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
-        callback_pattern.insert(function_name.to_string(), (function, args_types_value));
-    }
+    process_commands!(py, commands, callback_pattern);
 
     set_heartbeat_callback(callback_pattern);
 
@@ -231,7 +272,6 @@ fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: Stri
 
     loop {
         initialize_socket_host_transposer(py);
-        println!("Socket transposer exited ssucefully!");
 
         if !HOST_IS_RUNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
@@ -239,6 +279,8 @@ fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: Stri
             break;
         }
     }
+
+    println!("Socket transposer exited ssucefully!");
 }
 
 fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject> {
@@ -329,7 +371,8 @@ fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
 fn initalize_client_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
-    initialize_client_buffer(buffer_path);
+    initialize_client_buffer(buffer_path.clone());
+    initialize_client_logs_databse_dir(buffer_path.clone());
 
     return;
 }
@@ -440,7 +483,7 @@ fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<P
         },
     }
 
-    Ok("Ok".to_string().into_py(py))
+    Ok("Sended!".to_string().into_py(py))
 }
 
 #[pyfunction]
@@ -448,6 +491,28 @@ fn set_client_host_target() {}
 
 #[pyfunction]
 fn set_client_workers_num() {}
+
+#[pyfunction]
+fn set_socket_client_log_level(log_level: &PyString) {
+    let log_level: String = log_level.extract().unwrap();
+
+    set_client_log_level(log_level);
+
+    return;
+}
+
+// #[pyfunction]
+// fn registry_client_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
+//     let mut callback_pattern = HashMap::new();
+
+//     process_commands!(py, commands, callback_pattern);
+
+//     set_client_logs_handler_callback(callback_pattern);
+
+//     println!("set the log callback");
+
+//     Ok(())
+// }
 
 #[pyfunction]
 fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
@@ -531,7 +596,7 @@ fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: St
     scheduler::request_host_avaliable_commands();
 
     loop {
-        initialize_socket_client_transposer(py);
+        initialize_socket_client_transposer();
 
         if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
@@ -553,6 +618,8 @@ fn set_client_uid(py: Python<'_>, client_uid: String) {
 
 // -> Entries:
 
+// TODO >> Create a configs file that automatically be created by Host to configure, client key, or host ip, credentials, data dir, etc..
+
 #[pymodule]
 fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // -> Host
@@ -564,6 +631,8 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_socket_host_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_host_allowed_clients, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_client_heartbeat_contact_callback, m)?)?;
+    // m.add_function(wrap_pyfunction!(registry_host_logs_handler, m)?)?;
+    m.add_function(wrap_pyfunction!(set_socket_host_log_level, m)?)?;
 
     // -> Client
     m.add_function(wrap_pyfunction!(initalize_client_buffer_tables, m)?)?;
@@ -572,6 +641,8 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_socket_client_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(client_send, m)?)?;
     m.add_function(wrap_pyfunction!(set_client_uid, m)?)?;
+    m.add_function(wrap_pyfunction!(set_socket_client_log_level, m)?)?;
+    // m.add_function(wrap_pyfunction!(registry_client_logs_handler, m)?)?;
 
     Ok(())
 }

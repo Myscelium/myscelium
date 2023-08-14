@@ -90,7 +90,7 @@ def test_communication():
 
     # -> Host events:
 
-    client_contact  = False
+    # client_contact  = False
     basic_callback  = False 
 
     # -> Client events:
@@ -101,8 +101,8 @@ def test_communication():
     for i in host_events_df.index:
         event = host_events_df.loc[i, 'StepCompleted']
 
-        if "Contact received from Client: some_client_id" in event:
-            client_contact = True
+        # if "Contact received from Client: some_client_id" in event:
+        #     client_contact = True
 
         if "Active Basic Callback" in event:
             basic_callback = True
@@ -124,9 +124,13 @@ def test_communication():
     
     # -> Host
 
-    assert client_contact, "Client doesn't made any contact"
+    # assert client_contact, "Client doesn't made any contact"
     assert basic_callback, "Baisc callback not called"
 
+    # TODO >>> When add the client tables mecanism re add the client contact test unit
+    # TODO >>> Add a test mecanism to check if the logs are being stored and transposing
+
+    # TODO >>> Add a mecanism to call permission to realize the tests and give an advice that data in the buffers will be wipped of when do the test
 
     # event = my_host.get_event('client_contact')
     # assert event.is_set(), "Client contact event was not set!"
