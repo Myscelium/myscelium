@@ -177,7 +177,7 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
     match result {
         Ok(rows) => {
             if rows > 0 {
-                println!("Successfully inserted command in the table HostLogs. {} row(s) were affected.", rows);
+                println!("Successfully inserted log in the table HostLogs. {} row(s) were affected.", rows);
             } else {
                 println!("No rows were affected.");
             }

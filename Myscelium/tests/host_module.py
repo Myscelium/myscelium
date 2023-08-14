@@ -48,14 +48,14 @@ class MyHost:
             print("Client id isn't a string, failed to redirect data!")
             return None
 
-    @staticmethod
-    def handle_client_contact(client_id, event_key='client_contact'):
-        print("Access heartbeat handler")
-        print(f"Client: {client_id}, made contact")
+    # @staticmethod
+    # def handle_client_contact(client_id, event_key='client_contact'):
+    #     print("Access heartbeat handler")
+    #     print(f"Client: {client_id}, made contact")
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
+    #     Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
 
-        # TODO >>> Save event in the test databse log
+    #     # TODO >>> Save event in the test databse log
 
     def monitor_stop_event(self):
 
@@ -83,6 +83,7 @@ class MyHost:
         return
 
     def run_host(self, ip, port):
+
         callbacks = [
             self.host_patterns.callback_pattern(callback=self.python_function,
                                                 args={"birth": "str", "name": "str", "age": "int", "event_key": "str"}),
@@ -96,7 +97,7 @@ class MyHost:
         ]
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2)
+                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="")
 
         self.mys_host = mys_host
 

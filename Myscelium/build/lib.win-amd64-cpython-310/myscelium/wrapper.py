@@ -248,41 +248,50 @@ class MysceliumHost:
 
         """ 
 
-        self.logging_level = log_level
+        if not hasattr(self, 'initialized'):
 
-        self.host_interface = MysceliumHostInterface(buffer_path)
+            self.logging_level = log_level
 
-        self.allowed_clients = allowed_clients
+            self.host_interface = MysceliumHostInterface(buffer_path)
 
-        self.host_id = host_id
+            self.allowed_clients = allowed_clients
 
-        special_functions = [{
-            "function": get_registred_commands,
-            "response_type":"same_as_origin",
-            "args": "None",
-        }, ]
+            self.host_id = host_id
 
-        if callbacks is None:
-            callbacks = []
-        
-        callbacks = callbacks + special_functions
+            special_functions = [{
+                "function": get_registred_commands,
+                "response_type":"same_as_origin",
+                "args": "None",
+            }, ]
 
-        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION", ""]:
-            raise f"Client log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
-        else:
+            if callbacks is None:
+                callbacks = []
+            
+            callbacks = callbacks + special_functions
+
+            if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION", ""]:
+                raise f"Client log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+            else:
+                pass
+
+            mys.set_socket_host_log_level(log_level)
+
+            mys.registry_socket_host_callbacks(callbacks)
+            mys.initalize_host_buffer_tables(buffer_path)
+            mys.set_socket_host_allowed_clients(self.allowed_clients)
+            mys.set_socket_host_transposer_num_of_workers(n_workers)
+            mys.set_socket_host_max_connections(n_max_conns)
+
+            self.host_thread = None
+
             pass
 
-        mys.set_socket_host_log_level(log_level)
-
-        mys.registry_socket_host_callbacks(callbacks)
-        mys.initalize_host_buffer_tables(buffer_path)
-        mys.set_socket_host_allowed_clients(self.allowed_clients)
-        mys.set_socket_host_transposer_num_of_workers(n_workers)
-        mys.set_socket_host_max_connections(n_max_conns)
-
-        self.host_thread = None
-
-        pass
+    @classmethod
+    def new_instance(cls, client_uid:int, buffer_path:str):
+        # Create a fresh instance
+        cls._instance = super(MysceliumClient, cls).__new__(cls)
+        instance = MysceliumClient(client_uid, buffer_path)
+        return instance
 
     def set_logs_callback_handler (self, logs_handler_callback:object, active_multi_handlers:str=False, workers_num:str=2) -> None:
 
