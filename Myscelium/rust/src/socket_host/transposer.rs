@@ -36,6 +36,7 @@ use std::fmt;
 
 use crate::socket_host::socket_host::{Command, CommandType};
 
+use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
 
@@ -81,6 +82,7 @@ lazy_static! {
 }
 
 pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
+    host_logger::register::register_mananger::set_workers_num(n_workers.clone() * 4); // 4 * n because we need 4 for each
     let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
 
     *default_num_of_workers = n_workers;

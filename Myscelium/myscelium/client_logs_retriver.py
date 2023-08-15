@@ -9,6 +9,7 @@ from threading import Lock, Thread
 
 class SQLiteConnectionPool:
     def __init__(self, max_connections:int, database_path:str):
+
         self.data_base = database_path
         self.max_connections = max_connections
         self.connections = Queue(max_connections)

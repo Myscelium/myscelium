@@ -97,29 +97,59 @@ impl UniqueIdGenerator {
 
 // -> Sql custom pool:
 
+use std::fmt;
+
+#[derive(Debug)]
+pub enum PoolError {
+    SqliteError(rusqlite::Error),
+    SendError(String),
+    NoAvailableConnections,
+}
+
+impl fmt::Display for PoolError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PoolError::SqliteError(e) => write!(f, "SQLite error: {}", e),
+            PoolError::SendError(e) => write!(f, "Send error: {}", e),
+            PoolError::NoAvailableConnections => write!(f, "No available connections in the pool"),
+        }
+    }
+}
+
+impl std::error::Error for PoolError {}
+
+impl From<rusqlite::Error> for PoolError {
+    fn from(err: rusqlite::Error) -> PoolError {
+        PoolError::SqliteError(err)
+    }
+}
+
 pub struct SQLiteConnectionPool {
     connections: Arc<Mutex<mpsc::Receiver<Connection>>>,
     sender: Arc<Mutex<mpsc::Sender<Connection>>>,
 }
 
 impl SQLiteConnectionPool {
-    pub fn new(max_connections: usize, db: &str) -> Result<Self> {
+    pub fn new(max_connections: usize, db: &str) -> Result<Self, PoolError> {
         let (tx, rx) = mpsc::channel();
+
         for _ in 0..max_connections {
             let connection = Connection::open(db)?;
-            tx.send(connection).unwrap();
+            tx.send(connection)
+                .map_err(|e| PoolError::SendError(format!("Failed to send connection to channel: {}", e)))?;
         }
+
         Ok(Self {
             connections: Arc::new(Mutex::new(rx)),
             sender: Arc::new(Mutex::new(tx)),
         })
     }
 
-    pub fn get_connection(&self) -> Result<Connection, rusqlite::Error> {
+    pub fn get_connection(&self) -> Result<Connection, PoolError> {
         let lock = self.connections.lock().unwrap();
         match lock.try_recv() {
             Ok(connection) => Ok(connection),
-            Err(_) => Err(rusqlite::Error::QueryReturnedNoRows),
+            Err(_) => Err(PoolError::NoAvailableConnections),
         }
     }
 

@@ -59,7 +59,9 @@ lazy_static! {
 pub fn set_workers_num(n_workers: u32) {
     let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
 
-    *default_num_of_workers = n_workers;
+    if n_workers > default_num_of_workers.clone() {
+        *default_num_of_workers = n_workers;
+    }
 }
 
 /*
@@ -132,7 +134,7 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
         std::fs::create_dir_all(&dir_path).unwrap();
     }
 
-    println!("initializing Logs Table in: {}", new_loggs_storage_path);
+    println!("initializing HostLogs Table in: {}", new_loggs_storage_path);
 
     let buffer_pool = SQLiteConnectionPool::new(10, default_loggs_storage_path.as_str()).unwrap();
     let conn = buffer_pool.get_connection().unwrap();

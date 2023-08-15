@@ -97,7 +97,7 @@ class MyHost:
         ]
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="")
+                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="DEBUG")
 
         self.mys_host = mys_host
 

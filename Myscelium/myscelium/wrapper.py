@@ -229,6 +229,8 @@ class MysceliumHostInterface:
 
 class MysceliumHost:
 
+    _instance = None  # Singleton instance 
+
     def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="DEBUG") -> None:
 
         """
@@ -252,11 +254,11 @@ class MysceliumHost:
 
             self.logging_level = log_level
 
-            self.host_interface = MysceliumHostInterface(buffer_path)
-
             self.allowed_clients = allowed_clients
 
             self.host_id = host_id
+
+            self.buffer_path = buffer_path
 
             special_functions = [{
                 "function": get_registred_commands,
@@ -274,10 +276,11 @@ class MysceliumHost:
             else:
                 pass
 
+            mys.initalize_host_buffer_tables(buffer_path)
+
             mys.set_socket_host_log_level(log_level)
 
             mys.registry_socket_host_callbacks(callbacks)
-            mys.initalize_host_buffer_tables(buffer_path)
             mys.set_socket_host_allowed_clients(self.allowed_clients)
             mys.set_socket_host_transposer_num_of_workers(n_workers)
             mys.set_socket_host_max_connections(n_max_conns)
@@ -287,10 +290,11 @@ class MysceliumHost:
             pass
 
     @classmethod
-    def new_instance(cls, client_uid:int, buffer_path:str):
+    def new_instance(cls, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="DEBUG"):
+        
         # Create a fresh instance
-        cls._instance = super(MysceliumClient, cls).__new__(cls)
-        instance = MysceliumClient(client_uid, buffer_path)
+        cls._instance = super(MysceliumHost, cls).__new__(cls)
+        instance = MysceliumHost(callbacks, host_id, allowed_clients, buffer_path, n_workers, log_level)
         return instance
 
     def set_logs_callback_handler (self, logs_handler_callback:object, active_multi_handlers:str=False, workers_num:str=2) -> None:
@@ -303,6 +307,8 @@ class MysceliumHost:
         - active_multi_handlers: Flag to activate multiple handlers.
         - workers_num: Number of workers for handling logs.
         """
+
+        self.host_interface = MysceliumHostInterface(self.buffer_path)
 
         if self.logging_level == "":
             raise "To use logging you need to set a loggin level, the current logging status is deactivated!"
@@ -343,9 +349,11 @@ class MysceliumHost:
         - ip: IP address for the host.
         - port: Port number for the host.
         """
-
-        if self.logging_level != "":
-            self.host_interface.start_logs_retriver()
+        if hasattr(self, 'host_interface'):
+            if self.logging_level != "":
+                self.host_interface.start_logs_retriver()
+            else:
+                pass
         else:
             pass
 
@@ -367,8 +375,11 @@ class MysceliumHost:
 
         mys.stop_socket_host()
 
-        if self.logging_level != "":
-            self.host_interface.stop_logs_reriver()
+        if hasattr(self, 'host_interface'):
+            if self.logging_level != "":
+                self.host_interface.stop_logs_reriver()
+            else:
+                pass
         else:
             pass
 

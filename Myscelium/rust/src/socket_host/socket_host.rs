@@ -32,6 +32,7 @@ use std::sync::atomic::Ordering;
 use pyo3::exceptions::PyException;
 use pyo3::types::PyFunction;
 
+use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
 #[derive(Debug, Clone)]
@@ -476,6 +477,8 @@ impl Drop for ThreadPool {
 // > Socket Interactive Functions:
 
 pub fn set_max_conns(n_max_conns: u32) {
+    host_logger::register::register_mananger::set_workers_num(n_max_conns.clone() * 4); // 4 * n because we need 4 for each
+
     let mut default_max_conns = MAX_CONS.lock().unwrap();
 
     *default_max_conns = n_max_conns;
