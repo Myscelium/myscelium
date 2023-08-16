@@ -113,7 +113,7 @@ pub struct Logger {
 
 impl Logger {
     pub fn new(log_level: String, section: &str) -> Self {
-        // Placeholder for other initializations
+        // Placeholder for other initializations.
 
         let node_name: String = CLIENT_NODE_NAME.lock().unwrap().clone();
 
