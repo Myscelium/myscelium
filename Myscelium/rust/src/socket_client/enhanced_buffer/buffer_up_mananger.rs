@@ -27,6 +27,8 @@ use crate::socket_client::socket_client::Command;
 
 use std::sync::RwLock;
 
+use rusqlite::{Connection, Result};
+
 lazy_static! {
     static ref BUFFER_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
@@ -51,7 +53,7 @@ macro_rules! with_connection {
         let conn = buffer_pool.get_connection().unwrap();
         let result = $body(&conn);
         buffer_pool.release_connection(conn);
-        result
+        result.clone()
     }};
 }
 
@@ -140,26 +142,24 @@ impl IntoPy<PyObject> for UpCommand {
     }
 }
 
-fn get_registred_ids() -> Vec<u32> {
-    with_connection!(|conn: &rusqlite::Connection| {
-        let mut ids: Vec<u32> = Vec::new();
+fn get_registred_ids(conn: &Connection) -> Vec<u32> {
+    let mut ids: Vec<u32> = Vec::new();
 
-        {
-            let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend").unwrap();
-            let commands_iter = smtp
-                .query_map(params![], |row| {
-                    let id: u32 = row.get(0).unwrap();
-                    Ok(id)
-                })
-                .unwrap();
+    {
+        let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend").unwrap();
+        let commands_iter = smtp
+            .query_map(params![], |row| {
+                let id: u32 = row.get(0).unwrap();
+                Ok(id)
+            })
+            .unwrap();
 
-            for id in commands_iter {
-                ids.push(id.unwrap());
-            }
+        for id in commands_iter {
+            ids.push(id.unwrap());
         }
+    }
 
-        ids
-    })
+    ids
 }
 
 use std::thread;
@@ -210,8 +210,11 @@ pub fn buffer_up_initialize_table(buffer_path: String) {
     {
         let num_workers_clone;
 
-        let num_workers = NUM_WORKERS.lock();
-        num_workers_clone = num_workers.clone() as usize;
+        {
+            // -> this is a dependency of BUFFER_POOL so need to stay in other block like that to don't lock the thread
+            let num_workers = NUM_WORKERS.lock();
+            num_workers_clone = num_workers.clone() as usize;
+        }
 
         let new_pool = SQLiteConnectionPool::new(num_workers_clone, new_buffer_path.as_str()).unwrap();
 
@@ -326,7 +329,7 @@ pub fn buffer_up_list_schedule() -> Vec<UpCommand> {
 
 pub fn buffer_up_schedule(command: UpCommand) {
     with_connection!(|conn: &rusqlite::Connection| {
-        let registered_ids = get_registred_ids();
+        let registered_ids = get_registred_ids(conn);
 
         let mut id_generator = UniqueIdGenerator {
             registered_ids: registered_ids,
