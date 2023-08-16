@@ -8,11 +8,11 @@ use pyo3::buffer;
 
 // use std::collections::HashMap;
 
-use super::register_functions;
+use crate::commom::sql_pool::pool;
 
-use register_functions::SQLiteConnectionPool;
-use register_functions::UniqueIdGenerator;
-use register_functions::UniqueParityIdGenerator;
+use pool::SQLiteConnectionPool;
+use pool::UniqueIdGenerator;
+use pool::UniqueParityIdGenerator;
 
 use chrono::Utc;
 

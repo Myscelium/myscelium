@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+mod commom;
+
 mod socket_host;
 use socket_host::socket_host::{get_available_commands_registered, initialize_host, set_socket_host_callbacks};
 use socket_host::socket_host::{initialize_host_buffer, register_client, set_heartbeat_callback, set_max_conns};
@@ -20,7 +22,9 @@ use serde_json::{json, Value};
 
 use ctrlc::set_handler;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
+use parking_lot::Mutex;
 
 use serde_json::Value as JsonValue;
 use std::thread;
@@ -255,6 +259,30 @@ fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()>
 
 #[pyfunction]
 fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: String) {
+    // Create a global Mutex for demonstration
+    let mutex1 = Mutex::new(0);
+    let mutex2 = Mutex::new(0);
+
+    // Spawn a thread to periodically check for deadlocks
+    thread::spawn(|| {
+        loop {
+            thread::sleep(Duration::from_secs(5)); // Check every 5 seconds
+            let deadlocks = parking_lot::deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
+            }
+
+            println!("{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                println!("Deadlock #{}", i);
+                for t in threads {
+                    println!("Thread Id {:?}", t.thread_id());
+                    println!("{:?}", t.backtrace());
+                }
+            }
+        }
+    });
+
     let address = format!("{}:{}", ip, port);
 
     thread::spawn(|| {
@@ -445,7 +473,7 @@ fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<P
     let mut client_id;
 
     {
-        client_id = CLIENT_ID.lock().unwrap().clone();
+        client_id = CLIENT_ID.lock().clone();
     }
 
     if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
@@ -570,10 +598,34 @@ fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<(
 
 #[pyfunction]
 fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: String) {
+    // Create a global Mutex for demonstration
+    let mutex1 = Mutex::new(0);
+    let mutex2 = Mutex::new(0);
+
+    // Spawn a thread to periodically check for deadlocks
+    thread::spawn(|| {
+        loop {
+            thread::sleep(Duration::from_secs(5)); // Check every 5 seconds
+            let deadlocks = parking_lot::deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
+            }
+
+            println!("{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                println!("Deadlock #{}", i);
+                for t in threads {
+                    println!("Thread Id {:?}", t.thread_id());
+                    println!("{:?}", t.backtrace());
+                }
+            }
+        }
+    });
+
     CLIENT_IS_RUNING.store(true, Ordering::SeqCst);
 
     {
-        let mut client_id_global = CLIENT_ID.lock().unwrap();
+        let mut client_id_global = CLIENT_ID.lock();
         *client_id_global = client_id.clone();
     }
 

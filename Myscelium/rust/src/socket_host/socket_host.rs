@@ -94,7 +94,7 @@ macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let host_log_level;
         {
-            host_log_level = HOST_LOG_LEVEL.lock().unwrap().clone();
+            host_log_level = HOST_LOG_LEVEL.lock().clone();
         }
         Logger::new(host_log_level, $section_name)
     }};
