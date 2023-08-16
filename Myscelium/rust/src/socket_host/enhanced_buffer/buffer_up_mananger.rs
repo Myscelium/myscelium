@@ -1,10 +1,10 @@
 use lazy_static::lazy_static;
 
-use super::buffer_functions;
+use crate::commom::sql_pool::pool;
 
-use buffer_functions::SQLiteConnectionPool;
-use buffer_functions::UniqueIdGenerator;
-use buffer_functions::UniqueParityIdGenerator;
+use pool::SQLiteConnectionPool;
+use pool::UniqueIdGenerator;
+use pool::UniqueParityIdGenerator;
 
 use rusqlite::params;
 
@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
-use std::sync::{Arc, Mutex};
+use parking_lot::Mutex;
+
+use std::sync::Arc;
 
 use std::collections::HashMap;
 
@@ -26,10 +28,10 @@ lazy_static! {
         let buffer_path_clone;
         let num_workers_clone;
         {
-            let buffer_path = BUFFER_PATH.lock().unwrap();
+            let buffer_path = BUFFER_PATH.lock();
             buffer_path_clone = buffer_path.clone();
 
-            let num_workers = NUM_WORKERS.lock().unwrap();
+            let num_workers = NUM_WORKERS.lock();
             num_workers_clone = num_workers.clone() as usize
         }
         SQLiteConnectionPool::new(num_workers_clone, buffer_path_clone.as_str()).unwrap()
@@ -45,7 +47,7 @@ lazy_static! {
 */
 
 pub fn set_workers_num(n_workers: u32) {
-    let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
+    let mut default_num_of_workers = NUM_WORKERS.lock();
 
     *default_num_of_workers = n_workers;
 }
@@ -72,16 +74,16 @@ impl IntoPy<PyObject> for UpCommand {
     }
 }
 
-fn get_registred_ids() -> Vec<i32> {
+fn get_registred_ids() -> Vec<u32> {
     let conn = BUFFER_POOL.get_connection().unwrap();
 
-    let mut ids: Vec<i32> = Vec::new();
+    let mut ids: Vec<u32> = Vec::new();
 
     {
         let mut smtp = conn.prepare("SELECT * FROM CommandsTosend").unwrap();
         let commands_iter = smtp
             .query_map(params![], |row| {
-                let id: i32 = row.get(0).unwrap();
+                let id: u32 = row.get(0).unwrap();
                 Ok(id)
             })
             .unwrap();
@@ -97,7 +99,7 @@ fn get_registred_ids() -> Vec<i32> {
 }
 
 pub fn buffer_up_initialize_table(buffer_path: String) {
-    let mut default_buffer_path = BUFFER_PATH.lock().unwrap();
+    let mut default_buffer_path = BUFFER_PATH.lock();
 
     let new_buffer_path = format!("{}{}", buffer_path, default_buffer_path);
 

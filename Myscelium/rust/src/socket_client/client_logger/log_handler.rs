@@ -34,7 +34,7 @@ lazy_static! {
 
 pub fn set_client_log_level(log_level: String) {
     {
-        let mut current_log_level = CLIENT_LOG_LEVEL.lock().unwrap();
+        let mut current_log_level = CLIENT_LOG_LEVEL.lock();
         *current_log_level = log_level.clone();
         println!("Client log levels seted to: {:?}", log_level);
     }
@@ -115,7 +115,7 @@ impl Logger {
     pub fn new(log_level: String, section: &str) -> Self {
         // Placeholder for other initializations
 
-        let node_name: String = CLIENT_NODE_NAME.lock().unwrap().clone();
+        let node_name: String = CLIENT_NODE_NAME.lock().clone();
 
         Logger {
             log_level: log_level.to_string(),

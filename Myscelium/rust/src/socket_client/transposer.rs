@@ -47,7 +47,7 @@ macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let client_log_level;
         {
-            client_log_level = CLIENT_LOG_LEVEL.lock().unwrap().clone();
+            client_log_level = CLIENT_LOG_LEVEL.lock().clone();
         }
         Logger::new(client_log_level, $section_name)
     }};

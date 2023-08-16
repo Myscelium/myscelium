@@ -18,7 +18,7 @@ macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let client_log_level;
         {
-            client_log_level = CLIENT_LOG_LEVEL.lock().unwrap().clone();
+            client_log_level = CLIENT_LOG_LEVEL.lock().clone();
         }
         Logger::new(client_log_level, $section_name)
     }};
@@ -28,7 +28,7 @@ pub fn set_client_id(client_uid: String) {
     println!("Setting client_id to: {:?}", client_uid.clone());
 
     {
-        let mut client_id_global = CLIENT_ID.lock().unwrap();
+        let mut client_id_global = CLIENT_ID.lock();
         *client_id_global = client_uid.clone();
     }
 }
@@ -45,7 +45,7 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
 
     logger.debug("Enter Scheduler".to_string());
 
-    let client_id = CLIENT_ID.lock().unwrap().clone();
+    let client_id = CLIENT_ID.lock().clone();
 
     logger.debug(format!("Client id is: {:?}", client_id));
     let command = serde_json::to_string(&command);

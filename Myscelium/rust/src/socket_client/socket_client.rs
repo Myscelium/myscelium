@@ -6,7 +6,7 @@ use crate::socket_client::enhanced_buffer::buffer_up_mananger;
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc};
 use std::thread;
 
 use serde::{Deserialize, Serialize};
@@ -44,11 +44,13 @@ use serde_json::json;
 use super::client_logger::log_handler::Logger;
 use crate::CLIENT_LOG_LEVEL;
 
+use parking_lot::Mutex;
+
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let client_log_level;
         {
-            client_log_level = CLIENT_LOG_LEVEL.lock().unwrap().clone();
+            client_log_level = CLIENT_LOG_LEVEL.lock().clone();
         }
         Logger::new(client_log_level, $section_name)
     }};
@@ -109,7 +111,7 @@ lazy_static! {
 // -> Socket Interactive Functions:
 
 pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    let mut command_patterns = COMMAND_PATTERNS.lock();
     *command_patterns = callbacks_patterns;
 }
 
@@ -138,7 +140,7 @@ pub fn initialize_client_buffer(buffer_location: String) {
 // then writes the contents of the buffer back to the stream.
 
 pub fn get_socket_client_available_commands_registered() -> HashMap<String, Value> {
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    let command_patterns = COMMAND_PATTERNS.lock();
     return command_patterns.clone();
 }
 
@@ -437,6 +439,30 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 }
 
 pub fn initialize_client(address: String, client_id: String) {
+    // Create a global Mutex for demonstration
+    let mutex1 = Mutex::new(0);
+    let mutex2 = Mutex::new(0);
+
+    // Spawn a thread to periodically check for deadlocks
+    thread::spawn(|| {
+        loop {
+            thread::sleep(Duration::from_secs(5)); // Check every 5 seconds
+            let deadlocks = parking_lot::deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
+            }
+
+            println!("{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                println!("Deadlock #{}", i);
+                for t in threads {
+                    println!("Thread Id {:?}", t.thread_id());
+                    println!("{:?}", t.backtrace());
+                }
+            }
+        }
+    });
+
     let logger = acquire_logger!("Core");
 
     let mut stream = TcpStream::connect(address).unwrap();
