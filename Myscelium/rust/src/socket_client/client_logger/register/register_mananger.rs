@@ -1,7 +1,7 @@
 // use std::hash::Hash;
 // use std::sync::Mutex;
 
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 
 use parking_lot::Mutex;
 use std::thread;
@@ -43,19 +43,8 @@ use pyo3::types::PyDict;
 lazy_static! {
     static ref BUFFER_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("Logs.db".to_string()));
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("Logs.db".to_string()));
-    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
-    static ref LOGS_REGISTERS_POOL: Mutex<SQLiteConnectionPool> = {
-        let buffer_path_clone;
-        let num_workers_clone;
-        {
-            let buffer_path = BUFFER_PATH.lock();
-            buffer_path_clone = buffer_path.clone();
-
-            let num_workers = NUM_WORKERS.lock();
-            num_workers_clone = num_workers.clone() as usize;
-        }
-        Mutex::new(SQLiteConnectionPool::new(num_workers_clone, buffer_path_clone.as_str()).unwrap())
-    };
+    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(15));
+    static ref LOGS_REGISTERS_POOL: Mutex<SQLiteConnectionPool> = Mutex::new(SQLiteConnectionPool::empty());
 }
 
 // -> DONE

@@ -175,30 +175,6 @@ macro_rules! create_special_command {
     }};
 }
 
-fn transform_value(value: &Value) -> Value {
-    match value {
-        Value::Object(map) => {
-            let mut new_map = HashMap::new();
-            for (key, val) in map {
-                if let Some(inner_val) = val.get("Map") {
-                    new_map.insert(key.clone(), transform_value(inner_val));
-                } else if let Some(inner_val) = val.get("List") {
-                    new_map.insert(key.clone(), transform_value(inner_val));
-                } else if let Some(Value::String(s)) = val.get("Str") {
-                    new_map.insert(key.clone(), Value::String(s.clone()));
-                } else {
-                    // Handle other cases if necessary
-                }
-            }
-            Value::Object(serde_json::Map::from_iter(new_map)) // Convert HashMap to serde_json::Map using into()
-        },
-        Value::Array(arr) => Value::Array(arr.iter().map(|v| transform_value(v)).collect()),
-        _ => value.clone(),
-    }
-}
-
-use serde_json::to_string;
-
 fn verify_connection(stream: &mut TcpStream) -> bool {
     let logger = acquire_logger!("Core");
 

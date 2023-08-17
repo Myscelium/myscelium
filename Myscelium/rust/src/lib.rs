@@ -156,8 +156,8 @@ fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
 fn initalize_host_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
-    initialize_host_buffer(buffer_path.clone());
     initialize_host_logs_databse_dir(buffer_path.clone());
+    initialize_host_buffer(buffer_path.clone());
 
     return;
 }
@@ -399,8 +399,8 @@ fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
 fn initalize_client_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
-    initialize_client_buffer(buffer_path.clone());
     initialize_client_logs_databse_dir(buffer_path.clone());
+    initialize_client_buffer(buffer_path.clone());
 
     return;
 }

@@ -289,13 +289,20 @@ class MysceliumHost:
 
             pass
 
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(MysceliumHost, cls).__new__(cls)
+            # This will call your __init__, so you don't have to duplicate code
+        return cls._instance
+    
     @classmethod
-    def new_instance(cls, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="DEBUG"):
-        
-        # Create a fresh instance
-        cls._instance = super(MysceliumHost, cls).__new__(cls)
-        instance = MysceliumHost(callbacks, host_id, allowed_clients, buffer_path, n_workers, log_level)
-        return instance
+    def get_instance(cls):
+        if not cls._instance:
+            raise ValueError("MysceliumHost instance has not been initialized")
+        return cls._instance
+    
+    def clone(self):
+        return self
 
     def set_logs_callback_handler (self, logs_handler_callback:object, active_multi_handlers:str=False, workers_num:str=2) -> None:
 
@@ -496,6 +503,9 @@ class MysceliumClient:
             self.client_uid = client_uid
             self.runing = False
             mys.initalize_client_buffer_tables(buffer_path)
+
+            time.sleep(5)
+
             self.host_thread = None
             self.initialized = True
 
@@ -507,12 +517,20 @@ class MysceliumClient:
             mys.set_socket_client_log_level(log_level)
 
 
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(MysceliumClient, cls).__new__(cls)
+            # This will call your __init__, so you don't have to duplicate code
+        return cls._instance
+    
     @classmethod
-    def new_instance(cls, client_uid:int, buffer_path:str):
-        # Create a fresh instance
-        cls._instance = super(MysceliumClient, cls).__new__(cls)
-        instance = MysceliumClient(client_uid, buffer_path)
-        return instance
+    def get_instance(cls):
+        if not cls._instance:
+            raise ValueError("MysceliumClient instance has not been initialized")
+        return cls._instance
+    
+    def clone(self):
+        return self
 
     # def set_logs_callback_handler (self, logs_handler_callback:list):
     #     print("active py set log callback")

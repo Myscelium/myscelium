@@ -145,6 +145,15 @@ impl SQLiteConnectionPool {
         })
     }
 
+    pub fn empty() -> Self {
+        let (tx, rx) = mpsc::channel();
+
+        Self {
+            connections: Arc::new(Mutex::new(rx)),
+            sender: Arc::new(Mutex::new(tx)),
+        }
+    }
+
     pub fn get_connection(&self) -> Result<Connection, PoolError> {
         let lock = self.connections.lock().unwrap();
         match lock.try_recv() {
