@@ -380,7 +380,7 @@ fn set_socket_host_allowed_clients(allowed_clients_list: &PyList) -> PyResult<()
 
 mod socket_client;
 use socket_client::scheduler::{self, schedule};
-use socket_client::socket_client::{get_socket_client_available_commands_registered, set_socket_client_callbacks_patterns, Command};
+use socket_client::socket_client::{get_socket_client_available_commands_registered, set_socket_client_callbacks_patterns};
 use socket_client::socket_client::{initialize_client, initialize_client_buffer};
 use socket_client::transposer::{
     initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num,

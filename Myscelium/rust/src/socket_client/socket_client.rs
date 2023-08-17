@@ -1,7 +1,7 @@
-use crate::socket_client::enhanced_buffer;
-use crate::socket_client::enhanced_buffer::buffer_down_mananger;
-use crate::socket_client::enhanced_buffer::buffer_down_mananger::DownCommand;
-use crate::socket_client::enhanced_buffer::buffer_up_mananger;
+use crate::commom::enhanced_buffer;
+use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
+use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
+use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
 
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
@@ -154,25 +154,9 @@ pub fn get_socket_client_available_commands_registered() -> HashMap<String, Valu
 
 // The Debug Trait, is also derived, which allows the structure to be printed fro debugging purposes
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Command {
-    pub client_id: String,
-    pub parity_id: String,
-    pub priority: u8,
-    pub command: HashMap<String, Value>,
-}
-
 enum Response {
     Command(Command),
     None,
-}
-
-#[derive(Serialize, Deserialize)]
-pub enum CommandType {
-    Function(String),
-    Response(String),
-    Error(String),
-    Unknown,
 }
 
 macro_rules! create_special_command {
@@ -210,86 +194,6 @@ fn transform_value(value: &Value) -> Value {
         },
         Value::Array(arr) => Value::Array(arr.iter().map(|v| transform_value(v)).collect()),
         _ => value.clone(),
-    }
-}
-
-impl Command {
-    pub fn new(client_id: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
-        Self {
-            client_id,
-            parity_id,
-            priority,
-            command,
-        }
-    }
-
-    pub fn command_type(&self) -> CommandType {
-        if self.command.contains_key("function") {
-            CommandType::Function(self.command.get("function").unwrap().to_string())
-        } else if self.command.contains_key("response") {
-            CommandType::Response(self.command.get("response").unwrap().to_string())
-        } else if self.command.contains_key("error") {
-            CommandType::Error(self.command.get("error").unwrap().to_string())
-        } else {
-            CommandType::Unknown
-        }
-    }
-
-    pub fn from_down_command(down_command: DownCommand) -> Self {
-        let logger = acquire_logger!("Core");
-
-        let client_id = down_command.client_id.clone();
-        let parity_id = down_command.parity_id.clone();
-        let priority = down_command.priority.clone();
-
-        let outer_value: Value = serde_json::from_str(&down_command.command).unwrap();
-
-        let mut command: HashMap<String, Value>;
-
-        // Extract the inner JSON string and deserialize it again
-        if let Value::Object(outer_map) = &outer_value {
-            if let Some(Value::String(inner_json)) = outer_map.get("response") {
-                command = serde_json::from_str(inner_json).unwrap();
-
-                // Transform the command right after deserialization
-                let transformed_value = transform_value(&Value::Object(serde_json::Map::from_iter(command.into_iter()))); // Convert HashMap to serde_json::Map using into()
-
-                if let Value::Object(transformed_map) = transformed_value {
-                    command = transformed_map.into_iter().collect(); // Convert serde_json::Map back to HashMap
-                } else {
-                    logger.warn(format!("Unexpected format after transformation"));
-                    command = HashMap::new();
-                }
-            } else {
-                command = HashMap::new();
-                logger.warn(format!("Command has other case other than Response"));
-                // Handle the case where the "response" key is not a string
-            }
-        } else {
-            command = HashMap::new();
-            logger.warn(format!("Command isn't an object"));
-            // Handle the case where the outer_value is not an object
-        }
-        Self {
-            client_id,
-            parity_id,
-            priority,
-            command,
-        }
-    }
-
-    pub fn from_up_command(up_command: UpCommand) -> Self {
-        let client_id = up_command.client_id.clone();
-        let parity_id = up_command.parity_id.clone();
-        let priority = up_command.priority.clone();
-        let command: HashMap<String, Value> = serde_json::from_str(&up_command.command).unwrap();
-
-        Self {
-            client_id,
-            parity_id,
-            priority,
-            command,
-        }
     }
 }
 
@@ -358,8 +262,6 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
     return Response::Command(command);
 }
 
-use buffer_up_mananger::UpCommand;
-
 pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
     if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
         return None;
@@ -415,7 +317,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             let down_command = DownCommand::from_command(command_received.clone());
 
-            buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
 
             return Some(down_command);
         },
@@ -423,11 +325,16 @@ fn handle_response(received: Response) -> Option<DownCommand> {
         CommandType::Error(e) => {
             let down_command = DownCommand::from_command(command_received.clone());
 
-            buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
 
             logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("error").unwrap()));
             CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
 
+            return None;
+        },
+
+        CommandType::Redirect(_) => {
+            logger.warn(format!("Received an Unknown command!"));
             return None;
         },
 
@@ -475,11 +382,11 @@ pub fn initialize_client(address: String, client_id: String) {
             break;
         }
 
-        let up_schedule = buffer_up_mananger::buffer_up_list_schedule();
+        let up_schedule = enhanced_buffer::buffer_up_mananger::buffer_up_list_schedule();
 
         if !(up_schedule.len() > 0) {
             if let Some(down_command) = send_ping(&mut stream) {
-                buffer_down_mananger::buffer_down_schedule(down_command.clone());
+                enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
             }
             thread::sleep(Duration::from_secs(2));
             continue;
@@ -492,7 +399,7 @@ pub fn initialize_client(address: String, client_id: String) {
                 let received = send(&mut stream, command_to_request.clone());
 
                 if let Some(down_command) = handle_response(received) {
-                    buffer_down_mananger::buffer_down_schedule(down_command.clone());
+                    enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
                     break;
                 }
 

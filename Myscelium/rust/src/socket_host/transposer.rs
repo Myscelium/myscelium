@@ -1,4 +1,3 @@
-use crate::socket_host::enhanced_buffer;
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
@@ -9,7 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::socket_host::socket_host::is_client_registred;
 
-use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
+use crate::commom::enhanced_buffer;
+use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
+use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
+use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -33,8 +35,6 @@ use pyo3::ToPyObject;
 use crate::HOST_IS_RUNING;
 
 use std::fmt;
-
-use crate::socket_host::socket_host::{Command, CommandType};
 
 use super::host_logger;
 use super::host_logger::log_handler::Logger;
@@ -468,12 +468,9 @@ fn process(py: Python, down_command: DownCommand) {
             return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
         }
 
-        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(
-            client_id.clone(),
-            down_command.parity_id.clone(),
-            down_command.priority.clone(),
-            "C210".to_string(),
-        );
+        let up_command = UpCommand::new(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), "C210".to_string());
+
+        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
 
         *client_id = redirect_to.to_string();
 
@@ -489,7 +486,7 @@ fn process(py: Python, down_command: DownCommand) {
     logger.debug(format!("Initializing prossesing!"));
 
     let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
-    let command_id: i32 = down_command.command_id.clone();
+    let command_id: u32 = down_command.command_id.clone().unwrap();
 
     if !command_is_not_registry {
         logger.debug(format!("Command {}, alwready have a response!", down_command.parity_id.clone()));
@@ -603,12 +600,10 @@ fn process(py: Python, down_command: DownCommand) {
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(
-        client_id,
-        down_command.parity_id.clone(),
-        down_command.priority.clone(),
-        response.unwrap(),
-    )
+
+    let up_command = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
+
+    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
 }
 
 fn clear_old_data() {

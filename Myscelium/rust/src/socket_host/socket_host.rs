@@ -18,9 +18,10 @@ use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 use pyo3::wrap_pyfunction;
 
-use crate::socket_host::enhanced_buffer;
-
-use crate::socket_host::enhanced_buffer::buffer_up_mananger::UpCommand;
+use crate::commom::enhanced_buffer;
+use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
+use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
+use crate::commom::enhanced_buffer::utilities::Command;
 
 use std::time::Duration;
 
@@ -254,75 +255,6 @@ pub fn update_last_contact(py: Python<'_>, client_id: String) {
 }
 
 // > Commands Manangemement & Checking
-
-#[derive(Debug)]
-pub enum CommandType {
-    Function(String),
-    Response(String),
-    Redirect(String),
-    Unknown,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Command {
-    pub client_id: String,
-    pub parity_id: String,
-    pub priority: u8,
-    pub command: HashMap<String, Value>,
-}
-
-use crate::socket_host::enhanced_buffer::buffer_down_mananger::DownCommand;
-
-impl Command {
-    fn new(client_id: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
-        Self {
-            client_id,
-            parity_id,
-            priority,
-            command,
-        }
-    }
-
-    pub fn from_down_command(down_command: DownCommand) -> Self {
-        let client_id = down_command.client_id.clone();
-        let parity_id = down_command.parity_id.clone();
-        let priority = down_command.priority.clone();
-        let command: HashMap<String, Value> = serde_json::from_str(&down_command.command).unwrap();
-
-        Self {
-            client_id,
-            parity_id,
-            priority,
-            command,
-        }
-    }
-
-    pub fn from_up_command(up_command: UpCommand) -> Self {
-        let client_id = up_command.client_id.clone();
-        let parity_id = up_command.parity_id.clone();
-        let priority = up_command.priority.clone();
-        let command: HashMap<String, Value> = serde_json::from_str(&up_command.command).unwrap();
-
-        Self {
-            client_id,
-            parity_id,
-            priority,
-            command,
-        }
-    }
-
-    fn command_type(&self) -> CommandType {
-        if self.command.contains_key("function") {
-            CommandType::Function(self.command.get("function").unwrap().to_string())
-        } else if self.command.contains_key("response") {
-            CommandType::Response(self.command.get("response").unwrap().to_string())
-        } else if self.command.contains_key("redirect") {
-            CommandType::Redirect(self.command.get("redirect").unwrap().to_string())
-        } else {
-            CommandType::Unknown
-        }
-    }
-}
 
 fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
     let function_name = match command.command.get("function") {
@@ -609,7 +541,9 @@ fn handle_commom_function(command: Command) -> Command {
 
     let json_command = serde_json::to_string(&command.command).unwrap();
 
-    enhanced_buffer::buffer_down_mananger::buffer_down_schedule(command.client_id.clone(), command.parity_id, command.priority, json_command);
+    let down_command = DownCommand::new(command.client_id.clone(), command.parity_id, command.priority, json_command);
+
+    enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command);
 
     // TODO >>> Add a mecanism to get the buffer up responses and send back to client or redirect to antoher client
 
@@ -664,7 +598,7 @@ fn handle_connection(mut stream: TcpStream) {
             .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
             .to_string();
 
-        let command: Command = serde_json::from_str(&buffer_string).unwrap();
+        let command: Command = serde_json::from_str(&buffer_string).unwrap(); // TODO >>> Fix the error treatment in the cases that results in a error
 
         logger.debug(format!("Command received:\n{:?}\n", command));
 

@@ -1,8 +1,7 @@
-use crate::socket_client::enhanced_buffer;
-use crate::socket_client::enhanced_buffer::buffer_up_mananger;
-use crate::socket_client::enhanced_buffer::buffer_up_mananger::UpCommand;
-
-use crate::socket_client::socket_client::Command;
+use crate::commom::enhanced_buffer;
+use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
+use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
+use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
 
 use lazy_static::lazy_static;
 
@@ -63,11 +62,11 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
         },
     }
 
-    let parity_id = buffer_up_mananger::buffer_up_gen_valid_parity_id(client_id.clone());
+    let parity_id = enhanced_buffer::buffer_up_mananger::buffer_up_gen_valid_parity_id(client_id.clone());
 
     let command_to_schedule = UpCommand::new(client_id, parity_id, priority, unwraped_command);
 
-    buffer_up_mananger::buffer_up_schedule(command_to_schedule.clone());
+    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(command_to_schedule.clone());
 
     logger.info(format!("Command: {:?} scheduled!", command_to_schedule));
 }

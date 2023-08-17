@@ -1,5 +1,8 @@
-use crate::socket_client::enhanced_buffer;
-use crate::socket_client::enhanced_buffer::buffer_up_mananger::UpCommand;
+use crate::commom::enhanced_buffer;
+use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
+use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
+use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
+
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
@@ -9,10 +12,6 @@ use std::thread;
 use serde::{Deserialize, Serialize};
 
 // use crate::socket_client::socket_client::is_client_registred;
-
-use crate::socket_client::enhanced_buffer::buffer_down_mananger::DownCommand;
-
-use crate::socket_client::socket_client::{Command, CommandType};
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -591,6 +590,9 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
         CommandType::Error(e) => {
             return Err(ProcessError::Error(e));
+        },
+        CommandType::Redirect(_) => {
+            return Err(ProcessError::UnknownCommandType);
         },
         CommandType::Unknown => {
             return Err(ProcessError::UnknownCommandType);
