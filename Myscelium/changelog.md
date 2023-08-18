@@ -45,11 +45,43 @@
 - Basic and fundamental functionalities are working!
 
 
-## v1.1.0 - ReliseCandidate
+## v1.1.0 - ReliseCandidate (08/08/2023)
 
 ### Updates
-- Add a automatica pytest to test all the lib making connections from client to host and testisng remote function callbacks activationa and client response handlers
+- Add a automatic pytest to test all the lib making connections from client to host and testisng remote function callbacks activationa and client response handlers
 - Improve lib code
 - Improve wrappers
 - Add better exemples of usage
 - Create a way to use classes to run host and client all using Classes
+
+
+## v1.2.0 - ReliseCandidate (18/08/2023)
+
+### Updates
+- Add logs buffer
+- Add logs transposition interface attached to wrapper to transpose logs from buffer into some py functions
+- Improve Buffers
+- Reinforce Code Structure
+- Add singleton patterns into wrapper
+- Now myscelium host & client can be a class
+- Add resistence tests into pytest to test code resistence to multiple runs
+- Add Planings to expand
+- Centrlaize code to better mainteinability in commom (to ensure fast chanbges)
+- Improve code efficiency
+- Develop ways to reduce the cicle numbers
+- Start preparing to implement multi chanels data stream
+
+### Fixes
+- Fix random quitting
+- Fix py gill aquire
+- Fix buffers sql pools
+- Fix great part of buffers exception handlers
+- Fix wrapper concurrency
+- Fix threads
+- Fix unity tests
+- Fix callbacks calls
+- Improve client response handlers callbacks systems
+- Fix shutdown
+- Fix zombie threds runing without controler when shutdown by exception
+- Fix Logger
+- Fix buffers random exceptions

@@ -4,7 +4,7 @@ from setuptools_rust import Binding, RustExtension
 
 setup(
     name="myscelium",
-    version="1.1",
+    version="1.2",
     rust_extensions=[RustExtension("myscelium.myscelium_engine", path="rust/Cargo.toml", binding=Binding.PyO3)],
     packages=["myscelium"],
     zip_safe=False,
@@ -21,5 +21,6 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
 )

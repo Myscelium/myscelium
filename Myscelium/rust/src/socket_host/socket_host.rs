@@ -409,7 +409,7 @@ impl Drop for ThreadPool {
 // > Socket Interactive Functions:
 
 pub fn set_max_conns(n_max_conns: u32) {
-    host_logger::register::register_mananger::set_workers_num(n_max_conns.clone() * 4); // 4 * n because we need 4 for each
+    host_logger::register::register_mananger::set_workers_num(n_max_conns.clone() * 7); // 7 * n because we need 7 for each
 
     let mut default_max_conns = MAX_CONS.lock().unwrap();
 

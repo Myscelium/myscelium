@@ -1,6 +1,6 @@
 [package]
 name = "myscelium_engine"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 description = "Myscelium is a library designed to simplify the creation of large, interconnected networks of Python scripts through sockets. These scripts harmoniously run on different machines, yet synchronize with one another. Much like the hyphae in mycelium interconnect various mushrooms, the socket bridges in the Myscelium library interlink multiple machines, synchronizing commands and harnessing the power of modularity."
 authors = ["Cristian Camargo Filho <ccf@cdone.com.br>"]
