@@ -19,3 +19,5 @@ cd \Myscelium
 cd \Myscelium\tests
 then:
 -> run: `pytest -v -s ./test_myscelium.py`
+
+
