@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: myscelium
-Version: 1.1
+Version: 1.2
 Summary: Myscelium is a library designed to simplify the creation of large, interconnected networks of Python scripts through sockets. These scripts harmoniously run on different machines, yet synchronize with one another. Much like the hyphae in mycelium interconnect various mushrooms, the socket bridges in the Myscelium library interlink multiple machines, synchronizing commands and harnessing the power of modularity.
 Author: Cristian Camargo Filho
 Author-email: ccf@cdone.com.br
@@ -10,6 +10,7 @@ Classifier: Programming Language :: Python :: 3.6
 Classifier: Programming Language :: Python :: 3.7
 Classifier: Programming Language :: Python :: 3.8
 Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
 Description-Content-Type: text/markdown
 
 ## Requirements

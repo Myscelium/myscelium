@@ -1,10 +1,10 @@
 #[macro_export]
 macro_rules! init_thread_pool {
     ($size:expr) => {{
-        use std::sync::mpsc;
+        use std::sync::{mpsc, Arc, Mutex};
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
-            let pool = crate::custom_thread_pool::thread_pool::UnifiedThreadPool::new($size);
+            let pool = Arc::new(Mutex::new(crate::commom::custom_thread_pool::thread_pool::UnifiedThreadPool::new($size)));
             if let Err(err) = tx.send(pool) {
                 println!("Error initializing thread pool: {:?}", err);
             }
@@ -22,7 +22,8 @@ macro_rules! init_thread_pool {
 #[macro_export]
 macro_rules! terminate_pool {
     ($pool:expr) => {{
-        $pool.stop();
+        let mut locked_pool = $pool.lock().unwrap();
+        locked_pool.stop();
     }};
 }
 
@@ -31,25 +32,29 @@ macro_rules! run_in_thread_pool {
     ($pool:expr, $code:block) => {{
         use std::sync::mpsc;
         let (tx, rx) = mpsc::channel();
-        $pool.execute(move || {
+        let mut locked_pool = $pool.lock().unwrap();
+        locked_pool.execute(move || {
             let result = $code;
             if let Err(err) = tx.send(result) {
                 println!("Error sending result from thread: {:?}", err);
             }
         });
-        match rx.recv() {
-            Ok(result) => result,
-            Err(err) => {
-                println!("Error receiving result from thread: {:?}", err);
-                panic!("Failed to receive result from thread!"); // or handle the error as appropriate
-            },
-        }
+        rx
     }};
 }
 
 #[macro_export]
 macro_rules! wait_all_threads {
-    ($pool:expr) => {{
-        $pool.join();
+    ($receivers:expr) => {{
+        let mut results = Vec::new();
+        for rx in $receivers {
+            match rx.recv() {
+                Ok(result) => results.push(result),
+                Err(err) => {
+                    println!("Error receiving result from thread: {:?}", err);
+                },
+            }
+        }
+        results
     }};
 }
