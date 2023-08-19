@@ -261,3 +261,87 @@ if __name__ == '__main__':
 ---
 
 This setup ensures that the client runs continuously in one process, while another process can interact with it by sending commands. Callbacks are activated when there's a response. This approach provides concurrency, allowing the client to handle responses while still being able to send new commands.
+
+---
+
+### Thread pool diagram
+
+```mermaid
+graph TD
+    Start[Start UnifiedThreadPool]
+    Start --> A[UnifiedThreadPool]
+    A --> Init[Initialize Workers Vec, Sender, and Condvar]
+    Init --> B[Workers Vec]
+    Init --> C[Sender]
+    Init --> D[Condvar]
+    B --> E[Worker]
+    E --> F[ID]
+    E --> G[Thread]
+    E --> H[Busy Flag]
+    I[Job]
+    I --> J[Option Boxed Fn]
+    A --> K[Worker New]
+    K --> L[Spawn Thread]
+    L --> M[Wait for Job]
+    A --> P[Execute Function]
+    P --> Q[Send Job to Worker]
+    Q --> M
+    M --> N[Execute Job]
+    N --> O[Notify Condvar]
+    O --> R[Return Completed Job to UnifiedThreadPool]
+    A --> S[Stop Function]
+    S --> T[Send Terminate Signal]
+    T --> U[Join Workers]
+    A --> V[Join Function]
+    V --> W[Send Terminate Signal]
+    W --> X[Join Workers]
+    A --> Y[Drop Trait]
+    Y --> Z[Send Terminate Signal]
+    Z --> AA[Join Workers]
+
+``` 
+\
+&nbsp;
+
+---
+
+### Thread pool work
+
+```mermaid
+graph TD
+    Start[Start UnifiedThreadPool]
+    Start --> A[UnifiedThreadPool]
+    A --> Init[Initialize Workers Vec, Sender, and Condvar]
+    Init --> B[Workers Vec]
+    Init --> C[Sender]
+    Init --> D[Condvar]
+    B --> E[Worker]
+    E --> F[ID]
+    E --> G[Thread]
+    E --> H[Busy Flag]
+    I[Job]
+    I --> J[Option Boxed Fn]
+    A --> K[Worker New]
+    K --> L[Spawn Thread]
+    L --> M[Wait for Job]
+    A --> P[Execute Function]
+    P --> Q[Send Job to Worker via Sender]
+    C --> Q
+    Q --> M
+    M --> N[Execute Job]
+    N --> O[Notify Condvar]
+    O --> R[Return Completed Job to UnifiedThreadPool]
+    A --> S[Stop Function]
+    S --> T[Send Terminate Signal via Sender]
+    C --> T
+    T --> U[Join Workers]
+    A --> V[Join Function]
+    V --> W[Send Terminate Signal via Sender]
+    C --> W
+    W --> X[Join Workers]
+    A --> Y[Drop Trait]
+    Y --> Z[Send Terminate Signal via Sender]
+    C --> Z
+    Z --> AA[Join Workers]
+
+```
