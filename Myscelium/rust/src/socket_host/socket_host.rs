@@ -166,7 +166,7 @@ pub fn register_client(client_id: String, client_type: String) {
 fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
     let logger = acquire_logger!("py dict to kwargs converter");
 
-    // Check if the dict contains the function name as a key
+    //> Check if the dict contains the function name as a key
     if !dict.contains_key("args") {
         // If it does not, return an empty HashMap since there are no arguments
         let kwargs: HashMap<String, PyObject> = HashMap::new();
