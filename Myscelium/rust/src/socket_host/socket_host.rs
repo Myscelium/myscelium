@@ -347,10 +347,12 @@ pub fn initialize_host_buffer(buffer_location: String) {
 pub fn initialize_host(address: String, client_id: String) {
     let logger = acquire_logger!("Core");
 
-    let mut actual_client_id = CLIENT_ID.lock().unwrap();
-    *actual_client_id = client_id;
+    {
+        let mut actual_client_id = CLIENT_ID.lock().unwrap();
+        *actual_client_id = client_id;
+    }
 
-    let default_max_conns = MAX_CONS.lock().unwrap();
+    // let default_max_conns = MAX_CONS.lock().unwrap();
 
     let listener = TcpListener::bind(&address).unwrap();
 
