@@ -518,7 +518,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
     if !(schedule.len() > 0) {
         logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
-        thread::sleep(Duration::from_secs(5));
+        thread::sleep(Duration::from_millis(500));
         return;
     }
 
@@ -545,6 +545,8 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
             logger.debug(format!("Finalize a process task!"));
         }
     }
+
+    thread::sleep(Duration::from_millis(100));
 
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
 

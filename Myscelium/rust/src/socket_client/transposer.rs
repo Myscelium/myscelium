@@ -688,7 +688,7 @@ fn clear_old_data() {
 pub fn initialize_socket_client_transposer() {
     let logger = acquire_logger!("Transposer");
 
-    thread::sleep(Duration::from_secs(2));
+    thread::sleep(Duration::from_millis(200));
 
     let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
@@ -704,7 +704,7 @@ pub fn initialize_socket_client_transposer() {
     if !(schedule.len() > 0) {
         logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
-        thread::sleep(Duration::from_secs(5));
+        thread::sleep(Duration::from_millis(500));
         return;
     }
 
