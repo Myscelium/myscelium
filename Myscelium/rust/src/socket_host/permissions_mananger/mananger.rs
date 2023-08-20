@@ -1,3 +1,48 @@
+use lazy_static::lazy_static;
+
+#[macro_use]
+use crate::{with_connection, set_new_path_to_buffer_db};
+use crate::commom::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator, UniqueParityIdGenerator};
+
+use rusqlite::params;
+
+use serde::{Deserialize, Serialize};
+
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
+
+use std::clone;
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+
+use serde_json::{from_str, Value};
+use std::collections::HashMap;
+
+use chrono::Utc;
+
+use crate::commom::enhanced_buffer::utilities::Command;
+
+use std::sync::RwLock;
+
+use rusqlite::{Connection, Result};
+
+use std::thread;
+use std::time::Duration;
+
+lazy_static! {
+    static ref BUFFER_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
+    static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
+    static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
+    static ref BUFFER_POOL: Mutex<SQLiteConnectionPool> = Mutex::new(SQLiteConnectionPool::empty());
+}
+
+pub fn set_workers_num(n_workers: u32) {
+    let mut default_num_of_workers = NUM_WORKERS.lock();
+
+    *default_num_of_workers = n_workers;
+}
+
 pub fn client_channel_mananger_initialize_table(buffer_path: String) {
     // Create a global Mutex for demonstration
     let mutex1 = Mutex::new(0);
