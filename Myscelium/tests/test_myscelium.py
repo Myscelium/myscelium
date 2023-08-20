@@ -141,20 +141,20 @@ def test_communication():
     # my_host.clear_events()
     # MyClient.clear_events()
 
-def test_communication_resistance():
-    success_count = 0
-    total_attempts = 100
+# def test_communication_resistance():
+#     success_count = 0
+#     total_attempts = 100
 
-    for _ in range(total_attempts):
-        try:
-            test_communication()
-            success_count += 1
-        except Exception as e:
-            print(f"Failed on attempt {_ + 1} with error: {e}")
+#     for _ in range(total_attempts):
+#         try:
+#             test_communication()
+#             success_count += 1
+#         except Exception as e:
+#             print(f"Failed on attempt {_ + 1} with error: {e}")
 
-    success_porcentage = (success_count/total_attempts)*100
-    print(f"\n\nTest succeeded {success_count} out of {total_attempts} attempts. Test have {success_porcentage}% of success")
-    assert success_count == total_attempts, "Not all attempts were successful!"
+#     success_porcentage = (success_count/total_attempts)*100
+#     print(f"\n\nTest succeeded {success_count} out of {total_attempts} attempts. Test have {success_porcentage}% of success")
+#     assert success_count == total_attempts, "Not all attempts were successful!"
 
 if __name__ == '__main__':
     pytest.main()

@@ -77,7 +77,7 @@ lazy_static! {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
     };
-    static ref CONNECTION_HENDLER_POOL: Arc<Mutex<UnifiedThreadPool>> = {
+    static ref CONNECTION_HANDLER_POOL: Arc<Mutex<UnifiedThreadPool>> = {
         let mut max_connections;
         {
             let max_conns = MAX_CONS.lock().unwrap();
@@ -365,7 +365,7 @@ pub fn initialize_host(address: String, client_id: String) {
         if !HOST_IS_RUNING.load(Ordering::SeqCst) {
             // Lock the pool and stop it
 
-            terminate_pool!(CONNECTION_HENDLER_POOL);
+            terminate_pool!(CONNECTION_HANDLER_POOL);
             println!("Stopped the thread pool!");
             break;
         }
@@ -374,7 +374,7 @@ pub fn initialize_host(address: String, client_id: String) {
 
         match listener.accept() {
             Ok((stream, _)) => {
-                let rx = run_in_thread_pool!(CONNECTION_HENDLER_POOL, {
+                let rx = run_in_thread_pool!(CONNECTION_HANDLER_POOL, {
                     handle_connection(stream);
                 });
                 receivers.push(rx);
