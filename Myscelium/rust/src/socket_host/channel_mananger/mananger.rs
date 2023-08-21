@@ -72,7 +72,7 @@ pub fn client_channel_mananger_initialize_table(buffer_path: String) {
 
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let result = conn.execute(
-            "CREATE TABLE IF NOT EXISTS ClientCommandsTosend (ID INT PRIMARY KEY, OwnerClientKey TEXT, ChanelName TEXT, ChannelPurpose TEXT, ChannelLifetime NUMBER, LastContact NUMBER, Streaming BOOL)",
+            "CREATE TABLE IF NOT EXISTS ClientCommandsTosend (ID INT PRIMARY KEY, OwnerClientKey TEXT, ChanelName TEXT, ChannelPurpose TEXT, Status TEXT, ChannelLifetime NUMBER, LastContact NUMBER, Streaming BOOL)",
             params![],
         );
 
@@ -85,4 +85,46 @@ pub fn client_channel_mananger_initialize_table(buffer_path: String) {
             },
         };
     });
+}
+
+#[derive(Debug, Clone)]
+enum ChannelStatus {
+    Waithing,
+    Streaming,
+    Seleeping,
+    Dead,
+}
+
+#[derive(Debug, Clone)]
+enum ChannelError {
+    ChannelDoesNotExists,
+    ChannelAlwreadyStreaming,
+    IncompatiblePurpose,
+}
+
+#[derive(Debug, Clone)]
+enum ChannelPurpose {
+    BinaryTransfer,
+    BinarySignalStream,
+}
+
+#[derive(Debug, Clone)]
+struct Channel {
+    channel_id: Option<u32>,
+    owner_key: String,
+    channel_name: String,
+    channel_purpose: ChannelPurpose,
+    channel_status: ChannelStatus,
+    channel_lifetime: String,
+    last_contact: f64,
+    is_streaming: bool,
+}
+
+impl Channel {
+    fn new(channel_id: u32, owner_key: String, channel_name: String, channel_purpose: String, channel_lifetime: String, last_contact: f64, is_streaming: bool) {}
+    fn from() {}
+    fn is_streaming() {}
+    fn get_last_contact() {}
+    fn get_lifetime() {}
+    fn get_channel_by_id(channel_id: u32) {}
 }

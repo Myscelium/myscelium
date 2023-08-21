@@ -100,7 +100,7 @@ pub fn clients_mananger_initialize_table(sql_path: String) {
 
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         let result = conn.execute(
-            "CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY, ClientName TEXT, ClientKey TEXT, PermissionGroup TEXT, SuperUser BOOL, LastContact NUMBER, MaxSubChannels NUMBER, SubChannelsInUse NUMBER)",
+            "CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY, ClientName TEXT, ClientKey TEXT, PermissionGroup TEXT, SuperUser BOOL, LastContact NUMBER, MaxSubChannels NUMBER, SubChannelsKeys TEXT, SubChannelsInUse NUMBER)",
             params![],
         );
 
@@ -129,6 +129,7 @@ struct Client {
     super_user: String,
     last_contact: f64,
     max_sub_channels: u32,
+    owned_sub_channels_keys: Vec<String>,
     sub_channels_in_use: u32,
 }
 
@@ -149,7 +150,7 @@ impl Client {
         get_client_by_name(client_name)
     }
 
-    pub fn edit(&self, client_key: String, client_name: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, sub_channels_in_use: u32) -> Result<Self, ClientError> {
+    pub fn edit(&self, client_key: String, client_name: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Result<Self, ClientError> {
         if !check_if_client_key_exists(client_key) {
             return Err(ClientError::ClientDoesNotExist(client_key));
         }
@@ -162,6 +163,7 @@ impl Client {
             super_user,
             last_contact,
             max_sub_channels,
+            owned_sub_channels_keys,
             sub_channels_in_use,
         };
 
@@ -183,6 +185,7 @@ impl Client {
             super_user: self.super_user,
             last_contact: self.last_contact,
             max_sub_channels: self.max_sub_channels,
+            owned_sub_channels_keys: self.owned_sub_channels_keys,
             sub_channels_in_use: self.sub_channels_in_use,
         };
 
@@ -191,7 +194,7 @@ impl Client {
         Ok(new_client)
     }
 
-    pub fn new(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, sub_channels_in_use: u32) -> Self {
+    pub fn new(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
         let client_id = Some(0u32);
 
         Self {
@@ -202,6 +205,7 @@ impl Client {
             super_user,
             last_contact,
             max_sub_channels,
+            owned_sub_channels_keys,
             sub_channels_in_use,
         }
     }
@@ -215,7 +219,7 @@ impl Client {
         Ok(())
     }
 
-    fn from(client_id: u32, client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, sub_channels_in_use: u32) -> Self {
+    fn from(client_id: u32, client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
         Self {
             client_id: Some(client_id),
             client_name,
@@ -224,6 +228,7 @@ impl Client {
             super_user,
             last_contact,
             max_sub_channels,
+            owned_sub_channels_keys,
             sub_channels_in_use,
         }
     }
@@ -283,7 +288,7 @@ fn get_registred_ids() -> Vec<u32> {
     })
 }
 
-pub fn registry_client(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, sub_channels_in_use: u32) {
+pub fn registry_client(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         // let now = Utc::now();
         // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
@@ -292,9 +297,21 @@ pub fn registry_client(client_name: String, client_key: String, permission_group
 
         let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
 
+        let serialzied_owned_sub_channels_keys = serde_json::to_string(&owned_sub_channels_keys).expect("Failed to serialize to JSON");
+
         let result = conn.execute(
-            "INSERT INTO Clients (ID, ClientName, ClientKey, PermissionGroup, SuperUser, LastContact, MaxSubChannels, SubChannelsInUse) VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
-            params![id_generator.gen(), client_name, client_key, permission_group, super_user, last_contact, max_sub_channels, sub_channels_in_use],
+            "INSERT INTO Clients (ID, ClientName, ClientKey, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);",
+            params![
+                id_generator.gen(),
+                client_name,
+                client_key,
+                permission_group,
+                super_user,
+                last_contact,
+                max_sub_channels,
+                serialzied_owned_sub_channels_keys,
+                sub_channels_in_use
+            ],
         );
 
         match result {
@@ -329,7 +346,8 @@ fn get_client_by_key(client_key: String) -> Result<Client, ClientError> {
                         row.get(4).unwrap(),
                         row.get(5).unwrap(),
                         row.get(6).unwrap(),
-                        row.get(7).unwrap(),
+                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
+                        row.get(8).unwrap(),
                     ))
                 })
                 .unwrap();
@@ -364,7 +382,8 @@ fn get_client_by_name(client_name: String) -> Result<Client, ClientError> {
                         row.get(4).unwrap(),
                         row.get(5).unwrap(),
                         row.get(6).unwrap(),
-                        row.get(7).unwrap(),
+                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
+                        row.get(8).unwrap(),
                     ))
                 })
                 .unwrap();
@@ -384,8 +403,10 @@ fn get_client_by_name(client_name: String) -> Result<Client, ClientError> {
 
 pub fn edit_client(client: Client) {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+        let serialized_owned_sub_channels_keys = serde_json::to_string(&client.owned_sub_channels_keys).expect("Failed to serialize to JSON");
+
         let result = conn.execute(
-            "UPDATE Clients SET ClientName = ?, ClientKey = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, SubChannelsInUse = ? WHERE ID = ?;",
+            "UPDATE Clients SET ClientName = ?, ClientKey = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, OwnedSubChannelsKeys = ?, SubChannelsInUse = ? WHERE ID = ?;",
             params![
                 client.client_name,
                 client.client_key,
@@ -393,6 +414,7 @@ pub fn edit_client(client: Client) {
                 client.super_user,
                 client.last_contact,
                 client.max_sub_channels,
+                serialized_owned_sub_channels_keys,
                 client.sub_channels_in_use,
                 client.client_id,
             ],
