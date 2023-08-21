@@ -132,6 +132,14 @@ struct Client {
     sub_channels_in_use: u32,
 }
 
+// > Get client by key
+// > Get client by name
+// > edit client
+// > change key
+// > new client
+// > client from
+// > delet client
+
 impl Client {
     pub fn get_by_key(client_key: String) -> Result<Self, ClientError> {
         get_client_by_key(client_key)
@@ -141,17 +149,13 @@ impl Client {
         get_client_by_name(client_name)
     }
 
-    pub fn edit(client_key: String, client_name: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, sub_channels_in_use: u32) -> Result<Self, ClientError> {
-        let mut client;
-
+    pub fn edit(&self, client_key: String, client_name: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, sub_channels_in_use: u32) -> Result<Self, ClientError> {
         if !check_if_client_key_exists(client_key) {
             return Err(ClientError::ClientDoesNotExist(client_key));
-        } else {
-            client = get_client_by_key(client_key)?;
         }
 
         let new_client = Self {
-            client_id: client.client_id,
+            client_id: self.client_id,
             client_name,
             client_key,
             permission_group,
@@ -161,34 +165,30 @@ impl Client {
             sub_channels_in_use,
         };
 
-        edit_client(client);
+        edit_client(new_client);
 
-        Ok(client)
+        Ok(new_client)
     }
 
-    pub fn change_key(old_client_key: String, new_client_key: String) -> Result<Self, ClientError> {
-        let mut client;
-
-        if !check_if_client_key_exists(old_client_key) {
-            return Err(ClientError::ClientDoesNotExist(old_client_key));
-        } else {
-            client = get_client_by_key(old_client_key)?;
+    pub fn change_key_to(&self, new_client_key: String) -> Result<Self, ClientError> {
+        if !check_if_client_key_exists(self.client_key) {
+            return Err(ClientError::ClientDoesNotExist(self.client_key));
         }
 
         let new_client = Self {
-            client_id: client.client_id,
-            client_name: client.client_name,
+            client_id: self.client_id,
+            client_name: self.client_name,
             client_key: new_client_key,
-            permission_group: client.permission_group,
-            super_user: client.super_user,
-            last_contact: client.last_contact,
-            max_sub_channels: client.max_sub_channels,
-            sub_channels_in_use: client.sub_channels_in_use,
+            permission_group: self.permission_group,
+            super_user: self.super_user,
+            last_contact: self.last_contact,
+            max_sub_channels: self.max_sub_channels,
+            sub_channels_in_use: self.sub_channels_in_use,
         };
 
-        edit_client(client);
+        edit_client(new_client);
 
-        Ok(client)
+        Ok(new_client)
     }
 
     pub fn new(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, sub_channels_in_use: u32) -> Self {
@@ -204,6 +204,15 @@ impl Client {
             max_sub_channels,
             sub_channels_in_use,
         }
+    }
+
+    pub fn delete(&self) -> Result<(), ClientError> {
+        if !check_if_client_key_exists(self.client_key) {
+            return Err(ClientError::ClientDoesNotExist(self.client_key));
+        }
+
+        remove_client(*self);
+        Ok(())
     }
 
     fn from(client_id: u32, client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, sub_channels_in_use: u32) -> Self {
@@ -397,6 +406,21 @@ pub fn edit_client(client: Client) {
             },
             Err(e) => {
                 eprintln!("Error while update client: {} in the databse, the error is: {}", client.client_name, e);
+            },
+        }
+    });
+}
+
+fn remove_client(client: Client) {
+    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+        let result = conn.execute("DELETE from Clients WHERE ClientKey = ?", params![client.client_key]);
+
+        match result {
+            Ok(rows) => {
+                println!("Successfully deleted Client: {} from clients! {} Rows were affected.", client.client_key, rows);
+            },
+            Err(e) => {
+                eprintln!("An error occurred while deleting Client: {} from clients! And the error was: {}", client.client_key, e);
             },
         }
     });
