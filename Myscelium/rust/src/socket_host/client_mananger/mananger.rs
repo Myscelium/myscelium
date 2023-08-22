@@ -115,13 +115,15 @@ pub fn clients_mananger_initialize_table(sql_path: String) {
     });
 }
 
-enum ClientError {
+#[derive(Debug, Clone)]
+pub enum ClientError {
     ClientDoesNotExist(String),
     ClientAlwreadyExist(String),
     UnexpectedError(String),
 }
 
-struct Client {
+#[derive(Debug, Clone)]
+pub struct Client {
     pub client_id: Option<u32>,
     client_name: String,
     client_key: String,
@@ -151,8 +153,8 @@ impl Client {
     }
 
     pub fn edit(&self, client_key: String, client_name: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Result<Self, ClientError> {
-        if !check_if_client_key_exists(client_key) {
-            return Err(ClientError::ClientDoesNotExist(client_key));
+        if !check_if_client_key_exists(client_key.clone()) {
+            return Err(ClientError::ClientDoesNotExist(client_key.clone()));
         }
 
         let new_client = Self {
@@ -167,29 +169,29 @@ impl Client {
             sub_channels_in_use,
         };
 
-        edit_client(new_client);
+        edit_client(new_client.clone());
 
         Ok(new_client)
     }
 
     pub fn change_key_to(&self, new_client_key: String) -> Result<Self, ClientError> {
-        if !check_if_client_key_exists(self.client_key) {
-            return Err(ClientError::ClientDoesNotExist(self.client_key));
+        if !check_if_client_key_exists(self.client_key.clone()) {
+            return Err(ClientError::ClientDoesNotExist(self.client_key.clone()));
         }
 
         let new_client = Self {
             client_id: self.client_id,
-            client_name: self.client_name,
+            client_name: self.client_name.clone(),
             client_key: new_client_key,
-            permission_group: self.permission_group,
-            super_user: self.super_user,
+            permission_group: self.permission_group.clone(),
+            super_user: self.super_user.clone(),
             last_contact: self.last_contact,
             max_sub_channels: self.max_sub_channels,
-            owned_sub_channels_keys: self.owned_sub_channels_keys,
+            owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
             sub_channels_in_use: self.sub_channels_in_use,
         };
 
-        edit_client(new_client);
+        edit_client(new_client.clone());
 
         Ok(new_client)
     }
@@ -211,11 +213,11 @@ impl Client {
     }
 
     pub fn delete(&self) -> Result<(), ClientError> {
-        if !check_if_client_key_exists(self.client_key) {
-            return Err(ClientError::ClientDoesNotExist(self.client_key));
+        if !check_if_client_key_exists(self.client_key.clone()) {
+            return Err(ClientError::ClientDoesNotExist(self.client_key.clone()));
         }
 
-        remove_client(*self);
+        remove_client(self.clone());
         Ok(())
     }
 
@@ -360,7 +362,7 @@ fn get_client_by_key(client_key: String) -> Result<Client, ClientError> {
         if clients.len() == 0 {
             return Err(ClientError::ClientDoesNotExist(client_key));
         } else {
-            return Ok(clients[0]);
+            return Ok(clients[0].clone());
         }
     })
 }
@@ -396,7 +398,7 @@ fn get_client_by_name(client_name: String) -> Result<Client, ClientError> {
         if clients.len() == 0 {
             return Err(ClientError::ClientDoesNotExist(client_name));
         } else {
-            return Ok(clients[0]);
+            return Ok(clients[0].clone());
         }
     })
 }

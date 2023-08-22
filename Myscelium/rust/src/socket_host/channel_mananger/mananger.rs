@@ -97,7 +97,7 @@ pub fn client_channel_mananger_initialize_table(buffer_path: String) {
 }
 
 #[derive(Debug, Clone)]
-enum ChannelStatus {
+pub enum ChannelStatus {
     Waiting,
     Streaming,
     Sleeping,
@@ -117,14 +117,14 @@ impl ToSql for ChannelStatus {
 }
 
 #[derive(Debug, Clone)]
-enum ChannelError {
+pub enum ChannelError {
     ChannelDoesNotExists,
     ChannelAlreadyStreaming,
     IncompatiblePurpose,
 }
 
 #[derive(Debug, Clone)]
-enum ChannelPurpose {
+pub enum ChannelPurpose {
     BinaryTransfer,
     BinarySignalStream,
 }
@@ -140,7 +140,7 @@ impl ToSql for ChannelPurpose {
 }
 
 #[derive(Debug, Clone)]
-struct Channel {
+pub struct Channel {
     channel_id: u32,
     owner_key: String,
     channel_name: String,

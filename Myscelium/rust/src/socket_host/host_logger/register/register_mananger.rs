@@ -137,10 +137,7 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
     set_new_path_to_buffer_db!(LOGS_REGISTERS_POOL, NUM_WORKERS, loggs_storage_path, BUFFER_NAME);
 
     with_connection!(LOGS_REGISTERS_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute(
-            "CREATE TABLE IF NOT EXISTS HostLogs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)",
-            params![],
-        );
+        let result = conn.execute("CREATE TABLE IF NOT EXISTS HostLogs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)", params![]);
 
         match result {
             Ok(_) => {
@@ -149,8 +146,8 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
             Err(e) => {
                 eprintln!("An error occurred while scheduling the command in the HostLogs table: {}", e);
             },
-        }
-    });
+        };
+    })
 }
 
 // -> DONE
@@ -161,9 +158,7 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
 
         let registered_ids = get_registred_ids();
 
-        let mut id_generator = UniqueIdGenerator {
-            registered_ids: registered_ids,
-        };
+        let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
 
         let result = conn.execute(
             "INSERT INTO HostLogs (ID, NodeName, LogTime, LogName, LogLevel, LogMsg) VALUES (?, ?, ?, ?, ?, ?);",
@@ -234,5 +229,5 @@ pub fn remove_log_by_id(log_id: u32) {
                 eprintln!("An error occurred while deleting the Log: {} from HostLogs table: {}", log_id, e);
             },
         };
-    });
+    })
 }
