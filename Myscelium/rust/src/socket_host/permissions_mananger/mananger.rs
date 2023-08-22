@@ -86,3 +86,28 @@ pub fn client_channel_mananger_initialize_table(buffer_path: String) {
         };
     });
 }
+
+#[derive(Debug, Clone)]
+struct PermissionRule {
+    allowed_callbacks: Vec<String>,
+    allow_create_new_clients: bool,
+    allow_create_sub_channels: bool,
+
+    max_sub_channels_allowed: bool,
+
+    allow_redirect: bool,
+    allowed_to_redirect_are_blacklist: bool,
+    allow_to_redirect: Vec<Client>,
+
+    allow_file_transfer: bool,
+    allow_transfer_to_are_blacklist: bool,
+    allow_transfer_to: Vec<Client>,
+}
+
+#[derive(Debug, Clone)]
+struct PermissionGroup {
+    group_id: u32,
+    group_name: String,
+    clients_allowed: Vec<Client>,
+    permissions: Vec<PermissionRule>,
+}
