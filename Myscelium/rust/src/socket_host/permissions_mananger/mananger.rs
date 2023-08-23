@@ -158,6 +158,11 @@ pub fn groups_mananger_initialize_table(buffer_path: String) {
 //     }
 // }
 
+enum GroupError {
+    GroupDoesNotExist(String),
+    GroupAlwreadyExist(String),
+}
+
 #[derive(Debug, Clone)]
 struct PermissionGroup {
     group_id: u32,
@@ -218,7 +223,7 @@ impl PermissionGroup {
         group
     }
 
-    fn create(
+    pub fn create(
         group_name: String,
         clients_allowed_to_use: Vec<String>,
         allowed_callbacks: Vec<String>,
@@ -234,8 +239,65 @@ impl PermissionGroup {
         allow_file_transfer: bool,
         allow_transfer_to_are_blacklist: bool,
         allow_transfer_to: Vec<String>,
-    ) -> Self {
-        let group_id = 0u32;
+    ) -> Result<PermissionGroup, GroupError> {
+        if check_if_permission_group_name_exists(group_name) {
+            return Err(GroupError::GroupAlwreadyExist(group_name));
+        }
+
+        let registered_ids = get_registred_ids();
+
+        let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
+
+        let group_id = id_generator.gen();
+
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            // let now = Utc::now();
+            // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+            let result = conn.execute(
+                "INSERT INTO PermissionGroups (ID, 
+                                               GroupName, 
+                                               ClientAllowedToUse, 
+                                               AllowedCallbacks, 
+                                               AllowCreateNewClients, 
+                                               AllowCreateSubChannels, 
+                                               MaxSubChannelsAllowed, 
+                                               AllowRedirect, 
+                                               RedirectoToWhitelistIsBlacklist, 
+                                               AllowRedirectTo, 
+                                               AllowFileTransfer, 
+                                               FileTransferWithelistAreBlackList, 
+                                               AllowFileTransferTo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                params![
+                    group_id.clone(),
+                    group_name,
+                    serde_json::to_string(&clients_allowed_to_use).unwrap(),
+                    serde_json::to_string(&allowed_callbacks).unwrap(),
+                    allow_create_new_clients,
+                    allow_create_sub_channels,
+                    max_sub_channels_allowed,
+                    allow_redirect,
+                    allowed_to_redirect_are_blacklist,
+                    serde_json::to_string(&allow_redirect_to).unwrap(),
+                    allow_file_transfer,
+                    allow_transfer_to_are_blacklist,
+                    serde_json::to_string(&allow_transfer_to).unwrap(),
+                ],
+            );
+
+            match result {
+                Ok(rows) => {
+                    if rows > 0 {
+                        println!("Successfully inserted Log in the table PermissionGroups. {} row(s) were affected.", rows);
+                    } else {
+                        println!("No rows were affected.");
+                    }
+                },
+                Err(e) => {
+                    eprintln!("An error occurred while inserting the Log in the table PermissionGroups: {}", e);
+                },
+            };
+        });
 
         let group = Self {
             group_id,
@@ -255,38 +317,180 @@ impl PermissionGroup {
             allow_transfer_to_are_blacklist,
             allow_transfer_to,
         };
-        group
+        Ok(group)
+    }
+
+    pub fn from_name(group_name: String) -> Result<Self, GroupError> {
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            let mut groups: Vec<PermissionGroup> = Vec::new();
+
+            {
+                let mut smtp = conn.prepare("SELECT * FROM PermissionGroups WHERE GroupName = ?").unwrap();
+
+                let permission_groups_iter = smtp
+                    .query_map(params![group_name], |row| {
+                        Ok(PermissionGroup::from(
+                            row.get(0).unwrap(),
+                            row.get(1).unwrap(),
+                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(2)?.as_str()).unwrap(),
+                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(3)?.as_str()).unwrap(),
+                            row.get(4).unwrap(),
+                            row.get(5).unwrap(),
+                            row.get(6).unwrap(),
+                            row.get(7).unwrap(),
+                            row.get(8).unwrap(),
+                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(9)?.as_str()).unwrap(),
+                            row.get(10).unwrap(),
+                            row.get(11).unwrap(),
+                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(12)?.as_str()).unwrap(),
+                        ))
+                    })
+                    .unwrap();
+
+                for permission_group in permission_groups_iter {
+                    groups.push(permission_group.unwrap());
+                }
+            }
+
+            if groups.len() == 0 {
+                return Err(GroupError::GroupDoesNotExist(group_name));
+            } else {
+                return Ok(groups[0].clone());
+            }
+        })
+    }
+
+    pub fn edit(
+        &self,
+        group_name: String,
+        clients_allowed_to_use: Vec<String>,
+        allowed_callbacks: Vec<String>,
+        allow_create_new_clients: bool,
+        allow_create_sub_channels: bool,
+
+        max_sub_channels_allowed: bool,
+
+        allow_redirect: bool,
+        allowed_to_redirect_are_blacklist: bool,
+        allow_redirect_to: Vec<String>,
+
+        allow_file_transfer: bool,
+        allow_transfer_to_are_blacklist: bool,
+        allow_transfer_to: Vec<String>,
+    ) -> Result<PermissionGroup, GroupError> {
+        let group_id = self.group_id;
+
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            let result = conn.execute(
+                "UPDATE PermissionGroups SET ID,
+                GroupName = ?, 
+                ClientAllowedToUse = ?, 
+                AllowedCallbacks = ?, 
+                AllowCreateNewClients = ?, 
+                AllowCreateSubChannels = ?, 
+                MaxSubChannelsAllowed = ?, 
+                AllowRedirect = ?, 
+                RedirectoToWhitelistIsBlacklist = ?, 
+                AllowRedirectTo = ?, 
+                AllowFileTransfer = ?, 
+                FileTransferWithelistAreBlackList = ?, 
+                AllowFileTransferTo = ? WHERE ID = ?;",
+                params![
+                    group_name,
+                    serde_json::to_string(&clients_allowed_to_use).unwrap(),
+                    serde_json::to_string(&allowed_callbacks).unwrap(),
+                    allow_create_new_clients,
+                    allow_create_sub_channels,
+                    max_sub_channels_allowed,
+                    allow_redirect,
+                    allowed_to_redirect_are_blacklist,
+                    serde_json::to_string(&allow_redirect_to).unwrap(),
+                    allow_file_transfer,
+                    allow_transfer_to_are_blacklist,
+                    serde_json::to_string(&allow_transfer_to).unwrap(),
+                    group_id.clone(),
+                ],
+            );
+
+            match result {
+                Ok(rows) => {
+                    if rows > 0 {
+                        println!("Successfully update PermissionGroups: {} in databse", group_name);
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Error while update PermissionGroups: {} in the databse, the error is: {}", group_name, e);
+                },
+            }
+        });
+
+        let new_group = Self {
+            group_id,
+            group_name,
+            clients_allowed_to_use,
+            allowed_callbacks,
+            allow_create_new_clients,
+            allow_create_sub_channels,
+
+            max_sub_channels_allowed,
+
+            allow_redirect,
+            allowed_to_redirect_are_blacklist,
+            allow_redirect_to,
+
+            allow_file_transfer,
+            allow_transfer_to_are_blacklist,
+            allow_transfer_to,
+        };
+
+        Ok(new_group)
+    }
+
+    pub fn delete(self) -> Result<(), GroupError> {
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            let result = conn.execute("DELETE from PermissionGroups WHERE ID = ?", params![self.group_id]);
+
+            match result {
+                Ok(rows) => {
+                    println!("Successfully deleted PermissionGroups: {} from groups! {} Rows were affected.", self.group_name, rows);
+                },
+                Err(e) => {
+                    eprintln!("An error occurred while deleting PermissionGroups: {} from groups! And the error was: {}", self.group_name, e);
+                },
+            }
+        });
+        Ok(())
     }
 }
 
-pub fn check_if_permission_group_key_exists(client_key: String) -> bool {
-    let client_keys: Vec<String> = get_permission_group_keys_registred();
+pub fn check_if_permission_group_name_exists(group_name: String) -> bool {
+    let group_names: Vec<String> = get_permission_group_names_registred();
 
-    if client_keys.contains(&client_key) {
+    if group_names.contains(&group_name) {
         return true;
     } else {
         return false;
     }
 }
 
-fn get_permission_group_keys_registred() -> Vec<String> {
+fn get_permission_group_names_registred() -> Vec<String> {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let mut keys: Vec<String> = Vec::new();
+        let mut names: Vec<String> = Vec::new();
         {
             let mut smtp: Statement<'_> = conn.prepare("SELECT * FROM PermissionGroups").unwrap();
-            let commands_iter = smtp
+            let names_iter = smtp
                 .query_map(params![], |row: &Row<'_>| {
-                    let key: String = row.get(1)?;
-                    Ok(key)
+                    let name: String = row.get(1)?;
+                    Ok(name)
                 })
                 .unwrap();
 
-            for command in commands_iter {
-                keys.push(command.unwrap());
+            for name in names_iter {
+                names.push(name.unwrap());
             }
         }
 
-        keys
+        names
     })
 }
 
@@ -312,196 +516,174 @@ fn get_registred_ids() -> Vec<u32> {
     })
 }
 
-pub fn registry_permission_group(
-    group_id: u32,
-    group_name: String,
-    clients_allowed_to_use: Vec<String>,
-    allowed_callbacks: Vec<String>,
-    allow_create_new_clients: bool,
-    allow_create_sub_channels: bool,
+// pub fn registry_permission_group(
+//     group_id: u32,
+//     group_name: String,
+//     clients_allowed_to_use: Vec<String>,
+//     allowed_callbacks: Vec<String>,
+//     allow_create_new_clients: bool,
+//     allow_create_sub_channels: bool,
 
-    max_sub_channels_allowed: bool,
+//     max_sub_channels_allowed: bool,
 
-    allow_redirect: bool,
-    allowed_to_redirect_are_blacklist: bool,
-    allow_redirect_to: Vec<String>,
+//     allow_redirect: bool,
+//     allowed_to_redirect_are_blacklist: bool,
+//     allow_redirect_to: Vec<String>,
 
-    allow_file_transfer: bool,
-    allow_transfer_to_are_blacklist: bool,
-    allow_transfer_to: Vec<String>,
-) {
+//     allow_file_transfer: bool,
+//     allow_transfer_to_are_blacklist: bool,
+//     allow_transfer_to: Vec<String>,
+// ) {
+//     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+//         // let now = Utc::now();
+//         // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+//         let registered_ids = get_registred_ids();
+
+//         let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
+
+//         let result = conn.execute(
+//             "INSERT INTO PermissionGroups (ID,
+//                                            GroupName,
+//                                            ClientAllowedToUse,
+//                                            AllowedCallbacks,
+//                                            AllowCreateNewClients,
+//                                            AllowCreateSubChannels,
+//                                            MaxSubChannelsAllowed,
+//                                            AllowRedirect,
+//                                            RedirectoToWhitelistIsBlacklist,
+//                                            AllowRedirectTo,
+//                                            AllowFileTransfer,
+//                                            FileTransferWithelistAreBlackList,
+//                                            AllowFileTransferTo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+//             params![
+//                 id_generator.gen(),
+//                 group_name,
+//                 serde_json::to_string(&clients_allowed_to_use).unwrap(),
+//                 serde_json::to_string(&allowed_callbacks).unwrap(),
+//                 allow_create_new_clients,
+//                 allow_create_sub_channels,
+//                 max_sub_channels_allowed,
+//                 allow_redirect,
+//                 allowed_to_redirect_are_blacklist,
+//                 serde_json::to_string(&allow_redirect_to).unwrap(),
+//                 allow_file_transfer,
+//                 allow_transfer_to_are_blacklist,
+//                 serde_json::to_string(&allow_transfer_to).unwrap(),
+//             ],
+//         );
+
+//         match result {
+//             Ok(rows) => {
+//                 if rows > 0 {
+//                     println!("Successfully inserted Log in the table PermissionGroups. {} row(s) were affected.", rows);
+//                 } else {
+//                     println!("No rows were affected.");
+//                 }
+//             },
+//             Err(e) => {
+//                 eprintln!("An error occurred while inserting the Log in the table PermissionGroups: {}", e);
+//             },
+//         };
+//     })
+// }
+
+// fn get_permission_group_by_name(group_name: String) -> Result<Client, ClientError> {
+//     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+//         let mut groups: Vec<PermissionGroup> = Vec::new();
+
+//         {
+//             let mut smtp = conn.prepare("SELECT * FROM PermissionGroups WHERE GroupName = ?").unwrap();
+
+//             let permission_groups_iter = smtp
+//                 .query_map(params![group_name], |row| {
+//                     Ok(PermissionGroup::from(
+//                         row.get(0).unwrap(),
+//                         row.get(1).unwrap(),
+//                         serde_json::from_str::<Vec<String>>(row.get::<_, String>(2)?.as_str()).unwrap(),
+//                         serde_json::from_str::<Vec<String>>(row.get::<_, String>(3)?.as_str()).unwrap(),
+//                         row.get(4).unwrap(),
+//                         row.get(5).unwrap(),
+//                         row.get(6).unwrap(),
+//                         row.get(7).unwrap(),
+//                         row.get(8).unwrap(),
+//                         serde_json::from_str::<Vec<String>>(row.get::<_, String>(9)?.as_str()).unwrap(),
+//                         row.get(10).unwrap(),
+//                         row.get(11).unwrap(),
+//                         serde_json::from_str::<Vec<String>>(row.get::<_, String>(12)?.as_str()).unwrap(),
+//                     ))
+//                 })
+//                 .unwrap();
+
+//             for permission_group in permission_groups_iter {
+//                 groups.push(permission_group.unwrap());
+//             }
+//         }
+
+//         if groups.len() == 0 {
+//             return Err(GroupError::GroupDoesNotExist(group_name));
+//         } else {
+//             return Ok(groups[0].clone());
+//         }
+//     })
+// }
+
+// pub fn edit_permission_group(group: PermissionGroup) {
+//     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+//         let result = conn.execute(
+//             "UPDATE PermissionGroups SET ID,
+//             GroupName = ?,
+//             ClientAllowedToUse = ?,
+//             AllowedCallbacks = ?,
+//             AllowCreateNewClients = ?,
+//             AllowCreateSubChannels = ?,
+//             MaxSubChannelsAllowed = ?,
+//             AllowRedirect = ?,
+//             RedirectoToWhitelistIsBlacklist = ?,
+//             AllowRedirectTo = ?,
+//             AllowFileTransfer = ?,
+//             FileTransferWithelistAreBlackList = ?,
+//             AllowFileTransferTo = ? WHERE ID = ?;",
+//             params![
+//                 group.group_name,
+//                 serde_json::to_string(&group.clients_allowed_to_use).unwrap(),
+//                 serde_json::to_string(&group.allowed_callbacks).unwrap(),
+//                 group.allow_create_new_clients,
+//                 group.allow_create_sub_channels,
+//                 group.max_sub_channels_allowed,
+//                 group.allow_redirect,
+//                 group.allowed_to_redirect_are_blacklist,
+//                 serde_json::to_string(&group.allow_redirect_to).unwrap(),
+//                 group.allow_file_transfer,
+//                 group.allow_transfer_to_are_blacklist,
+//                 serde_json::to_string(&group.allow_transfer_to).unwrap(),
+//                 group.group_id,
+//             ],
+//         );
+
+//         match result {
+//             Ok(rows) => {
+//                 if rows > 0 {
+//                     println!("Successfully update PermissionGroups: {} in databse", group.group_name);
+//                 }
+//             },
+//             Err(e) => {
+//                 eprintln!("Error while update PermissionGroups: {} in the databse, the error is: {}", group.group_name, e);
+//             },
+//         }
+//     });
+// }
+
+fn remove_permission_group(group: PermissionGroup) {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        // let now = Utc::now();
-        // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
-
-        let registered_ids = get_registred_ids();
-
-        let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
-
-        let result = conn.execute(
-            "INSERT INTO PermissionGroups (ID, 
-                                           GroupName, 
-                                           ClientAllowedToUse, 
-                                           AllowedCallbacks, 
-                                           AllowCreateNewClients, 
-                                           AllowCreateSubChannels, 
-                                           MaxSubChannelsAllowed, 
-                                           AllowRedirect, 
-                                           RedirectoToWhitelistIsBlacklist, 
-                                           AllowRedirectTo, 
-                                           AllowFileTransfer, 
-                                           FileTransferWithelistAreBlackList, 
-                                           AllowFileTransferTo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-            params![
-                id_generator.gen(),
-                group_name,
-                serde_json::to_string(&clients_allowed_to_use).unwrap(),
-                serde_json::to_string(&allowed_callbacks).unwrap(),
-                allow_create_new_clients,
-                allow_create_sub_channels,
-                max_sub_channels_allowed,
-                allow_redirect,
-                allowed_to_redirect_are_blacklist,
-                serde_json::to_string(&allow_redirect_to).unwrap(),
-                allow_file_transfer,
-                allow_transfer_to_are_blacklist,
-                serde_json::to_string(&allow_transfer_to).unwrap(),
-            ],
-        );
+        let result = conn.execute("DELETE from PermissionGroups WHERE ID = ?", params![group.group_id]);
 
         match result {
             Ok(rows) => {
-                if rows > 0 {
-                    println!("Successfully inserted Log in the table Clients. {} row(s) were affected.", rows);
-                } else {
-                    println!("No rows were affected.");
-                }
+                println!("Successfully deleted PermissionGroups: {} from groups! {} Rows were affected.", group.group_name, rows);
             },
             Err(e) => {
-                eprintln!("An error occurred while inserting the Log in the table Clients: {}", e);
-            },
-        };
-    })
-}
-
-fn get_permission_group_by_key(client_key: String) -> Result<Client, ClientError> {
-    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let mut groups: Vec<PermissionGroup> = Vec::new();
-
-        {
-            let mut smtp = conn.prepare("SELECT * FROM Clients WHERE ClientKey = ?").unwrap();
-
-            let permission_groups_iter = smtp
-                .query_map(params![client_key], |row| {
-                    Ok(PermissionGroup::from(
-                        row.get(0).unwrap(),
-                        row.get(1).unwrap(),
-                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(2)?.as_str()).unwrap(),
-                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(3)?.as_str()).unwrap(),
-                        row.get(4).unwrap(),
-                        row.get(5).unwrap(),
-                        row.get(6).unwrap(),
-                        row.get(7).unwrap(),
-                        row.get(8).unwrap(),
-                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(9)?.as_str()).unwrap(),
-                        row.get(10).unwrap(),
-                        row.get(11).unwrap(),
-                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(12)?.as_str()).unwrap(),
-                    ))
-                })
-                .unwrap();
-
-            for permission_group in permission_groups_iter {
-                groups.push(permission_group.unwrap());
-            }
-        }
-
-        if groups.len() == 0 {
-            return Err(ClientError::ClientDoesNotExist(client_key));
-        } else {
-            return Ok(groups[0].clone());
-        }
-    })
-}
-
-fn get_permission_group_by_name(client_name: String) -> Result<Client, ClientError> {
-    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let mut clients: Vec<Client> = Vec::new();
-
-        {
-            let mut smtp = conn.prepare("SELECT * FROM Clients WHERE ClientName = ?").unwrap();
-
-            let clients_iter = smtp
-                .query_map(params![client_name], |row| {
-                    Ok(Client::from(
-                        row.get(0).unwrap(),
-                        row.get(1).unwrap(),
-                        row.get(2).unwrap(),
-                        row.get(3).unwrap(),
-                        row.get(4).unwrap(),
-                        row.get(5).unwrap(),
-                        row.get(6).unwrap(),
-                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
-                        row.get(8).unwrap(),
-                    ))
-                })
-                .unwrap();
-
-            for client in clients_iter {
-                clients.push(client.unwrap());
-            }
-        }
-
-        if clients.len() == 0 {
-            return Err(ClientError::ClientDoesNotExist(client_name));
-        } else {
-            return Ok(clients[0].clone());
-        }
-    })
-}
-
-pub fn edit_permission_group(client: Client) {
-    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let serialized_owned_sub_channels_keys = serde_json::to_string(&client.owned_sub_channels_keys).expect("Failed to serialize to JSON");
-
-        let result = conn.execute(
-            "UPDATE Clients SET ClientName = ?, ClientKey = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, OwnedSubChannelsKeys = ?, SubChannelsInUse = ? WHERE ID = ?;",
-            params![
-                client.client_name,
-                client.client_key,
-                client.permission_group,
-                client.super_user,
-                client.last_contact,
-                client.max_sub_channels,
-                serialized_owned_sub_channels_keys,
-                client.sub_channels_in_use,
-                client.client_id,
-            ],
-        );
-
-        match result {
-            Ok(rows) => {
-                if rows > 0 {
-                    println!("Successfully update client: {} in databse", client.client_name);
-                }
-            },
-            Err(e) => {
-                eprintln!("Error while update client: {} in the databse, the error is: {}", client.client_name, e);
-            },
-        }
-    });
-}
-
-fn remove_permission_group(client: Client) {
-    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute("DELETE from Clients WHERE ClientKey = ?", params![client.client_key]);
-
-        match result {
-            Ok(rows) => {
-                println!("Successfully deleted Client: {} from clients! {} Rows were affected.", client.client_key, rows);
-            },
-            Err(e) => {
-                eprintln!("An error occurred while deleting Client: {} from clients! And the error was: {}", client.client_key, e);
+                eprintln!("An error occurred while deleting PermissionGroups: {} from groups! And the error was: {}", group.group_name, e);
             },
         }
     });
