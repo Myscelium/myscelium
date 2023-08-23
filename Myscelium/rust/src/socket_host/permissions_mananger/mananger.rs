@@ -159,13 +159,13 @@ pub fn groups_mananger_initialize_table(buffer_path: String) {
 // }
 
 #[derive(Debug, Clone)]
-enum GroupError {
+pub enum GroupError {
     GroupDoesNotExist(String),
     GroupAlwreadyExist(String),
 }
 
 #[derive(Debug, Clone)]
-struct PermissionGroup {
+pub struct PermissionGroup {
     group_id: u32,
     group_name: String,
     clients_allowed_to_use: Vec<String>,
