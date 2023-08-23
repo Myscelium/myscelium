@@ -23,6 +23,9 @@ use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
 use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
 use crate::commom::enhanced_buffer::utilities::Command;
 
+#[macro_use]
+use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
+use crate::commom::custom_thread_pool::thread_pool::UnifiedThreadPool;
 use std::time::Duration;
 
 // > Global Vars Core
@@ -73,6 +76,15 @@ lazy_static! {
     static ref HEARTBEAT_CALLBACK: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
+    };
+    static ref CONNECTION_HANDLER_POOL: Arc<Mutex<UnifiedThreadPool>> = {
+        let mut max_connections;
+        {
+            let max_conns = MAX_CONS.lock().unwrap();
+            max_connections = *max_conns;
+        }
+
+        init_thread_pool!(max_connections as usize)
     };
 }
 
@@ -305,107 +317,6 @@ fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
     }
 }
 
-// > thread Manangement:
-
-type Job = Option<Box<dyn FnOnce() + Send + 'static>>;
-
-pub struct ThreadPool {
-    workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
-}
-
-struct Worker {
-    id: usize,
-    thread: Option<thread::JoinHandle<()>>,
-}
-
-impl ThreadPool {
-    pub fn new(size: usize) -> ThreadPool {
-        assert!(size > 0);
-
-        let (sender, receiver) = mpsc::channel();
-        let receiver = Arc::new(Mutex::new(receiver));
-
-        let mut workers = Vec::with_capacity(size);
-
-        for id in 0..size {
-            workers.push(Worker::new(id, Arc::clone(&receiver)));
-        }
-
-        ThreadPool { workers, sender }
-    }
-
-    pub fn execute<F>(&self, f: F)
-    where
-        F: FnOnce() + Send + 'static,
-    {
-        let job = Box::new(f);
-        self.sender.send(Some(job)).unwrap();
-    }
-
-    pub fn stop(&mut self) {
-        let logger = acquire_logger!("Socket Trhead Pool");
-
-        logger.debug(format!("Sending terminate message to all workers."));
-
-        for _ in &self.workers {
-            self.sender.send(None).unwrap();
-        }
-
-        logger.debug(format!("Shutting down all workers."));
-
-        for worker in &mut self.workers {
-            logger.debug(format!("Shutting down worker {}", worker.id));
-
-            if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
-            }
-        }
-    }
-}
-
-impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
-        let logger = acquire_logger!("Socket Trhead Pool");
-
-        let thread = thread::spawn(move || loop {
-            let job = match receiver.lock().unwrap().recv() {
-                Ok(Some(job)) => job,
-                Ok(None) => return,
-                Err(_) => return,
-            };
-
-            logger.debug(format!("Worker {} got a job; executing.", id));
-
-            job();
-        });
-
-        Worker { id, thread: Some(thread) }
-    }
-}
-
-impl Drop for ThreadPool {
-    fn drop(&mut self) {
-        let logger = acquire_logger!("Socket Trhead Pool");
-
-        logger.debug(format!("Sending terminate message to all workers."));
-
-        for _ in &self.workers {
-            self.sender.send(None).unwrap();
-        }
-
-        logger.debug(format!("Shutting down all workers."));
-
-        for worker in &mut self.workers {
-            logger.debug(format!("Shutting down worker {}", worker.id));
-
-            if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
-            }
-        }
-    }
-}
-
 // > Socket Interactive Functions:
 
 pub fn set_max_conns(n_max_conns: u32) {
@@ -433,59 +344,47 @@ pub fn initialize_host_buffer(buffer_location: String) {
     return;
 }
 
-fn pool_stoping_event_controler(pool: Arc<Mutex<ThreadPool>>) {
-    loop {
-        // Stop the thread pool
-        if !HOST_IS_RUNING.load(Ordering::SeqCst) {
-            pool.lock().unwrap().stop();
-            println!("Stopped the thread pool!");
-            break;
-        }
-
-        // Sleep for a while before checking again
-        thread::sleep(Duration::from_millis(1));
-    }
-
-    return;
-}
-
 pub fn initialize_host(address: String, client_id: String) {
     let logger = acquire_logger!("Core");
 
-    let mut actual_client_id = CLIENT_ID.lock().unwrap();
-    *actual_client_id = client_id;
+    {
+        let mut actual_client_id = CLIENT_ID.lock().unwrap();
+        *actual_client_id = client_id;
+    }
 
-    let default_max_conns = MAX_CONS.lock().unwrap();
+    // let default_max_conns = MAX_CONS.lock().unwrap();
 
     let listener = TcpListener::bind(&address).unwrap();
 
     logger.info(format!("Listening: {}", address));
-
-    let pool = Arc::new(Mutex::new(ThreadPool::new(*default_max_conns as usize)));
-
-    let pool_clone = Arc::clone(&pool);
-    thread::spawn(move || pool_stoping_event_controler(pool_clone));
 
     loop {
         println!("Waiting conn!");
 
         // Keep the thread alive until HOST_IS_RUNING is set to false
         if !HOST_IS_RUNING.load(Ordering::SeqCst) {
-            logger.warn(format!("runing is set to false, skipping"));
+            // Lock the pool and stop it
+
+            terminate_pool!(CONNECTION_HANDLER_POOL);
+            println!("Stopped the thread pool!");
             break;
         }
 
+        let mut receivers = Vec::new();
+
         match listener.accept() {
             Ok((stream, _)) => {
-                let pool_clone = Arc::clone(&pool);
-                pool_clone.lock().unwrap().execute(move || {
+                let rx = run_in_thread_pool!(CONNECTION_HANDLER_POOL, {
                     handle_connection(stream);
                 });
+                receivers.push(rx);
             },
             Err(e) => {
                 logger.warn(format!("Failed to accept a connection: {}", e));
             },
         }
+
+        wait_all_threads!(receivers);
 
         thread::sleep(Duration::from_secs(1));
     }

@@ -13,6 +13,10 @@ use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
 use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
 use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
 
+#[macro_use]
+use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
+use crate::commom::custom_thread_pool::thread_pool::UnifiedThreadPool;
+
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Condvar,
@@ -97,117 +101,6 @@ pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, V
 
     let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     *callback_patterns = callbacks_patterns;
-}
-
-// > thread Manangement:
-
-type Job = Box<dyn FnOnce() + Send + 'static>;
-type Message = Option<Job>;
-
-pub struct ThreadPool {
-    workers: Vec<Worker>,
-    sender: mpsc::Sender<Message>,
-    free_condvar: Arc<Condvar>,
-}
-
-struct Worker {
-    id: usize,
-    thread: Option<thread::JoinHandle<()>>,
-    busy: Arc<AtomicBool>,
-}
-
-impl ThreadPool {
-    pub fn new(size: usize) -> ThreadPool {
-        assert!(size > 0);
-
-        let (sender, receiver) = mpsc::channel();
-        let receiver = Arc::new(Mutex::new(receiver));
-        let free_condvar = Arc::new(Condvar::new());
-
-        let mut workers = Vec::with_capacity(size);
-
-        for id in 0..size {
-            workers.push(Worker::new(id, Arc::clone(&receiver), Arc::clone(&free_condvar)));
-        }
-
-        ThreadPool {
-            workers,
-            sender,
-            free_condvar,
-        }
-    }
-
-    pub fn execute(&self, f: Job) {
-        self.sender.send(Some(f)).unwrap();
-    }
-
-    pub fn wait_for_free_worker(&self, f: Job) {
-        let lock = Mutex::new(());
-        let mut guard = lock.lock().unwrap();
-        while self.free_workers().is_empty() {
-            guard = self.free_condvar.wait_timeout(guard, std::time::Duration::from_secs(1)).unwrap().0;
-        }
-        self.execute(f);
-    }
-
-    pub fn free_workers(&self) -> Vec<usize> {
-        self.workers
-            .iter()
-            .filter(|worker| !worker.busy.load(Ordering::SeqCst))
-            .map(|worker| worker.id)
-            .collect()
-    }
-
-    pub fn join(&mut self) {
-        // Send termination message to each worker.
-        for _ in &self.workers {
-            self.sender.send(None).unwrap();
-        }
-
-        // Wait for all workers to finish.
-        for worker in &mut self.workers {
-            if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
-            }
-        }
-    }
-}
-
-impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>, free_condvar: Arc<Condvar>) -> Worker {
-        let busy = Arc::new(AtomicBool::new(false));
-        let busy_clone = Arc::clone(&busy);
-        let free_condvar_clone = Arc::clone(&free_condvar);
-
-        let logger = acquire_logger!("Transposer - Thread Pool");
-
-        let thread = thread::spawn(move || loop {
-            let message = match receiver.lock().unwrap().recv() {
-                Ok(message) => message,
-                Err(_) => return,
-            };
-
-            match message {
-                Some(job) => {
-                    busy_clone.store(true, Ordering::SeqCst);
-                    logger.debug(format!("Transposer Worker {} got a job; executing.", id));
-                    job();
-                    busy_clone.store(false, Ordering::SeqCst);
-                    free_condvar_clone.notify_one();
-                },
-                None => {
-                    logger.debug(format!("Transposer Worker {} was told to terminate.", id));
-                    return;
-                },
-            }
-        });
-
-        Worker {
-            id,
-            thread: Some(thread),
-            busy,
-        }
-    }
 }
 
 // > Transposer:
@@ -616,8 +509,6 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
 
     let num_of_workers = NUM_WORKERS.lock().unwrap();
 
-    let mut pool = ThreadPool::new(*num_of_workers as usize);
-
     let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
     schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
@@ -627,7 +518,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
     if !(schedule.len() > 0) {
         logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
-        thread::sleep(Duration::from_secs(5));
+        thread::sleep(Duration::from_millis(500));
         return;
     }
 
@@ -655,7 +546,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
         }
     }
 
-    pool.join();
+    thread::sleep(Duration::from_millis(100));
 
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
 

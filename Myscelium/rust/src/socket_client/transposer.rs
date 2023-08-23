@@ -128,114 +128,114 @@ pub fn set_socket_client_transposer_callbacks(
 
 // > thread Manangement:
 
-type Job = Box<dyn FnOnce() + Send + 'static>;
-type Message = Option<Job>;
+// type Job = Box<dyn FnOnce() + Send + 'static>;
+// type Message = Option<Job>;
 
-pub struct ThreadPool {
-    workers: Vec<Worker>,
-    sender: mpsc::Sender<Message>,
-    free_condvar: Arc<Condvar>,
-}
+// pub struct ThreadPool {
+//     workers: Vec<Worker>,
+//     sender: mpsc::Sender<Message>,
+//     free_condvar: Arc<Condvar>,
+// }
 
-struct Worker {
-    id: usize,
-    thread: Option<thread::JoinHandle<()>>,
-    busy: Arc<AtomicBool>,
-}
+// struct Worker {
+//     id: usize,
+//     thread: Option<thread::JoinHandle<()>>,
+//     busy: Arc<AtomicBool>,
+// }
 
-impl ThreadPool {
-    pub fn new(size: usize) -> ThreadPool {
-        assert!(size > 0);
+// impl ThreadPool {
+//     pub fn new(size: usize) -> ThreadPool {
+//         assert!(size > 0);
 
-        let (sender, receiver) = mpsc::channel();
-        let receiver = Arc::new(Mutex::new(receiver));
-        let free_condvar = Arc::new(Condvar::new());
+//         let (sender, receiver) = mpsc::channel();
+//         let receiver = Arc::new(Mutex::new(receiver));
+//         let free_condvar = Arc::new(Condvar::new());
 
-        let mut workers = Vec::with_capacity(size);
+//         let mut workers = Vec::with_capacity(size);
 
-        for id in 0..size {
-            workers.push(Worker::new(id, Arc::clone(&receiver), Arc::clone(&free_condvar)));
-        }
+//         for id in 0..size {
+//             workers.push(Worker::new(id, Arc::clone(&receiver), Arc::clone(&free_condvar)));
+//         }
 
-        ThreadPool {
-            workers,
-            sender,
-            free_condvar,
-        }
-    }
+//         ThreadPool {
+//             workers,
+//             sender,
+//             free_condvar,
+//         }
+//     }
 
-    pub fn execute(&self, f: Job) {
-        self.sender.send(Some(f)).unwrap();
-    }
+//     pub fn execute(&self, f: Job) {
+//         self.sender.send(Some(f)).unwrap();
+//     }
 
-    pub fn wait_for_free_worker(&self, f: Job) {
-        let lock = Mutex::new(());
-        let mut guard = lock.lock().unwrap();
-        while self.free_workers().is_empty() {
-            guard = self.free_condvar.wait_timeout(guard, std::time::Duration::from_secs(1)).unwrap().0;
-        }
-        self.execute(f);
-    }
+//     pub fn wait_for_free_worker(&self, f: Job) {
+//         let lock = Mutex::new(());
+//         let mut guard = lock.lock().unwrap();
+//         while self.free_workers().is_empty() {
+//             guard = self.free_condvar.wait_timeout(guard, std::time::Duration::from_secs(1)).unwrap().0;
+//         }
+//         self.execute(f);
+//     }
 
-    pub fn free_workers(&self) -> Vec<usize> {
-        self.workers
-            .iter()
-            .filter(|worker| !worker.busy.load(Ordering::SeqCst))
-            .map(|worker| worker.id)
-            .collect()
-    }
+//     pub fn free_workers(&self) -> Vec<usize> {
+//         self.workers
+//             .iter()
+//             .filter(|worker| !worker.busy.load(Ordering::SeqCst))
+//             .map(|worker| worker.id)
+//             .collect()
+//     }
 
-    pub fn join(&mut self) {
-        // Send termination message to each worker.
-        for _ in &self.workers {
-            self.sender.send(None).unwrap();
-        }
+//     pub fn join(&mut self) {
+//         // Send termination message to each worker.
+//         for _ in &self.workers {
+//             self.sender.send(None).unwrap();
+//         }
 
-        // Wait for all workers to finish.
-        for worker in &mut self.workers {
-            if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
-            }
-        }
-    }
-}
+//         // Wait for all workers to finish.
+//         for worker in &mut self.workers {
+//             if let Some(thread) = worker.thread.take() {
+//                 thread.join().unwrap();
+//             }
+//         }
+//     }
+// }
 
-impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>, free_condvar: Arc<Condvar>) -> Worker {
-        let busy = Arc::new(AtomicBool::new(false));
-        let busy_clone = Arc::clone(&busy);
-        let free_condvar_clone = Arc::clone(&free_condvar);
+// impl Worker {
+//     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>, free_condvar: Arc<Condvar>) -> Worker {
+//         let busy = Arc::new(AtomicBool::new(false));
+//         let busy_clone = Arc::clone(&busy);
+//         let free_condvar_clone = Arc::clone(&free_condvar);
 
-        let thread = thread::spawn(move || loop {
-            let message = match receiver.lock().unwrap().recv() {
-                Ok(message) => message,
-                Err(_) => return,
-            };
+//         let thread = thread::spawn(move || loop {
+//             let message = match receiver.lock().unwrap().recv() {
+//                 Ok(message) => message,
+//                 Err(_) => return,
+//             };
 
-            let logger = acquire_logger!("Transposer - Workers Pool");
+//             let logger = acquire_logger!("Transposer - Workers Pool");
 
-            match message {
-                Some(job) => {
-                    busy_clone.store(true, Ordering::SeqCst);
-                    logger.info(format!("Transposer Worker {} got a job; executing.", id));
-                    job();
-                    busy_clone.store(false, Ordering::SeqCst);
-                    free_condvar_clone.notify_one();
-                },
-                None => {
-                    logger.info(format!("Transposer Worker {} was told to terminate.", id));
-                    return;
-                },
-            }
-        });
+//             match message {
+//                 Some(job) => {
+//                     busy_clone.store(true, Ordering::SeqCst);
+//                     logger.info(format!("Transposer Worker {} got a job; executing.", id));
+//                     job();
+//                     busy_clone.store(false, Ordering::SeqCst);
+//                     free_condvar_clone.notify_one();
+//                 },
+//                 None => {
+//                     logger.info(format!("Transposer Worker {} was told to terminate.", id));
+//                     return;
+//                 },
+//             }
+//         });
 
-        Worker {
-            id,
-            thread: Some(thread),
-            busy,
-        }
-    }
-}
+//         Worker {
+//             id,
+//             thread: Some(thread),
+//             busy,
+//         }
+//     }
+// }
 
 // > Transposer:
 
@@ -688,11 +688,7 @@ fn clear_old_data() {
 pub fn initialize_socket_client_transposer() {
     let logger = acquire_logger!("Transposer");
 
-    thread::sleep(Duration::from_secs(2));
-
-    let num_of_workers = NUM_WORKERS.lock().unwrap();
-
-    let mut pool = ThreadPool::new(*num_of_workers as usize);
+    thread::sleep(Duration::from_millis(200));
 
     let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
@@ -708,76 +704,72 @@ pub fn initialize_socket_client_transposer() {
     if !(schedule.len() > 0) {
         logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
-        thread::sleep(Duration::from_secs(5));
+        thread::sleep(Duration::from_millis(500));
         return;
     }
 
     logger.info(format!("\nData found in schedule!"));
 
     for dow_command in schedule {
-        pool.wait_for_free_worker(Box::new(|| {
-            let logger = acquire_logger!("Transposer");
+        let logger = acquire_logger!("Transposer");
 
-            logger.info(format!("get a pool worker in tranposer!"));
+        logger.info(format!("get a pool worker in tranposer!"));
 
-            let py;
+        let py;
 
-            {
-                let getting_py = unsafe { Python::assume_gil_acquired() };
+        {
+            let getting_py = unsafe { Python::assume_gil_acquired() };
 
-                let gil_pool = unsafe { getting_py.clone().new_pool() };
+            let gil_pool = unsafe { getting_py.clone().new_pool() };
 
-                py = gil_pool.python();
+            py = gil_pool.python();
 
-                logger.debug(format!("Aquired python in a process task!"));
+            logger.debug(format!("Aquired python in a process task!"));
 
-                let result = process(py, dow_command).map_err(|e| {
-                    let error = match e {
-                        ProcessError::CommandAlwreadyProcessed(m) => {
-                            format!("Command: {:?} Alwready processed! So skipping", m)
-                        },
-
-                        ProcessError::CommandNotRegistred(m) => {
-                            format!("Command function {:?} no registred in the callbacks! So skipping", m)
-                        },
-
-                        ProcessError::MissingResponseKey(m) => {
-                            format!("Command: {:?}, missing command response key", m)
-                        },
-
-                        ProcessError::MissingCommandFunction(m) => {
-                            format!("Command: {:?}, missing command function", m)
-                        },
-
-                        ProcessError::InvalidCallbackResponse(m, r) => {
-                            format!("Calback function: {:?} invalid response: {:?}", m, r)
-                        },
-
-                        ProcessError::Error(e) => {
-                            format!("An error occurred while processing command, the error was: {:?}", e)
-                        },
-
-                        ProcessError::UnknownCommandType => "Unknown Command type".to_string(),
-                    };
-
-                    error
-                });
-
-                match result {
-                    Ok(_) => {
-                        logger.info(format!("Finalize a process task!"));
+            let result = process(py, dow_command).map_err(|e| {
+                let error = match e {
+                    ProcessError::CommandAlwreadyProcessed(m) => {
+                        format!("Command: {:?} Alwready processed! So skipping", m)
                     },
-                    Err(e) => {
-                        logger.warn(format!("\nWarning: {:?}\n", e));
+
+                    ProcessError::CommandNotRegistred(m) => {
+                        format!("Command function {:?} no registred in the callbacks! So skipping", m)
                     },
-                }
+
+                    ProcessError::MissingResponseKey(m) => {
+                        format!("Command: {:?}, missing command response key", m)
+                    },
+
+                    ProcessError::MissingCommandFunction(m) => {
+                        format!("Command: {:?}, missing command function", m)
+                    },
+
+                    ProcessError::InvalidCallbackResponse(m, r) => {
+                        format!("Calback function: {:?} invalid response: {:?}", m, r)
+                    },
+
+                    ProcessError::Error(e) => {
+                        format!("An error occurred while processing command, the error was: {:?}", e)
+                    },
+
+                    ProcessError::UnknownCommandType => "Unknown Command type".to_string(),
+                };
+
+                error
+            });
+
+            match result {
+                Ok(_) => {
+                    logger.info(format!("Finalize a process task!"));
+                },
+                Err(e) => {
+                    logger.warn(format!("\nWarning: {:?}\n", e));
+                },
             }
-        }));
+        }
     }
 
-    pool.join();
-
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    // let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
     return;
 

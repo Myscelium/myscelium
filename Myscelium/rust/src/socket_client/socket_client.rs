@@ -350,7 +350,7 @@ pub fn initialize_client(address: String, client_id: String) {
 
     let mut stream = TcpStream::connect(address).unwrap();
 
-    thread::sleep(Duration::from_secs(2));
+    thread::sleep(Duration::from_millis(200));
 
     loop {
         if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
@@ -364,7 +364,7 @@ pub fn initialize_client(address: String, client_id: String) {
             if let Some(down_command) = send_ping(&mut stream) {
                 enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
             }
-            thread::sleep(Duration::from_secs(2));
+            thread::sleep(Duration::from_millis(500));
             continue;
         }
 
@@ -379,7 +379,7 @@ pub fn initialize_client(address: String, client_id: String) {
                     break;
                 }
 
-                thread::sleep(Duration::from_secs(2));
+                thread::sleep(Duration::from_millis(200));
             }
         }
     }
