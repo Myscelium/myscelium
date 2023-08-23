@@ -63,50 +63,6 @@ pub fn set_workers_num(n_workers: u32) {
 // allow_transfer_to_are_blacklist: bool,
 // allow_transfer_to: Vec<Client>,
 
-pub fn initialize_permissions_table(buffer_path: String) {
-    // Create a global Mutex for demonstration
-    let mutex1 = Mutex::new(0);
-    let mutex2 = Mutex::new(0);
-
-    // Spawn a thread to periodically check for deadlocks
-    thread::spawn(|| {
-        loop {
-            thread::sleep(Duration::from_secs(5)); // Check every 5 seconds
-            let deadlocks = parking_lot::deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                continue;
-            }
-
-            println!("{} deadlocks detected", deadlocks.len());
-            for (i, threads) in deadlocks.iter().enumerate() {
-                println!("Deadlock #{}", i);
-                for t in threads {
-                    println!("Thread Id {:?}", t.thread_id());
-                    println!("{:?}", t.backtrace());
-                }
-            }
-        }
-    });
-
-    set_new_path_to_buffer_db!(SQL_POOL, NUM_WORKERS, buffer_path, BUFFER_NAME);
-
-    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute(
-            "CREATE TABLE IF NOT EXISTS PermissionRules (ID INT PRIMARY KEY, RuleKey TEXT, AllowedCallbacks TEXT, AllowCreateNewClients BOOL, AllowCreateSubChannels BOOL, MaxSubChannelsAllowed BOOL, AllowRedirect BOOL, AllowedToRedirectAreBlacklist BOOL, AllowToRedirect TEXT, AllowFileTransfer BOOL, AllowFileTransferAreBlackList BOOL, AllowTransferTo TEXT)",
-            params![],
-        );
-
-        match result {
-            Ok(_) => {
-                println!("Successfully initialize PermissionRules table!");
-            },
-            Err(e) => {
-                eprintln!("An error occurred while scheduling the command in the PermissionRules table: {}", e);
-            },
-        };
-    });
-}
-
 // > Permission Groups
 // group_id: u32,
 // group_name: String,
@@ -141,7 +97,7 @@ pub fn groups_mananger_initialize_table(buffer_path: String) {
     set_new_path_to_buffer_db!(SQL_POOL, NUM_WORKERS, buffer_path, BUFFER_NAME);
 
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute("CREATE TABLE IF NOT EXISTS PermissionGroups (ID INT PRIMARY KEY, GroupName TEXT)", params![]);
+        let result = conn.execute("CREATE TABLE IF NOT EXISTS PermissionGroups (ID INT PRIMARY KEY, GroupName TEXT, AllowedCallbacks TEXT, AllowCreateNewClients BOOL, AllowCreateSubChannels BOOL, MaxSubChannelsAllowed BOOL, AllowRedirect BOOL, AllowedToRedirectAreBlacklist BOOL, AllowToRedirect TEXT, AllowFileTransfer BOOL, AllowFileTransferAreBlackList BOOL, AllowTransferTo TEXT)", params![]);
 
         match result {
             Ok(_) => {
@@ -206,28 +162,24 @@ pub fn groups_mananger_initialize_table(buffer_path: String) {
 struct PermissionGroup {
     group_id: u32,
     group_name: String,
-    clients_allowed: Vec<Client>,
-
+    clients_allowed: Vec<String>,
     allowed_callbacks: Vec<String>,
     allow_create_new_clients: bool,
     allow_create_sub_channels: bool,
-
     max_sub_channels_allowed: bool,
-
     allow_redirect: bool,
     allowed_to_redirect_are_blacklist: bool,
-    allow_to_redirect: Vec<Client>,
-
+    allow_to_redirect: Vec<String>,
     allow_file_transfer: bool,
     allow_transfer_to_are_blacklist: bool,
-    allow_transfer_to: Vec<Client>,
+    allow_transfer_to: Vec<String>,
 }
 
 impl PermissionGroup {
     fn create(
         group_id: u32,
         group_name: String,
-        clients_allowed: Vec<Client>,
+        clients_allowed: Vec<String>,
         allowed_callbacks: Vec<String>,
         allow_create_new_clients: bool,
         allow_create_sub_channels: bool,
@@ -236,11 +188,11 @@ impl PermissionGroup {
 
         allow_redirect: bool,
         allowed_to_redirect_are_blacklist: bool,
-        allow_to_redirect: Vec<Client>,
+        allow_to_redirect: Vec<String>,
 
         allow_file_transfer: bool,
         allow_transfer_to_are_blacklist: bool,
-        allow_transfer_to: Vec<Client>,
+        allow_transfer_to: Vec<String>,
     ) -> Self {
         let group = Self {
             group_id,
@@ -317,7 +269,24 @@ fn get_registred_ids() -> Vec<u32> {
     })
 }
 
-pub fn registry_permission_group(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) {
+pub fn registry_permission_group(
+    group_id: u32,
+    group_name: String,
+    clients_allowed: Vec<String>,
+    allowed_callbacks: Vec<String>,
+    allow_create_new_clients: bool,
+    allow_create_sub_channels: bool,
+
+    max_sub_channels_allowed: bool,
+
+    allow_redirect: bool,
+    allowed_to_redirect_are_blacklist: bool,
+    allow_redirect_to: Vec<String>,
+
+    allow_file_transfer: bool,
+    allow_transfer_to_are_blacklist: bool,
+    allow_transfer_to: Vec<String>,
+) {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         // let now = Utc::now();
         // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
@@ -326,20 +295,25 @@ pub fn registry_permission_group(client_name: String, client_key: String, permis
 
         let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
 
-        let serialzied_owned_sub_channels_keys = serde_json::to_string(&owned_sub_channels_keys).expect("Failed to serialize to JSON");
-
         let result = conn.execute(
             "INSERT INTO PermissionGroups (ID, GroupName, AllowFileTransfer, MaxSubChannelsPerClient, FunctionsAllowedAreBlackList, FunctionsAllowed, FileTransferFunctionsAllowedAreBlackList, FileTransferFunctionsAllowed, AllowRedirectAreBlackList, AllowRedirectTo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
             params![
                 id_generator.gen(),
-                client_name,
-                client_key,
-                permission_group,
-                super_user,
-                last_contact,
-                max_sub_channels,
-                serialzied_owned_sub_channels_keys,
-                sub_channels_in_use
+                group_name,
+                serde_json::to_string(&clients_allowed).unwrap(),
+                serde_json::to_string(&allowed_callbacks).unwrap(),
+                allow_create_new_clients,
+                allow_create_sub_channels,
+
+                max_sub_channels_allowed,
+
+                allow_redirect,
+                allowed_to_redirect_are_blacklist,
+                serde_json::to_string(&allow_redirect_to).unwrap(),
+
+                allow_file_transfer,
+                allow_transfer_to_are_blacklist,
+                serde_json::to_string(&allow_transfer_to).unwrap(),
             ],
         );
 
