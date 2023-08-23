@@ -162,24 +162,27 @@ pub fn groups_mananger_initialize_table(buffer_path: String) {
 struct PermissionGroup {
     group_id: u32,
     group_name: String,
-    clients_allowed: Vec<String>,
+    clients_allowed_to_use: Vec<String>,
     allowed_callbacks: Vec<String>,
     allow_create_new_clients: bool,
     allow_create_sub_channels: bool,
+
     max_sub_channels_allowed: bool,
+
     allow_redirect: bool,
     allowed_to_redirect_are_blacklist: bool,
-    allow_to_redirect: Vec<String>,
+    allow_redirect_to: Vec<String>,
+
     allow_file_transfer: bool,
     allow_transfer_to_are_blacklist: bool,
     allow_transfer_to: Vec<String>,
 }
 
 impl PermissionGroup {
-    fn create(
+    fn from(
         group_id: u32,
         group_name: String,
-        clients_allowed: Vec<String>,
+        clients_allowed_to_use: Vec<String>,
         allowed_callbacks: Vec<String>,
         allow_create_new_clients: bool,
         allow_create_sub_channels: bool,
@@ -188,7 +191,7 @@ impl PermissionGroup {
 
         allow_redirect: bool,
         allowed_to_redirect_are_blacklist: bool,
-        allow_to_redirect: Vec<String>,
+        allow_redirect_to: Vec<String>,
 
         allow_file_transfer: bool,
         allow_transfer_to_are_blacklist: bool,
@@ -197,7 +200,7 @@ impl PermissionGroup {
         let group = Self {
             group_id,
             group_name,
-            clients_allowed,
+            clients_allowed_to_use,
             allowed_callbacks,
             allow_create_new_clients,
             allow_create_sub_channels,
@@ -206,7 +209,47 @@ impl PermissionGroup {
 
             allow_redirect,
             allowed_to_redirect_are_blacklist,
-            allow_to_redirect,
+            allow_redirect_to,
+
+            allow_file_transfer,
+            allow_transfer_to_are_blacklist,
+            allow_transfer_to,
+        };
+        group
+    }
+
+    fn create(
+        group_name: String,
+        clients_allowed_to_use: Vec<String>,
+        allowed_callbacks: Vec<String>,
+        allow_create_new_clients: bool,
+        allow_create_sub_channels: bool,
+
+        max_sub_channels_allowed: bool,
+
+        allow_redirect: bool,
+        allowed_to_redirect_are_blacklist: bool,
+        allow_redirect_to: Vec<String>,
+
+        allow_file_transfer: bool,
+        allow_transfer_to_are_blacklist: bool,
+        allow_transfer_to: Vec<String>,
+    ) -> Self {
+        let group_id = 0u32;
+
+        let group = Self {
+            group_id,
+            group_name,
+            clients_allowed_to_use,
+            allowed_callbacks,
+            allow_create_new_clients,
+            allow_create_sub_channels,
+
+            max_sub_channels_allowed,
+
+            allow_redirect,
+            allowed_to_redirect_are_blacklist,
+            allow_redirect_to,
 
             allow_file_transfer,
             allow_transfer_to_are_blacklist,
@@ -272,7 +315,7 @@ fn get_registred_ids() -> Vec<u32> {
 pub fn registry_permission_group(
     group_id: u32,
     group_name: String,
-    clients_allowed: Vec<String>,
+    clients_allowed_to_use: Vec<String>,
     allowed_callbacks: Vec<String>,
     allow_create_new_clients: bool,
     allow_create_sub_channels: bool,
@@ -296,21 +339,30 @@ pub fn registry_permission_group(
         let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
 
         let result = conn.execute(
-            "INSERT INTO PermissionGroups (ID, GroupName, AllowFileTransfer, MaxSubChannelsPerClient, FunctionsAllowedAreBlackList, FunctionsAllowed, FileTransferFunctionsAllowedAreBlackList, FileTransferFunctionsAllowed, AllowRedirectAreBlackList, AllowRedirectTo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+            "INSERT INTO PermissionGroups (ID, 
+                                           GroupName, 
+                                           ClientAllowedToUse, 
+                                           AllowedCallbacks, 
+                                           AllowCreateNewClients, 
+                                           AllowCreateSubChannels, 
+                                           MaxSubChannelsAllowed, 
+                                           AllowRedirect, 
+                                           RedirectoToWhitelistIsBlacklist, 
+                                           AllowRedirectTo, 
+                                           AllowFileTransfer, 
+                                           FileTransferWithelistAreBlackList, 
+                                           AllowFileTransferTo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
             params![
                 id_generator.gen(),
                 group_name,
-                serde_json::to_string(&clients_allowed).unwrap(),
+                serde_json::to_string(&clients_allowed_to_use).unwrap(),
                 serde_json::to_string(&allowed_callbacks).unwrap(),
                 allow_create_new_clients,
                 allow_create_sub_channels,
-
                 max_sub_channels_allowed,
-
                 allow_redirect,
                 allowed_to_redirect_are_blacklist,
                 serde_json::to_string(&allow_redirect_to).unwrap(),
-
                 allow_file_transfer,
                 allow_transfer_to_are_blacklist,
                 serde_json::to_string(&allow_transfer_to).unwrap(),
@@ -334,36 +386,40 @@ pub fn registry_permission_group(
 
 fn get_permission_group_by_key(client_key: String) -> Result<Client, ClientError> {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let mut clients: Vec<Client> = Vec::new();
+        let mut groups: Vec<PermissionGroup> = Vec::new();
 
         {
             let mut smtp = conn.prepare("SELECT * FROM Clients WHERE ClientKey = ?").unwrap();
 
-            let clients_iter = smtp
+            let permission_groups_iter = smtp
                 .query_map(params![client_key], |row| {
-                    Ok(Client::from(
+                    Ok(PermissionGroup::from(
                         row.get(0).unwrap(),
                         row.get(1).unwrap(),
-                        row.get(2).unwrap(),
-                        row.get(3).unwrap(),
+                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(2)?.as_str()).unwrap(),
+                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(3)?.as_str()).unwrap(),
                         row.get(4).unwrap(),
                         row.get(5).unwrap(),
                         row.get(6).unwrap(),
-                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
+                        row.get(7).unwrap(),
                         row.get(8).unwrap(),
+                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(9)?.as_str()).unwrap(),
+                        row.get(10).unwrap(),
+                        row.get(11).unwrap(),
+                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(12)?.as_str()).unwrap(),
                     ))
                 })
                 .unwrap();
 
-            for client in clients_iter {
-                clients.push(client.unwrap());
+            for permission_group in permission_groups_iter {
+                groups.push(permission_group.unwrap());
             }
         }
 
-        if clients.len() == 0 {
+        if groups.len() == 0 {
             return Err(ClientError::ClientDoesNotExist(client_key));
         } else {
-            return Ok(clients[0].clone());
+            return Ok(groups[0].clone());
         }
     })
 }
