@@ -300,13 +300,7 @@ fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
             }
             true
         },
-        (Value::Array(params_arr), Value::Array(pattern_arr)) => {
-            params_arr.len() == pattern_arr.len()
-                && params_arr
-                    .iter()
-                    .zip(pattern_arr.iter())
-                    .all(|(param, pattern)| validate_parameters(param, pattern))
-        },
+        (Value::Array(params_arr), Value::Array(pattern_arr)) => params_arr.len() == pattern_arr.len() && params_arr.iter().zip(pattern_arr.iter()).all(|(param, pattern)| validate_parameters(param, pattern)),
         (_, Value::String(pattern_type)) => match pattern_type.as_str() {
             "str" => parameters.is_string(),
             "float" => parameters.is_f64(),
@@ -455,8 +449,7 @@ enum Response {
 }
 
 fn get_response(command: Command) -> Response {
-    let up_schedule: Vec<UpCommand> =
-        enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
+    let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
 
     if !(up_schedule.len() > 0) {
         return Response::None;
@@ -464,8 +457,7 @@ fn get_response(command: Command) -> Response {
 
     let command_response = &up_schedule[0];
 
-    let response_command =
-        create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response.command);
+    let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response.command);
 
     enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
 
@@ -493,9 +485,7 @@ fn handle_connection(mut stream: TcpStream) {
             },
         }
 
-        let buffer_string = String::from_utf8_lossy(&buffer)
-            .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
-            .to_string();
+        let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
         let command: Command = serde_json::from_str(&buffer_string).unwrap(); // TODO >>> Fix the error treatment in the cases that results in a error
 
@@ -554,11 +544,10 @@ fn handle_connection(mut stream: TcpStream) {
 
                     logger.debug("Command is in command patterns!".to_string());
 
-                    let command_is_not_registry: bool =
-                        enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
-
+                    let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
                     let response: Command;
 
+                    // -> Check if alwready ahve a response
                     if !command_is_not_registry {
                         logger.warn(format!("Command {}, alwready have a response!", command.parity_id.clone()));
 

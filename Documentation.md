@@ -353,3 +353,110 @@ graph LR
 
 
 ```
+
+### Socket Host Diagram: 
+
+```mermaid
+graph TD
+    A[initialize_host]
+    B[Acquire logger]
+    C[Set CLIENT_ID]
+    D[Bind TcpListener]
+    E[Start Listening Loop]
+    F[Check HOST_IS_RUNING]
+    G[Accept Connection]
+    H[Run handle_connection in thread pool]
+    I[Sleep for 1 second]
+    J[handle_connection]
+    K[Acquire logger]
+    L[Start Loop]
+    M[Read from stream]
+    N[Convert buffer to string]
+    O[Deserialize to Command]
+    P[Check if client is registered]
+    Q[Handle special functions]
+    R[Handle common functions]
+    S[Handle none of the above]
+    T[End of Loop]
+    U[set_max_conns]
+    V[set_socket_host_callbacks]
+    W[initialize_host_buffer]
+    X[validate_command]
+    Y[validate_parameters]
+    Z[update_last_contact]
+    AA[set_heartbeat_callback]
+    AB[is_client_registred]
+    AC[register_client]
+    AD[dict_to_kwargs]
+
+    A --> B
+    A --> C
+    A --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> E
+    H --> J
+    J --> K
+    J --> L
+    L --> M
+    M --> N
+    N --> O
+    O --> P
+    P --> Q
+    P --> R
+    P --> S
+    Q --> T
+    R --> T
+    S --> T
+    X --> Y
+    Z --> AA
+    Z --> AB
+    Z --> AC
+    Z --> AD
+
+    U --> V
+    V --> W
+    W --> X
+    X --> Y
+    Y --> Z
+    Z --> AA
+    AA --> AB
+    AB --> AC
+    AC --> AD
+
+
+```
+
+### Host Transposer Diagram
+
+```mermaid
+
+graph TD
+    A[Initialize: initialize_socket_host_transposer] --> B[Check if there's data in schedule]
+    B --> C[Is there data?]
+    C -->|Yes| D[Sort and process schedule]
+    C -->|No| E[Clear old data and sleep]
+    D --> F[For each down_command in schedule]
+    F --> G[Acquire Python GIL]
+    G --> H[Process: process]
+    H --> I[Check if command is already registered]
+    I -->|Yes| J[Remove command from schedule]
+    I -->|No| K[Translate command]
+    K --> L[Is command function valid?]
+    L -->|Yes| M[Handle command: handle_command]
+    L -->|No| N[Remove command from schedule]
+    M --> O[Get function from CALLBACK_PATTERNS]
+    O --> P[Convert dict to kwargs: dict_to_kwargs]
+    P --> Q[Call Python function]
+    Q --> R[Handle PyObject: handle_pyobject]
+    R --> S[Convert Python response to Rust]
+    S --> T[Check response mode: to_origin or redirect]
+    T -->|to_origin| U[Schedule in up buffer]
+    T -->|redirect| V[Handle redirect: handle_redirect]
+    V --> W[Redirect and schedule in up buffer]
+
+
+```
