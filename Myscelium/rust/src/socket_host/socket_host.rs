@@ -178,7 +178,7 @@ pub fn register_client(client_id: String, client_type: String) {
 fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
     let logger = acquire_logger!("py dict to kwargs converter");
 
-    // Check if the dict contains the function name as a key
+    //> Check if the dict contains the function name as a key
     if !dict.contains_key("args") {
         // If it does not, return an empty HashMap since there are no arguments
         let kwargs: HashMap<String, PyObject> = HashMap::new();
@@ -420,7 +420,7 @@ fn handle_commom_function(command: Command) -> Command {
     let mut command_map = HashMap::new();
     command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-    let response_command = Command::new("some_client_id".to_string(), "itisaspecialcase".to_string(), 11, command_map);
+    let response_command = Command::new(command.client_id.clone(), "itisaspecialcase".to_string(), 11, command_map);
 
     // TODO >> If have responses in the dabase to the client here is a good idea to send back
 
@@ -493,8 +493,6 @@ fn handle_connection(mut stream: TcpStream) {
 
         let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
-        let command_patterns = COMMAND_PATTERNS.lock().unwrap();
-
         if !is_client_registred(&command.client_id) {
             // -> In case client isn't registred in the clients allowed
 
@@ -525,66 +523,70 @@ fn handle_connection(mut stream: TcpStream) {
         //     update_last_contact(py, command.client_id.clone());
         // }
 
-        match command.command.get("function") {
-            Some(Value::String(function)) => {
-                logger.debug(format!("Comand function: {}", function));
+        {
+            let command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
-                if special_functions.contains(&function) {
-                    // -> Special Function Handler
+            match command.command.get("function") {
+                Some(Value::String(function)) => {
+                    logger.debug(format!("Comand function: {}", function));
 
-                    let response = handle_special_functions(command.client_id, function.clone());
+                    if special_functions.contains(&function) {
+                        // -> Special Function Handler
 
-                    let command_response_json = json!(response).to_string();
+                        let response = handle_special_functions(command.client_id, function.clone());
 
-                    logger.debug(format!("Sending back: {:?}", command_response_json));
+                        let command_response_json = json!(response).to_string();
 
-                    stream.write_all(command_response_json.as_bytes()).unwrap();
-                } else if command_patterns.contains_key(function) {
-                    // -> Commom Function Handler
+                        logger.debug(format!("Sending back: {:?}", command_response_json));
 
-                    logger.debug("Command is in command patterns!".to_string());
+                        stream.write_all(command_response_json.as_bytes()).unwrap();
+                    } else if command_patterns.contains_key(function) {
+                        // -> Commom Function Handler
 
-                    let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
-                    let response: Command;
+                        logger.debug("Command is in command patterns!".to_string());
 
-                    // -> Check if alwready ahve a response
-                    if !command_is_not_registry {
-                        logger.warn(format!("Command {}, alwready have a response!", command.parity_id.clone()));
+                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
 
-                        match get_response(command.clone()) {
-                            Response::Command(c) => {
-                                response = c;
-                            },
-                            Response::None => {
-                                logger.info("Response is None!".to_string());
+                        let response: Command;
 
-                                response = create_sepecial_command!(command.client_id, "C210");
-                            },
+                        if !command_is_not_registry {
+                            logger.warn(format!("Command {}, alwready have a response!", command.parity_id.clone()));
+
+                            match get_response(command.clone()) {
+                                Response::Command(c) => {
+                                    response = c;
+                                },
+                                Response::None => {
+                                    logger.info("Response is None!".to_string());
+
+                                    response = create_sepecial_command!(command.client_id, "C210");
+                                },
+                            }
+                        } else {
+                            response = handle_commom_function(command);
                         }
+
+                        let command_json = json!(response).to_string();
+
+                        logger.debug(format!("Sending back: {:?}", command_json));
+
+                        stream.write_all(command_json.as_bytes()).unwrap();
                     } else {
-                        response = handle_commom_function(command);
+                        // -> None of above
+
+                        let command = create_command_error!(command.client_id, command.parity_id, format!("Function: {}, Doesn't exist!", function));
+
+                        let command_json = json!(command).to_string();
+
+                        logger.debug(format!("Sending back: {:?}", command_json));
+
+                        stream.write_all(command_json.as_bytes()).unwrap();
                     }
-
-                    let command_json = json!(response).to_string();
-
-                    logger.debug(format!("Sending back: {:?}", command_json));
-
-                    stream.write_all(command_json.as_bytes()).unwrap();
-                } else {
-                    // -> None of above
-
-                    let command = create_command_error!(command.client_id, command.parity_id, format!("Function: {}, Doesn't exist!", function));
-
-                    let command_json = json!(command).to_string();
-
-                    logger.debug(format!("Sending back: {:?}", command_json));
-
-                    stream.write_all(command_json.as_bytes()).unwrap();
-                }
-            },
-            _ => {
-                logger.warn("The function name is not found or not a string.".to_string());
-            },
+                },
+                _ => {
+                    logger.warn("The function name is not found or not a string.".to_string());
+                },
+            }
         }
     }
 }

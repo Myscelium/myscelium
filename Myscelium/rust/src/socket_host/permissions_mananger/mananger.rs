@@ -158,6 +158,7 @@ pub fn groups_mananger_initialize_table(buffer_path: String) {
 //     }
 // }
 
+#[derive(Debug, Clone)]
 enum GroupError {
     GroupDoesNotExist(String),
     GroupAlwreadyExist(String),
@@ -240,7 +241,7 @@ impl PermissionGroup {
         allow_transfer_to_are_blacklist: bool,
         allow_transfer_to: Vec<String>,
     ) -> Result<PermissionGroup, GroupError> {
-        if check_if_permission_group_name_exists(group_name) {
+        if check_if_permission_group_name_exists(group_name.clone()) {
             return Err(GroupError::GroupAlwreadyExist(group_name));
         }
 
