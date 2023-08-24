@@ -1,7 +1,17 @@
 
 ---
 
+
+
+
+
+
+
+
+
 # Myscelium Usage Guide & Documentation
+
+<img src="myscelium_logo_centralized.png" alt="Description of Image" width="150" height="150">
 
 This guide provides a detailed overview of setting up a Myscelium host and client using the provided library. It covers the methods, patterns, and step-by-step usage examples for both.
 
