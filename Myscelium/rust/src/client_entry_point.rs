@@ -24,18 +24,18 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-
 use serde_json::Value as JsonValue;
+
 use std::thread;
 
 use std::time::{Duration, Instant};
-
-use lazy_static::lazy_static;
 
 use crate::CLIENT_ID;
 use crate::CLIENT_IS_RUNING;
 use crate::CLIENT_LOG_LEVEL;
 use crate::CLIENT_NODE_NAME;
+
+use lazy_static::lazy_static;
 
 // -> Socket Client mainpoints:
 

@@ -124,7 +124,7 @@ pub enum ClientError {
 
 #[derive(Debug, Clone)]
 pub struct Client {
-    pub client_id: Option<u32>,
+    pub client_id: u32,
     client_name: String,
     client_key: String,
     permission_group: String,
@@ -197,7 +197,50 @@ impl Client {
     }
 
     pub fn new(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
-        let client_id = Some(0u32);
+        let mut client_id;
+
+        {
+            let registered_ids = get_registred_ids();
+
+            let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
+
+            client_id = id_generator.gen();
+        }
+
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            // let now = Utc::now();
+            // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+            let serialzied_owned_sub_channels_keys = serde_json::to_string(&owned_sub_channels_keys).expect("Failed to serialize to JSON");
+
+            let result = conn.execute(
+                "INSERT INTO Clients (ID, ClientName, ClientKey, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                params![
+                    client_id,
+                    client_name,
+                    client_key,
+                    permission_group,
+                    super_user,
+                    last_contact,
+                    max_sub_channels,
+                    serialzied_owned_sub_channels_keys,
+                    sub_channels_in_use
+                ],
+            );
+
+            match result {
+                Ok(rows) => {
+                    if rows > 0 {
+                        println!("Successfully inserted Log in the table Clients. {} row(s) were affected.", rows);
+                    } else {
+                        println!("No rows were affected.");
+                    }
+                },
+                Err(e) => {
+                    eprintln!("An error occurred while inserting the Log in the table Clients: {}", e);
+                },
+            };
+        });
 
         Self {
             client_id,
@@ -217,13 +260,25 @@ impl Client {
             return Err(ClientError::ClientDoesNotExist(self.client_key.clone()));
         }
 
-        remove_client(self.clone());
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            let result = conn.execute("DELETE from Clients WHERE ClientKey = ?", params![self.client_key]);
+
+            match result {
+                Ok(rows) => {
+                    println!("Successfully deleted Client: {} from clients! {} Rows were affected.", self.client_key, rows);
+                },
+                Err(e) => {
+                    eprintln!("An error occurred while deleting Client: {} from clients! And the error was: {}", self.client_key, e);
+                },
+            }
+        });
+
         Ok(())
     }
 
     fn from(client_id: u32, client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
         Self {
-            client_id: Some(client_id),
+            client_id,
             client_name,
             client_key,
             permission_group,
@@ -287,47 +342,6 @@ fn get_registred_ids() -> Vec<u32> {
         }
 
         ids
-    })
-}
-
-pub fn registry_client(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) {
-    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        // let now = Utc::now();
-        // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
-
-        let registered_ids = get_registred_ids();
-
-        let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
-
-        let serialzied_owned_sub_channels_keys = serde_json::to_string(&owned_sub_channels_keys).expect("Failed to serialize to JSON");
-
-        let result = conn.execute(
-            "INSERT INTO Clients (ID, ClientName, ClientKey, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);",
-            params![
-                id_generator.gen(),
-                client_name,
-                client_key,
-                permission_group,
-                super_user,
-                last_contact,
-                max_sub_channels,
-                serialzied_owned_sub_channels_keys,
-                sub_channels_in_use
-            ],
-        );
-
-        match result {
-            Ok(rows) => {
-                if rows > 0 {
-                    println!("Successfully inserted Log in the table Clients. {} row(s) were affected.", rows);
-                } else {
-                    println!("No rows were affected.");
-                }
-            },
-            Err(e) => {
-                eprintln!("An error occurred while inserting the Log in the table Clients: {}", e);
-            },
-        };
     })
 }
 
@@ -430,21 +444,6 @@ pub fn edit_client(client: Client) {
             },
             Err(e) => {
                 eprintln!("Error while update client: {} in the databse, the error is: {}", client.client_name, e);
-            },
-        }
-    });
-}
-
-fn remove_client(client: Client) {
-    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute("DELETE from Clients WHERE ClientKey = ?", params![client.client_key]);
-
-        match result {
-            Ok(rows) => {
-                println!("Successfully deleted Client: {} from clients! {} Rows were affected.", client.client_key, rows);
-            },
-            Err(e) => {
-                eprintln!("An error occurred while deleting Client: {} from clients! And the error was: {}", client.client_key, e);
             },
         }
     });
