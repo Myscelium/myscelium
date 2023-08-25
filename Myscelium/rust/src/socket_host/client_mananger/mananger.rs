@@ -144,58 +144,6 @@ pub struct Client {
 // > delet client
 
 impl Client {
-    pub fn get_by_key(client_key: String) -> Result<Self, ClientError> {
-        get_client_by_key(client_key)
-    }
-
-    pub fn get_by_name(client_name: String) -> Result<Self, ClientError> {
-        get_client_by_name(client_name)
-    }
-
-    pub fn edit(&self, client_key: String, client_name: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Result<Self, ClientError> {
-        if !check_if_client_key_exists(client_key.clone()) {
-            return Err(ClientError::ClientDoesNotExist(client_key.clone()));
-        }
-
-        let new_client = Self {
-            client_id: self.client_id,
-            client_name,
-            client_key,
-            permission_group,
-            super_user,
-            last_contact,
-            max_sub_channels,
-            owned_sub_channels_keys,
-            sub_channels_in_use,
-        };
-
-        edit_client(new_client.clone());
-
-        Ok(new_client)
-    }
-
-    pub fn change_key_to(&self, new_client_key: String) -> Result<Self, ClientError> {
-        if !check_if_client_key_exists(self.client_key.clone()) {
-            return Err(ClientError::ClientDoesNotExist(self.client_key.clone()));
-        }
-
-        let new_client = Self {
-            client_id: self.client_id,
-            client_name: self.client_name.clone(),
-            client_key: new_client_key,
-            permission_group: self.permission_group.clone(),
-            super_user: self.super_user.clone(),
-            last_contact: self.last_contact,
-            max_sub_channels: self.max_sub_channels,
-            owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
-            sub_channels_in_use: self.sub_channels_in_use,
-        };
-
-        edit_client(new_client.clone());
-
-        Ok(new_client)
-    }
-
     pub fn new(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
         let mut client_id;
 
@@ -255,6 +203,78 @@ impl Client {
         }
     }
 
+    pub fn get_by_name(client_name: String) -> Result<Self, ClientError> {
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            let mut clients: Vec<Client> = Vec::new();
+
+            {
+                let mut smtp = conn.prepare("SELECT * FROM Clients WHERE ClientName = ?").unwrap();
+
+                let clients_iter = smtp
+                    .query_map(params![client_name], |row| {
+                        Ok(Client::from(
+                            row.get(0).unwrap(),
+                            row.get(1).unwrap(),
+                            row.get(2).unwrap(),
+                            row.get(3).unwrap(),
+                            row.get(4).unwrap(),
+                            row.get(5).unwrap(),
+                            row.get(6).unwrap(),
+                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
+                            row.get(8).unwrap(),
+                        ))
+                    })
+                    .unwrap();
+
+                for client in clients_iter {
+                    clients.push(client.unwrap());
+                }
+            }
+
+            if clients.len() == 0 {
+                return Err(ClientError::ClientDoesNotExist(client_name));
+            } else {
+                return Ok(clients[0].clone());
+            }
+        })
+    }
+
+    pub fn get_client_by_key(client_key: String) -> Result<Self, ClientError> {
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            let mut clients: Vec<Client> = Vec::new();
+
+            {
+                let mut smtp = conn.prepare("SELECT * FROM Clients WHERE ClientKey = ?").unwrap();
+
+                let clients_iter = smtp
+                    .query_map(params![client_key], |row| {
+                        Ok(Client::from(
+                            row.get(0).unwrap(),
+                            row.get(1).unwrap(),
+                            row.get(2).unwrap(),
+                            row.get(3).unwrap(),
+                            row.get(4).unwrap(),
+                            row.get(5).unwrap(),
+                            row.get(6).unwrap(),
+                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
+                            row.get(8).unwrap(),
+                        ))
+                    })
+                    .unwrap();
+
+                for client in clients_iter {
+                    clients.push(client.unwrap());
+                }
+            }
+
+            if clients.len() == 0 {
+                return Err(ClientError::ClientDoesNotExist(client_key));
+            } else {
+                return Ok(clients[0].clone());
+            }
+        })
+    }
+
     pub fn delete(&self) -> Result<(), ClientError> {
         if !check_if_client_key_exists(self.client_key.clone()) {
             return Err(ClientError::ClientDoesNotExist(self.client_key.clone()));
@@ -274,6 +294,50 @@ impl Client {
         });
 
         Ok(())
+    }
+
+    pub fn edit(&self, client_key: String, client_name: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Result<Self, ClientError> {
+        if !check_if_client_key_exists(client_key.clone()) {
+            return Err(ClientError::ClientDoesNotExist(client_key.clone()));
+        }
+
+        let new_client = Self {
+            client_id: self.client_id,
+            client_name,
+            client_key,
+            permission_group,
+            super_user,
+            last_contact,
+            max_sub_channels,
+            owned_sub_channels_keys,
+            sub_channels_in_use,
+        };
+
+        edit_client(new_client.clone());
+
+        Ok(new_client)
+    }
+
+    pub fn change_key_to(&self, new_client_key: String) -> Result<Self, ClientError> {
+        if !check_if_client_key_exists(self.client_key.clone()) {
+            return Err(ClientError::ClientDoesNotExist(self.client_key.clone()));
+        }
+
+        let new_client = Self {
+            client_id: self.client_id,
+            client_name: self.client_name.clone(),
+            client_key: new_client_key,
+            permission_group: self.permission_group.clone(),
+            super_user: self.super_user.clone(),
+            last_contact: self.last_contact,
+            max_sub_channels: self.max_sub_channels,
+            owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
+            sub_channels_in_use: self.sub_channels_in_use,
+        };
+
+        edit_client(new_client.clone());
+
+        Ok(new_client)
     }
 
     fn from(client_id: u32, client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
@@ -342,78 +406,6 @@ fn get_registred_ids() -> Vec<u32> {
         }
 
         ids
-    })
-}
-
-fn get_client_by_key(client_key: String) -> Result<Client, ClientError> {
-    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let mut clients: Vec<Client> = Vec::new();
-
-        {
-            let mut smtp = conn.prepare("SELECT * FROM Clients WHERE ClientKey = ?").unwrap();
-
-            let clients_iter = smtp
-                .query_map(params![client_key], |row| {
-                    Ok(Client::from(
-                        row.get(0).unwrap(),
-                        row.get(1).unwrap(),
-                        row.get(2).unwrap(),
-                        row.get(3).unwrap(),
-                        row.get(4).unwrap(),
-                        row.get(5).unwrap(),
-                        row.get(6).unwrap(),
-                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
-                        row.get(8).unwrap(),
-                    ))
-                })
-                .unwrap();
-
-            for client in clients_iter {
-                clients.push(client.unwrap());
-            }
-        }
-
-        if clients.len() == 0 {
-            return Err(ClientError::ClientDoesNotExist(client_key));
-        } else {
-            return Ok(clients[0].clone());
-        }
-    })
-}
-
-fn get_client_by_name(client_name: String) -> Result<Client, ClientError> {
-    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
-        let mut clients: Vec<Client> = Vec::new();
-
-        {
-            let mut smtp = conn.prepare("SELECT * FROM Clients WHERE ClientName = ?").unwrap();
-
-            let clients_iter = smtp
-                .query_map(params![client_name], |row| {
-                    Ok(Client::from(
-                        row.get(0).unwrap(),
-                        row.get(1).unwrap(),
-                        row.get(2).unwrap(),
-                        row.get(3).unwrap(),
-                        row.get(4).unwrap(),
-                        row.get(5).unwrap(),
-                        row.get(6).unwrap(),
-                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
-                        row.get(8).unwrap(),
-                    ))
-                })
-                .unwrap();
-
-            for client in clients_iter {
-                clients.push(client.unwrap());
-            }
-        }
-
-        if clients.len() == 0 {
-            return Err(ClientError::ClientDoesNotExist(client_name));
-        } else {
-            return Ok(clients[0].clone());
-        }
     })
 }
 
