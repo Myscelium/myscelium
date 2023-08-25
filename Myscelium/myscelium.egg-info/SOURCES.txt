@@ -3,7 +3,9 @@ pyproject.toml
 setup.py
 myscelium/__init__.py
 myscelium/client_logs_retriver.py
+myscelium/host_client_events_retriver.py
 myscelium/host_logs_retriver.py
+myscelium/sql_pool.py
 myscelium/wrapper.py
 myscelium.egg-info/PKG-INFO
 myscelium.egg-info/SOURCES.txt

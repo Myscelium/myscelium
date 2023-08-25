@@ -106,27 +106,56 @@ Certain callback functions must have specific names for the system to recognize 
 
 4. **Specify Allowed Clients**: Define which clients are allowed to connect to your host.
     ```python
+
     allowed_clients = [
-        host_patterns.client_pattern(client_type="Interface", client_id="some_client_id"),
-        # Add other clients here
+            self.host_patterns.client_pattern(
+                client_name="TestClient1", 
+                client_type="Interface", 
+                client_key="randomsclientids", 
+                client_permission_group="", 
+                client_is_super_user=True, 
+                client_max_sub_channes=5
+            ),
+            # Add other clients here
     ]
+ 
     ```
 
 5. **Initialize the Myscelium Host**: Create an instance of the `MysceliumHost` class and set the necessary parameters.
     ```python
-    mys_host = MysceliumHost(callbacks=callbacks, host_id="your_host_id", allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="INFO")
+    mys_host = MysceliumHost(
+                    callbacks=callbacks, 
+                    host_id="your_host_id", 
+                    allowed_clients=allowed_clients, 
+                    buffer_path="Data/", 
+                    n_workers=2, 
+                    log_level="INFO"
+                )
     ```
 
 6. **Set Client Heartbeat Handler**: This is where you specify the function that will handle client heartbeats.
     ```python
-    client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={"client_id": "str"})]
+    client_heart_beat_handler = [
+        host_patterns.callback_pattern(
+            callback=handle_client_contact, 
+            args={"client_id": "str"}
+        )
+    ]
+    
     mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
     ```
 
 7. **Set Logs Callback Handler**: Specify the function that will handle logs from the library engine.
     ```python
-    logs_handler_callback = [host_patterns.callback_pattern(callback=logs_handler, args={...})]
-    mys_host.set_logs_callback_handler(logs_handler_callback=logs_handler_callback)
+    logs_handler_callback = [
+        host_patterns.callback_pattern(
+            callback=logs_handler, 
+            args={...}
+        )
+    ]
+    mys_host.set_logs_callback_handler(
+        logs_handler_callback=logs_handler_callback
+    )
     ```
 
 8. **Start the Host**: Finally, initialize the host to start listening for incoming connections.
@@ -212,7 +241,10 @@ def test_handler(data):
 
 ```python
 callbacks = [
-    client_patterns.callback_pattern(callback=test_handler, args={"data": "dict"}),
+    client_patterns.callback_pattern(
+        callback=test_handler, 
+        args={"data": "dict"}
+    ),
 ]
 ```
 
@@ -222,11 +254,21 @@ This function initializes a client, sets its UID, and sends a command to the hos
 
 ```python
 def send_some_data():
-    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+    
+    mys_client = MysceliumClient(
+        client_uid="some_client_id", 
+        buffer_path="ClientData/"
+    )
+    
     mys_client.set_client_uid(client_uid="some_client_id")
     mys_client.runing = True
     time.sleep(10)
-    command = client_patterns.command_pattern("python_function", args={"age":10, "birth":8, "name":"cristian"})
+    
+    command = client_patterns.command_pattern(
+        "python_function", 
+        args={"age":10, "birth":8, "name":"cristian"}
+    )
+    
     result = mys_client.send(command, priority=10)
     print(result)
 ```
@@ -237,7 +279,12 @@ This function initializes the client, sets its callbacks, worker number, and sta
 
 ```python
 def initialize_client():
-    mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+    
+    mys_client = MysceliumClient(
+        client_uid="some_client_id", 
+        buffer_path="ClientData/"
+    )
+
     mys_client.set_callbacks(callbacks=callbacks)
     mys_client.set_workers_num(n_workers=2)
     mys_client.initialize_client("127.0.0.1", 4444)

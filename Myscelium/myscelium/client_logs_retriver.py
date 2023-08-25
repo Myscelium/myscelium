@@ -1,6 +1,6 @@
 
 import pandas as pd
-from sql_pool import SQLiteConnectionPool
+from . import sql_pool 
 
 class Logs_Buffer_Retriver:
 

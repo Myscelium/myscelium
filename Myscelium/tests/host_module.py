@@ -1,4 +1,4 @@
-from myscelium import MysceliumHost, HostPatterns
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
 from multiprocessing import Process, Event, Manager
 from .Logs.test_logs_mananger import Events_Mananger, System_Status
 import os
@@ -6,6 +6,12 @@ import signal
 import time
 
 import time
+
+# ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
+
+def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
+    print(client_name, client_key, client_last_contact)
+    pass
 
 class MyHost:
 
@@ -98,6 +104,12 @@ class MyHost:
 
         print(allowed_clients)
 
+        mys_host_interface = MysceliumHostInterface("Data/")
+
+        mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
+
+        mys_host_interface.start_client_events_retriver()
+
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
@@ -115,10 +127,12 @@ class MyHost:
         System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
         mys_host.initialize_host(ip=ip, port=port)
-        
+
+        mys_host_interface.stop_client_events_retriver()
+
+        return
 
     def run(self, ip="127.0.0.1", port=4444, event=None):
-        
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self.monitor_stop_event)

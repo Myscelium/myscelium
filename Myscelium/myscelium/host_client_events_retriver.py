@@ -1,7 +1,7 @@
 
 import pandas as pd
 import time
-from sql_pool import SQLiteConnectionPool
+from . import sql_pool 
 
 class Clients_Retriver:
 
@@ -35,44 +35,5 @@ class Clients_Retriver:
         
         return dict_df
 
-    def watch_client_contact (self, calback):
-
-        control = []
-
-        while True:
-
-            clients_df = self.get_clients()
-            clients_pd_df = pd.DataFrame.from_dict(clients_df)
-
-            if clients_pd_df.empty:
-                
-                print("[Event Retriver] - No clients to transpose contact, next checking in 10s")
-                time.sleep(10)
-          
-                continue
-            
-            else:
-                pass
-
-            actual_control = clients_pd_df.values.tolist()
-
-            if len(control) == 0:
-                control = actual_control
-            else:
-                pass
-
-            for i, n in enumerate(control):
-
-                actual_to_compare = actual_control[i]
-
-                if n['LastContact'] > actual_to_compare['LastContact']:
-                    calback(actual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact'])
-                else:
-                    pass
-
-                continue
-            
-            control = actual_control
-
-        return  
+    
 

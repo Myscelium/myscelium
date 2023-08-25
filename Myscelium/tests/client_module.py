@@ -3,13 +3,10 @@ import os
 import time
 import signal
 
-
 client_patterns = ClientPatterns()
-
 
 from multiprocessing import Process, Event, Manager
 from .Logs.test_logs_mananger import Events_Mananger, System_Status
-
 
 class MyClient:
 

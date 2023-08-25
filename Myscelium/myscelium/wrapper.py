@@ -1,5 +1,6 @@
 from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
 from . import host_logs_retriver
+from . import host_client_events_retriver
 from . import client_logs_retriver
 
 from multiprocessing import Process
@@ -7,7 +8,7 @@ import pandas as pd
 import time
 import os
 
-from sql_pool import SQLiteConnectionPool
+from . import sql_pool 
 
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -47,7 +48,7 @@ def split_dataframe(df, num_chunks):
     return chunks
 
 def transpose(logs_df, buffer_path, log_callback):
-    pool = SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
+    pool = sql_pool.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
     connection = pool.get_connection()
     logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
 
@@ -68,7 +69,8 @@ def transpose(logs_df, buffer_path, log_callback):
 
     pool.release_connection(connection)
     return
-    
+
+
 def check_if_all_logs_was_transposed(pool):
 
     connection = pool.get_connection()
@@ -94,6 +96,8 @@ class MysceliumHostInterface:
         """
 
         self.buffer_path = buffer_path
+
+        self.clients_contact_retriver_callback = ""
     
         self.log_callback = ""
 
@@ -112,7 +116,7 @@ class MysceliumHostInterface:
         and process them in parallel.
         """
 
-        pool = SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = sql_pool.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
@@ -179,6 +183,72 @@ class MysceliumHostInterface:
         pool.release_connection(connection)
             
         return
+    
+    def watch_client_contact (self):
+
+        control = []
+
+        pool = sql_pool.SQLiteConnectionPool(2, os.path.join(self.buffer_path, "Data.db"))
+
+        while True:
+
+            connection = pool.get_connection()
+
+            client_events_retriver = host_client_events_retriver.Clients_Retriver(connection)
+
+            clients_df = client_events_retriver.get_clients()
+            clients_pd_df = pd.DataFrame.from_dict(clients_df)
+
+            if clients_pd_df.empty:
+                
+                print("[Event Retriver] - No clients to transpose contact, next checking in 10s")
+                time.sleep(2)
+
+                pool.release_connection(connection)
+            
+                continue
+            
+            else:
+                pass
+
+            actual_control = clients_pd_df.values.tolist()
+
+            # print(f"Control group: {control}\n New group: {actual_control}")
+
+            if len(control) != len(actual_control):
+                control = actual_control
+            else:
+                pass
+
+            for i, n in enumerate(control):
+
+                actual_to_compare = actual_control[i]
+
+                if (n[6] != '' and actual_to_compare[6] != '') and (n[6] < actual_to_compare[6]):
+
+                    if not isinstance(self.clients_contact_retriver_callback, str):
+                        pass
+                    else:
+
+                        print(f"Client: {actual_to_compare[1]} of key: {actual_to_compare[2]} made contact but not find any valid callback to transpose it!")
+
+                        pool.release_connection(connection)
+
+                        continue
+
+                    self.clients_contact_retriver_callback(actual_to_compare[1], actual_to_compare[2], actual_to_compare[6])
+                
+                else:
+                    pass                
+                
+            
+            control = actual_control
+            pool.release_connection(connection)
+
+            continue
+
+        return  
+    
 
     def allow_multi_handlers (self, workers_num=2):
 
@@ -193,6 +263,19 @@ class MysceliumHostInterface:
 
         return
 
+    def set_client_contact_retriver_callback (self, callback:str):
+
+        """
+        Set the callback function for client contacts transposition.
+
+        Parameters:
+        - callback: Callback function to be invoked for each client contact.
+        """
+
+        self.clients_contact_retriver_callback = callback
+
+        pass
+
     def set_logs_callback (self, callback:str):
 
         """
@@ -205,6 +288,37 @@ class MysceliumHostInterface:
         self.log_callback = callback
 
         pass
+
+    def start_client_events_retriver (self):
+
+        """
+        Start the clients event retriever process.
+        """
+
+        self.client_events_retriver_stats = True
+
+        self.client_events_retriver_process = Process(target=self.watch_client_contact, args=())
+        self.client_events_retriver_process.start()
+
+        return 
+
+    def stop_client_events_retriver (self):
+
+        """
+        Stop the clients event retriever process.
+        """
+
+        self.client_events_retriver_stats = False
+
+        if not hasattr(self, 'client_events_retriver_process'):
+            return
+        else:
+            pass
+
+        self.client_events_retriver_process.join()
+
+        return
+
 
     def stop_logs_reriver (self):
 
@@ -682,7 +796,7 @@ class MysceliumClientInterface:
         and process them in parallel.
         """
 
-        pool = SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = sql_pool.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
