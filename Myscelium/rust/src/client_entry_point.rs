@@ -2,14 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::socket_host::socket_host::{get_available_commands_registered, initialize_host, set_socket_host_callbacks};
-use crate::socket_host::socket_host::{initialize_host_buffer, register_client, set_heartbeat_callback, set_max_conns};
-use crate::socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
-
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_databse_dir, set_client_log_level};
-use crate::socket_host::client_mananger::mananger::{Client, ClientError};
-use crate::socket_host::host_logger::log_handler::{initialize_host_logs_databse_dir, set_host_log_level};
-use crate::socket_host::permissions_mananger::mananger::{GroupError, PermissionGroup};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};

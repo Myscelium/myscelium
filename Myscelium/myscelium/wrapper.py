@@ -410,20 +410,25 @@ class HostPatterns:
 
         pass
 
-    def client_pattern (self, client_type:str, client_id:str) -> dict:
+    def client_pattern (self, client_name:str, client_key:str, client_type:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list = []) -> dict:
 
         """
         Create a client pattern.
 
         Parameters:
-        - client_type: Type of the client.
-        - client_id: Unique identifier for the client.
+        - client_name: Name of the client (user).
+        - client_key: Unique Key of the client.
+        - client_type: Client purpose.
+        - client_permission_group: Group that client inherit permission.
+        - client_is_super_user: If client has root privileges on myscelium.
+        - client_max_sub_channes: Max subchannels of strem that client are allowed to create and gerenciate.
+        - client_owned_sub_channels_keys: Optional parameter to pre inicializate host with client subchanels keys allowed.
 
         Returns:
         - Dictionary representing the client pattern.
         """
 
-        return {"client_type":client_type, "client_id":client_id}
+        return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":client_max_sub_channes, "owned_sub_channels_keys":client_owned_sub_channels_keys}
 
     def response_pattern (self, response:any, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict:
 

@@ -39,12 +39,12 @@ use pyo3::types::PyFunction;
 use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
-#[derive(Debug, Clone)]
-pub struct Client {
-    client_id: String,
-    last_contact: SystemTime,
-    client_type: String,
-}
+// #[derive(Debug, Clone)]
+// pub struct Client {
+//     client_id: String,
+//     last_contact: SystemTime,
+//     client_type: String,
+// }
 
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
@@ -160,20 +160,23 @@ pub fn is_client_registred(client_id: &String) -> bool {
     clients.contains_key(client_id)
 }
 
-pub fn register_client(client_id: String, client_type: String) {
-    if !is_client_registred(&client_id) {
-        let mut clients = CLIENTS_ALLOWED.lock().unwrap();
+// pub fn register_client(client_id: String, client_type: String) {
 
-        clients.insert(
-            client_id.clone(),
-            Client {
-                client_id,
-                last_contact: SystemTime::now(),
-                client_type,
-            },
-        );
-    }
-}
+//     Client
+
+//     // if !is_client_registred(&client_id) {
+//     //     let mut clients = CLIENTS_ALLOWED.lock().unwrap();
+
+//     //     clients.insert(
+//     //         client_id.clone(),
+//     //         Client {
+//     //             client_id,
+//     //             last_contact: SystemTime::now(),
+//     //             client_type,
+//     //         },
+//     //     );
+//     // }
+// }
 
 fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
     let logger = acquire_logger!("py dict to kwargs converter");
@@ -218,52 +221,27 @@ fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult
     Ok(kwargs)
 }
 
-pub fn update_last_contact(py: Python<'_>, client_id: String) {
-    let mut clients = CLIENTS_ALLOWED.lock().unwrap();
-    if let Some(client) = clients.get_mut(&client_id) {
-        client.last_contact = SystemTime::now();
+use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, Client, ClientError};
+
+pub fn update_last_contact(client_key: String) {
+    let client = Client::get_by_key(client_key);
+
+    match client {
+        Ok(c) => {
+            _ = c.update_last_contact();
+        },
+        Err(e) => match e {
+            ClientError::ClientAlwreadyExist(e) => {
+                println!("Error client: {} alwready exist", e);
+            },
+            ClientError::ClientDoesNotExist(e) => {
+                println!("Error client: {} does't exist", e);
+            },
+            ClientError::UnexpectedError(e) => {
+                println!("Get a unexpected error: {}", e);
+            },
+        },
     }
-
-    let function_name = "handle_client_contact";
-
-    let callback_patterns = HEARTBEAT_CALLBACK.lock().unwrap();
-
-    let function = match callback_patterns.get(function_name) {
-        Some(function) => function.clone(),
-        _ => return,
-    };
-
-    // Get the function and args_types from the CALLBACK_PATTERNS
-
-    // let mut command: HashMap<String, Value> = HashMap::new();
-
-    // command.insert("client_id".to_string(), );
-
-    // let kwargs_map = dict_to_kwargs(py, &command)
-    //     .map_err(|e| {
-    //         eprintln!("Error converting arguments to kwargs: {:?}", e);
-    //         PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e))
-    //     })
-    //     .unwrap();
-
-    // let kwargs = PyDict::new(py);
-    // for (key, value) in kwargs_map {
-    //     kwargs.set_item(key, value).unwrap();
-    // }
-
-    let kwargs = PyDict::new(py);
-
-    let py_client_id = &client_id.into_py(py);
-
-    kwargs.set_item("client_id".to_string(), py_client_id).unwrap();
-
-    let logger = acquire_logger!("Heartbeat Callback Handler");
-
-    // Call the Python function with the converted arguments
-    let result = function.0.call(py, (), Some(kwargs)).map_err(|e| {
-        logger.exception(format!("Error calling function: {:?}", e));
-        e
-    });
 }
 
 // > Commands Manangemement & Checking
@@ -493,7 +471,7 @@ fn handle_connection(mut stream: TcpStream) {
 
         let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
-        if !is_client_registred(&command.client_id) {
+        if check_if_client_key_exists(command.client_id.clone()) {
             // -> In case client isn't registred in the clients allowed
 
             let response = create_command_error!(command.client_id, command.parity_id, "Your client isn't registred in the whitelist!");
@@ -522,6 +500,8 @@ fn handle_connection(mut stream: TcpStream) {
 
         //     update_last_contact(py, command.client_id.clone());
         // }
+
+        update_last_contact(command.client_id.clone());
 
         {
             let command_patterns = COMMAND_PATTERNS.lock().unwrap();

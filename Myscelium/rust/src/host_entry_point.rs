@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::socket_host::socket_host::{get_available_commands_registered, initialize_host, set_socket_host_callbacks};
-use crate::socket_host::socket_host::{initialize_host_buffer, register_client, set_heartbeat_callback, set_max_conns};
+use crate::socket_host::socket_host::{initialize_host_buffer, set_heartbeat_callback, set_max_conns};
 use crate::socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
 
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_databse_dir, set_client_log_level};
@@ -113,6 +113,7 @@ fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
 fn set_socket_host_max_connections(n_max_conns: &PyInt) {
     let max_conns: u32 = n_max_conns.extract().unwrap();
 
+    set_host_clients_mananger__pool_workers_num(max_conns.clone());
     set_max_conns(max_conns);
 
     return;
@@ -124,6 +125,7 @@ fn initalize_host_buffer_tables(path: &PyString) {
 
     initialize_host_logs_databse_dir(buffer_path.clone());
     initialize_host_buffer(buffer_path.clone());
+    clients_mananger_initialize_table(buffer_path.clone());
 
     return;
 }
@@ -317,7 +319,7 @@ fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
 // > --------------------------------------------------------------------------------------------------------
 // > Client Manangement
 
-use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, Client, ClientError};
+use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, clients_mananger_initialize_table, set_host_clients_mananger__pool_workers_num, Client, ClientError};
 use crate::socket_host::permissions_mananger::mananger::{GroupError, PermissionGroup};
 
 macro_rules! extract_string {
@@ -357,27 +359,41 @@ fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()>
 
         let client_name = extract_string!(allowed_clients_dict.get_item("client_name").unwrap(), "Error: client_name must be a String!");
         let client_key = extract_string!(allowed_clients_dict.get_item("client_key").unwrap(), "Error: client_key must be a String with 16 characters!");
+
+        let client_type = extract_string!(allowed_clients_dict.get_item("client_type").unwrap(), "Error: client_type must be a String!");
         let client_permission_group = extract_string!(allowed_clients_dict.get_item("permission_group").unwrap(), "Error: permission_group must be a String!");
         let client_is_super_user = extract_boolean!(allowed_clients_dict.get_item("is_super_user").unwrap(), "Error: is_super_user must be a String!");
-        let client_last_contact = extract_float!(allowed_clients_dict.get_item("last_contact").unwrap(), "Error: last_contact must be a String!");
+
         let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
         let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
-        let client_sub_channels_in_use = extract_unsigned_int!(allowed_clients_dict.get_item("sub_channels_in_use").unwrap(), "Error: sub_channels_in_use must be a String!");
+
+        // {
+        //     println!(
+        //         "{:?},{:?},{:?},{:?},{:?},{:?},{:?}",
+        //         &client_name, &client_key, &client_type, &client_permission_group, &client_is_super_user, &client_max_sub_channels, &client_owned_sub_channels_keys,
+        //     )
+        // }
 
         if !check_if_client_key_exists(client_key.clone()) {
             let _ = Client::new(
-                client_name,
-                client_key,
+                client_name.clone(),
+                client_key.clone(),
+                client_type,
                 client_permission_group,
                 client_is_super_user,
-                client_last_contact,
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
-                client_sub_channels_in_use,
             );
         }
+
+        println!("Successfully created client: {} of key: {}", client_name, client_key)
     }
     Ok(())
+}
+
+#[pyfunction]
+fn remove_all_allowed_clients(allowed_client_list: &PyList) {
+    let _ = Client::delete_all();
 }
 
 // fn set_socket_host_allowed_clients(allowed_clients_list: &PyList) -> PyResult<()> {

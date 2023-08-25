@@ -33,6 +33,9 @@ use std::time::Duration;
 use rusqlite::Row;
 use rusqlite::Statement;
 
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+
 macro_rules! handle_client_error {
     ($client_result:expr) => {
         match $client_result {
@@ -65,7 +68,7 @@ lazy_static! {
     static ref SQL_POOL: Mutex<SQLiteConnectionPool> = Mutex::new(SQLiteConnectionPool::empty());
 }
 
-pub fn set_workers_num(n_workers: u32) {
+pub fn set_host_clients_mananger__pool_workers_num(n_workers: u32) {
     let mut default_num_of_workers = NUM_WORKERS.lock();
 
     *default_num_of_workers = n_workers;
@@ -100,7 +103,7 @@ pub fn clients_mananger_initialize_table(sql_path: String) {
 
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         let result = conn.execute(
-            "CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY, ClientName TEXT, ClientKey TEXT, PermissionGroup TEXT, SuperUser BOOL, LastContact NUMBER, MaxSubChannels NUMBER, SubChannelsKeys TEXT, SubChannelsInUse NUMBER)",
+            "CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY, ClientName TEXT, ClientKey TEXT, ClientType TEXT, PermissionGroup TEXT, SuperUser BOOL, LastContact NUMBER, MaxSubChannels NUMBER, OwnedSubChannelsKeys TEXT, SubChannelsInUse NUMBER)",
             params![],
         );
 
@@ -127,6 +130,7 @@ pub struct Client {
     pub client_id: u32,
     client_name: String,
     client_key: String,
+    client_type: String,
     permission_group: String,
     is_super_user: bool,
     last_contact: f64,
@@ -144,7 +148,7 @@ pub struct Client {
 // > delet client
 
 impl Client {
-    pub fn new(client_name: String, client_key: String, permission_group: String, is_super_user: bool, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
+    pub fn new(client_name: String, client_key: String, client_type: String, permission_group: String, is_super_user: bool, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>) -> Result<Self, ClientError> {
         let mut client_id;
 
         {
@@ -162,18 +166,8 @@ impl Client {
             let serialzied_owned_sub_channels_keys = serde_json::to_string(&owned_sub_channels_keys).expect("Failed to serialize to JSON");
 
             let result = conn.execute(
-                "INSERT INTO Clients (ID, ClientName, ClientKey, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);",
-                params![
-                    client_id,
-                    client_name,
-                    client_key,
-                    permission_group,
-                    is_super_user,
-                    last_contact,
-                    max_sub_channels,
-                    serialzied_owned_sub_channels_keys,
-                    sub_channels_in_use
-                ],
+                "INSERT INTO Clients (ID, ClientName, ClientKey, ClientType, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                params![client_id, client_name, client_key, client_type, permission_group, is_super_user, 0f64, max_sub_channels, serialzied_owned_sub_channels_keys, 0u32],
             );
 
             match result {
@@ -190,17 +184,18 @@ impl Client {
             };
         });
 
-        Self {
+        Ok(Self {
             client_id,
             client_name,
             client_key,
+            client_type,
             permission_group,
             is_super_user,
-            last_contact,
+            last_contact: -1.0,
             max_sub_channels,
             owned_sub_channels_keys,
-            sub_channels_in_use,
-        }
+            sub_channels_in_use: 0u32,
+        })
     }
 
     pub fn get_by_name(client_name: String) -> Result<Self, ClientError> {
@@ -220,14 +215,15 @@ impl Client {
                             row.get(4).unwrap(),
                             row.get(5).unwrap(),
                             row.get(6).unwrap(),
-                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
-                            row.get(8).unwrap(),
+                            row.get(7).unwrap(),
+                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(8)?.as_str()).unwrap(),
+                            row.get(9).unwrap(),
                         ))
                     })
                     .unwrap();
 
                 for client in clients_iter {
-                    clients.push(client.unwrap());
+                    clients.push(client.unwrap()?);
                 }
             }
 
@@ -239,7 +235,7 @@ impl Client {
         })
     }
 
-    pub fn get_client_by_key(client_key: String) -> Result<Self, ClientError> {
+    pub fn get_by_key(client_key: String) -> Result<Self, ClientError> {
         with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
             let mut clients: Vec<Client> = Vec::new();
 
@@ -256,14 +252,15 @@ impl Client {
                             row.get(4).unwrap(),
                             row.get(5).unwrap(),
                             row.get(6).unwrap(),
-                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(7)?.as_str()).unwrap(),
-                            row.get(8).unwrap(),
+                            row.get(7).unwrap(),
+                            serde_json::from_str::<Vec<String>>(row.get::<_, String>(8)?.as_str()).unwrap(),
+                            row.get(9).unwrap(),
                         ))
                     })
                     .unwrap();
 
                 for client in clients_iter {
-                    clients.push(client.unwrap());
+                    clients.push(client.unwrap()?);
                 }
             }
 
@@ -273,6 +270,23 @@ impl Client {
                 return Ok(clients[0].clone());
             }
         })
+    }
+
+    pub fn delete_all() -> Result<(), ClientError> {
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            let result = conn.execute("DELETE FROM Clients", params![]);
+
+            match result {
+                Ok(rows) => {
+                    println!("Successfully deleted all clients from clients table! {} Rows were affected.", rows);
+                },
+                Err(e) => {
+                    eprintln!("An error occurred while deleting all clients from clients table! And the error was: {}", e);
+                },
+            }
+        });
+
+        Ok(())
     }
 
     pub fn delete(&self) -> Result<(), ClientError> {
@@ -296,7 +310,47 @@ impl Client {
         Ok(())
     }
 
-    pub fn edit(&self, client_key: String, client_name: String, permission_group: String, is_super_user: bool, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Result<Self, ClientError> {
+    pub fn update_last_contact(&self) -> Result<Self, ClientError> {
+        let now = SystemTime::now();
+        let duration_since_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+
+        let seconds = duration_since_epoch.as_secs() as f64;
+        let subsec_nanos = duration_since_epoch.subsec_nanos() as f64;
+
+        let total_seconds = seconds + subsec_nanos * 1e-9; // Convert nanoseconds to seconds and add to the total
+
+        let last_contact = total_seconds.clone();
+
+        let new_client = Self {
+            client_id: self.client_id.clone(),
+            client_name: self.client_name.clone(),
+            client_key: self.client_key.clone(),
+            client_type: self.client_type.clone(),
+            permission_group: self.permission_group.clone(),
+            is_super_user: self.is_super_user.clone(),
+            last_contact: last_contact,
+            max_sub_channels: self.max_sub_channels.clone(),
+            owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
+            sub_channels_in_use: self.sub_channels_in_use.clone(),
+        };
+
+        edit_client(new_client.clone());
+
+        Ok(new_client)
+    }
+
+    pub fn edit(
+        &self,
+        client_key: String,
+        client_name: String,
+        client_type: String,
+        permission_group: String,
+        is_super_user: bool,
+        last_contact: f64,
+        max_sub_channels: u32,
+        owned_sub_channels_keys: Vec<String>,
+        sub_channels_in_use: u32,
+    ) -> Result<Self, ClientError> {
         if !check_if_client_key_exists(client_key.clone()) {
             return Err(ClientError::ClientDoesNotExist(client_key.clone()));
         }
@@ -305,6 +359,7 @@ impl Client {
             client_id: self.client_id,
             client_name,
             client_key,
+            client_type,
             permission_group,
             is_super_user,
             last_contact,
@@ -327,6 +382,7 @@ impl Client {
             client_id: self.client_id,
             client_name: self.client_name.clone(),
             client_key: new_client_key,
+            client_type: self.client_type.clone(),
             permission_group: self.permission_group.clone(),
             is_super_user: self.is_super_user.clone(),
             last_contact: self.last_contact,
@@ -340,18 +396,30 @@ impl Client {
         Ok(new_client)
     }
 
-    fn from(client_id: u32, client_name: String, client_key: String, permission_group: String, is_super_user: bool, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
-        Self {
+    fn from(
+        client_id: u32,
+        client_name: String,
+        client_key: String,
+        client_type: String,
+        permission_group: String,
+        is_super_user: bool,
+        last_contact: f64,
+        max_sub_channels: u32,
+        owned_sub_channels_keys: Vec<String>,
+        sub_channels_in_use: u32,
+    ) -> Result<Self, ClientError> {
+        Ok(Self {
             client_id,
             client_name,
             client_key,
+            client_type,
             permission_group,
             is_super_user,
             last_contact,
             max_sub_channels,
             owned_sub_channels_keys,
             sub_channels_in_use,
-        }
+        })
     }
 }
 
@@ -414,10 +482,11 @@ pub fn edit_client(client: Client) {
         let serialized_owned_sub_channels_keys = serde_json::to_string(&client.owned_sub_channels_keys).expect("Failed to serialize to JSON");
 
         let result = conn.execute(
-            "UPDATE Clients SET ClientName = ?, ClientKey = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, OwnedSubChannelsKeys = ?, SubChannelsInUse = ? WHERE ID = ?;",
+            "UPDATE Clients SET ClientName = ?, ClientKey = ?, ClientType = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, OwnedSubChannelsKeys = ?, SubChannelsInUse = ? WHERE ID = ?;",
             params![
                 client.client_name,
                 client.client_key,
+                client.client_type,
                 client.permission_group,
                 client.is_super_user,
                 client.last_contact,

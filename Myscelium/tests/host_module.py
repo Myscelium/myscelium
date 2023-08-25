@@ -92,9 +92,13 @@ class MyHost:
         ]
 
         allowed_clients = [
-            self.host_patterns.client_pattern(client_type="Interface", client_id="some_client_id"),
-            self.host_patterns.client_pattern(client_type="Interface", client_id="randomsclientids"),
+            self.host_patterns.client_pattern(client_name="TestClient1", client_type="Interface", client_key="some_client_id", client_permission_group="", client_is_super_user=True, client_max_sub_channes=5),
+            self.host_patterns.client_pattern(client_name="TestClient2", client_type="Interface", client_key="randomsclientids", client_permission_group="", client_is_super_user=True, client_max_sub_channes=5),
         ]
+
+        print(allowed_clients)
+
+        # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
                                  allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="DEBUG")
