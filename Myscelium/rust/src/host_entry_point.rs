@@ -7,9 +7,7 @@ use crate::socket_host::socket_host::{initialize_host_buffer, register_client, s
 use crate::socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
 
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_databse_dir, set_client_log_level};
-use crate::socket_host::client_mananger::mananger::{Client, ClientError};
 use crate::socket_host::host_logger::log_handler::{initialize_host_logs_databse_dir, set_host_log_level};
-use crate::socket_host::permissions_mananger::mananger::{GroupError, PermissionGroup};
 
 use pyo3::exceptions;
 use pyo3::prelude::*;
@@ -316,24 +314,89 @@ fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
     Ok(py_dict.into())
 }
 
+// > --------------------------------------------------------------------------------------------------------
+// > Client Manangement
+
+use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, Client, ClientError};
+use crate::socket_host::permissions_mananger::mananger::{GroupError, PermissionGroup};
+
+macro_rules! extract_string {
+    ($value:expr, $err_msg:expr) => {
+        $value.extract::<String>().map_err(|_| PyErr::new::<pyo3::exceptions::PyTypeError, _>($err_msg))?
+    };
+}
+
+macro_rules! extract_float {
+    ($value:expr, $err_msg:expr) => {
+        $value.extract::<f64>().map_err(|_| PyErr::new::<pyo3::exceptions::PyTypeError, _>($err_msg))?
+    };
+}
+
+macro_rules! extract_unsigned_int {
+    ($value:expr, $err_msg:expr) => {
+        $value.extract::<u32>().map_err(|_| PyErr::new::<pyo3::exceptions::PyTypeError, _>($err_msg))?
+    };
+}
+
+macro_rules! extract_string_vector {
+    ($value:expr, $err_msg:expr) => {
+        $value.extract::<Vec<String>>().map_err(|_| PyErr::new::<pyo3::exceptions::PyTypeError, _>($err_msg))?
+    };
+}
+
+macro_rules! extract_boolean {
+    ($value:expr, $err_msg:expr) => {
+        $value.extract::<bool>().map_err(|_| PyErr::new::<pyo3::exceptions::PyTypeError, _>($err_msg))?
+    };
+}
+
 #[pyfunction]
-fn set_socket_host_allowed_clients(allowed_clients_list: &PyList) -> PyResult<()> {
-    for client_allowed in allowed_clients_list.iter() {
+fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()> {
+    for client_allowed in allowed_client_list.iter() {
         let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
 
-        let client_type: &PyAny = allowed_clients_dict.get_item("client_type").unwrap();
-        let client_id: &PyAny = allowed_clients_dict.get_item("client_id").unwrap();
+        let client_name = extract_string!(allowed_clients_dict.get_item("client_name").unwrap(), "Error: client_name must be a String!");
+        let client_key = extract_string!(allowed_clients_dict.get_item("client_key").unwrap(), "Error: client_key must be a String with 16 characters!");
+        let client_permission_group = extract_string!(allowed_clients_dict.get_item("permission_group").unwrap(), "Error: permission_group must be a String!");
+        let client_is_super_user = extract_boolean!(allowed_clients_dict.get_item("is_super_user").unwrap(), "Error: is_super_user must be a String!");
+        let client_last_contact = extract_float!(allowed_clients_dict.get_item("last_contact").unwrap(), "Error: last_contact must be a String!");
+        let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
+        let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
+        let client_sub_channels_in_use = extract_unsigned_int!(allowed_clients_dict.get_item("sub_channels_in_use").unwrap(), "Error: sub_channels_in_use must be a String!");
 
-        if let Ok(extracted_client_type) = client_type.extract::<String>() {
-            if let Ok(extracted_client_id) = client_id.extract::<String>() {
-                register_client(extracted_client_id, extracted_client_type);
-            } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_id must be a String with 16 characters!"));
-            }
-        } else {
-            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_type must be a String!"));
+        if !check_if_client_key_exists(client_key.clone()) {
+            let _ = Client::new(
+                client_name,
+                client_key,
+                client_permission_group,
+                client_is_super_user,
+                client_last_contact,
+                client_max_sub_channels,
+                client_owned_sub_channels_keys,
+                client_sub_channels_in_use,
+            );
         }
     }
-
     Ok(())
 }
+
+// fn set_socket_host_allowed_clients(allowed_clients_list: &PyList) -> PyResult<()> {
+//     for client_allowed in allowed_clients_list.iter() {
+//         let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
+
+//         let client_type: &PyAny = allowed_clients_dict.get_item("client_type").unwrap();
+//         let client_id: &PyAny = allowed_clients_dict.get_item("client_id").unwrap();
+
+//         if let Ok(extracted_client_type) = client_type.extract::<String>() {
+//             if let Ok(extracted_client_id) = client_id.extract::<String>() {
+//                 register_client(extracted_client_id, extracted_client_type);
+//             } else {
+//                 return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_id must be a String with 16 characters!"));
+//             }
+//         } else {
+//             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_type must be a String!"));
+//         }
+//     }
+
+//     Ok(())
+// }

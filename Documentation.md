@@ -1,14 +1,5 @@
 
 ---
-
-
-
-
-
-
-
-
-
 # Myscelium Usage Guide & Documentation
 
 <img src="myscelium_logo_centralized.png" alt="Description of Image" width="150" height="150">

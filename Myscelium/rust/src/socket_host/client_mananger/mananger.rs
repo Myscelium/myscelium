@@ -128,7 +128,7 @@ pub struct Client {
     client_name: String,
     client_key: String,
     permission_group: String,
-    super_user: String,
+    is_super_user: bool,
     last_contact: f64,
     max_sub_channels: u32,
     owned_sub_channels_keys: Vec<String>,
@@ -144,7 +144,7 @@ pub struct Client {
 // > delet client
 
 impl Client {
-    pub fn new(client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
+    pub fn new(client_name: String, client_key: String, permission_group: String, is_super_user: bool, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
         let mut client_id;
 
         {
@@ -168,7 +168,7 @@ impl Client {
                     client_name,
                     client_key,
                     permission_group,
-                    super_user,
+                    is_super_user,
                     last_contact,
                     max_sub_channels,
                     serialzied_owned_sub_channels_keys,
@@ -195,7 +195,7 @@ impl Client {
             client_name,
             client_key,
             permission_group,
-            super_user,
+            is_super_user,
             last_contact,
             max_sub_channels,
             owned_sub_channels_keys,
@@ -296,7 +296,7 @@ impl Client {
         Ok(())
     }
 
-    pub fn edit(&self, client_key: String, client_name: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Result<Self, ClientError> {
+    pub fn edit(&self, client_key: String, client_name: String, permission_group: String, is_super_user: bool, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Result<Self, ClientError> {
         if !check_if_client_key_exists(client_key.clone()) {
             return Err(ClientError::ClientDoesNotExist(client_key.clone()));
         }
@@ -306,7 +306,7 @@ impl Client {
             client_name,
             client_key,
             permission_group,
-            super_user,
+            is_super_user,
             last_contact,
             max_sub_channels,
             owned_sub_channels_keys,
@@ -328,7 +328,7 @@ impl Client {
             client_name: self.client_name.clone(),
             client_key: new_client_key,
             permission_group: self.permission_group.clone(),
-            super_user: self.super_user.clone(),
+            is_super_user: self.is_super_user.clone(),
             last_contact: self.last_contact,
             max_sub_channels: self.max_sub_channels,
             owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
@@ -340,13 +340,13 @@ impl Client {
         Ok(new_client)
     }
 
-    fn from(client_id: u32, client_name: String, client_key: String, permission_group: String, super_user: String, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
+    fn from(client_id: u32, client_name: String, client_key: String, permission_group: String, is_super_user: bool, last_contact: f64, max_sub_channels: u32, owned_sub_channels_keys: Vec<String>, sub_channels_in_use: u32) -> Self {
         Self {
             client_id,
             client_name,
             client_key,
             permission_group,
-            super_user,
+            is_super_user,
             last_contact,
             max_sub_channels,
             owned_sub_channels_keys,
@@ -419,7 +419,7 @@ pub fn edit_client(client: Client) {
                 client.client_name,
                 client.client_key,
                 client.permission_group,
-                client.super_user,
+                client.is_super_user,
                 client.last_contact,
                 client.max_sub_channels,
                 serialized_owned_sub_channels_keys,
