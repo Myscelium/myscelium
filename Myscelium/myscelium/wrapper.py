@@ -7,6 +7,9 @@ import pandas as pd
 import time
 import os
 
+from sql_pool import SQLiteConnectionPool
+
+
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
 
@@ -44,7 +47,7 @@ def split_dataframe(df, num_chunks):
     return chunks
 
 def transpose(logs_df, buffer_path, log_callback):
-    pool = host_logs_retriver.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
+    pool = SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
     connection = pool.get_connection()
     logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
 
@@ -109,7 +112,7 @@ class MysceliumHostInterface:
         and process them in parallel.
         """
 
-        pool = host_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
@@ -679,7 +682,7 @@ class MysceliumClientInterface:
         and process them in parallel.
         """
 
-        pool = client_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
