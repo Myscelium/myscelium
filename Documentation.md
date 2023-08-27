@@ -2,7 +2,7 @@
 ---
 # Myscelium Usage Guide & Documentation
 
-#### Mycelium v1.
+#### Mycelium v1.3
 
 <img src="myscelium_logo_centralized.png" alt="Description of Image" width="150" height="150">
 
