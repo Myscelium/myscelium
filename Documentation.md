@@ -12,6 +12,7 @@ This guide provides a detailed overview of setting up a Myscelium host and clien
   - [Setting Up the Host](#setting-up-the-host)
   - [MysceliumHost Class](#mysceliumhost-class)
   - [HostPatterns Class](#hostpatterns-class)
+  - [HostInterface Class](#hostinterface-class)
   - [Myscelium Host Usage Guide](#myscelium-host-usage-guide) 
 - [Myscelium Client](#myscelium-client)
   - [Setting Up the Client](#setting-up-the-client)
@@ -60,6 +61,43 @@ The `HostPatterns` class provides patterns for the host.
 - `callback_pattern(callback, args) -> dict`: Returns a callback pattern.
 
 Certainly! Let's enhance the documentation to specify the requirements for the callback function names:
+
+---
+
+### HostInterface Class
+
+The `HostInterface` class provides methods to interact with host buffers
+
+#### Methods
+
+- `retrive_logs(self)`: Retrieve logs and process them. If multiple threads are set, it will split the logs and process them in parallel.
+
+- `watch_client_contact(self)`: This is a private function of HostInterface Class that are responsible to what modifications in client last contact
+
+- `allow_multi_handlers(self, workes_num:int`=2)`: Activate multiple handlers for processing logs.
+    - Parameters:
+        - threads_num: Number of threads to be used for processing logs.
+
+$~$
+- `set_client_contact_retriver_callback (self, callback:str)`:Set the callback function for client contacts transposition.
+    - Parameters:
+        - callback: Callback function to be invoked for each client contact.
+
+$~$
+- `set_logs_callback (self, callback:str)`: Set the callback function for logs.
+Parameters:
+    - callback: Callback function to be invoked for each log.
+
+$~$
+
+- `start_client_events_retriver(self)`: Start the clients event retriever process.
+
+- `stop_client_events_retriver (self)`: Stop the clients event retriever process.
+
+- `stop_logs_reriver (self)`: Stop the logs retriever process.
+
+- `start_logs_retriver (self)`: Start the logs retriever 
+process in a separate process.
 
 ---
 
