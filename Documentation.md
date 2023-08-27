@@ -74,7 +74,7 @@ The `HostInterface` class provides methods to interact with host buffers
 
 - `watch_client_contact(self)`: This is a private function of HostInterface Class that are responsible to what modifications in client last contact
 
-- `allow_multi_handlers(self, workes_num:int`=2)`: Activate multiple handlers for processing logs.
+- `allow_multi_handlers(self, workes_num:int=2)`: Activate multiple handlers for processing logs.
     - Parameters:
         - threads_num: Number of threads to be used for processing logs.
 
@@ -137,7 +137,10 @@ Certain callback functions must have specific names for the system to recognize 
 3. **Create Callback List**: Add all your callback functions to a list. This list will be passed to the Myscelium Host during initialization.
     ```python
     callbacks = [
-        host_patterns.callback_pattern(callback=python_function, args={...}),
+        host_patterns.callback_pattern(
+            callback=python_function, 
+            args={...}
+        ),
         # Add other callbacks here
     ]
     ```
@@ -146,15 +149,15 @@ Certain callback functions must have specific names for the system to recognize 
     ```python
 
     allowed_clients = [
-            self.host_patterns.client_pattern(
-                client_name="TestClient1", 
-                client_type="Interface", 
-                client_key="randomsclientids", 
-                client_permission_group="", 
-                client_is_super_user=True, 
-                client_max_sub_channes=5
-            ),
-            # Add other clients here
+        self.host_patterns.client_pattern(
+            client_name="TestClient1", 
+            client_type="Interface", 
+            client_key="randomsclientids", 
+            client_permission_group="", 
+            client_is_super_user=True, 
+            client_max_sub_channes=5
+        ),
+        # Add other clients here
     ]
  
     ```
@@ -180,7 +183,9 @@ Certain callback functions must have specific names for the system to recognize 
         )
     ]
     
-    mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+    mys_host.set_client_heartbeat_handler(
+        callback=client_heart_beat_handler
+    )
     ```
 
 7. **Set Logs Callback Handler**: Specify the function that will handle logs from the library engine.
