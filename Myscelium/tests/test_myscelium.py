@@ -101,8 +101,8 @@ def test_communication():
     for i in host_events_df.index:
         event = host_events_df.loc[i, 'StepCompleted']
 
-        # if "Contact received from Client: some_client_id" in event:
-        #     client_contact = True
+        if "Contact received from Client: some_client_id" in event:
+            client_contact = True
 
         if "Active Basic Callback" in event:
             basic_callback = True
