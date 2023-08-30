@@ -1,5 +1,5 @@
 
-TODO >>> Improve tests to check host new client contact watcher
+TODO >>> Fix bug in client ts retriver that not close the client contact event watcher
 
 TODO >>> Host Client Permission mananger
 TODO >>> Improve tests to test host client permission mananger

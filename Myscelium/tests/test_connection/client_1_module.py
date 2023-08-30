@@ -6,40 +6,40 @@ import signal
 client_patterns = ClientPatterns()
 
 from multiprocessing import Process, Event, Manager
-from .Logs.test_logs_mananger import Events_Mananger, System_Status
+from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
 class MyClient:
 
     @staticmethod
     def test_handler(data):
 
-        EVMananger = Events_Mananger(Unit="Client", path="Logs")
+        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
         EVMananger.Set_Event("Activate Basic Response Test callback handler")
 
         print("Received data: ", data)
 
         time.sleep(5)
         
-        System_Status(path="Logs").change_unit_status(Unit="Client", Status=False)
+        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
     def send_some_data():
 
         time.sleep(10)
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Client1Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")
         command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
         result = mys_client.send(command, priority=10)
 
-        EVMananger = Events_Mananger(Unit="Client", path="Logs")
+        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
         EVMananger.Set_Event("Data Sended")
 
         print(result)
 
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="ClientData/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Client1Data/")
 
         self.mys_client = mys_client
 
@@ -54,7 +54,7 @@ class MyClient:
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
 
-        System_Status(path="Logs").change_unit_status(Unit="Client", Status=True)
+        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
         
         mys_client.initialize_client("127.0.0.1", 4444)
 
@@ -66,12 +66,12 @@ class MyClient:
 
         while True:
 
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client")
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
             host_status = System_Status(path="Logs").get_unit_status(Unit="Host")
 
             if (not client_status) or (not host_status):
                 print("Receive stop client")
-                System_Status(path="Logs").change_unit_status(Unit="Client", Status=False)
+                System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
                 break
             else:
                 time.sleep(5)

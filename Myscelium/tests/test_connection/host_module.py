@@ -1,6 +1,6 @@
 from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
 from multiprocessing import Process, Event, Manager
-from .Logs.test_logs_mananger import Events_Mananger, System_Status
+from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 import os
 import signal
 import time
@@ -76,7 +76,7 @@ class MyHost:
 
         while True:
 
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client")
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
 
             if (not client_status) or (n >= COUNTER):
                 print("Receive stop host")
