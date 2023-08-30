@@ -221,20 +221,11 @@ pub fn buffer_up_get_scheduled_by_parity_id(client_id: String, parity_id: String
         let mut commands_schedule: Vec<UpCommand> = Vec::new();
 
         {
-            let mut smtp = conn
-                .prepare("SELECT * FROM ClientCommandsTosend WHERE ClientID = ? AND ParityId = ?")
-                .unwrap();
+            let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend WHERE ClientID = ? AND ParityId = ?").unwrap();
 
             let commands_iter = smtp
                 .query_map(params![client_id, parity_id], |row| {
-                    Ok(UpCommand::from(
-                        row.get(0).unwrap(),
-                        row.get(1).unwrap(),
-                        row.get(2).unwrap(),
-                        row.get(3).unwrap(),
-                        row.get(4).unwrap(),
-                        row.get(5).unwrap(),
-                    ))
+                    Ok(UpCommand::from(row.get(0).unwrap(), row.get(1).unwrap(), row.get(2).unwrap(), row.get(3).unwrap(), row.get(4).unwrap(), row.get(5).unwrap()))
                 })
                 .unwrap();
 
@@ -255,14 +246,7 @@ pub fn buffer_up_list_schedule() -> Vec<UpCommand> {
 
             let commands_iter = smtp
                 .query_map(params![], |row| {
-                    Ok(UpCommand::from(
-                        row.get(0).unwrap(),
-                        row.get(1).unwrap(),
-                        row.get(2).unwrap(),
-                        row.get(3).unwrap(),
-                        row.get(4).unwrap(),
-                        row.get(5).unwrap(),
-                    ))
+                    Ok(UpCommand::from(row.get(0).unwrap(), row.get(1).unwrap(), row.get(2).unwrap(), row.get(3).unwrap(), row.get(4).unwrap(), row.get(5).unwrap()))
                 })
                 .unwrap();
 
@@ -278,23 +262,14 @@ pub fn buffer_up_schedule(command: UpCommand) {
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let registered_ids = get_registred_ids(conn);
 
-        let mut id_generator = UniqueIdGenerator {
-            registered_ids: registered_ids,
-        };
+        let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
 
         let now = Utc::now();
         let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
         let result = conn.execute(
             "INSERT INTO ClientCommandsTosend (ID, ClientID, ParityId, Priority, Command, CreatedTime) VALUES (?, ?, ?, ?, ?, ?);",
-            params![
-                id_generator.gen(),
-                command.client_id,
-                command.parity_id,
-                command.priority,
-                command.command,
-                timestamp
-            ],
+            params![id_generator.gen(), command.client_id, command.parity_id, command.priority, command.command, timestamp],
         );
 
         match result {
@@ -376,12 +351,9 @@ pub fn buffer_up_clear_old_commands() {
 
         let time_difference = (current_timestamp - command_timestamp);
 
-        if time_difference >= 30.0 {
+        if time_difference >= 240.0 {
             buffer_up_remove_schedule_by_id(up_command.command_id.unwrap());
-            println!(
-                "\nCommand received from host: {} from client: {}, too old, clearing from the buffer up schedule!\n",
-                up_command.parity_id, up_command.client_id
-            );
+            println!("\nCommand received from host: {} from client: {}, too old, clearing from the buffer up schedule!\n", up_command.parity_id, up_command.client_id);
         }
     }
 }
@@ -410,10 +382,7 @@ pub fn buffer_up_remove_schedule_by_parity_id(client_id: String, parity_id: Stri
                 println!("Successfully remove schedule Command in ClientCommandsTosend");
             },
             Err(e) => {
-                eprintln!(
-                    "An error occurred while removing scheduled command of parity_id: {} from client: {} in the ClientCommandsTosend table: {}",
-                    client_id, parity_id, e
-                );
+                eprintln!("An error occurred while removing scheduled command of parity_id: {} from client: {} in the ClientCommandsTosend table: {}", client_id, parity_id, e);
             },
         };
     });

@@ -41,14 +41,18 @@ class MyHost:
         return response
 
     @staticmethod
-    def test_redirect(client_id, data, event_key=None):
+    def test_redirect(client_id, data):
         if isinstance(client_id, str):
             print(f"Redirecting data: {data} to client: {client_id}")
             host_patterns = HostPatterns()
+
+            response_data = {'data':data}
+
             response = host_patterns.response_pattern(
-                response=data,
+                response=response_data,
                 response_mode='redirect',
-                redirect_to_client_id=client_id
+                redirect_to_client_id=client_id,
+                response_activation_function="test_redirect_handler"
             )
             return response
         else:
@@ -71,17 +75,33 @@ class MyHost:
         # -> Define how much time host will be alive!
         # TODO >>> In the future change to use 100% timeout
         n = 0 
-        COUNTER = 12 # Each counter is 5 secs of waiting
+        COUNTER = 62 # Each counter is 5 secs of waiting
+        
+        mys_host_interface = MysceliumHostInterface("Data/")
 
+        mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
+
+        mys_host_interface.start_client_events_retriver()
 
         while True:
 
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client")
+            client_1_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
+            client_2_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
 
-            if (not client_status) or (n >= COUNTER):
-                print("Receive stop host")
+            if (not client_1_status) or (n >= COUNTER):
+                print("Receive stop host from client 1")
+                System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
+                mys_host_interface.stop_client_events_retriver()
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
+            
+            elif (not client_2_status) or (n >= COUNTER):
+                print("Receive stop host from client 2")
+                System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+                mys_host_interface.stop_client_events_retriver()
+                System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+                break
+
             else:
                 time.sleep(5)
                 n += 1
@@ -95,7 +115,7 @@ class MyHost:
             self.host_patterns.callback_pattern(callback=self.python_function,
                                                 args={"birth": "str", "name": "str", "age": "int", "event_key": "str"}),
             self.host_patterns.callback_pattern(callback=self.test_redirect,
-                                                args={"client_id": "str", "data": "dict", "event_key": "str"}),
+                                                args={"client_id": "str", "data": "int"}),
         ]
 
         allowed_clients = [
@@ -104,12 +124,6 @@ class MyHost:
         ]
 
         print(allowed_clients)
-
-        mys_host_interface = MysceliumHostInterface("Data/")
-
-        mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
-
-        mys_host_interface.start_client_events_retriver()
 
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
@@ -128,8 +142,6 @@ class MyHost:
         System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
         mys_host.initialize_host(ip=ip, port=port)
-
-        mys_host_interface.stop_client_events_retriver()
 
         return
 

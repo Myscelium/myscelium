@@ -72,7 +72,7 @@ lazy_static! {
     };
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
-    static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
+    // static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
     static ref HEARTBEAT_CALLBACK: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -150,32 +150,32 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
     }
 }
 
-pub fn is_client_registred(client_id: &String) -> bool {
-    let clients;
+// pub fn is_client_registred(client_id: &String) -> bool {
+//     let clients;
 
-    {
-        clients = CLIENTS_ALLOWED.lock().unwrap().clone();
-    }
+//     {
+//         clients = CLIENTS_ALLOWED.lock().unwrap().clone();
+//     }
 
-    clients.contains_key(client_id)
-}
+//     clients.contains_key(client_id)
+// }
 
 // pub fn register_client(client_id: String, client_type: String) {
 
 //     Client
 
-//     // if !is_client_registred(&client_id) {
-//     //     let mut clients = CLIENTS_ALLOWED.lock().unwrap();
+// if !is_client_registred(&client_id) {
+//     let mut clients = CLIENTS_ALLOWED.lock().unwrap();
 
-//     //     clients.insert(
-//     //         client_id.clone(),
-//     //         Client {
-//     //             client_id,
-//     //             last_contact: SystemTime::now(),
-//     //             client_type,
-//     //         },
-//     //     );
-//     // }
+//     clients.insert(
+//         client_id.clone(),
+//         Client {
+//             client_id,
+//             last_contact: SystemTime::now(),
+//             client_type,
+//         },
+//     );
+// }
 // }
 
 fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
@@ -471,7 +471,7 @@ fn handle_connection(mut stream: TcpStream) {
 
         let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
-        if check_if_client_key_exists(command.client_id.clone()) {
+        if !check_if_client_key_exists(command.client_id.clone()) {
             // -> In case client isn't registred in the clients allowed
 
             let response = create_command_error!(command.client_id, command.parity_id, "Your client isn't registred in the whitelist!");

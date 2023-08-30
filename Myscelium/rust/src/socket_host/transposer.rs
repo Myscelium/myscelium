@@ -6,7 +6,7 @@ use std::thread;
 
 use serde::{Deserialize, Serialize};
 
-use crate::socket_host::socket_host::is_client_registred;
+use crate::socket_host::client_mananger::mananger::check_if_client_key_exists;
 
 use crate::commom::enhanced_buffer;
 use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
@@ -344,11 +344,7 @@ macro_rules! error_response {
 fn process(py: Python, down_command: DownCommand) {
     let logger = acquire_logger!("Transposer - Process");
 
-    fn handle_redirect(
-        m: HashMap<String, String>,
-        client_id: &mut String,
-        down_command: DownCommand,
-    ) -> Result<std::string::String, serde_json::Error> {
+    fn handle_redirect(m: HashMap<String, String>, client_id: &mut String, down_command: DownCommand) -> Result<std::string::String, serde_json::Error> {
         let response;
 
         if !m.contains_key("redirect_to") {
@@ -357,7 +353,7 @@ fn process(py: Python, down_command: DownCommand) {
 
         let redirect_to = m.get("redirect_to").unwrap();
 
-        if !is_client_registred(&redirect_to.to_string()) {
+        if !check_if_client_key_exists(redirect_to.to_string()) {
             return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
         }
 
@@ -447,16 +443,7 @@ fn process(py: Python, down_command: DownCommand) {
                 if *response_mode == ResultType::Str("to_origin".to_string()) {
                     response = Ok(serde_json::to_string(&m).unwrap());
                 } else if *response_mode == ResultType::Str("redirect".to_string()) {
-                    let string_map: HashMap<String, String> = m
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if let ResultType::Str(s) = v {
-                                Some((k.clone(), s.clone()))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
+                    let string_map: HashMap<String, String> = m.iter().filter_map(|(k, v)| if let ResultType::Str(s) = v { Some((k.clone(), s.clone())) } else { None }).collect();
 
                     response = handle_redirect(string_map, &mut client_id, down_command.clone());
                 } else {

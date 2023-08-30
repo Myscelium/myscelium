@@ -18,22 +18,22 @@ class MyClient:
 
         print("Received data: ", data)
 
-        time.sleep(5)
+        # time.sleep(5)
         
-        System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
+        # System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
 
     @staticmethod
-    def send_some_data():
+    def send_some_data_to_redirect():
 
         time.sleep(10)
         mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Client2Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="randomsclientids")
-        command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
+        command = client_patterns.command_pattern("test_redirect", args={"client_id": "some_client_id", "data": 8})
         result = mys_client.send(command, priority=10)
 
         EVMananger = Events_Mananger(Unit="Client2", path="Logs")
-        EVMananger.Set_Event("Data Sended")
+        EVMananger.Set_Event("Data To Redirect Sended")
 
         print(result)
 
@@ -66,11 +66,11 @@ class MyClient:
 
         while True:
 
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
             host_status = System_Status(path="Logs").get_unit_status(Unit="Host")
 
             if (not client_status) or (not host_status):
-                print("Receive stop client")
+                print("Receive order to stop client 2")
                 System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
                 break
             else:
@@ -82,7 +82,7 @@ class MyClient:
     def run(self):
 
         t1 = Process(target=self.initializer, args=())
-        t2 = Process(target=self.send_some_data, args=())
+        t2 = Process(target=self.send_some_data_to_redirect, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()

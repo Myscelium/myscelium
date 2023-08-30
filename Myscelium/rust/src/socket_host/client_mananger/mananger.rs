@@ -439,17 +439,19 @@ fn get_clients_keys_registred() -> Vec<String> {
 
         {
             let mut smtp: Statement<'_> = conn.prepare("SELECT * FROM Clients").unwrap();
-            let commands_iter = smtp
+            let keys_iter = smtp
                 .query_map(params![], |row: &Row<'_>| {
-                    let key: String = row.get(1)?;
+                    let key: String = row.get(2)?;
                     Ok(key)
                 })
                 .unwrap();
 
-            for command in commands_iter {
-                keys.push(command.unwrap());
+            for key in keys_iter {
+                keys.push(key.unwrap());
             }
         }
+
+        // println!("Client Keys registred: {:?}", keys.clone());
 
         keys
     })

@@ -187,9 +187,7 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
     let mut buffer = [0; 4096];
     stream.read(&mut buffer).unwrap();
 
-    let buffer_string = String::from_utf8_lossy(&buffer)
-        .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
-        .to_string();
+    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
@@ -227,9 +225,7 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
     let mut buffer = [0; 4096];
     stream.read(&mut buffer).unwrap();
 
-    let buffer_string = String::from_utf8_lossy(&buffer)
-        .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
-        .to_string();
+    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
@@ -275,18 +271,12 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             if command_received.parity_id != "itisaspecialcase" {
                 if function == "C210".to_string() {
-                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(
-                        command_received.client_id,
-                        command_received.parity_id,
-                    );
+                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
                     logger.info(format!("Received Confirmation!"));
                     return None;
                 } else if function == "Error".to_string() {
                     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
-                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(
-                        command_received.client_id,
-                        command_received.parity_id,
-                    );
+                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
                     CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
                     return None;
                 }
@@ -298,6 +288,19 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
         CommandType::Response(r) => {
             logger.info(format!("Received a response!"));
+
+            let response: String = serde_json::from_str(&r).unwrap();
+
+            if response == "C210".to_string() {
+                enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                logger.info(format!("Received Confirmation!"));
+                return None;
+            } else if response == "Error".to_string() {
+                logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
+                enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+                return None;
+            }
 
             let down_command = DownCommand::from_command(command_received.clone());
 

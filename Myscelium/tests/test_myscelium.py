@@ -10,8 +10,8 @@ from .test_connection.host_module import MyHost as MyHostToTestCommunication
 from .test_connection.client_1_module import MyClient as MyClient1ToTestCommunication
 
 # > Test Redirect
-from .test_connection.host_module import MyHost as MyHostToTestRedirect
-from .test_connection.client_1_module import MyClient as MyClient1ToTestRedirect
+from .test_redirect.host_module import MyHost as MyHostToTestRedirect
+from .test_redirect.client_1_module import MyClient as MyClient1ToTestRedirect
 from .test_redirect.client_2_module import MyClient as MyClient2ToTestRedirect
 
 #> Events mananger
@@ -191,6 +191,8 @@ def client_2_thread_to_test_redirect(event_client_received):
 
 # def test_redirect ():
 
+#     time.sleep(5)
+
 #     System_Status(path="Logs").create_unit("Client1")
 #     System_Status(path="Logs").create_unit("Client2")
 #     System_Status(path="Logs").create_unit("Host")
@@ -210,7 +212,7 @@ def client_2_thread_to_test_redirect(event_client_received):
 
 #     t1 = Process(target=host_thread_to_test_redirect, args=('main_event',)) # Passing event_key
 #     t2 = Process(target=client_1_thread_to_test_redirect, args=('main_event',)) # Passing event_key
-#     t3 = Process(target=client_2_thread_to_test_redirect, args=('main_event')) # Passing event_key
+#     t3 = Process(target=client_2_thread_to_test_redirect, args=('main_event',)) # Passing event_key
 
 #     t1.start()
 #     t2.start()
@@ -246,8 +248,8 @@ def client_2_thread_to_test_redirect(event_client_received):
 
 #     # > Client 2 events:
 
-#     redirect_data_sended        = False
-#     redirected_request_response = False #* Response from the remote callback activated
+#     send_data_to_redirect       = False
+#     # redirected_request_response = False #* Response from the remote callback activated
 
 #     #>----------------------------------------------------------------------------------------------------
 
@@ -271,24 +273,25 @@ def client_2_thread_to_test_redirect(event_client_received):
 #         if "Activate Basic Response Test callback handler" in event:
 #             basic_response_handler = True
 
-#         if "Redirected Data Received" in event:
-#             send_data = True
+#         if "Activate Basic Redirect Test callback handler" in event:
+#             active_callback_remotely = True
 
 #     # -> Client 2 Tests
 #     for i in client_2_events_df.index:
 #         event = client_2_events_df.loc[i, 'StepCompleted']
 
-#         if "Redirect Data Sended" in event:
-#             send_data = True
+#         if "Data To Redirect Sended" in event:
+#             send_data_to_redirect = True
  
 #     # -> Client 1
 
 #     assert send_data, "Cant send data"
 #     assert basic_response_handler, "Don't called basic response handler"
+#     assert active_callback_remotely, "Don't received redirect response"
 
 #     # -> Client 2
 
-
+#     assert send_data_to_redirect, "Don't could send data to redirect"
 
 #     # -> Host
 

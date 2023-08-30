@@ -95,6 +95,8 @@ class MysceliumHostInterface:
         - buffer_path: Path to the buffer for logs retrieval.
         """
 
+        self.client_events_retriver_stats = False
+
         self.buffer_path = buffer_path
 
         self.clients_contact_retriver_callback = ""
@@ -192,6 +194,13 @@ class MysceliumHostInterface:
 
         while True:
 
+            time.sleep(2)
+
+            if not self.client_events_retriver_stats:
+                break
+            else:
+                pass
+
             connection = pool.get_connection()
 
             client_events_retriver = host_client_events_retriver.Clients_Retriver(connection)
@@ -202,7 +211,6 @@ class MysceliumHostInterface:
             if clients_pd_df.empty:
                 
                 print("[Event Retriver] - No clients to transpose contact, next checking in 10s")
-                time.sleep(2)
 
                 pool.release_connection(connection)
             
@@ -310,11 +318,7 @@ class MysceliumHostInterface:
 
         self.client_events_retriver_stats = False
 
-        if not hasattr(self, 'client_events_retriver_process'):
-            return
-        else:
-            pass
-
+        self.client_events_retriver_process.kill()
         self.client_events_retriver_process.join()
 
         return

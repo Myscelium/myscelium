@@ -74,12 +74,19 @@ class MyHost:
         COUNTER = 12 # Each counter is 5 secs of waiting
 
 
+        mys_host_interface = MysceliumHostInterface("Data/")
+
+        mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
+
+        mys_host_interface.start_client_events_retriver()
+
         while True:
 
             client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
 
             if (not client_status) or (n >= COUNTER):
                 print("Receive stop host")
+                mys_host_interface.stop_client_events_retriver()
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
             else:
@@ -105,12 +112,6 @@ class MyHost:
 
         print(allowed_clients)
 
-        mys_host_interface = MysceliumHostInterface("Data/")
-
-        mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
-
-        mys_host_interface.start_client_events_retriver()
-
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
@@ -128,8 +129,6 @@ class MyHost:
         System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
         mys_host.initialize_host(ip=ip, port=port)
-
-        mys_host_interface.stop_client_events_retriver()
 
         return
 

@@ -71,7 +71,7 @@ class MyClient:
 
             if (not client_status) or (not host_status):
                 print("Receive stop client")
-                System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+                System_Status(path="Logs").change_unit_status(Unit="HOST", Status=False)
                 break
             else:
                 time.sleep(5)

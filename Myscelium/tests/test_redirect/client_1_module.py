@@ -18,6 +18,18 @@ class MyClient:
 
         print("Received data: ", data)
 
+        # time.sleep(5)
+        
+        # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+
+    @staticmethod
+    def test_redirect_handler(data):
+
+        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
+        EVMananger.Set_Event("Activate Basic Redirect Test callback handler")
+
+        print("Received redirected data: ", data)
+
         time.sleep(5)
         
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
@@ -49,8 +61,11 @@ class MyClient:
             client_patterns.callback_pattern(callback=MyClient.test_handler, args={
                 "data": "dict"
             }),
+            client_patterns.callback_pattern(callback=MyClient.test_redirect_handler, args={
+                "data": "int"
+            }),
         ]
-        
+
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
 
@@ -66,11 +81,11 @@ class MyClient:
 
         while True:
 
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
             host_status = System_Status(path="Logs").get_unit_status(Unit="Host")
 
             if (not client_status) or (not host_status):
-                print("Receive stop client")
+                print("Receive order to stop client 1")
                 System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
                 break
             else:
