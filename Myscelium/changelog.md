@@ -11,6 +11,13 @@
 - Add a base to implement permission groups and indexing that to client
 - Thread pools was being update in both client and host, this provides more precise executions
 - Centralize commom functions reducing code complexity and improve code efficient
+- Improve verification of buffer responses
+- Make tests of connection more stroger
+- Enhance client event transposition threads structure
+- Start planing a graphical representation of tests
+- Implement Test of redirect
+
+
 
 ### Fixes:
 
@@ -19,8 +26,10 @@
 - Tests now are working as intended
 - Thread pool has been improved, and now it doesn't bring errors anymore
 - Improve several mecanism implement new error capabilities and centralizing to better updates in future 
-
-
+- Fix verification if client is in whitelist
+- Solve issues in tests of connection
+- Fix removing commands from queue when alwready receive a response from were we send it to
+- Fix wrapper client transposition zombiee threads
 
 
 ## v1.2.0 - ReliseCandidate (18/08/2023)
