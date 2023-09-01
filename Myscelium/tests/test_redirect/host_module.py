@@ -54,6 +54,9 @@ class MyHost:
                 redirect_to_client_id=client_id,
                 response_activation_function="test_redirect_handler"
             )
+
+            print(f"Response Before send to engine: {response}")
+
             return response
         else:
             print("Client id isn't a string, failed to redirect data!")
@@ -70,7 +73,7 @@ class MyHost:
 
     def monitor_stop_event(self):
 
-        time.sleep(5)
+        time.sleep(10)
 
         # -> Define how much time host will be alive!
         # TODO >>> In the future change to use 100% timeout
@@ -82,20 +85,20 @@ class MyHost:
         mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
 
         mys_host_interface.start_client_events_retriver()
-
+    
         while True:
 
             client_1_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
             client_2_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
 
-            if (not client_1_status) or (n >= COUNTER):
+            if (not client_1_status):
                 print("Receive stop host from client 1")
                 System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
                 mys_host_interface.stop_client_events_retriver()
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
             
-            elif (not client_2_status) or (n >= COUNTER):
+            elif (not client_2_status):
                 print("Receive stop host from client 2")
                 System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
                 mys_host_interface.stop_client_events_retriver()
@@ -128,7 +131,7 @@ class MyHost:
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="DEBUG")
+                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="INFO")
 
         self.mys_host = mys_host
 

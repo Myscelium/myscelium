@@ -79,13 +79,16 @@ class MyClient:
         
         time.sleep(20) # needs to be a little more to wait to client 2 initialize
 
+        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
+
         while True:
 
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
             host_status = System_Status(path="Logs").get_unit_status(Unit="Host")
 
             if (not client_status) or (not host_status):
                 print("Receive order to stop client 1")
+                System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
                 break
             else:

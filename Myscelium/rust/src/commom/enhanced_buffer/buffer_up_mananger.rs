@@ -238,6 +238,26 @@ pub fn buffer_up_get_scheduled_by_parity_id(client_id: String, parity_id: String
     })
 }
 
+pub fn buffer_up_list_schedule_fo_client_id(client_id: String) -> Vec<UpCommand> {
+    with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
+        let mut commands_schedule: Vec<UpCommand> = Vec::new();
+        {
+            let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend WHERE ClientID = ?").unwrap();
+
+            let commands_iter = smtp
+                .query_map(params![client_id], |row| {
+                    Ok(UpCommand::from(row.get(0).unwrap(), row.get(1).unwrap(), row.get(2).unwrap(), row.get(3).unwrap(), row.get(4).unwrap(), row.get(5).unwrap()))
+                })
+                .unwrap();
+
+            for command in commands_iter {
+                commands_schedule.push(command.unwrap());
+            }
+        }
+        commands_schedule
+    })
+}
+
 pub fn buffer_up_list_schedule() -> Vec<UpCommand> {
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let mut commands_schedule: Vec<UpCommand> = Vec::new();

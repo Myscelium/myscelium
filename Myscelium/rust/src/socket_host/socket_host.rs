@@ -382,8 +382,20 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
         command = create_sepecial_command!(client_id, "C200");
     } else if function == "C206" {
         // -> Ping request
-        command = create_sepecial_command!(client_id, "C207");
-        // TODO >>>  Here we can check if have some data to send back to the client or not
+
+        let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_list_schedule_fo_client_id(client_id.clone());
+
+        if !(up_schedule.len() > 0) {
+            return create_sepecial_command!(client_id, "C207"); // If don't have any response to send send C207 that is a ping confirmation
+        }
+
+        let command_response = &up_schedule[0];
+
+        let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response.command);
+
+        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(client_id.clone(), response_command.parity_id.clone());
+
+        return response_command;
     } else {
         // -> Receive conf
         command = create_sepecial_command!(client_id, "C210");
@@ -534,7 +546,12 @@ fn handle_connection(mut stream: TcpStream) {
 
                             match get_response(command.clone()) {
                                 Response::Command(c) => {
-                                    response = c;
+                                    if c.client_id == command.client_id {
+                                        response = c;
+                                    } else {
+                                        logger.info("Response is None!".to_string());
+                                        response = create_sepecial_command!(command.client_id, "C210");
+                                    }
                                 },
                                 Response::None => {
                                     logger.info("Response is None!".to_string());

@@ -115,10 +115,7 @@ pub fn set_socket_client_transposer_workers_num(n_workers: u32) {
     enhanced_buffer::buffer_up_mananger::set_workers_num(n_workers);
 }
 
-pub fn set_socket_client_transposer_callbacks(
-    commands_patterns: HashMap<String, Value>,
-    callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>,
-) {
+pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
     *command_patterns = commands_patterns;
 
@@ -694,7 +691,7 @@ pub fn initialize_socket_client_transposer() {
 
     schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
 
-    logger.debug(format!("\nSchedule to process:\n{:?}\n", schedule));
+    // logger.debug(format!("\nSchedule to process:\n{:?}\n", schedule));
 
     if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
         logger.info(format!("runing is set to false, shutdown transposer!"));
@@ -702,7 +699,7 @@ pub fn initialize_socket_client_transposer() {
     }
 
     if !(schedule.len() > 0) {
-        logger.debug(format!("Nothing in the schedule, skipping >>>"));
+        // logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
         thread::sleep(Duration::from_millis(500));
         return;

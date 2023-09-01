@@ -359,7 +359,9 @@ pub fn initialize_client(address: String, client_id: String) {
 
     let logger = acquire_logger!("Core");
 
-    let mut stream = TcpStream::connect(address).unwrap();
+    let mut stream = TcpStream::connect(address.clone()).unwrap();
+
+    logger.info(format!("Connected to {:?}!", address.clone()).to_string());
 
     thread::sleep(Duration::from_millis(200));
 

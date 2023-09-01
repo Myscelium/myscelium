@@ -171,7 +171,7 @@ def host_thread_to_test_redirect(event_host_received):
 
 def client_1_thread_to_test_redirect(event_client_received):
     print("Waiting for host to be ready...")
-    time.sleep(10)
+    time.sleep(5)
     print("Starting client 1 thread...")
     
     client_instance = MyClient1ToTestRedirect()
@@ -181,7 +181,7 @@ def client_1_thread_to_test_redirect(event_client_received):
 
 def client_2_thread_to_test_redirect(event_client_received):
     print("Waiting for host to be ready...")
-    time.sleep(10)
+    time.sleep(5)
     print("Starting client 2 thread...")
     
     client_instance = MyClient2ToTestRedirect()
@@ -228,7 +228,7 @@ def test_redirect ():
     client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
     client_1_events_df = pd.DataFrame.from_dict(client_1_events)
 
-    client_2_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_2_events = Events_Mananger(Unit="Client2", path="Logs").List_Events() 
     client_2_events_df = pd.DataFrame.from_dict(client_2_events)
 
     #>----------------------------------------------------------------------------------------------------

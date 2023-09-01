@@ -25,7 +25,7 @@ class MyClient:
     @staticmethod
     def send_some_data_to_redirect():
 
-        time.sleep(10)
+        time.sleep(15)
         mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Client2Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="randomsclientids")
@@ -62,15 +62,18 @@ class MyClient:
     
     def monitor_stop_event(self):
         
-        time.sleep(5)
+        time.sleep(20)
+
+        System_Status(path="Logs").change_unit_status(Unit="Client2", Status=True)
 
         while True:
 
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
             host_status = System_Status(path="Logs").get_unit_status(Unit="Host")
 
             if (not client_status) or (not host_status):
                 print("Receive order to stop client 2")
+                System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
                 break
             else:

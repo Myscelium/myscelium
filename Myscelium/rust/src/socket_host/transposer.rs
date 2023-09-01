@@ -229,7 +229,7 @@ fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
 }
 
 // Define a custom type that can be either Empty, Map, or Error
-#[derive(PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 enum ResultType {
     Map(HashMap<String, ResultType>),
     List(Vec<ResultType>),
@@ -302,34 +302,30 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
         return ResultType::Map(rust_dict);
     } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
         // Handle tuple
-        for item in tuple {
-            println!("Item: {}", item);
-        }
+        let rust_list: Vec<_> = tuple.iter().map(|item| handle_pyobject(py, item.into())).collect();
+        return ResultType::List(rust_list);
     } else if let Ok(list) = obj.cast_as::<PyList>(py) {
         // Handle list
-        for item in list {
-            println!("Item: {}", item);
-        }
+        let rust_list: Vec<_> = list.iter().map(|item| handle_pyobject(py, item.into())).collect();
+        return ResultType::List(rust_list);
     } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
         // Handle int
-        println!("Integer: {}", int);
+        return ResultType::Int(int.extract().unwrap());
     } else if let Ok(float) = obj.cast_as::<PyFloat>(py) {
         // Handle float
-        println!("Float: {}", float);
+        return ResultType::Float(float.extract().unwrap());
     } else if let Ok(string) = obj.cast_as::<PyString>(py) {
         // Handle string
-        println!("String: {}", string);
+        return ResultType::Str(string.extract().unwrap());
     } else if let Ok(boolean) = obj.cast_as::<PyBool>(py) {
         // Handle bool
-        println!("Boolean: {}", boolean);
+        return ResultType::Bool(boolean.extract().unwrap());
     } else if obj.is_none(py) {
         // Handle None
-        println!("None");
-    } else {
         return ResultType::Empty;
     }
 
-    ResultType::Empty
+    return ResultType::Empty;
 }
 
 macro_rules! error_response {
@@ -361,13 +357,21 @@ fn process(py: Python, down_command: DownCommand) {
 
         enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
 
-        *client_id = redirect_to.to_string();
+        *client_id = redirect_to.to_string(); // > Update the client id that it will send to
 
         if !m.contains_key("response") {
             return error_response!("Error! Callback response args don't have response kwarg!");
         }
 
-        response = serde_json::to_string(m.get("response").unwrap());
+        let mut to_send = HashMap::new();
+
+        to_send.insert("response_mode".to_string(), "to_origin".to_string());
+        to_send.insert("response_activation_function".to_string(), "to_origin".to_string());
+        to_send.insert("response".to_string(), m.get("response").unwrap().to_string());
+
+        response = serde_json::to_string(&to_send);
+
+        // {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
 
         return response;
     }
@@ -443,7 +447,24 @@ fn process(py: Python, down_command: DownCommand) {
                 if *response_mode == ResultType::Str("to_origin".to_string()) {
                     response = Ok(serde_json::to_string(&m).unwrap());
                 } else if *response_mode == ResultType::Str("redirect".to_string()) {
-                    let string_map: HashMap<String, String> = m.iter().filter_map(|(k, v)| if let ResultType::Str(s) = v { Some((k.clone(), s.clone())) } else { None }).collect();
+                    let string_map: HashMap<String, String> = m
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            match v {
+                                ResultType::Str(s) => Some((k.clone(), s.clone())),
+                                ResultType::Map(inner_map) => {
+                                    // For demonstration, converting inner_map to a string representation
+                                    // You can adjust this as needed
+                                    let inner_str = format!("{:?}", inner_map);
+                                    Some((k.clone(), inner_str))
+                                },
+                                // Add other cases for different ResultType variants if needed
+                                _ => None,
+                            }
+                        })
+                        .collect();
+
+                    println!("Response: {:?}", string_map);
                     //* probraly the cause of redirect bug
                     // TODO >>> Verify if has the response field
                     response = handle_redirect(string_map, &mut client_id, down_command.clone());
@@ -501,10 +522,10 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
 
     schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
 
-    logger.debug(format!("Schedule to process:\n{:?}\n", schedule));
+    // logger.debug(format!("Schedule to process:\n{:?}\n", schedule));
 
     if !(schedule.len() > 0) {
-        logger.debug(format!("Nothing in the schedule, skipping >>>"));
+        // logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
         thread::sleep(Duration::from_millis(500));
         return;
