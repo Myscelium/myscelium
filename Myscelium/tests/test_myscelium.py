@@ -189,131 +189,131 @@ def client_2_thread_to_test_redirect(event_client_received):
     
     print("Client2 thread finished.")
 
-# def test_redirect ():
+def test_redirect ():
 
-#     time.sleep(5)
+    time.sleep(5)
 
-#     System_Status(path="Logs").create_unit("Client1")
-#     System_Status(path="Logs").create_unit("Client2")
-#     System_Status(path="Logs").create_unit("Host")
+    System_Status(path="Logs").create_unit("Client1")
+    System_Status(path="Logs").create_unit("Client2")
+    System_Status(path="Logs").create_unit("Host")
 
-#     System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
-#     System_Status(path="Logs").change_unit_status(Unit="Client2", Status=True)
-#     System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Client2", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
-#     if os.path.exists("Client1Data/"):
-#         shutil.rmtree("Client1Data/")
+    if os.path.exists("Client1Data/"):
+        shutil.rmtree("Client1Data/")
 
-#     if os.path.exists("Client2Data/"):
-#         shutil.rmtree("Client2Data/")
+    if os.path.exists("Client2Data/"):
+        shutil.rmtree("Client2Data/")
 
-#     if os.path.exists("Data/"):
-#         shutil.rmtree("Data/")
+    if os.path.exists("Data/"):
+        shutil.rmtree("Data/")
 
-#     t1 = Process(target=host_thread_to_test_redirect, args=('main_event',)) # Passing event_key
-#     t2 = Process(target=client_1_thread_to_test_redirect, args=('main_event',)) # Passing event_key
-#     t3 = Process(target=client_2_thread_to_test_redirect, args=('main_event',)) # Passing event_key
+    t1 = Process(target=host_thread_to_test_redirect, args=('main_event',)) # Passing event_key
+    t2 = Process(target=client_1_thread_to_test_redirect, args=('main_event',)) # Passing event_key
+    t3 = Process(target=client_2_thread_to_test_redirect, args=('main_event',)) # Passing event_key
 
-#     t1.start()
-#     t2.start()
-#     t3.start()
+    t1.start()
+    t2.start()
+    t3.start()
 
-#     t2.join()
-#     t3.join()
-#     t1.join()  # Wait for the process to finish
+    t2.join()
+    t3.join()
+    t1.join()  # Wait for the process to finish
 
-#     host_events = Events_Mananger(Unit="Host", path="Logs").List_Events()
-#     host_events_df = pd.DataFrame.from_dict(host_events)
+    host_events = Events_Mananger(Unit="Host", path="Logs").List_Events()
+    host_events_df = pd.DataFrame.from_dict(host_events)
 
-#     client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
-#     client_1_events_df = pd.DataFrame.from_dict(client_1_events)
+    client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_1_events_df = pd.DataFrame.from_dict(client_1_events)
 
-#     client_2_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
-#     client_2_events_df = pd.DataFrame.from_dict(client_2_events)
+    client_2_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_2_events_df = pd.DataFrame.from_dict(client_2_events)
 
-#     #>----------------------------------------------------------------------------------------------------
-#     #> Tests Controler
+    #>----------------------------------------------------------------------------------------------------
+    #> Tests Controler
 
-#     #> Host events:
+    #> Host events:
 
-#     client_contact              = False
-#     basic_callback              = False 
+    client_contact              = False
+    basic_callback              = False 
 
-#     #> Client 1 events:
+    #> Client 1 events:
 
-#     send_data                   = False
-#     basic_response_handler      = False
-#     active_callback_remotely    = False #* Active callback from another client
-#     remote_act_response_sended  = False #* Response of the remote activation (Another Redirect to client)
+    send_data                   = False
+    basic_response_handler      = False
+    active_callback_remotely    = False #* Active callback from another client
+    remote_act_response_sended  = False #* Response of the remote activation (Another Redirect to client)
 
-#     # > Client 2 events:
+    # > Client 2 events:
 
-#     send_data_to_redirect       = False
-#     # redirected_request_response = False #* Response from the remote callback activated
+    send_data_to_redirect       = False
+    # redirected_request_response = False #* Response from the remote callback activated
 
-#     #>----------------------------------------------------------------------------------------------------
+    #>----------------------------------------------------------------------------------------------------
 
-#     # -> Host Tests
-#     for i in host_events_df.index:
-#         event = host_events_df.loc[i, 'StepCompleted']
+    # -> Host Tests
+    for i in host_events_df.index:
+        event = host_events_df.loc[i, 'StepCompleted']
 
-#         if "Contact received from Client1: some_client_id" in event:
-#             client_contact = True
+        if "Contact received from Client1: some_client_id" in event:
+            client_contact = True
 
-#         if "Active Basic Callback" in event:
-#             basic_callback = True
+        if "Active Basic Callback" in event:
+            basic_callback = True
 
-#     # -> Client 1 Tests
-#     for i in client_1_events_df.index:
-#         event = client_1_events_df.loc[i, 'StepCompleted']
+    # -> Client 1 Tests
+    for i in client_1_events_df.index:
+        event = client_1_events_df.loc[i, 'StepCompleted']
 
-#         if "Data Sended" in event:
-#             send_data = True
+        if "Data Sended" in event:
+            send_data = True
 
-#         if "Activate Basic Response Test callback handler" in event:
-#             basic_response_handler = True
+        if "Activate Basic Response Test callback handler" in event:
+            basic_response_handler = True
 
-#         if "Activate Basic Redirect Test callback handler" in event:
-#             active_callback_remotely = True
+        if "Activate Basic Redirect Test callback handler" in event:
+            active_callback_remotely = True
 
-#     # -> Client 2 Tests
-#     for i in client_2_events_df.index:
-#         event = client_2_events_df.loc[i, 'StepCompleted']
+    # -> Client 2 Tests
+    for i in client_2_events_df.index:
+        event = client_2_events_df.loc[i, 'StepCompleted']
 
-#         if "Data To Redirect Sended" in event:
-#             send_data_to_redirect = True
+        if "Data To Redirect Sended" in event:
+            send_data_to_redirect = True
  
-#     # -> Client 1
+    # -> Client 1
 
-#     assert send_data, "Cant send data"
-#     assert basic_response_handler, "Don't called basic response handler"
-#     assert active_callback_remotely, "Don't received redirect response"
+    assert send_data, "Cant send data"
+    assert basic_response_handler, "Don't called basic response handler"
+    assert active_callback_remotely, "Don't received redirect response"
 
-#     # -> Client 2
+    # -> Client 2
 
-#     assert send_data_to_redirect, "Don't could send data to redirect"
+    assert send_data_to_redirect, "Don't could send data to redirect"
 
-#     # -> Host
+    # -> Host
 
-#     # assert client_contact, "Client1 doesn't made any contact"
-#     assert basic_callback, "Baisc callback not called"
+    # assert client_contact, "Client1 doesn't made any contact"
+    assert basic_callback, "Baisc callback not called"
 
-#     # TODO >>> When add the client tables mecanism re add the client contact test unit
-#     # TODO >>> Add a test mecanism to check if the logs are being stored and transposing
+    # TODO >>> When add the client tables mecanism re add the client contact test unit
+    # TODO >>> Add a test mecanism to check if the logs are being stored and transposing
 
-#     # TODO >>> Add a mecanism to call permission to realize the tests and give an advice that data in the buffers will be wipped of when do the test
+    # TODO >>> Add a mecanism to call permission to realize the tests and give an advice that data in the buffers will be wipped of when do the test
 
-#     # event = my_host.get_event('client_contact')
-#     # assert event.is_set(), "Client1 contact event was not set!"
+    # event = my_host.get_event('client_contact')
+    # assert event.is_set(), "Client1 contact event was not set!"
 
-#     # event = MyClient.get_event('main_event')
-#     # assert event.is_set() 
+    # event = MyClient.get_event('main_event')
+    # assert event.is_set() 
 
-#     # my_host.clear_events()
-#     # MyClient.clear_events()
+    # my_host.clear_events()
+    # MyClient.clear_events()
 
 
-#     pass
+    pass
 
 # def test_communication_resistance():
 #     success_count = 0

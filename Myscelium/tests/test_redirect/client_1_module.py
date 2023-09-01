@@ -77,7 +77,7 @@ class MyClient:
     
     def monitor_stop_event(self):
         
-        time.sleep(5)
+        time.sleep(20) # needs to be a little more to wait to client 2 initialize
 
         while True:
 

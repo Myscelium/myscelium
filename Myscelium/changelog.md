@@ -17,8 +17,6 @@
 - Start planing a graphical representation of tests
 - Implement Test of redirect
 
-
-
 ### Fixes:
 
 - Now client contact event callback caller doesn't generate random exceptions

@@ -442,9 +442,9 @@ fn process(py: Python, down_command: DownCommand) {
 
                 if *response_mode == ResultType::Str("to_origin".to_string()) {
                     response = Ok(serde_json::to_string(&m).unwrap());
-                } else if *response_mode == ResultType::Str("redirect".to_string()) {
+                } else if *response_mode == ResultType::Str("redirect".to_string()) { //! (probraly the cause of redirect bug)
                     let string_map: HashMap<String, String> = m.iter().filter_map(|(k, v)| if let ResultType::Str(s) = v { Some((k.clone(), s.clone())) } else { None }).collect();
-
+                    // TODO >>> Verify if has the response field 
                     response = handle_redirect(string_map, &mut client_id, down_command.clone());
                 } else {
                     response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
