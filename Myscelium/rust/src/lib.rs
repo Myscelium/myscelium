@@ -1,3 +1,5 @@
+#[allow(unused_imports)]
+#[allow(unused_extern_crates)]
 mod commom;
 
 mod socket_client;

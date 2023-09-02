@@ -26,6 +26,7 @@ use crate::commom::enhanced_buffer::utilities::Command;
 #[macro_use]
 use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
 use crate::commom::custom_thread_pool::thread_pool::UnifiedThreadPool;
+use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, Client, ClientError};
 use std::time::Duration;
 
 // > Global Vars Core
@@ -39,12 +40,6 @@ use pyo3::types::PyFunction;
 use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
-// #[derive(Debug, Clone)]
-// pub struct Client {
-//     client_id: String,
-//     last_contact: SystemTime,
-//     client_type: String,
-// }
 
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
@@ -113,7 +108,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-macro_rules! create_sepecial_command {
+macro_rules! create_special_command {
     ($client_id:expr, $response:expr) => {{
         let mut command_map = HashMap::new();
         command_map.insert("function".to_string(), Value::String($response.to_string()));
@@ -178,51 +173,6 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
 // }
 // }
 
-fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
-    let logger = acquire_logger!("py dict to kwargs converter");
-
-    //> Check if the dict contains the function name as a key
-    if !dict.contains_key("args") {
-        // If it does not, return an empty HashMap since there are no arguments
-        let kwargs: HashMap<String, PyObject> = HashMap::new();
-        return Ok(kwargs);
-    }
-
-    let args_string = match dict.get("args") {
-        Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
-    };
-
-    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
-
-    logger.debug(format!("Args extracted: {:?}", sub_dict));
-
-    let mut kwargs: HashMap<String, PyObject> = HashMap::new();
-    for (key, value) in sub_dict.iter() {
-        let py_value = match value {
-            Value::String(s) => s.into_py(py),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    i.into_py(py)
-                } else if let Some(f) = n.as_f64() {
-                    f.into_py(py)
-                } else {
-                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
-                }
-            },
-            Value::Bool(b) => b.into_py(py),
-            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
-        };
-        kwargs.insert(key.clone(), py_value);
-    }
-
-    logger.debug(format!("kwargs: {:?}", kwargs));
-
-    Ok(kwargs)
-}
-
-use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, Client, ClientError};
-
 pub fn update_last_contact(client_key: String) {
     let client = Client::get_by_key(client_key);
 
@@ -246,48 +196,48 @@ pub fn update_last_contact(client_key: String) {
 
 // > Commands Manangemement & Checking
 
-fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
-    let function_name = match command.command.get("function") {
-        Some(Value::String(name)) => name,
-        _ => return false,
-    };
+// fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
+//     let function_name = match command.command.get("function") {
+//         Some(Value::String(name)) => name,
+//         _ => return false,
+//     };
 
-    let parameters = match command.command.get(function_name) {
-        Some(parameters) => parameters,
-        None => return false,
-    };
+//     let parameters = match command.command.get(function_name) {
+//         Some(parameters) => parameters,
+//         None => return false,
+//     };
 
-    match command_patterns.get(function_name) {
-        Some(pattern) => validate_parameters(parameters, pattern),
-        None => false,
-    }
-}
+//     match command_patterns.get(function_name) {
+//         Some(pattern) => validate_parameters(parameters, pattern),
+//         None => false,
+//     }
+// }
 
-fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
-    match (parameters, pattern) {
-        (Value::Object(params_map), Value::Object(pattern_map)) => {
-            for (key, pattern_value) in pattern_map {
-                match params_map.get(key) {
-                    Some(param_value) => {
-                        if !validate_parameters(param_value, pattern_value) {
-                            return false;
-                        }
-                    },
-                    None => return false,
-                }
-            }
-            true
-        },
-        (Value::Array(params_arr), Value::Array(pattern_arr)) => params_arr.len() == pattern_arr.len() && params_arr.iter().zip(pattern_arr.iter()).all(|(param, pattern)| validate_parameters(param, pattern)),
-        (_, Value::String(pattern_type)) => match pattern_type.as_str() {
-            "str" => parameters.is_string(),
-            "float" => parameters.is_f64(),
-            // Add more type checks here...
-            _ => false,
-        },
-        _ => false,
-    }
-}
+// fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
+//     match (parameters, pattern) {
+//         (Value::Object(params_map), Value::Object(pattern_map)) => {
+//             for (key, pattern_value) in pattern_map {
+//                 match params_map.get(key) {
+//                     Some(param_value) => {
+//                         if !validate_parameters(param_value, pattern_value) {
+//                             return false;
+//                         }
+//                     },
+//                     None => return false,
+//                 }
+//             }
+//             true
+//         },
+//         (Value::Array(params_arr), Value::Array(pattern_arr)) => params_arr.len() == pattern_arr.len() && params_arr.iter().zip(pattern_arr.iter()).all(|(param, pattern)| validate_parameters(param, pattern)),
+//         (_, Value::String(pattern_type)) => match pattern_type.as_str() {
+//             "str" => parameters.is_string(),
+//             "float" => parameters.is_f64(),
+//             // Add more type checks here...
+//             _ => false,
+//         },
+//         _ => false,
+//     }
+// }
 
 // > Socket Interactive Functions:
 
@@ -375,14 +325,14 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
 
     if function == "C202" {
         // -> Connection conf request
-        command = create_sepecial_command!(client_id, "C200");
+        command = create_special_command!(client_id, "C200");
     } else if function == "C206" {
         // -> Ping request
 
         let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_list_schedule_fo_client_id(client_id.clone());
 
         if !(up_schedule.len() > 0) {
-            return create_sepecial_command!(client_id, "C207"); // If don't have any response to send send C207 that is a ping confirmation
+            return create_special_command!(client_id, "C207"); // If don't have any response to send send C207 that is a ping confirmation
         }
 
         let command_response = &up_schedule[0];
@@ -394,7 +344,7 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
         return response_command;
     } else {
         // -> Receive conf
-        command = create_sepecial_command!(client_id, "C210");
+        command = create_special_command!(client_id, "C210");
     }
 
     return command;
@@ -495,20 +445,6 @@ fn handle_connection(mut stream: TcpStream) {
 
         // ! WE CAN USE THIS PY AQUIRE UNTILL THE PYTHON POOL IS FINISHED
 
-        // let py;
-
-        // {
-        //     let getting_py = unsafe { Python::assume_gil_acquired() };
-
-        //     let gil_pool = unsafe { getting_py.clone().new_pool() };
-
-        //     py = gil_pool.python();
-
-        //     logger.debug("Aquired python to call client heart beat handler callback!".to_string());
-
-        //     update_last_contact(py, command.client_id.clone());
-        // }
-
         update_last_contact(command.client_id.clone());
 
         {
@@ -546,13 +482,13 @@ fn handle_connection(mut stream: TcpStream) {
                                         response = c;
                                     } else {
                                         logger.info("Response is None!".to_string());
-                                        response = create_sepecial_command!(command.client_id, "C210");
+                                        response = create_special_command!(command.client_id, "C210");
                                     }
                                 },
                                 Response::None => {
                                     logger.info("Response is None!".to_string());
 
-                                    response = create_sepecial_command!(command.client_id, "C210");
+                                    response = create_special_command!(command.client_id, "C210");
                                 },
                             }
                         } else {

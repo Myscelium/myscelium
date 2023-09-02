@@ -16,19 +16,16 @@ use std::sync::{
     Condvar,
 };
 
-use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
-use pyo3::{PyErr, PyObject, PyResult, Python};
-
-use pyo3::IntoPy;
-
 use pyo3::exceptions::PyException;
+use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
+use pyo3::IntoPy;
 use pyo3::Py;
+use pyo3::ToPyObject;
+use pyo3::{PyErr, PyObject, PyResult, Python};
 
 use std::time::{Duration, Instant};
 
 use std::error::Error;
-
-use pyo3::ToPyObject;
 
 use crate::CLIENT_IS_RUNING;
 

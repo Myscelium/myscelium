@@ -17,6 +17,15 @@ class MyClient:
         time.sleep(5)
 
         return None
+    
+    @staticmethod
+    def test_redirect_handler (data):
+
+        print("Received redirected data: ", data)
+
+        time.sleep(5)
+
+        return None
         
     @staticmethod
     def send_some_data():

@@ -12,6 +12,8 @@ use crate::commom::enhanced_buffer;
 use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
 use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
 use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
+use crate::commom::functions::python_functions::{dict_to_kwargs, extract_pyobject};
+use crate::commom::structs::results_structs::ResultType;
 
 #[macro_use]
 use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
@@ -22,19 +24,15 @@ use std::sync::{
     Condvar,
 };
 
+use pyo3::exceptions::PyException;
 use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
+use pyo3::IntoPy;
+use pyo3::Py;
+use pyo3::ToPyObject;
 use pyo3::{PyErr, PyObject, PyResult, Python};
 
-use pyo3::IntoPy;
-
-use pyo3::exceptions::PyException;
-use pyo3::Py;
-
-use std::time::{Duration, Instant};
-
 use std::error::Error;
-
-use pyo3::ToPyObject;
+use std::time::{Duration, Instant};
 
 use crate::HOST_IS_RUNNING;
 
@@ -105,94 +103,6 @@ pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, V
 
 // > Transposer:
 
-fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<&'l PyTuple> {
-    let logger = acquire_logger!("Transposer - Py Dict to Tuple Converter");
-
-    // Check if the dict contains the function name as a key
-    if !dict.contains_key("args") {
-        // If it does not, return an empty Vec since there are no arguments
-        let mut values: Vec<PyObject> = Vec::new();
-        return Ok(PyTuple::new(py, values));
-    }
-
-    let args_string = match dict.get("args") {
-        Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
-    };
-
-    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
-
-    logger.debug(format!("Args extracted: {:?}", sub_dict));
-
-    let mut values: Vec<PyObject> = Vec::new();
-    for value in sub_dict.values() {
-        let py_value = match value {
-            Value::String(s) => s.into_py(py),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    i.into_py(py)
-                } else if let Some(f) = n.as_f64() {
-                    f.into_py(py)
-                } else {
-                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
-                }
-            },
-            Value::Bool(b) => b.into_py(py),
-            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
-        };
-        values.push(py_value);
-    }
-
-    let py_tuple = PyTuple::new(py, &values);
-
-    logger.debug(format!("py_tuple: {}", py_tuple));
-
-    Ok(py_tuple)
-}
-
-fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
-    let logger = acquire_logger!("Transposer - Py Dict to kwargs Converter");
-
-    // Check if the dict contains the function name as a key
-    if !dict.contains_key("args") {
-        // If it does not, return an empty HashMap since there are no arguments
-        let kwargs: HashMap<String, PyObject> = HashMap::new();
-        return Ok(kwargs);
-    }
-
-    let args_string = match dict.get("args") {
-        Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
-    };
-
-    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
-
-    logger.debug(format!("Args extracted: {:?}", sub_dict));
-
-    let mut kwargs: HashMap<String, PyObject> = HashMap::new();
-    for (key, value) in sub_dict.iter() {
-        let py_value = match value {
-            Value::String(s) => s.into_py(py),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    i.into_py(py)
-                } else if let Some(f) = n.as_f64() {
-                    f.into_py(py)
-                } else {
-                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
-                }
-            },
-            Value::Bool(b) => b.into_py(py),
-            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
-        };
-        kwargs.insert(key.clone(), py_value);
-    }
-
-    logger.debug(format!("kwargs: {:?}", kwargs));
-
-    Ok(kwargs)
-}
-
 fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
     let logger = acquire_logger!("Transposer - Handle Command");
 
@@ -226,106 +136,6 @@ fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
     let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
 
     Ok(result_obj) // Return the PyObject
-}
-
-// Define a custom type that can be either Empty, Map, or Error
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-enum ResultType {
-    Map(HashMap<String, ResultType>),
-    List(Vec<ResultType>),
-    Str(String),
-    Int(i32),
-    Float(f64),
-    Bool(bool),
-    Empty,
-    Error(String), // Assuming Error variant holds a String
-                   // ... any other variants you might have
-}
-
-// Implement Display for ResultType to be able to print it
-impl fmt::Display for ResultType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ResultType::Empty => write!(f, "Empty"),
-            ResultType::Str(s) => write!(f, "\"{}\"", s),
-            ResultType::Int(i) => write!(f, "{}", i),
-            ResultType::Float(fl) => write!(f, "{}", fl),
-            ResultType::Bool(b) => write!(f, "{}", b),
-            ResultType::List(list) => {
-                write!(f, "[")?;
-                for (index, item) in list.iter().enumerate() {
-                    if index != 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", item)?;
-                }
-                write!(f, "]")
-            },
-            ResultType::Map(map) => {
-                write!(f, "{{")?;
-                let mut first = true;
-                for (key, value) in map {
-                    if !first {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "\"{}\": {}", key, value)?;
-                    first = false;
-                }
-                write!(f, "}}")
-            },
-            ResultType::Error(err) => write!(f, "Error: {}", err),
-        }
-    }
-}
-
-fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
-    if let Ok(dict) = obj.cast_as::<PyDict>(py) {
-        let mut rust_dict = HashMap::new();
-
-        for (key, value) in dict.iter() {
-            let key_str: String = key.extract().unwrap();
-            if let Ok(value_str) = value.extract::<String>() {
-                rust_dict.insert(key_str, ResultType::Str(value_str));
-            } else if let Ok(value_int) = value.extract::<i32>() {
-                rust_dict.insert(key_str, ResultType::Int(value_int));
-            } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-                let rust_list = value_list.into_iter().map(ResultType::Str).collect();
-                rust_dict.insert(key_str, ResultType::List(rust_list));
-            } else if let Ok(nested_dict) = value.cast_as::<PyDict>() {
-                let inner_map = handle_pyobject(py, nested_dict.into());
-                rust_dict.insert(key_str, inner_map);
-            } else {
-                // Handle other types as needed
-            }
-        }
-
-        return ResultType::Map(rust_dict);
-    } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
-        // Handle tuple
-        let rust_list: Vec<_> = tuple.iter().map(|item| handle_pyobject(py, item.into())).collect();
-        return ResultType::List(rust_list);
-    } else if let Ok(list) = obj.cast_as::<PyList>(py) {
-        // Handle list
-        let rust_list: Vec<_> = list.iter().map(|item| handle_pyobject(py, item.into())).collect();
-        return ResultType::List(rust_list);
-    } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
-        // Handle int
-        return ResultType::Int(int.extract().unwrap());
-    } else if let Ok(float) = obj.cast_as::<PyFloat>(py) {
-        // Handle float
-        return ResultType::Float(float.extract().unwrap());
-    } else if let Ok(string) = obj.cast_as::<PyString>(py) {
-        // Handle string
-        return ResultType::Str(string.extract().unwrap());
-    } else if let Ok(boolean) = obj.cast_as::<PyBool>(py) {
-        // Handle bool
-        return ResultType::Bool(boolean.extract().unwrap());
-    } else if obj.is_none(py) {
-        // Handle None
-        return ResultType::Empty;
-    }
-
-    return ResultType::Empty;
 }
 
 macro_rules! error_response {
@@ -366,7 +176,7 @@ fn process(py: Python, down_command: DownCommand) {
         let mut to_send = HashMap::new();
 
         to_send.insert("response_mode".to_string(), "to_origin".to_string());
-        to_send.insert("response_activation_function".to_string(), "to_origin".to_string());
+        to_send.insert("response_activation_function".to_string(), m.get("response_activation_function").unwrap().to_string());
         to_send.insert("response".to_string(), m.get("response").unwrap().to_string());
 
         response = serde_json::to_string(&to_send);
@@ -433,7 +243,7 @@ fn process(py: Python, down_command: DownCommand) {
 
     let response = handle_command(py, translated_command.clone());
 
-    let result = handle_pyobject(py, response.unwrap());
+    let result = extract_pyobject(py, response.unwrap());
 
     let mut client_id = down_command.client_id.clone();
 
@@ -445,7 +255,23 @@ fn process(py: Python, down_command: DownCommand) {
                 let response_mode = m.get("response_mode").unwrap();
 
                 if *response_mode == ResultType::Str("to_origin".to_string()) {
-                    response = Ok(serde_json::to_string(&m).unwrap());
+                    let string_map: HashMap<String, String> = m
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            match v {
+                                ResultType::Str(s) => Some((k.clone(), s.clone())),
+                                ResultType::Map(inner_map) => {
+                                    // For demonstration, converting inner_map to a string representation
+                                    // You can adjust this as needed
+                                    let inner_str = format!("{:?}", inner_map);
+                                    Some((k.clone(), inner_str))
+                                },
+                                // Add other cases for different ResultType variants if needed
+                                _ => None,
+                            }
+                        })
+                        .collect();
+                    response = Ok(serde_json::to_string(&string_map).unwrap());
                 } else if *response_mode == ResultType::Str("redirect".to_string()) {
                     let string_map: HashMap<String, String> = m
                         .iter()
