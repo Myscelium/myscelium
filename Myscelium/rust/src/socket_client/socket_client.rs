@@ -377,6 +377,7 @@ pub fn initialize_client(address: String, client_id: String) {
             if let Some(down_command) = send_ping(&mut stream) {
                 enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
             }
+            println!("[Socket] - Nothing in schedule, skipping..");
             thread::sleep(Duration::from_millis(500));
             continue;
         }
@@ -388,6 +389,7 @@ pub fn initialize_client(address: String, client_id: String) {
                 let received = send(&mut stream, command_to_request.clone());
 
                 if let Some(down_command) = handle_response(received) {
+                    println!("[Socket] - Socket Receives Data..");
                     enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
                     break;
                 }
@@ -395,5 +397,8 @@ pub fn initialize_client(address: String, client_id: String) {
                 thread::sleep(Duration::from_millis(200));
             }
         }
+
+        println!("End schedule data, so skipping >>>");
+        continue;
     }
 }

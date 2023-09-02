@@ -30,7 +30,7 @@ use std::time::Duration;
 
 // > Global Vars Core
 
-use crate::HOST_IS_RUNING;
+use crate::HOST_IS_RUNNING;
 use std::sync::atomic::Ordering;
 
 use pyo3::exceptions::PyException;
@@ -324,8 +324,6 @@ pub fn initialize_host(address: String, client_id: String) {
         *actual_client_id = client_id;
     }
 
-    // let default_max_conns = MAX_CONS.lock().unwrap();
-
     let listener = TcpListener::bind(&address).unwrap();
 
     logger.info(format!("Listening: {}", address));
@@ -333,34 +331,32 @@ pub fn initialize_host(address: String, client_id: String) {
     loop {
         println!("Waiting conn!");
 
-        // Keep the thread alive until HOST_IS_RUNING is set to false
-        if !HOST_IS_RUNING.load(Ordering::SeqCst) {
+        // Keep the thread alive until HOST_IS_RUNNING is set to false
+        if !HOST_IS_RUNNING.load(Ordering::SeqCst) {
             // Lock the pool and stop it
-
             terminate_pool!(CONNECTION_HANDLER_POOL);
             println!("Stopped the thread pool!");
             break;
         }
 
-        let mut receivers = Vec::new();
-
         match listener.accept() {
             Ok((stream, _)) => {
-                let rx = run_in_thread_pool!(CONNECTION_HANDLER_POOL, {
+                // Directly run the connection handler in a new thread or a thread pool.
+                // This allows the main loop to immediately go back to listening for new connections.
+                run_in_thread_pool!(CONNECTION_HANDLER_POOL, {
                     handle_connection(stream);
                 });
-                receivers.push(rx);
             },
             Err(e) => {
                 logger.warn(format!("Failed to accept a connection: {}", e));
             },
         }
 
-        wait_all_threads!(receivers);
-
-        thread::sleep(Duration::from_secs(1));
+        // No need to wait for all threads here. The main loop should be able to immediately proceed.
+        // thread::sleep(Duration::from_secs(1));  // Consider removing this sleep.
     }
 }
+
 // The incoming method is called on the listener, which returns an iterator that gives us a sequence of
 // TCP streams (representing a series of connections). The server will then handle each connection in a loop.
 
@@ -391,7 +387,7 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
 
         let command_response = &up_schedule[0];
 
-        let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response.command);
+        let response_command = Command::from_up_command(command_response.clone());
 
         enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(client_id.clone(), response_command.parity_id.clone());
 

@@ -85,7 +85,9 @@ class MyHost:
         mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
 
         mys_host_interface.start_client_events_retriver()
-    
+
+        time.sleep(30)
+
         while True:
 
             client_1_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
@@ -131,7 +133,7 @@ class MyHost:
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="INFO")
+                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="DEBUG")
 
         self.mys_host = mys_host
 

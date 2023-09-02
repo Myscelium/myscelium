@@ -30,7 +30,7 @@ lazy_static! {
     pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
 
     // HOST:
-    pub static ref HOST_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+    pub static ref HOST_IS_RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref HOST_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref HOST_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
 

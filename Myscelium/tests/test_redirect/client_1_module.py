@@ -77,7 +77,7 @@ class MyClient:
     
     def monitor_stop_event(self):
         
-        time.sleep(20) # needs to be a little more to wait to client 2 initialize
+        time.sleep(25) # needs to be a little more to wait to client 2 initialize
 
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
 
@@ -100,15 +100,15 @@ class MyClient:
     def run(self):
 
         t1 = Process(target=self.initializer, args=())
-        t2 = Process(target=self.send_some_data, args=())
+        # t2 = Process(target=self.send_some_data, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
         time.sleep(5)
-        t2.start()
+        # t2.start()
         t3.start()
 
-        t2.join()
+        # t2.join()
         t3.join()  
 
         time.sleep(5)

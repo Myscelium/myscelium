@@ -27,7 +27,7 @@ use std::time::{Duration, Instant};
 
 use crate::commom::functions::python_functions::extract_arg_types;
 
-use crate::HOST_IS_RUNING;
+use crate::HOST_IS_RUNNING;
 use crate::HOST_LOG_LEVEL;
 use crate::HOST_NODE_NAME;
 
@@ -164,7 +164,7 @@ fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: 
 }
 
 fn stop_socket_host() {
-    HOST_IS_RUNING.store(false, Ordering::SeqCst);
+    HOST_IS_RUNNING.store(false, Ordering::SeqCst);
 }
 
 #[pyfunction]
@@ -251,7 +251,7 @@ fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: Stri
 
     thread::spawn(|| {
         ctrlc::set_handler(move || {
-            if HOST_IS_RUNING.load(Ordering::SeqCst) {
+            if HOST_IS_RUNNING.load(Ordering::SeqCst) {
                 println!("\nreceived Ctrl+C!\n");
                 stop_socket_host();
             }
@@ -265,7 +265,7 @@ fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: Stri
     loop {
         initialize_socket_host_transposer(py);
 
-        if !HOST_IS_RUNING.load(Ordering::SeqCst) {
+        if !HOST_IS_RUNNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
             thread::sleep(Duration::from_secs(7));
             break;
