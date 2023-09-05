@@ -47,6 +47,10 @@
 - Improve code efficiency
 - Develop ways to reduce the cicle numbers
 - Start preparing to implement multi chanels data stream
+- Centralize python callback calling function and python converters
+- Centralize type converters
+- Create indentificators to diferenciate response callback calling from function callback calling
+- Improve the serialization and desserialization mecanisms
 
 ### Fixes
 - Fix random quitting
@@ -62,6 +66,10 @@
 - Fix zombie threds runing without controler when shutdown by exception
 - Fix Logger
 - Fix buffers random exceptions
+- Fix type checking in some key points to ensure the system is working as intended
+- Fix callbacks calling to be more correct and detect better the cases were is response handler calling and when is function handler calling
+- Fix serialization and desserialization of host responses
+- Fix command response decoding
 
 ## v1.1.0 - ReliseCandidate (08/08/2023)
 
