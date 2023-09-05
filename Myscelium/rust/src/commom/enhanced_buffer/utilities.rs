@@ -27,18 +27,29 @@ fn transform_value(value: &Value) -> Value {
     match value {
         Value::Object(map) => {
             let mut new_map = HashMap::new();
-            for (key, val) in map {
+            for (key, val) in map.iter() {
+                // Iterating over references
                 if let Some(inner_val) = val.get("Map") {
                     new_map.insert(key.clone(), transform_value(inner_val));
                 } else if let Some(inner_val) = val.get("List") {
                     new_map.insert(key.clone(), transform_value(inner_val));
                 } else if let Some(Value::String(s)) = val.get("Str") {
                     new_map.insert(key.clone(), Value::String(s.clone()));
+                } else if let Value::Object(_) = val {
+                    new_map.insert(key.clone(), transform_value(val));
                 } else {
-                    // Handle other cases if necessary
+                    new_map.insert(key.clone(), transform_value(val));
                 }
             }
             Value::Object(serde_json::Map::from_iter(new_map)) // Convert HashMap to serde_json::Map using into()
+        },
+        Value::String(s) => {
+            // If the string is a JSON representation, parse it and transform it
+            if let Ok(parsed) = serde_json::from_str::<Value>(s) {
+                transform_value(&parsed)
+            } else {
+                Value::String(s.clone())
+            }
         },
         Value::Array(arr) => Value::Array(arr.iter().map(|v| transform_value(v)).collect()),
         _ => value.clone(),
@@ -47,12 +58,7 @@ fn transform_value(value: &Value) -> Value {
 
 impl Command {
     pub fn new(client_id: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
-        Self {
-            client_id,
-            parity_id,
-            priority,
-            command,
-        }
+        Self { client_id, parity_id, priority, command }
     }
 
     pub fn from_down_command(down_command: DownCommand) -> Self {
@@ -62,7 +68,9 @@ impl Command {
 
         let outer_value: Value = serde_json::from_str(&down_command.command).unwrap();
 
-        let mut command: HashMap<String, Value>;
+        println!("Value extracted from DownCommand.Command: {:?}", outer_value);
+
+        let mut command: HashMap<String, Value> = HashMap::new();
 
         // Extract the inner JSON string and deserialize it again
         if let Value::Object(outer_map) = &outer_value {
@@ -73,7 +81,9 @@ impl Command {
                 let transformed_value = transform_value(&Value::Object(serde_json::Map::from_iter(command.into_iter()))); // Convert HashMap to serde_json::Map using into()
 
                 if let Value::Object(transformed_map) = transformed_value {
-                    command = transformed_map.into_iter().collect(); // Convert serde_json::Map back to HashMap
+                    command = HashMap::new();
+                    command.insert("response".to_string(), Value::Object(transformed_map.into_iter().collect()));
+                // Convert serde_json::Map back to HashMap
                 } else {
                     command = HashMap::new();
                 }
@@ -84,12 +94,7 @@ impl Command {
             command = HashMap::new();
             // Handle the case where the outer_value is not an object
         }
-        Self {
-            client_id,
-            parity_id,
-            priority,
-            command,
-        }
+        Self { client_id, parity_id, priority, command }
     }
 
     pub fn from_up_command(up_command: UpCommand) -> Self {
@@ -98,12 +103,7 @@ impl Command {
         let priority = up_command.priority.clone();
         let command: HashMap<String, Value> = serde_json::from_str(&up_command.command).unwrap();
 
-        Self {
-            client_id,
-            parity_id,
-            priority,
-            command,
-        }
+        Self { client_id, parity_id, priority, command }
     }
 
     pub fn command_type(&self) -> CommandType {

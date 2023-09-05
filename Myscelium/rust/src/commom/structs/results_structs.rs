@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt::{self, format};
 
 // Define a custom type that can be either Empty, Map, or Error
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum ResultType {
     Map(HashMap<String, ResultType>),
     List(Vec<ResultType>),

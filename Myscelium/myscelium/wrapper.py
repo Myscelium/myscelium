@@ -576,13 +576,13 @@ class HostPatterns:
             else:
                 raise ("Invalid redirect! Missing client_id to redirect!")
 
-            return {'response_mode':'redirect', 'response_activation_function':response_activation_function, 'response':response, 'redirect_to':redirect_to_client_id}
+            return {'response_mode':'redirect', 'response_activation_function':response_activation_function, 'kwargs':response, 'redirect_to':redirect_to_client_id}
 
         elif response_mode == 'to_origin':
 
             print("Response mode set to origin")
             
-            return {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
+            return {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'kwargs':response}
         
         else:
             raise ("Response mode invalid! Please use one of this: ('redirect', 'to_origin')")
@@ -957,11 +957,11 @@ class ClientPatterns:
         """
 
         if args != None:
-            return {"function":command_function, "args":args}
+            return {"function":command_function, "kwargs":args}
         else:
             pass
 
-        return {"function":command_function, "args":""}
+        return {"function":command_function, "kwargs":""}
 
     def response_pattern (self, response:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
 
@@ -976,6 +976,8 @@ class ClientPatterns:
         Returns:
         - Dictionary representing the response pattern.
         """
+
+        # TODO >>> Verify if need to convert response to kwargs
 
         if response_mode == "retransmit":
 

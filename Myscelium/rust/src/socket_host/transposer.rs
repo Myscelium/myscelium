@@ -12,7 +12,8 @@ use crate::commom::enhanced_buffer;
 use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
 use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
 use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
-use crate::commom::functions::python_functions::{dict_to_kwargs, extract_pyobject};
+use crate::commom::functions::converters::{convert_to_resulttype_map, convert_to_value_map};
+use crate::commom::functions::python_functions::{call_callback, dict_to_kwargs, extract_pyobject};
 use crate::commom::structs::results_structs::ResultType;
 
 #[macro_use]
@@ -103,41 +104,6 @@ pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, V
 
 // > Transposer:
 
-fn handle_command(py: Python<'_>, command: Command) -> PyResult<PyObject> {
-    let logger = acquire_logger!("Transposer - Handle Command");
-
-    logger.debug(format!("Getting function name..."));
-    let function_name: &String = match command.command.get("function") {
-        Some(Value::String(function_name)) => function_name,
-        _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
-    };
-    logger.debug(format!("Got function name: {}", function_name));
-
-    // Get the function and args_types from the CALLBACK_PATTERNS
-    let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
-    let (function, _) = callback_patterns.get(function_name).unwrap();
-
-    let kwargs_map = dict_to_kwargs(py, &command.command).map_err(|e| {
-        logger.exception(format!("Error converting arguments to kwargs: {:?}", e));
-        PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e))
-    })?;
-
-    let kwargs = PyDict::new(py);
-    for (key, value) in kwargs_map {
-        kwargs.set_item(key, value).unwrap();
-    }
-
-    // Call the Python function with the converted arguments
-    let result = function.call(py, (), Some(kwargs)).map_err(|e| {
-        logger.exception(format!("Error calling function: {:?}", e));
-        e
-    })?;
-
-    let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
-
-    Ok(result_obj) // Return the PyObject
-}
-
 macro_rules! error_response {
     ($msg:expr) => {{
         println!("{:?}", $msg);
@@ -150,7 +116,7 @@ macro_rules! error_response {
 fn process(py: Python, down_command: DownCommand) {
     let logger = acquire_logger!("Transposer - Process");
 
-    fn handle_redirect(m: HashMap<String, String>, client_id: &mut String, down_command: DownCommand) -> Result<std::string::String, serde_json::Error> {
+    fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, down_command: DownCommand) -> Result<std::string::String, serde_json::Error> {
         let response;
 
         if !m.contains_key("redirect_to") {
@@ -175,13 +141,17 @@ fn process(py: Python, down_command: DownCommand) {
 
         let mut to_send = HashMap::new();
 
-        to_send.insert("response_mode".to_string(), "to_origin".to_string());
-        to_send.insert("response_activation_function".to_string(), m.get("response_activation_function").unwrap().to_string());
-        to_send.insert("response".to_string(), m.get("response").unwrap().to_string());
+        let resp = m.get("response").unwrap().clone();
+
+        to_send.insert("response".to_string(), resp);
+        to_send.insert("response_activation_function".to_string(), ResultType::Str(m.get("response_activation_function").unwrap().to_string()));
+        to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
 
         response = serde_json::to_string(&to_send);
 
         // {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
+
+        // {"response": Map({"data": Str("hello!")}), "response_activation_function": Str("test_handler"), "response_mode": Str("to_origin")}
 
         return response;
     }
@@ -241,9 +211,22 @@ fn process(py: Python, down_command: DownCommand) {
     logger.debug(format!("Calling the callback!"));
     logger.debug(format!("Acquired the GIL"));
 
-    let response = handle_command(py, translated_command.clone());
+    let response;
 
-    let result = extract_pyobject(py, response.unwrap());
+    {
+        let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
+        response = call_callback(py, translated_command.clone(), callback_patterns);
+    }
+
+    let result = match response {
+        Ok(r) => extract_pyobject(py, r),
+        Err(e) => {
+            // Handle the error or log it
+            eprintln!("Python error: {:?}", e);
+            // You can return a default value or propagate the error further
+            ResultType::Error(format!("{:?}", e))
+        },
+    };
 
     let mut client_id = down_command.client_id.clone();
 
@@ -255,45 +238,21 @@ fn process(py: Python, down_command: DownCommand) {
                 let response_mode = m.get("response_mode").unwrap();
 
                 if *response_mode == ResultType::Str("to_origin".to_string()) {
-                    let string_map: HashMap<String, String> = m
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            match v {
-                                ResultType::Str(s) => Some((k.clone(), s.clone())),
-                                ResultType::Map(inner_map) => {
-                                    // For demonstration, converting inner_map to a string representation
-                                    // You can adjust this as needed
-                                    let inner_str = format!("{:?}", inner_map);
-                                    Some((k.clone(), inner_str))
-                                },
-                                // Add other cases for different ResultType variants if needed
-                                _ => None,
-                            }
-                        })
-                        .collect();
-                    response = Ok(serde_json::to_string(&string_map).unwrap());
+                    // println!("{:?}", &m);
+                    // let converted: HashMap<String, ResultType> = convert_to_resulttype_map(&m);
+                    // // println!("Converted to ResultType: {:?}", &converted);
+                    let converted_to_value = convert_to_value_map(&m);
+                    println!("Converted to Value: {:?}", &converted_to_value);
+                    response = Ok(serde_json::to_string(&converted_to_value).unwrap());
                 } else if *response_mode == ResultType::Str("redirect".to_string()) {
-                    let string_map: HashMap<String, String> = m
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            match v {
-                                ResultType::Str(s) => Some((k.clone(), s.clone())),
-                                ResultType::Map(inner_map) => {
-                                    // For demonstration, converting inner_map to a string representation
-                                    // You can adjust this as needed
-                                    let inner_str = format!("{:?}", inner_map);
-                                    Some((k.clone(), inner_str))
-                                },
-                                // Add other cases for different ResultType variants if needed
-                                _ => None,
-                            }
-                        })
-                        .collect();
+                    // println!("{:?}", &m);
+                    // let converted: HashMap<String, String> = convert_to_resulttype_map(&m);
+                    // println!("{:?}", &converted);
 
-                    println!("Response: {:?}", string_map);
+                    println!("Response: {:?}", m);
                     //* probraly the cause of redirect bug
                     // TODO >>> Verify if has the response field
-                    response = handle_redirect(string_map, &mut client_id, down_command.clone());
+                    response = handle_redirect(m, &mut client_id, down_command.clone());
                 } else {
                     response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
                 }

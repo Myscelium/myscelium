@@ -10,9 +10,13 @@ use pyo3::Py;
 use pyo3::ToPyObject;
 use pyo3::{PyErr, PyObject, PyResult, Python};
 
+use crate::commom::enhanced_buffer::utilities::CommandType;
 use crate::commom::structs::results_structs::ResultType;
 
 use std::collections::HashMap;
+use std::sync::MutexGuard;
+
+use crate::commom::enhanced_buffer::utilities::Command;
 
 use serde_json::{json, Value};
 
@@ -34,27 +38,29 @@ pub fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
 }
 
 pub fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
-    // let logger = acquire_logger!("Transposer - Py Dict to kwargs Converter");
+    println!("map to convert to python kwargs: {:?}", dict);
 
-    // Check if the dict contains the function name as a key
-    if !dict.contains_key("args") {
-        // If it does not, return an empty HashMap since there are no arguments
-        let kwargs: HashMap<String, PyObject> = HashMap::new();
-        return Ok(kwargs);
-    }
-
-    let args_string = match dict.get("args") {
-        Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
+    let args_map: HashMap<String, Value> = match dict.get("kwargs") {
+        Some(Value::Object(map)) => map.clone().into_iter().collect(), // Convert the inner serde_json::Map to a HashMap
+        Some(Value::String(s)) => serde_json::from_str(s).unwrap(),    // Deserialize the JSON string into a HashMap
+        _ => {
+            println!("The kwargs key is not found or not a correct type, so assuming callback doesn't need any kargs");
+            return Ok(HashMap::new());
+        },
     };
 
-    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
-
-    // logger.debug(format!("Args extracted: {:?}", sub_dict));
-
     let mut kwargs: HashMap<String, PyObject> = HashMap::new();
-    for (key, value) in sub_dict.iter() {
+    for (key, value) in args_map.iter() {
         let py_value = match value {
+            Value::Object(inner_map) => {
+                let map_as_hashmap: HashMap<String, Value> = inner_map.clone().into_iter().collect();
+                let inner_kwargs = dict_to_kwargs(py, &map_as_hashmap)?;
+                let py_dict = PyDict::new(py);
+                for (k, v) in inner_kwargs.iter() {
+                    py_dict.set_item(k, v)?;
+                }
+                py_dict.into()
+            },
             Value::String(s) => s.into_py(py),
             Value::Number(n) => {
                 if let Some(i) = n.as_i64() {
@@ -71,8 +77,6 @@ pub fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyRe
         kwargs.insert(key.clone(), py_value);
     }
 
-    // logger.debug(format!("kwargs: {:?}", kwargs));
-
     Ok(kwargs)
 }
 
@@ -80,15 +84,15 @@ pub fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyRes
     // let logger = acquire_logger!("Transposer - Py Dict to Tuple Converter");
 
     // Check if the dict contains the function name as a key
-    if !dict.contains_key("args") {
+    if !dict.contains_key("kwargs") {
         // If it does not, return an empty Vec since there are no arguments
         let mut values: Vec<PyObject> = Vec::new();
         return Ok(PyTuple::new(py, values));
     }
 
-    let args_string = match dict.get("args") {
+    let args_string = match dict.get("kwargs") {
         Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
+        _ => return Err(PyErr::new::<PyException, _>("The kwargs key is not found or not a string.")),
     };
 
     let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
@@ -169,4 +173,62 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> ResultType {
     }
 
     return ResultType::Empty;
+}
+
+pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<PyObject> {
+    println!("Command to call a callback: {:?}", command);
+
+    let function_name: &String = match command.command.get("function") {
+        Some(Value::String(function_name)) => function_name,
+        _ => match command.command.get("response") {
+            Some(Value::Object(inner_map)) => match inner_map.get("response_activation_function") {
+                Some(Value::String(function_name)) => function_name,
+                _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
+            },
+            _ => return Err(PyErr::new::<PyException, _>("The response key is not found or not an object.")),
+        },
+    };
+
+    // Get the function and args_types from the CALLBACK_PATTERNS
+    let (function, _) = callback_patterns.get(function_name).unwrap();
+
+    // let kwargs_map: &String = match command.command {
+    //     Some(Value::String(function_name)) => dict_to_kwargs(py, &command.command).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e)))?;,
+    //     _ => match command.command.get("response") {
+    //         Some(Value::Object(inner_map)) => match inner_map.get("response_activation_function") {
+    //             Some(Value::String(function_name)) => function_name,
+    //             _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
+    //         },
+    //         _ => return Err(PyErr::new::<PyException, _>("The response key is not found or not an object.")),
+    //     },
+    // };
+
+    let kwargs_map = match command.command_type() {
+        CommandType::Response(_) => {
+            let command = &command.command;
+
+            match command.get("response") {
+                Some(Value::Object(inner_map)) => {
+                    let inner_hash_map: HashMap<_, _> = inner_map.clone().into_iter().collect();
+                    dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e)))?
+                },
+                _ => HashMap::new(),
+            }
+        },
+        _ => dict_to_kwargs(py, &command.command).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e)))?,
+    };
+
+    println!("Converted kwargs_map: {:?}", kwargs_map);
+
+    let kwargs = PyDict::new(py);
+    for (key, value) in kwargs_map {
+        kwargs.set_item(key, value).unwrap();
+    }
+
+    // Call the Python function with the converted arguments
+    let result = function.call(py, (), Some(kwargs)).map_err(|e| e)?;
+
+    let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
+
+    Ok(result_obj) // Return the PyObject
 }
