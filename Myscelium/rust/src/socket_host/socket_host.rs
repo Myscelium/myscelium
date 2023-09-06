@@ -26,11 +26,12 @@ use crate::commom::enhanced_buffer::utilities::Command;
 #[macro_use]
 use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
 use crate::commom::custom_thread_pool::thread_pool::UnifiedThreadPool;
+use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, Client, ClientError};
 use std::time::Duration;
 
 // > Global Vars Core
 
-use crate::HOST_IS_RUNING;
+use crate::HOST_IS_RUNNING;
 use std::sync::atomic::Ordering;
 
 use pyo3::exceptions::PyException;
@@ -39,12 +40,6 @@ use pyo3::types::PyFunction;
 use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
-#[derive(Debug, Clone)]
-pub struct Client {
-    client_id: String,
-    last_contact: SystemTime,
-    client_type: String,
-}
 
 lazy_static! {
     static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
@@ -72,7 +67,7 @@ lazy_static! {
     };
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
-    static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
+    // static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
     static ref HEARTBEAT_CALLBACK: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -113,7 +108,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-macro_rules! create_sepecial_command {
+macro_rules! create_special_command {
     ($client_id:expr, $response:expr) => {{
         let mut command_map = HashMap::new();
         command_map.insert("function".to_string(), Value::String($response.to_string()));
@@ -150,172 +145,99 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
     }
 }
 
-pub fn is_client_registred(client_id: &String) -> bool {
-    let clients;
+// pub fn is_client_registred(client_id: &String) -> bool {
+//     let clients;
 
-    {
-        clients = CLIENTS_ALLOWED.lock().unwrap().clone();
-    }
+//     {
+//         clients = CLIENTS_ALLOWED.lock().unwrap().clone();
+//     }
 
-    clients.contains_key(client_id)
-}
+//     clients.contains_key(client_id)
+// }
 
-pub fn register_client(client_id: String, client_type: String) {
-    if !is_client_registred(&client_id) {
-        let mut clients = CLIENTS_ALLOWED.lock().unwrap();
+// pub fn register_client(client_id: String, client_type: String) {
 
-        clients.insert(
-            client_id.clone(),
-            Client {
-                client_id,
-                last_contact: SystemTime::now(),
-                client_type,
+//     Client
+
+// if !is_client_registred(&client_id) {
+//     let mut clients = CLIENTS_ALLOWED.lock().unwrap();
+
+//     clients.insert(
+//         client_id.clone(),
+//         Client {
+//             client_id,
+//             last_contact: SystemTime::now(),
+//             client_type,
+//         },
+//     );
+// }
+// }
+
+pub fn update_last_contact(client_key: String) {
+    let client = Client::get_by_key(client_key);
+
+    match client {
+        Ok(c) => {
+            _ = c.update_last_contact();
+        },
+        Err(e) => match e {
+            ClientError::ClientAlwreadyExist(e) => {
+                println!("Error client: {} alwready exist", e);
             },
-        );
-    }
-}
-
-fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
-    let logger = acquire_logger!("py dict to kwargs converter");
-
-    //> Check if the dict contains the function name as a key
-    if !dict.contains_key("args") {
-        // If it does not, return an empty HashMap since there are no arguments
-        let kwargs: HashMap<String, PyObject> = HashMap::new();
-        return Ok(kwargs);
-    }
-
-    let args_string = match dict.get("args") {
-        Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<PyException, _>("The args key is not found or not a string.")),
-    };
-
-    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
-
-    logger.debug(format!("Args extracted: {:?}", sub_dict));
-
-    let mut kwargs: HashMap<String, PyObject> = HashMap::new();
-    for (key, value) in sub_dict.iter() {
-        let py_value = match value {
-            Value::String(s) => s.into_py(py),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    i.into_py(py)
-                } else if let Some(f) = n.as_f64() {
-                    f.into_py(py)
-                } else {
-                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
-                }
+            ClientError::ClientDoesNotExist(e) => {
+                println!("Error client: {} does't exist", e);
             },
-            Value::Bool(b) => b.into_py(py),
-            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
-        };
-        kwargs.insert(key.clone(), py_value);
+            ClientError::UnexpectedError(e) => {
+                println!("Get a unexpected error: {}", e);
+            },
+        },
     }
-
-    logger.debug(format!("kwargs: {:?}", kwargs));
-
-    Ok(kwargs)
-}
-
-pub fn update_last_contact(py: Python<'_>, client_id: String) {
-    let mut clients = CLIENTS_ALLOWED.lock().unwrap();
-    if let Some(client) = clients.get_mut(&client_id) {
-        client.last_contact = SystemTime::now();
-    }
-
-    let function_name = "handle_client_contact";
-
-    let callback_patterns = HEARTBEAT_CALLBACK.lock().unwrap();
-
-    let function = match callback_patterns.get(function_name) {
-        Some(function) => function.clone(),
-        _ => return,
-    };
-
-    // Get the function and args_types from the CALLBACK_PATTERNS
-
-    // let mut command: HashMap<String, Value> = HashMap::new();
-
-    // command.insert("client_id".to_string(), );
-
-    // let kwargs_map = dict_to_kwargs(py, &command)
-    //     .map_err(|e| {
-    //         eprintln!("Error converting arguments to kwargs: {:?}", e);
-    //         PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e))
-    //     })
-    //     .unwrap();
-
-    // let kwargs = PyDict::new(py);
-    // for (key, value) in kwargs_map {
-    //     kwargs.set_item(key, value).unwrap();
-    // }
-
-    let kwargs = PyDict::new(py);
-
-    let py_client_id = &client_id.into_py(py);
-
-    kwargs.set_item("client_id".to_string(), py_client_id).unwrap();
-
-    let logger = acquire_logger!("Heartbeat Callback Handler");
-
-    // Call the Python function with the converted arguments
-    let result = function.0.call(py, (), Some(kwargs)).map_err(|e| {
-        logger.exception(format!("Error calling function: {:?}", e));
-        e
-    });
 }
 
 // > Commands Manangemement & Checking
 
-fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
-    let function_name = match command.command.get("function") {
-        Some(Value::String(name)) => name,
-        _ => return false,
-    };
+// fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
+//     let function_name = match command.command.get("function") {
+//         Some(Value::String(name)) => name,
+//         _ => return false,
+//     };
 
-    let parameters = match command.command.get(function_name) {
-        Some(parameters) => parameters,
-        None => return false,
-    };
+//     let parameters = match command.command.get(function_name) {
+//         Some(parameters) => parameters,
+//         None => return false,
+//     };
 
-    match command_patterns.get(function_name) {
-        Some(pattern) => validate_parameters(parameters, pattern),
-        None => false,
-    }
-}
+//     match command_patterns.get(function_name) {
+//         Some(pattern) => validate_parameters(parameters, pattern),
+//         None => false,
+//     }
+// }
 
-fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
-    match (parameters, pattern) {
-        (Value::Object(params_map), Value::Object(pattern_map)) => {
-            for (key, pattern_value) in pattern_map {
-                match params_map.get(key) {
-                    Some(param_value) => {
-                        if !validate_parameters(param_value, pattern_value) {
-                            return false;
-                        }
-                    },
-                    None => return false,
-                }
-            }
-            true
-        },
-        (Value::Array(params_arr), Value::Array(pattern_arr)) => {
-            params_arr.len() == pattern_arr.len()
-                && params_arr
-                    .iter()
-                    .zip(pattern_arr.iter())
-                    .all(|(param, pattern)| validate_parameters(param, pattern))
-        },
-        (_, Value::String(pattern_type)) => match pattern_type.as_str() {
-            "str" => parameters.is_string(),
-            "float" => parameters.is_f64(),
-            // Add more type checks here...
-            _ => false,
-        },
-        _ => false,
-    }
-}
+// fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
+//     match (parameters, pattern) {
+//         (Value::Object(params_map), Value::Object(pattern_map)) => {
+//             for (key, pattern_value) in pattern_map {
+//                 match params_map.get(key) {
+//                     Some(param_value) => {
+//                         if !validate_parameters(param_value, pattern_value) {
+//                             return false;
+//                         }
+//                     },
+//                     None => return false,
+//                 }
+//             }
+//             true
+//         },
+//         (Value::Array(params_arr), Value::Array(pattern_arr)) => params_arr.len() == pattern_arr.len() && params_arr.iter().zip(pattern_arr.iter()).all(|(param, pattern)| validate_parameters(param, pattern)),
+//         (_, Value::String(pattern_type)) => match pattern_type.as_str() {
+//             "str" => parameters.is_string(),
+//             "float" => parameters.is_f64(),
+//             // Add more type checks here...
+//             _ => false,
+//         },
+//         _ => false,
+//     }
+// }
 
 // > Socket Interactive Functions:
 
@@ -352,8 +274,6 @@ pub fn initialize_host(address: String, client_id: String) {
         *actual_client_id = client_id;
     }
 
-    // let default_max_conns = MAX_CONS.lock().unwrap();
-
     let listener = TcpListener::bind(&address).unwrap();
 
     logger.info(format!("Listening: {}", address));
@@ -361,34 +281,32 @@ pub fn initialize_host(address: String, client_id: String) {
     loop {
         println!("Waiting conn!");
 
-        // Keep the thread alive until HOST_IS_RUNING is set to false
-        if !HOST_IS_RUNING.load(Ordering::SeqCst) {
+        // Keep the thread alive until HOST_IS_RUNNING is set to false
+        if !HOST_IS_RUNNING.load(Ordering::SeqCst) {
             // Lock the pool and stop it
-
             terminate_pool!(CONNECTION_HANDLER_POOL);
             println!("Stopped the thread pool!");
             break;
         }
 
-        let mut receivers = Vec::new();
-
         match listener.accept() {
             Ok((stream, _)) => {
-                let rx = run_in_thread_pool!(CONNECTION_HANDLER_POOL, {
+                // Directly run the connection handler in a new thread or a thread pool.
+                // This allows the main loop to immediately go back to listening for new connections.
+                run_in_thread_pool!(CONNECTION_HANDLER_POOL, {
                     handle_connection(stream);
                 });
-                receivers.push(rx);
             },
             Err(e) => {
                 logger.warn(format!("Failed to accept a connection: {}", e));
             },
         }
 
-        wait_all_threads!(receivers);
-
-        thread::sleep(Duration::from_secs(1));
+        // No need to wait for all threads here. The main loop should be able to immediately proceed.
+        // thread::sleep(Duration::from_secs(1));  // Consider removing this sleep.
     }
 }
+
 // The incoming method is called on the listener, which returns an iterator that gives us a sequence of
 // TCP streams (representing a series of connections). The server will then handle each connection in a loop.
 
@@ -407,14 +325,26 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
 
     if function == "C202" {
         // -> Connection conf request
-        command = create_sepecial_command!(client_id, "C200");
+        command = create_special_command!(client_id, "C200");
     } else if function == "C206" {
         // -> Ping request
-        command = create_sepecial_command!(client_id, "C207");
-        // TODO >>>  Here we can check if have some data to send back to the client or not
+
+        let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_list_schedule_fo_client_id(client_id.clone());
+
+        if !(up_schedule.len() > 0) {
+            return create_special_command!(client_id, "C207"); // If don't have any response to send send C207 that is a ping confirmation
+        }
+
+        let command_response = &up_schedule[0];
+
+        let response_command = Command::from_up_command(command_response.clone());
+
+        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(client_id.clone(), response_command.parity_id.clone());
+
+        return response_command;
     } else {
         // -> Receive conf
-        command = create_sepecial_command!(client_id, "C210");
+        command = create_special_command!(client_id, "C210");
     }
 
     return command;
@@ -455,8 +385,7 @@ enum Response {
 }
 
 fn get_response(command: Command) -> Response {
-    let up_schedule: Vec<UpCommand> =
-        enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
+    let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
 
     if !(up_schedule.len() > 0) {
         return Response::None;
@@ -464,8 +393,7 @@ fn get_response(command: Command) -> Response {
 
     let command_response = &up_schedule[0];
 
-    let response_command =
-        create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response.command);
+    let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response.command);
 
     enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
 
@@ -493,9 +421,7 @@ fn handle_connection(mut stream: TcpStream) {
             },
         }
 
-        let buffer_string = String::from_utf8_lossy(&buffer)
-            .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
-            .to_string();
+        let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
         let command: Command = serde_json::from_str(&buffer_string).unwrap(); // TODO >>> Fix the error treatment in the cases that results in a error
 
@@ -503,7 +429,7 @@ fn handle_connection(mut stream: TcpStream) {
 
         let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
-        if !is_client_registred(&command.client_id) {
+        if !check_if_client_key_exists(command.client_id.clone()) {
             // -> In case client isn't registred in the clients allowed
 
             let response = create_command_error!(command.client_id, command.parity_id, "Your client isn't registred in the whitelist!");
@@ -519,19 +445,7 @@ fn handle_connection(mut stream: TcpStream) {
 
         // ! WE CAN USE THIS PY AQUIRE UNTILL THE PYTHON POOL IS FINISHED !
 
-        // let py;
-
-        // {
-        //     let getting_py = unsafe { Python::assume_gil_acquired() };
-
-        //     let gil_pool = unsafe { getting_py.clone().new_pool() };
-
-        //     py = gil_pool.python();
-
-        //     logger.debug("Aquired python to call client heart beat handler callback!".to_string());
-
-        //     update_last_contact(py, command.client_id.clone());
-        // }
+        update_last_contact(command.client_id.clone());
 
         {
             let command_patterns = COMMAND_PATTERNS.lock().unwrap();
@@ -555,8 +469,7 @@ fn handle_connection(mut stream: TcpStream) {
 
                         logger.debug("Command is in command patterns!".to_string());
 
-                        let command_is_not_registry: bool =
-                            enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
+                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
 
                         let response: Command;
 
@@ -565,12 +478,17 @@ fn handle_connection(mut stream: TcpStream) {
 
                             match get_response(command.clone()) {
                                 Response::Command(c) => {
-                                    response = c;
+                                    if c.client_id == command.client_id {
+                                        response = c;
+                                    } else {
+                                        logger.info("Response is None!".to_string());
+                                        response = create_special_command!(command.client_id, "C210");
+                                    }
                                 },
                                 Response::None => {
                                     logger.info("Response is None!".to_string());
 
-                                    response = create_sepecial_command!(command.client_id, "C210");
+                                    response = create_special_command!(command.client_id, "C210");
                                 },
                             }
                         } else {

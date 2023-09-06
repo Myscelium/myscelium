@@ -1,3 +1,5 @@
 pub mod custom_thread_pool;
 pub mod enhanced_buffer;
+pub mod functions;
 pub mod sql_pool;
+pub mod structs;

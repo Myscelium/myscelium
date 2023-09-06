@@ -1,5 +1,6 @@
 from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
 from multiprocessing import Process, Event, Manager
+from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 import os
 import signal
 import time
@@ -9,6 +10,7 @@ import time
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
+    Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
     pass
 
@@ -31,27 +33,23 @@ class MyHost:
             response={"data": 'hello!'}
         )
 
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Basic Callback")
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
+
         #                                                            (callback name) - Receive Data: [Data received list for comparison]
 
         return response
 
     @staticmethod
-    def test_redirect(client_id, data):
+    def test_redirect(client_id, data, event_key=None):
         if isinstance(client_id, str):
             print(f"Redirecting data: {data} to client: {client_id}")
             host_patterns = HostPatterns()
-
-            response_data = {'data':data}
-
             response = host_patterns.response_pattern(
-                response=response_data,
+                response=data,
                 response_mode='redirect',
-                redirect_to_client_id=client_id,
-                response_activation_function="test_redirect_handler"
+                redirect_to_client_id=client_id
             )
-
-            print(f"Response Before send to engine: {response}")
-
             return response
         else:
             print("Client id isn't a string, failed to redirect data!")
@@ -68,26 +66,33 @@ class MyHost:
 
     def monitor_stop_event(self):
 
-        time.sleep(10)
+        time.sleep(5)
 
         # -> Define how much time host will be alive!
         # TODO >>> In the future change to use 100% timeout
         n = 0 
-        COUNTER = 62 # Each counter is 5 secs of waiting
-        
+        COUNTER = 12 # Each counter is 5 secs of waiting
+
+
         mys_host_interface = MysceliumHostInterface("Data/")
 
         mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
 
         mys_host_interface.start_client_events_retriver()
 
-        time.sleep(30)
-
         while True:
 
-            pass
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
 
-        mys_host_interface.stop_client_events_retriver()
+            if (not client_status) or (n >= COUNTER):
+                print("Receive stop host")
+                mys_host_interface.stop_client_events_retriver()
+                System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+                break
+            else:
+                time.sleep(5)
+                n += 1
+                continue
 
         return
 
@@ -97,7 +102,7 @@ class MyHost:
             self.host_patterns.callback_pattern(callback=self.python_function,
                                                 args={"birth": "str", "name": "str", "age": "int", "event_key": "str"}),
             self.host_patterns.callback_pattern(callback=self.test_redirect,
-                                                args={"client_id": "str", "data": "int"}),
+                                                args={"client_id": "str", "data": "dict", "event_key": "str"}),
         ]
 
         allowed_clients = [
@@ -121,6 +126,8 @@ class MyHost:
 
         # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTecnologie})
 
+        System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+
         mys_host.initialize_host(ip=ip, port=port)
 
         return
@@ -142,5 +149,10 @@ class MyHost:
 
         return 
 
-if __name__ == '__main__':
-    MyHost().run()
+            
+
+
+        
+
+    
+

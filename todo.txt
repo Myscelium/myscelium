@@ -1,0 +1,13 @@
+
+TODO >>> Fix bug in client ts retriver that not close the client contact event watcher
+
+TODO >>> Host Client Permission mananger
+TODO >>> Improve tests to test host client permission mananger
+
+TODO >>> Create mecanism to test if client redirect is working as intended!
+
+TODO >>> Host Client Sub channel mananger
+TODO >>> Improve tests to test host client sub channel mananger
+
+TODO >>> Transform host core into procedural macro wrapper based crate that are injected when build the lib version
+TODO >>> Transform client core into procedural macro wrapper based crate that are injected when build the lib version

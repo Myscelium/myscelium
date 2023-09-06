@@ -2,6 +2,7 @@ use crate::commom::enhanced_buffer;
 use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
 use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
 use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
+use crate::commom::functions::converters::recursive_deserialize_command;
 
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
@@ -16,19 +17,16 @@ use std::sync::{
     Condvar,
 };
 
-use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
-use pyo3::{PyErr, PyObject, PyResult, Python};
-
-use pyo3::IntoPy;
-
 use pyo3::exceptions::PyException;
+use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
+use pyo3::IntoPy;
 use pyo3::Py;
+use pyo3::ToPyObject;
+use pyo3::{PyErr, PyObject, PyResult, Python};
 
 use std::time::{Duration, Instant};
 
 use std::error::Error;
-
-use pyo3::ToPyObject;
 
 use crate::CLIENT_IS_RUNING;
 
@@ -187,9 +185,7 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
     let mut buffer = [0; 4096];
     stream.read(&mut buffer).unwrap();
 
-    let buffer_string = String::from_utf8_lossy(&buffer)
-        .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
-        .to_string();
+    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
@@ -227,9 +223,7 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
     let mut buffer = [0; 4096];
     stream.read(&mut buffer).unwrap();
 
-    let buffer_string = String::from_utf8_lossy(&buffer)
-        .trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0')
-        .to_string();
+    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
@@ -275,18 +269,12 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             if command_received.parity_id != "itisaspecialcase" {
                 if function == "C210".to_string() {
-                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(
-                        command_received.client_id,
-                        command_received.parity_id,
-                    );
+                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
                     logger.info(format!("Received Confirmation!"));
                     return None;
                 } else if function == "Error".to_string() {
                     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
-                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(
-                        command_received.client_id,
-                        command_received.parity_id,
-                    );
+                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
                     CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
                     return None;
                 }
@@ -298,6 +286,27 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
         CommandType::Response(r) => {
             logger.info(format!("Received a response!"));
+
+            match serde_json::from_str::<String>(&r) {
+                Ok(response) => {
+                    if response == "C210" {
+                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                        logger.info(format!("Received Confirmation!"));
+                        return None;
+                    } else if response == "Error" {
+                        let val = Value::String("Unknown error".to_string());
+                        let error_msg = command_received.command.get("Error").unwrap_or(&val);
+                        logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
+                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                        CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+                        return None;
+                    } // Optionally handle other string cases here...
+                },
+                Err(_) => {
+                    // This block will execute if the JSON is not a string.
+                    // Just continue, without doing anything.
+                },
+            }
 
             let down_command = DownCommand::from_command(command_received.clone());
 
@@ -356,7 +365,9 @@ pub fn initialize_client(address: String, client_id: String) {
 
     let logger = acquire_logger!("Core");
 
-    let mut stream = TcpStream::connect(address).unwrap();
+    let mut stream = TcpStream::connect(address.clone()).unwrap();
+
+    logger.info(format!("Connected to {:?}!", address.clone()).to_string());
 
     thread::sleep(Duration::from_millis(200));
 
@@ -372,6 +383,7 @@ pub fn initialize_client(address: String, client_id: String) {
             if let Some(down_command) = send_ping(&mut stream) {
                 enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
             }
+            println!("[Socket] - Nothing in schedule, skipping..");
             thread::sleep(Duration::from_millis(500));
             continue;
         }
@@ -383,6 +395,7 @@ pub fn initialize_client(address: String, client_id: String) {
                 let received = send(&mut stream, command_to_request.clone());
 
                 if let Some(down_command) = handle_response(received) {
+                    println!("[Socket] - Socket Receives Data..");
                     enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
                     break;
                 }
@@ -390,5 +403,8 @@ pub fn initialize_client(address: String, client_id: String) {
                 thread::sleep(Duration::from_millis(200));
             }
         }
+
+        println!("End schedule data, so skipping >>>");
+        continue;
     }
 }

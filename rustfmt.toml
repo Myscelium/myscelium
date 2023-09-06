@@ -1,7 +1,7 @@
 fn_params_layout = "Tall"
 control_brace_style = "AlwaysSameLine"
 fn_call_width = 150
-max_width = 150
+max_width = 250
 remove_nested_parens = true
 reorder_impl_items = true
 reorder_imports = true
