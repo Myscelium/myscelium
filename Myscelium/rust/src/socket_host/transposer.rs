@@ -171,17 +171,22 @@ fn process(py: Python, down_command: DownCommand) {
             // return error_response!("Error! Callback response args don't have response kwarg!");
         }
 
-        let resp = m.get("kwargs").unwrap().clone();
+        let mut resp: HashMap<String, ResultType> = HashMap::new();
 
-        to_send.insert("response".to_string(), resp); // TODO >>> See if need to change the response key to kwargs
-        to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
+        let response_act_fn_value = converted_m.get("response_activation_function").unwrap().clone();
+        let response_act_fn: String = serde_json::from_value(response_act_fn_value).unwrap();
+
+        to_send.insert("kwargs".to_string(), m.get("kwargs").unwrap().clone());
+        to_send.insert("response_activation_function".to_string(), ResultType::Str(response_act_fn.to_string()));
         to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
 
         // {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
 
         // {"response": Map({"data": Str("hello!")}), "response_activation_function": Str("test_handler"), "response_mode": Str("to_origin")}
 
-        return to_send;
+        resp.insert("response".to_string(), ResultType::Map(to_send));
+
+        return resp;
     }
 
     logger.debug(format!("Initializing prossesing!"));

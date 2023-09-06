@@ -287,17 +287,25 @@ fn handle_response(received: Response) -> Option<DownCommand> {
         CommandType::Response(r) => {
             logger.info(format!("Received a response!"));
 
-            let response: String = serde_json::from_str(&r).unwrap();
-
-            if response == "C210".to_string() {
-                enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                logger.info(format!("Received Confirmation!"));
-                return None;
-            } else if response == "Error".to_string() {
-                logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
-                enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
-                return None;
+            match serde_json::from_str::<String>(&r) {
+                Ok(response) => {
+                    if response == "C210" {
+                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                        logger.info(format!("Received Confirmation!"));
+                        return None;
+                    } else if response == "Error" {
+                        let val = Value::String("Unknown error".to_string());
+                        let error_msg = command_received.command.get("Error").unwrap_or(&val);
+                        logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
+                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                        CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+                        return None;
+                    } // Optionally handle other string cases here...
+                },
+                Err(_) => {
+                    // This block will execute if the JSON is not a string.
+                    // Just continue, without doing anything.
+                },
             }
 
             let down_command = DownCommand::from_command(command_received.clone());
