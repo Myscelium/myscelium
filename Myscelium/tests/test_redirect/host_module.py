@@ -57,6 +57,8 @@ class MyHost:
 
             print(f"Response Before send to engine: {response}")
 
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Host Redirect Callback")
+            
             return response
         else:
             print("Client id isn't a string, failed to redirect data!")

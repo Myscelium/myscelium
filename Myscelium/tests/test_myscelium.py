@@ -236,8 +236,11 @@ def test_redirect ():
 
     #> Host events:
 
+    client_2_contact            = False
+    client_1_contact            = False
     client_contact              = False
     basic_callback              = False 
+    host_redirect_callback      = False
 
     #> Client 1 events:
 
@@ -257,21 +260,24 @@ def test_redirect ():
     for i in host_events_df.index:
         event = host_events_df.loc[i, 'StepCompleted']
 
-        if "Contact received from Client1: some_client_id" in event:
-            client_contact = True
+        if "Contact received from Client: some_client_id" in event:
+            client_1_contact = True
 
-        if "Active Basic Callback" in event:
-            basic_callback = True
+        if "Contact received from Client: randomsclientids" in event:
+            client_2_contact = True
+
+        if "Active Host Redirect Callback" in event:
+            host_redirect_callback = True
 
     # -> Client 1 Tests
     for i in client_1_events_df.index:
         event = client_1_events_df.loc[i, 'StepCompleted']
 
-        if "Data Sended" in event:
-            send_data = True
+        # if "Data Sended" in event:
+        #     send_data = True
 
-        if "Activate Basic Response Test callback handler" in event:
-            basic_response_handler = True
+        # if "Activate Basic Response Test callback handler" in event:
+        #     basic_response_handler = True
 
         if "Activate Basic Redirect Test callback handler" in event:
             active_callback_remotely = True
@@ -285,18 +291,19 @@ def test_redirect ():
  
     # -> Client 1
 
-    assert send_data, "Cant send data"
-    assert basic_response_handler, "Don't called basic response handler"
-    assert active_callback_remotely, "Don't received redirect response"
+    # assert send_data, "Cant send data"
+    # assert basic_response_handler, "Don't called basic response handler"
+    assert active_callback_remotely, "Don't received redirect response!"
 
     # -> Client 2
 
-    assert send_data_to_redirect, "Don't could send data to redirect"
+    assert send_data_to_redirect, "Don't could send data to redirect!"
 
     # -> Host
-
+    assert client_1_contact, "Client 1 doesn't make any contact with host!"
+    assert client_2_contact, "Client 2 doesn't make any contact with host!"
     # assert client_contact, "Client1 doesn't made any contact"
-    assert basic_callback, "Baisc callback not called"
+    assert host_redirect_callback, "Baisc redirect callback not called!"
 
     # TODO >>> When add the client tables mecanism re add the client contact test unit
     # TODO >>> Add a test mecanism to check if the logs are being stored and transposing

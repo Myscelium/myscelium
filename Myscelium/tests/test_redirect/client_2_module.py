@@ -68,7 +68,7 @@ class MyClient:
 
         while True:
 
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
             host_status = System_Status(path="Logs").get_unit_status(Unit="Host")
 
             if (not client_status) or (not host_status):
@@ -93,14 +93,15 @@ class MyClient:
         t2.start()
         t3.start()
 
+        t2.join()
+        t3.join()  
+
         time.sleep(5)
 
         # PID is the process ID of the process you want to send the signal to.
         # You would typically get this from the 'pid' attribute of a process.
-        # os.kill(t1.pid, signal.SIGINT)
+        os.kill(t1.pid, signal.SIGINT)
 
-        t2.join()
-        t3.join()  
         t1.join()  # Wait for the process to finish
 
         return
