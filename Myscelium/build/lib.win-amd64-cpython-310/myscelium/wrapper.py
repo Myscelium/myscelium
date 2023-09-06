@@ -1,11 +1,15 @@
 from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
 from . import host_logs_retriver
+from . import host_client_events_retriver
 from . import client_logs_retriver
 
 from multiprocessing import Process
 import pandas as pd
 import time
 import os
+
+from . import sql_pool 
+
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
@@ -44,7 +48,7 @@ def split_dataframe(df, num_chunks):
     return chunks
 
 def transpose(logs_df, buffer_path, log_callback):
-    pool = host_logs_retriver.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
+    pool = sql_pool.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
     connection = pool.get_connection()
     logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
 
@@ -65,7 +69,8 @@ def transpose(logs_df, buffer_path, log_callback):
 
     pool.release_connection(connection)
     return
-    
+
+
 def check_if_all_logs_was_transposed(pool):
 
     connection = pool.get_connection()
@@ -90,7 +95,11 @@ class MysceliumHostInterface:
         - buffer_path: Path to the buffer for logs retrieval.
         """
 
+        self.client_events_retriver_stats = False
+
         self.buffer_path = buffer_path
+
+        self.clients_contact_retriver_callback = ""
     
         self.log_callback = ""
 
@@ -109,7 +118,7 @@ class MysceliumHostInterface:
         and process them in parallel.
         """
 
-        pool = host_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = sql_pool.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
@@ -176,6 +185,78 @@ class MysceliumHostInterface:
         pool.release_connection(connection)
             
         return
+    
+    def watch_client_contact (self):
+
+        control = []
+
+        pool = sql_pool.SQLiteConnectionPool(2, os.path.join(self.buffer_path, "Data.db"))
+
+        while True:
+
+            time.sleep(2)
+
+            if not self.client_events_retriver_stats:
+                break
+            else:
+                pass
+
+            connection = pool.get_connection()
+
+            client_events_retriver = host_client_events_retriver.Clients_Retriver(connection)
+
+            clients_df = client_events_retriver.get_clients()
+            clients_pd_df = pd.DataFrame.from_dict(clients_df)
+
+            if clients_pd_df.empty:
+                
+                print("[Event Retriver] - No clients to transpose contact, next checking in 10s")
+
+                pool.release_connection(connection)
+            
+                continue
+            
+            else:
+                pass
+
+            actual_control = clients_pd_df.values.tolist()
+
+            # print(f"Control group: {control}\n New group: {actual_control}")
+
+            if len(control) != len(actual_control):
+                control = actual_control
+            else:
+                pass
+
+            for i, n in enumerate(control):
+
+                actual_to_compare = actual_control[i]
+
+                if (n[6] != '' and actual_to_compare[6] != '') and (n[6] < actual_to_compare[6]):
+
+                    if not isinstance(self.clients_contact_retriver_callback, str):
+                        pass
+                    else:
+
+                        print(f"Client: {actual_to_compare[1]} of key: {actual_to_compare[2]} made contact but not find any valid callback to transpose it!")
+
+                        pool.release_connection(connection)
+
+                        continue
+
+                    self.clients_contact_retriver_callback(actual_to_compare[1], actual_to_compare[2], actual_to_compare[6])
+                
+                else:
+                    pass                
+                
+            
+            control = actual_control
+            pool.release_connection(connection)
+
+            continue
+
+        return  
+    
 
     def allow_multi_handlers (self, workers_num=2):
 
@@ -190,6 +271,19 @@ class MysceliumHostInterface:
 
         return
 
+    def set_client_contact_retriver_callback (self, callback:str):
+
+        """
+        Set the callback function for client contacts transposition.
+
+        Parameters:
+        - callback: Callback function to be invoked for each client contact.
+        """
+
+        self.clients_contact_retriver_callback = callback
+
+        pass
+
     def set_logs_callback (self, callback:str):
 
         """
@@ -202,6 +296,33 @@ class MysceliumHostInterface:
         self.log_callback = callback
 
         pass
+
+    def start_client_events_retriver (self):
+
+        """
+        Start the clients event retriever process.
+        """
+
+        self.client_events_retriver_stats = True
+
+        self.client_events_retriver_process = Process(target=self.watch_client_contact, args=())
+        self.client_events_retriver_process.start()
+
+        return 
+
+    def stop_client_events_retriver (self):
+
+        """
+        Stop the clients event retriever process.
+        """
+
+        self.client_events_retriver_stats = False
+
+        self.client_events_retriver_process.kill()
+        self.client_events_retriver_process.join()
+
+        return
+
 
     def stop_logs_reriver (self):
 
@@ -229,6 +350,8 @@ class MysceliumHostInterface:
 
 class MysceliumHost:
 
+    _instance = None  # Singleton instance 
+
     def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="DEBUG") -> None:
 
         """
@@ -252,11 +375,11 @@ class MysceliumHost:
 
             self.logging_level = log_level
 
-            self.host_interface = MysceliumHostInterface(buffer_path)
-
             self.allowed_clients = allowed_clients
 
             self.host_id = host_id
+
+            self.buffer_path = buffer_path
 
             special_functions = [{
                 "function": get_registred_commands,
@@ -274,10 +397,11 @@ class MysceliumHost:
             else:
                 pass
 
+            mys.initalize_host_buffer_tables(buffer_path)
+
             mys.set_socket_host_log_level(log_level)
 
             mys.registry_socket_host_callbacks(callbacks)
-            mys.initalize_host_buffer_tables(buffer_path)
             mys.set_socket_host_allowed_clients(self.allowed_clients)
             mys.set_socket_host_transposer_num_of_workers(n_workers)
             mys.set_socket_host_max_connections(n_max_conns)
@@ -286,12 +410,20 @@ class MysceliumHost:
 
             pass
 
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(MysceliumHost, cls).__new__(cls)
+            # This will call your __init__, so you don't have to duplicate code
+        return cls._instance
+    
     @classmethod
-    def new_instance(cls, client_uid:int, buffer_path:str):
-        # Create a fresh instance
-        cls._instance = super(MysceliumClient, cls).__new__(cls)
-        instance = MysceliumClient(client_uid, buffer_path)
-        return instance
+    def get_instance(cls):
+        if not cls._instance:
+            raise ValueError("MysceliumHost instance has not been initialized")
+        return cls._instance
+    
+    def clone(self):
+        return self
 
     def set_logs_callback_handler (self, logs_handler_callback:object, active_multi_handlers:str=False, workers_num:str=2) -> None:
 
@@ -303,6 +435,8 @@ class MysceliumHost:
         - active_multi_handlers: Flag to activate multiple handlers.
         - workers_num: Number of workers for handling logs.
         """
+
+        self.host_interface = MysceliumHostInterface(self.buffer_path)
 
         if self.logging_level == "":
             raise "To use logging you need to set a loggin level, the current logging status is deactivated!"
@@ -343,9 +477,11 @@ class MysceliumHost:
         - ip: IP address for the host.
         - port: Port number for the host.
         """
-
-        if self.logging_level != "":
-            self.host_interface.start_logs_retriver()
+        if hasattr(self, 'host_interface'):
+            if self.logging_level != "":
+                self.host_interface.start_logs_retriver()
+            else:
+                pass
         else:
             pass
 
@@ -367,8 +503,11 @@ class MysceliumHost:
 
         mys.stop_socket_host()
 
-        if self.logging_level != "":
-            self.host_interface.stop_logs_reriver()
+        if hasattr(self, 'host_interface'):
+            if self.logging_level != "":
+                self.host_interface.stop_logs_reriver()
+            else:
+                pass
         else:
             pass
 
@@ -392,22 +531,27 @@ class HostPatterns:
 
         pass
 
-    def client_pattern (self, client_type:str, client_id:str) -> dict:
+    def client_pattern (self, client_name:str, client_key:str, client_type:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list = []) -> dict:
 
         """
         Create a client pattern.
 
         Parameters:
-        - client_type: Type of the client.
-        - client_id: Unique identifier for the client.
+        - client_name: Name of the client (user).
+        - client_key: Unique Key of the client.
+        - client_type: Client purpose.
+        - client_permission_group: Group that client inherit permission.
+        - client_is_super_user: If client has root privileges on myscelium.
+        - client_max_sub_channes: Max subchannels of strem that client are allowed to create and gerenciate.
+        - client_owned_sub_channels_keys: Optional parameter to pre inicializate host with client subchanels keys allowed.
 
         Returns:
         - Dictionary representing the client pattern.
         """
 
-        return {"client_type":client_type, "client_id":client_id}
+        return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":client_max_sub_channes, "owned_sub_channels_keys":client_owned_sub_channels_keys}
 
-    def response_pattern (self, response:any, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict:
+    def response_pattern (self, response:dict, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict:
 
         """
         Create a response pattern.
@@ -432,13 +576,13 @@ class HostPatterns:
             else:
                 raise ("Invalid redirect! Missing client_id to redirect!")
 
-            return {'response_mode':'redirect', 'response_activation_function':response_activation_function, 'response':response, 'redirect_to':redirect_to_client_id}
+            return {'response_mode':'redirect', 'response_activation_function':response_activation_function, 'kwargs':response, 'redirect_to':redirect_to_client_id}
 
         elif response_mode == 'to_origin':
 
             print("Response mode set to origin")
             
-            return {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
+            return {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'kwargs':response}
         
         else:
             raise ("Response mode invalid! Please use one of this: ('redirect', 'to_origin')")
@@ -485,6 +629,9 @@ class MysceliumClient:
             self.client_uid = client_uid
             self.runing = False
             mys.initalize_client_buffer_tables(buffer_path)
+
+            time.sleep(5)
+
             self.host_thread = None
             self.initialized = True
 
@@ -496,12 +643,20 @@ class MysceliumClient:
             mys.set_socket_client_log_level(log_level)
 
 
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(MysceliumClient, cls).__new__(cls)
+            # This will call your __init__, so you don't have to duplicate code
+        return cls._instance
+    
     @classmethod
-    def new_instance(cls, client_uid:int, buffer_path:str):
-        # Create a fresh instance
-        cls._instance = super(MysceliumClient, cls).__new__(cls)
-        instance = MysceliumClient(client_uid, buffer_path)
-        return instance
+    def get_instance(cls):
+        if not cls._instance:
+            raise ValueError("MysceliumClient instance has not been initialized")
+        return cls._instance
+    
+    def clone(self):
+        return self
 
     # def set_logs_callback_handler (self, logs_handler_callback:list):
     #     print("active py set log callback")
@@ -645,7 +800,7 @@ class MysceliumClientInterface:
         and process them in parallel.
         """
 
-        pool = client_logs_retriver.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
+        pool = sql_pool.SQLiteConnectionPool(self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db"))
 
         connection = pool.get_connection()
         
@@ -802,11 +957,11 @@ class ClientPatterns:
         """
 
         if args != None:
-            return {"function":command_function, "args":args}
+            return {"function":command_function, "kwargs":args}
         else:
             pass
 
-        return {"function":command_function, "args":""}
+        return {"function":command_function, "kwargs":""}
 
     def response_pattern (self, response:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
 
@@ -821,6 +976,8 @@ class ClientPatterns:
         Returns:
         - Dictionary representing the response pattern.
         """
+
+        # TODO >>> Verify if need to convert response to kwargs
 
         if response_mode == "retransmit":
 
