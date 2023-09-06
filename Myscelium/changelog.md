@@ -76,6 +76,7 @@
 - Fix Test Redirect
 - Fix redirect serialization, desserialization and reincoding to redirect
 
+
 ## v1.1.0 - ReliseCandidate (08/08/2023)
 
 ### Updates
