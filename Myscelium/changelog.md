@@ -51,6 +51,8 @@
 - Centralize type converters
 - Create indentificators to diferenciate response callback calling from function callback calling
 - Improve the serialization and desserialization mecanisms
+- Redirect now is working as intended
+- Now pendent comamnds are send to client when client doesn't have nothing to send and send ping, the response will be pendend commands
 
 ### Fixes
 - Fix random quitting
@@ -70,6 +72,9 @@
 - Fix callbacks calling to be more correct and detect better the cases were is response handler calling and when is function handler calling
 - Fix serialization and desserialization of host responses
 - Fix command response decoding
+- Fix redirect mecanism
+- Fix Test Redirect
+- Fix redirect serialization, desserialization and reincoding to redirect
 
 ## v1.1.0 - ReliseCandidate (08/08/2023)
 
