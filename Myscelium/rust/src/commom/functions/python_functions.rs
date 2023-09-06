@@ -220,6 +220,7 @@ pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexG
 
     println!("Converted kwargs_map: {:?}", kwargs_map);
 
+    // -> Convert to py dict
     let kwargs = PyDict::new(py);
     for (key, value) in kwargs_map {
         kwargs.set_item(key, value).unwrap();

@@ -116,44 +116,72 @@ macro_rules! error_response {
 fn process(py: Python, down_command: DownCommand) {
     let logger = acquire_logger!("Transposer - Process");
 
-    fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, down_command: DownCommand) -> Result<std::string::String, serde_json::Error> {
-        let response;
+    fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, down_command: DownCommand) -> HashMap<String, ResultType> {
+        let mut to_send = HashMap::new();
 
         if !m.contains_key("redirect_to") {
-            return error_response!("Error! Callback response args don't have redirect_to client_id field!");
+            let mut resp: HashMap<String, ResultType> = HashMap::new();
+
+            resp.insert("Error".to_string(), ResultType::Str("Error! Callback response args don't have redirect_to client_id field!".to_string()));
+
+            to_send.insert("response".to_string(), ResultType::Map(resp));
+            to_send.insert("response_activation_function".to_string(), ResultType::Str(m.get("response_activation_function").unwrap().to_string()));
+            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+
+            return to_send;
+            // error_response!("Error! Callback response args don't have redirect_to client_id field!");
         }
 
-        let redirect_to = m.get("redirect_to").unwrap();
+        let converted_m = convert_to_value_map(&m);
+        let redirect_to_value = converted_m.get("redirect_to").unwrap().clone();
+        let redirect_to: String = serde_json::from_value(redirect_to_value).unwrap();
 
         if !check_if_client_key_exists(redirect_to.to_string()) {
-            return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
+            let mut resp: HashMap<String, ResultType> = HashMap::new();
+
+            resp.insert("Error".to_string(), ResultType::Str(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string())));
+
+            to_send.insert("response".to_string(), ResultType::Map(resp));
+            to_send.insert("response_activation_function".to_string(), ResultType::Str(m.get("response_activation_function").unwrap().to_string()));
+            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+
+            return to_send;
+
+            // return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
         }
 
         let up_command = UpCommand::new(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), "C210".to_string());
-
         enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
 
         *client_id = redirect_to.to_string(); // > Update the client id that it will send to
 
-        if !m.contains_key("response") {
-            return error_response!("Error! Callback response args don't have response kwarg!");
+        println!("Converted redirect command: {:?}", converted_m);
+
+        if !converted_m.contains_key("kwargs") {
+            let mut resp: HashMap<String, ResultType> = HashMap::new();
+
+            resp.insert("Error".to_string(), ResultType::Str("Error! Callback response args don't have response kwarg!".to_string()));
+
+            to_send.insert("response".to_string(), ResultType::Map(resp));
+            to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
+            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+
+            return to_send;
+
+            // return error_response!("Error! Callback response args don't have response kwarg!");
         }
 
-        let mut to_send = HashMap::new();
+        let resp = m.get("kwargs").unwrap().clone();
 
-        let resp = m.get("response").unwrap().clone();
-
-        to_send.insert("response".to_string(), resp);
-        to_send.insert("response_activation_function".to_string(), ResultType::Str(m.get("response_activation_function").unwrap().to_string()));
+        to_send.insert("response".to_string(), resp); // TODO >>> See if need to change the response key to kwargs
+        to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
         to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-
-        response = serde_json::to_string(&to_send);
 
         // {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
 
         // {"response": Map({"data": Str("hello!")}), "response_activation_function": Str("test_handler"), "response_mode": Str("to_origin")}
 
-        return response;
+        return to_send;
     }
 
     logger.debug(format!("Initializing prossesing!"));
@@ -252,7 +280,9 @@ fn process(py: Python, down_command: DownCommand) {
                     println!("Response: {:?}", m);
                     //* probraly the cause of redirect bug
                     // TODO >>> Verify if has the response field
-                    response = handle_redirect(m, &mut client_id, down_command.clone());
+                    let resp = handle_redirect(m, &mut client_id, down_command.clone());
+                    let converted_to_value = convert_to_value_map(&resp);
+                    response = Ok(serde_json::to_string(&converted_to_value).unwrap());
                 } else {
                     response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
                 }
