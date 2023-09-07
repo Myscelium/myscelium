@@ -392,6 +392,38 @@ fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()>
 }
 
 #[pyfunction]
+pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResult<()> {
+    for client_allowed in new_allowed_clients_list.iter() {
+        let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
+
+        let client_name = extract_string!(allowed_clients_dict.get_item("client_name").unwrap(), "Error: client_name must be a String!");
+        let client_key = extract_string!(allowed_clients_dict.get_item("client_key").unwrap(), "Error: client_key must be a String with 16 characters!");
+
+        let client_type = extract_string!(allowed_clients_dict.get_item("client_type").unwrap(), "Error: client_type must be a String!");
+        let client_permission_group = extract_string!(allowed_clients_dict.get_item("permission_group").unwrap(), "Error: permission_group must be a String!");
+        let client_is_super_user = extract_boolean!(allowed_clients_dict.get_item("is_super_user").unwrap(), "Error: is_super_user must be a String!");
+
+        let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
+        let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
+
+        if !check_if_client_key_exists(client_key.clone()) {
+            let _ = Client::new(
+                client_name.clone(),
+                client_key.clone(),
+                client_type,
+                client_permission_group,
+                client_is_super_user,
+                client_max_sub_channels,
+                client_owned_sub_channels_keys,
+            );
+        }
+
+        println!("Successfully created client: {} of key: {}", client_name, client_key)
+    }
+    Ok(())
+}
+
+#[pyfunction]
 fn remove_all_allowed_clients(allowed_client_list: &PyList) {
     let _ = Client::delete_all();
 }

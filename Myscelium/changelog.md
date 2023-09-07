@@ -17,7 +17,7 @@
 - Start planing a graphical representation of tests
 - Implement Test of redirect
 - Centrilize morre python functions in commom, like extract_args_type, dict_to tuple and the handle_pyobject that was changed to extract_pyobject
-- Fix the redirect adding the code to handle this case in host
+- Add a mecanism to add new allowed client in flight from mys_host obj
 
 ### Fixes:
 
@@ -31,6 +31,8 @@
 - Fix removing commands from queue when alwready receive a response from were we send it to
 - Fix wrapper client transposition zombiee threads
 - Fix client random quiting by rearagin the processes event controlers in python side
+- Fix the redirect adding the code to handle this case in host
+
 
 ## v1.2.0 - ReliseCandidate (18/08/2023)
 

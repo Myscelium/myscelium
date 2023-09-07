@@ -83,6 +83,7 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(registry_socket_host_client_heartbeat_contact_callback, m)?)?;
     // m.add_function(wrap_pyfunction!(registry_host_logs_handler, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_host_log_level, m)?)?;
+    m.add_function(wrap_pyfunction!(registry_new_allowed_clients, m)?)?;
 
     // -> Client
     m.add_function(wrap_pyfunction!(initalize_client_buffer_tables, m)?)?;

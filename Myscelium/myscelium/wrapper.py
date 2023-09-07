@@ -416,6 +416,18 @@ class MysceliumHost:
             # This will call your __init__, so you don't have to duplicate code
         return cls._instance
     
+    def registry_new_allowed_clients(self, allowed_clients:list,):
+
+        """
+        Registry New Clients Allowed Into Clients Table.
+
+        Parameters:
+        - allowed_clients: List of clients allowed to connect. This is obtained by put HostPatterns.client_pattern into a list
+
+        """ 
+
+        mys.registry_new_allowed_clients(allowed_clients)
+
     @classmethod
     def get_instance(cls):
         if not cls._instance:
