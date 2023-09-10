@@ -113,6 +113,17 @@ macro_rules! error_response {
     }};
 }
 
+/// This function Process DownCommands
+///
+/// #
+///
+///
+///
+///
+///
+///
+///
+
 fn process(py: Python, down_command: DownCommand) {
     let logger = acquire_logger!("Transposer - Process");
 
@@ -229,20 +240,13 @@ fn process(py: Python, down_command: DownCommand) {
     let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
     let patterns = command_patterns;
 
+    // -> Remove command from schedule if it isn't on the patterns
     if !patterns.contains_key(function) {
-        // -> Remove command from schedule if it isn't on the patterns
-
         logger.warn(format!("Command isn't registred in the patterns"));
-
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
-
         logger.warn(format!("command skipped and remvoed from schedule"));
         return;
     }
-
-    logger.debug(format!("Command function: {} is a valid function!", function));
-    logger.debug(format!("Calling the callback!"));
-    logger.debug(format!("Acquired the GIL"));
 
     let response;
 
@@ -271,20 +275,11 @@ fn process(py: Python, down_command: DownCommand) {
                 let response_mode = m.get("response_mode").unwrap();
 
                 if *response_mode == ResultType::Str("to_origin".to_string()) {
-                    // println!("{:?}", &m);
-                    // let converted: HashMap<String, ResultType> = convert_to_resulttype_map(&m);
-                    // // println!("Converted to ResultType: {:?}", &converted);
                     let converted_to_value = convert_to_value_map(&m);
                     println!("Converted to Value: {:?}", &converted_to_value);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
                 } else if *response_mode == ResultType::Str("redirect".to_string()) {
-                    // println!("{:?}", &m);
-                    // let converted: HashMap<String, String> = convert_to_resulttype_map(&m);
-                    // println!("{:?}", &converted);
-
                     println!("Response: {:?}", m);
-                    //* probraly the cause of redirect bug
-                    // TODO >>> Verify if has the response field
                     let resp = handle_redirect(m, &mut client_id, down_command.clone());
                     let converted_to_value = convert_to_value_map(&resp);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
@@ -336,8 +331,6 @@ fn clear_old_data() {
 pub fn initialize_socket_host_transposer(py: Python<'_>) {
     let logger = acquire_logger!("Transposer");
 
-    let num_of_workers = NUM_WORKERS.lock().unwrap();
-
     let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
     schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
@@ -368,16 +361,14 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
             py = gil_pool.python();
 
             logger.debug(format!("Aquired python in a process task!"));
-
             process(py, dow_command);
-
             logger.debug(format!("Finalize a process task!"));
         }
     }
 
     thread::sleep(Duration::from_millis(100));
 
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    // let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
     return;
 

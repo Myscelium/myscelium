@@ -353,20 +353,13 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
 fn handle_commom_function(command: Command) -> Command {
     // let actual_client_id = CLIENT_ID.lock().unwrap();
 
-    let mut command_map = HashMap::new();
-    command_map.insert("function".to_string(), Value::String("C210".to_string()));
+    // let mut command_map = HashMap::new();
+    // command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-    let response_command = Command::new(command.client_id.clone(), "itisaspecialcase".to_string(), 11, command_map);
+    // let response_command = Command::new(command.client_id.clone(), "itisaspecialcase".to_string(), 11, command_map);
 
-    // TODO >> If have responses in the dabase to the client here is a good idea to send back
-
-    // let command_patterns = COMMAND_PATTERNS.lock().unwrap();
-
-    // if !validate_command(&command, &command_patterns) {
-    //     return response_command;
-    // } else {
-
-    // }
+    // >----------
+    // > Schedule to process
 
     let json_command = serde_json::to_string(&command.command).unwrap();
 
@@ -374,9 +367,10 @@ fn handle_commom_function(command: Command) -> Command {
 
     enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command);
 
-    // TODO >>> Add a mecanism to get the buffer up responses and send back to client or redirect to antoher client
+    // >----------
+    // > Send receive conf
 
-    return response_command;
+    return create_special_command!(command.client_id.clone(), "C210");
 }
 
 enum Response {
@@ -487,7 +481,6 @@ fn handle_connection(mut stream: TcpStream) {
                                 },
                                 Response::None => {
                                     logger.info("Response is None!".to_string());
-
                                     response = create_special_command!(command.client_id, "C210");
                                 },
                             }
