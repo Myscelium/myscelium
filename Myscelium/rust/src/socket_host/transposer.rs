@@ -113,17 +113,6 @@ macro_rules! error_response {
     }};
 }
 
-/// This function Process DownCommands
-///
-/// #
-///
-///
-///
-///
-///
-///
-///
-
 fn process(py: Python, down_command: DownCommand) {
     let logger = acquire_logger!("Transposer - Process");
 
