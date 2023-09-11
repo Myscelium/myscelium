@@ -194,7 +194,7 @@ pub fn update_last_contact(client_key: String) {
     }
 }
 
-// > Commands Manangemement & Checking
+// > Commands Manangemement & Checking:
 
 // fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
 //     let function_name = match command.command.get("function") {
