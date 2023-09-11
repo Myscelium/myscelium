@@ -51,6 +51,7 @@ def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_pat
 - `get_registred_commands() -> dict`: Retrieves the registered commands.
 - `initialize_host(ip:str, port:int)`: Initializes the host with the given IP and port.
 - `stop_host(signal, frame)`: Stops the host.
+- `registry_new_allowed_clients`: Allow to registry new client allowed, using a list of HostPatterns.ClientPatterns
 
 ### HostPatterns Class
 
@@ -208,6 +209,26 @@ Certain callback functions must have specific names for the system to recognize 
     mys_host.initialize_host(ip="127.0.0.1", port=4444)
     ```
 
+### To Add new CLients in Flight:
+
+1. **Create new Clients Allowed List**: This will create a new list of clients allwoed with the correct patterns.
+    ```python
+    new_clients_allowed = [
+         self.host_patterns.client_pattern(
+            client_name="TestClient1", 
+            client_type="Interface", 
+            client_key="randomsclientids", 
+            client_permission_group="", 
+            client_is_super_user=True, 
+            client_max_sub_channes=5
+        ),      
+    ]
+    ```
+
+2. **Send the new client list to be added**: Thiss will send the allowed clients to the myscelium engine to registry.
+    ```python
+    mys_host.registry_new_allowed_clients(new_clients_allowed)
+    ```
 
 ### Thread pool diagram
 
