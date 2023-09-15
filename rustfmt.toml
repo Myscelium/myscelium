@@ -16,4 +16,3 @@ match_arm_leading_pipes = "Preserve"
 match_block_trailing_comma = true
 where_single_line = true
 tab_spaces = 4
-

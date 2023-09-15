@@ -18,6 +18,23 @@
 - Implement Test of redirect
 - Centrilize morre python functions in commom, like extract_args_type, dict_to tuple and the handle_pyobject that was changed to extract_pyobject
 - Add a mecanism to add new allowed client in flight from mys_host obj
+- Add direct conversion from `ResultType` to rust types
+- Add a new type of responses to host patters `ResponseType:InternalMannangement` this allows to change internals of host throught callbacks responses
+   
+    - This allows:
+        - User Manipulation:
+            - Add users from callbacks responses
+            - Remove users from callback responses
+            - Update users Throught callbacks Responses
+        - Groups manipulation
+            - // TODO - Edit a group from callbacks responses
+            - // TODO - Add a group from callbacks responses
+            - // TODO - Remove a group from calbacks response
+   
+    - Why only from callbacks response:
+        - Whel if this is only possible throught callbacks response you will need to config it, so it will not be possible if you don't add a callback to it, what gives more sucurity to you dont have to mannage all the permissions manually at all, so even that a user has permission to do so but you dont have this callback registred the user will not be able to do so what gives another layer of security
+
+- Add `type_of` and `fast_verify_kwargs_and_types` to `ResultType` enum, this can facilitate the process of checking a type of a `ResultType` and also recursively check if the Result matches with a predefined pattern in a very fast way by providing a reference target to `fast_verify_kwargs_and_types` that cant return an empy Ok() when all is fine and return a enum `ExpectationError` when something isn't correct. 
 
 ### Fixes:
 
