@@ -63,8 +63,6 @@ The `HostPatterns` class provides patterns for the host.
 - `response_pattern(response:any, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict`: Returns a response pattern.
 - `callback_pattern(callback, args) -> dict`: Returns a callback pattern.
 
-Certainly! Let's enhance the documentation to specify the requirements for the callback function names:
-
 ---
 
 ### HostInterface Class

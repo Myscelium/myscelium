@@ -56,7 +56,7 @@ impl ResultType {
     // Extract methods for each variant
 
     pub fn to_map(&self) -> Option<HashMap<String, ResultType>> {
-        if let ResultType::Map(ref map) = self {
+        if let ResultType::Map(ref map) = &self {
             Some(map.clone())
         } else {
             None
@@ -64,7 +64,7 @@ impl ResultType {
     }
 
     pub fn to_list(&self) -> Option<Vec<ResultType>> {
-        if let ResultType::List(ref list) = self {
+        if let ResultType::List(ref list) = &self {
             Some(list.clone())
         } else {
             None
@@ -72,7 +72,7 @@ impl ResultType {
     }
 
     pub fn to_str(&self) -> Option<String> {
-        if let ResultType::Str(ref s) = self {
+        if let ResultType::Str(ref s) = &self {
             Some(s.clone())
         } else {
             None
@@ -80,7 +80,7 @@ impl ResultType {
     }
 
     pub fn to_int(&self) -> Option<i32> {
-        if let ResultType::Int(i) = self {
+        if let ResultType::Int(i) = &self {
             Some(*i)
         } else {
             None
@@ -88,7 +88,7 @@ impl ResultType {
     }
 
     pub fn to_float(&self) -> Option<f64> {
-        if let ResultType::Float(f) = self {
+        if let ResultType::Float(f) = &self {
             Some(*f)
         } else {
             None
@@ -96,7 +96,7 @@ impl ResultType {
     }
 
     pub fn to_bool(&self) -> Option<bool> {
-        if let ResultType::Bool(b) = self {
+        if let ResultType::Bool(b) = &self {
             Some(*b)
         } else {
             None
@@ -104,7 +104,7 @@ impl ResultType {
     }
 
     pub fn to_error(&self) -> Option<String> {
-        if let ResultType::Error(ref err) = self {
+        if let ResultType::Error(ref err) = &self {
             Some(err.clone())
         } else {
             None
@@ -154,7 +154,7 @@ impl ResultType {
                 for (tk, tv) in target_map {
                     // Case where the map doesn't contain the expected key
                     if !&map.contains_key(tk) {
-                        return Err(ExpectationError::Missingkwarg(tk));
+                        return Err(ExpectationError::Missingkwarg(tk.clone()));
                     }
 
                     // Check if inner ResultsTypes are correct
@@ -186,7 +186,7 @@ impl ResultType {
                 if std::mem::discriminant(self) == std::mem::discriminant(target) {
                     return Ok(());
                 } else {
-                    return ExpectationError::MismatchType(self.type_of().to_string());
+                    return Err(ExpectationError::MismatchType(self.type_of().to_string()));
                 }
             },
         }
