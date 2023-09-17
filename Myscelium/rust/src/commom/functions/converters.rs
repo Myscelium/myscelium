@@ -4,6 +4,20 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::MutexGuard;
 
+/// Converts a `HashMap<String, ResultType>` into another `HashMap<String, ResultType>`
+/// with specific transformations.
+///
+/// This function goes through each entry in the map and based on the type of the value,
+/// it performs specific transformations. Currently, it supports cloning strings and
+/// recursively converting nested maps.
+///
+/// # Arguments
+///
+/// * `m` - The input map to be converted.
+///
+/// # Returns
+///
+/// * A transformed `HashMap<String, ResultType>`.
 pub fn convert_to_resulttype_map(m: &HashMap<String, ResultType>) -> HashMap<String, ResultType> {
     m.iter()
         .filter_map(|(k, v)| {
@@ -21,6 +35,17 @@ pub fn convert_to_resulttype_map(m: &HashMap<String, ResultType>) -> HashMap<Str
         .collect()
 }
 
+/// Converts a `ResultType` into its corresponding `serde_json::Value` representation.
+///
+/// This function is useful when you need to serialize a `ResultType` into JSON.
+///
+/// # Arguments
+///
+/// * `result` - The `ResultType` instance to be converted.
+///
+/// # Returns
+///
+/// * The corresponding `serde_json::Value` representation of the input `ResultType`.
 pub fn resulttype_to_value(result: &ResultType) -> Value {
     match result {
         ResultType::Str(s) => Value::String(s.clone()),
@@ -47,10 +72,34 @@ pub fn resulttype_to_value(result: &ResultType) -> Value {
     }
 }
 
+/// Converts a `HashMap<String, ResultType>` into a `HashMap<String, Value>`.
+///
+/// This function is a utility to transform a map of `ResultType` values into their
+/// corresponding JSON representations.
+///
+/// # Arguments
+///
+/// * `dict` - The input map to be converted.
+///
+/// # Returns
+///
+/// * A `HashMap<String, Value>` with values converted into their `serde_json::Value` representations.
 pub fn convert_to_value_map(dict: &HashMap<String, ResultType>) -> HashMap<String, Value> {
     dict.iter().map(|(k, v)| (k.clone(), resulttype_to_value(v))).collect()
 }
 
+/// Recursively deserializes a JSON string into a `Command` structure.
+///
+/// This function is useful when the "response" field of a `Command` contains another serialized `Command` as a string.
+/// It will deserialize the outer command, and if a nested serialized command is found, it will recursively deserialize it as well.
+///
+/// # Arguments
+///
+/// * `json_str` - The JSON string representation of a `Command`.
+///
+/// # Returns
+///
+/// * A `Command` structure with any nested serialized commands also deserialized.
 pub fn recursive_deserialize_command(json_str: &str) -> Command {
     let mut command: Command = serde_json::from_str(json_str).unwrap();
 

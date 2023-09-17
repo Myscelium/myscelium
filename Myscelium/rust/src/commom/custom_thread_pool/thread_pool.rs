@@ -8,8 +8,16 @@ lazy_static! {
     static ref DEBUG_MODE: bool = true; // Set this to true or false based on your needs
 }
 
+/// Represents a job that can be executed by the thread pool.
 type Job = Option<Box<dyn FnOnce() + Send + 'static>>;
 
+/// A unified thread pool for managing and executing tasks concurrently.
+///
+/// This thread pool provides mechanisms to:
+/// - Execute tasks concurrently using worker threads.
+/// - Wait for a free worker thread before executing a task.
+/// - Gracefully shut down and stop the workers.
+/// - Track the status of workers (busy or free).
 pub struct UnifiedThreadPool {
     workers: Vec<Worker>,
     sender: mpsc::Sender<Job>,
@@ -18,6 +26,10 @@ pub struct UnifiedThreadPool {
     task_count: Arc<AtomicUsize>,
 }
 
+/// Represents an individual worker in the `UnifiedThreadPool`.
+///
+/// Each worker runs in its own thread and is responsible for executing jobs.
+/// The worker maintains a status indicating whether it is busy or free.
 struct Worker {
     id: usize,
     thread: Option<thread::JoinHandle<()>>,
@@ -25,6 +37,15 @@ struct Worker {
 }
 
 impl UnifiedThreadPool {
+    /// Creates a new thread pool with the specified number of worker threads.
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The number of worker threads to create.
+    ///
+    /// # Returns
+    ///
+    /// * A new instance of `UnifiedThreadPool`.
     pub fn new(size: usize) -> UnifiedThreadPool {
         assert!(size > 0);
 
@@ -53,6 +74,13 @@ impl UnifiedThreadPool {
         }
     }
 
+    /// Executes a task in the thread pool.
+    ///
+    /// If the thread pool has been stopped, this method will not execute the task.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - The task to be executed.
     pub fn execute<F>(&self, f: F)
     where
         F: FnOnce() + Send + 'static,
@@ -74,6 +102,11 @@ impl UnifiedThreadPool {
         }
     }
 
+    /// Waits for a worker thread to become free and then optionally executes a task.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - An optional task to be executed once a worker becomes free.
     pub fn wait_for_free_worker(&self, f: Job) {
         let lock = Mutex::new(());
         let mut guard = lock.lock().unwrap();
@@ -85,14 +118,18 @@ impl UnifiedThreadPool {
         }
     }
 
+    /// Returns a list of worker thread IDs that are currently free.
+    ///
+    /// # Returns
+    ///
+    /// * A `Vec<usize>` containing IDs of the free workers.
     pub fn free_workers(&self) -> Vec<usize> {
-        self.workers
-            .iter()
-            .filter(|worker| !worker.busy.load(Ordering::SeqCst))
-            .map(|worker| worker.id)
-            .collect()
+        self.workers.iter().filter(|worker| !worker.busy.load(Ordering::SeqCst)).map(|worker| worker.id).collect()
     }
 
+    /// Gracefully stops all worker threads.
+    ///
+    /// This method sends a termination message to all workers and waits for them to finish their current tasks.
     pub fn stop(&mut self) {
         if !self.stopped.load(Ordering::SeqCst) {
             if *DEBUG_MODE {
@@ -125,6 +162,9 @@ impl UnifiedThreadPool {
         }
     }
 
+    /// Waits for all worker threads to become free.
+    ///
+    /// This is a blocking operation that waits until all workers have finished their tasks.
     pub fn join(&self) {
         let lock = Mutex::new(());
         let mut guard = lock.lock().unwrap();
@@ -133,12 +173,31 @@ impl UnifiedThreadPool {
         }
     }
 
+    /// Helper method to check if all worker threads are free.
+    ///
+    /// # Returns
+    ///
+    /// * `true` if all workers are free, `false` otherwise.
     fn all_workers_free(&self) -> bool {
         self.workers.iter().all(|worker| !worker.busy.load(Ordering::SeqCst))
     }
 }
 
 impl Worker {
+    /// Creates a new worker with a unique ID.
+    ///
+    /// The worker will listen for tasks from the shared job receiver and execute them.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The unique ID for the worker.
+    /// * `receiver` - The shared job receiver from which the worker fetches tasks.
+    /// * `free_condvar` - A condition variable used to notify when the worker becomes free.
+    /// * `task_count` - An atomic counter tracking the number of pending tasks.
+    ///
+    /// # Returns
+    ///
+    /// * A new instance of `Worker`.
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>, free_condvar: Arc<Condvar>, task_count: Arc<AtomicUsize>) -> Worker {
         let busy = Arc::new(AtomicBool::new(false));
         let busy_clone = Arc::clone(&busy);
@@ -164,15 +223,12 @@ impl Worker {
             free_condvar_clone.notify_one();
         });
 
-        Worker {
-            id,
-            thread: Some(thread),
-            busy,
-        }
+        Worker { id, thread: Some(thread), busy }
     }
 }
 
 impl Drop for UnifiedThreadPool {
+    /// Ensures that all worker threads are stopped when the thread pool is dropped.
     fn drop(&mut self) {
         self.stop();
     }

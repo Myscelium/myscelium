@@ -36,26 +36,27 @@ use rusqlite::Statement;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
+#[macro_export]
 macro_rules! handle_client_error {
     ($client_result:expr) => {
         match $client_result {
-            Ok(c) => {
-                c // Return the client
-            },
+            Ok(c) => c, // Return the unwrapped client directly
             Err(e) => {
                 match e {
                     ClientError::ClientAlwreadyExist(c) => {
-                        println!("Error client: {} alwready exist", c);
+                        println!("Error client: {} already exist", c);
                     },
                     ClientError::ClientDoesNotExist(c) => {
-                        println!("Error client: {} does't exist", c);
+                        println!("Error client: {} doesn't exist", c);
                     },
                     ClientError::UnexpectedError(e) => {
                         println!("Get a unexpected error: {}", e);
                     },
+                    _ => {
+                        println!("Get a unexpected error!");
+                    },
                 }
-
-                println!("Get a unexpected error!");
+                panic!("Client error encountered!"); // Panic after printing the error
             },
         }
     };
@@ -159,15 +160,79 @@ impl Client {
             client_id = id_generator.gen();
         }
 
+        Ok(Self {
+            client_id,
+            client_name,
+            client_key,
+            client_type,
+            permission_group,
+            is_super_user,
+            last_contact: -1.0,
+            max_sub_channels,
+            owned_sub_channels_keys,
+            sub_channels_in_use: 0u32,
+        })
+    }
+
+    pub fn save_into_db(&self) {
+        let serialzied_owned_sub_channels_keys = serde_json::to_string(&self.owned_sub_channels_keys).expect("Failed to serialize to JSON");
+
         with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
             // let now = Utc::now();
             // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
-            let serialzied_owned_sub_channels_keys = serde_json::to_string(&owned_sub_channels_keys).expect("Failed to serialize to JSON");
-
             let result = conn.execute(
                 "INSERT INTO Clients (ID, ClientName, ClientKey, ClientType, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-                params![client_id, client_name, client_key, client_type, permission_group, is_super_user, 0f64, max_sub_channels, serialzied_owned_sub_channels_keys, 0u32],
+                params![
+                    self.client_id,
+                    self.client_name,
+                    self.client_key,
+                    self.client_type,
+                    self.permission_group,
+                    self.is_super_user,
+                    self.last_contact,
+                    self.max_sub_channels,
+                    serialzied_owned_sub_channels_keys,
+                    self.sub_channels_in_use
+                ],
+            );
+
+            match result {
+                Ok(rows) => {
+                    if rows > 0 {
+                        println!("Successfully inserted Log in the table Clients. {} row(s) were affected.", rows);
+                    } else {
+                        println!("No rows were affected.");
+                    }
+                },
+                Err(e) => {
+                    eprintln!("An error occurred while inserting the Log in the table Clients: {}", e);
+                },
+            };
+        });
+    }
+
+    pub fn update_to(&self, new_client: &Client) -> Result<Self, ClientError> {
+        let serialzied_owned_sub_channels_keys = serde_json::to_string(&new_client.owned_sub_channels_keys).expect("Failed to serialize to JSON");
+
+        with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+            // let now = Utc::now();
+            // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+            let result = conn.execute(
+                "UPDATE Clients SET ClientName = ?, ClientKey = ?, ClientType = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, OwnedSubChannelsKeys = ?, SubChannelsInUse = ? WHERE ID = ?",
+                params![
+                    new_client.client_name,
+                    new_client.client_key,
+                    new_client.client_type,
+                    new_client.permission_group,
+                    new_client.is_super_user,
+                    new_client.last_contact,
+                    new_client.max_sub_channels,
+                    serialzied_owned_sub_channels_keys,
+                    new_client.sub_channels_in_use,
+                    new_client.client_id,
+                ],
             );
 
             match result {
@@ -185,20 +250,20 @@ impl Client {
         });
 
         Ok(Self {
-            client_id,
-            client_name,
-            client_key,
-            client_type,
-            permission_group,
-            is_super_user,
-            last_contact: -1.0,
-            max_sub_channels,
-            owned_sub_channels_keys,
-            sub_channels_in_use: 0u32,
+            client_id: new_client.client_id,
+            client_name: new_client.client_name.clone(),
+            client_key: new_client.client_key.clone(),
+            client_type: new_client.client_type.clone(),
+            permission_group: new_client.permission_group.clone(),
+            is_super_user: new_client.is_super_user,
+            last_contact: new_client.last_contact,
+            max_sub_channels: new_client.max_sub_channels,
+            owned_sub_channels_keys: new_client.owned_sub_channels_keys.clone(),
+            sub_channels_in_use: new_client.sub_channels_in_use,
         })
     }
 
-    pub fn get_by_name(client_name: String) -> Result<Self, ClientError> {
+    pub fn get_by_name(client_name: &String) -> Result<Self, ClientError> {
         with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
             let mut clients: Vec<Client> = Vec::new();
 
@@ -228,14 +293,14 @@ impl Client {
             }
 
             if clients.len() == 0 {
-                return Err(ClientError::ClientDoesNotExist(client_name));
+                return Err(ClientError::ClientDoesNotExist(client_name.clone()));
             } else {
                 return Ok(clients[0].clone());
             }
         })
     }
 
-    pub fn get_by_key(client_key: String) -> Result<Self, ClientError> {
+    pub fn get_by_key(client_key: &String) -> Result<Self, ClientError> {
         with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
             let mut clients: Vec<Client> = Vec::new();
 
@@ -265,7 +330,7 @@ impl Client {
             }
 
             if clients.len() == 0 {
-                return Err(ClientError::ClientDoesNotExist(client_key));
+                return Err(ClientError::ClientDoesNotExist(client_key.clone()));
             } else {
                 return Ok(clients[0].clone());
             }
@@ -332,40 +397,6 @@ impl Client {
             max_sub_channels: self.max_sub_channels.clone(),
             owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
             sub_channels_in_use: self.sub_channels_in_use.clone(),
-        };
-
-        edit_client(new_client.clone());
-
-        Ok(new_client)
-    }
-
-    pub fn edit(
-        &self,
-        client_key: String,
-        client_name: String,
-        client_type: String,
-        permission_group: String,
-        is_super_user: bool,
-        last_contact: f64,
-        max_sub_channels: u32,
-        owned_sub_channels_keys: Vec<String>,
-        sub_channels_in_use: u32,
-    ) -> Result<Self, ClientError> {
-        if !check_if_client_key_exists(client_key.clone()) {
-            return Err(ClientError::ClientDoesNotExist(client_key.clone()));
-        }
-
-        let new_client = Self {
-            client_id: self.client_id,
-            client_name,
-            client_key,
-            client_type,
-            permission_group,
-            is_super_user,
-            last_contact,
-            max_sub_channels,
-            owned_sub_channels_keys,
-            sub_channels_in_use,
         };
 
         edit_client(new_client.clone());

@@ -108,11 +108,30 @@ lazy_static! {
 
 // -> Socket Interactive Functions:
 
+/// Sets the callback patterns for the socket client.
+///
+/// This function allows the user to define the command patterns that dictate
+/// how commands are recognized and processed by the socket client.
+///
+/// # Arguments
+/// - `callbacks_patterns`: A `HashMap` containing the desired command patterns.
 pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
     let mut command_patterns = COMMAND_PATTERNS.lock();
     *command_patterns = callbacks_patterns;
 }
 
+/// Initializes the client buffer by setting up the necessary tables.
+///
+/// This function is responsible for initializing the buffer tables for both
+/// up and down commands. If the tables aren't already initialized, they will be
+/// created at the specified `buffer_location`.
+///
+/// # Arguments
+/// - `buffer_location`: The location where the buffer database will be initialized.
+///
+/// # Side Effects
+/// - If not already initialized, the function will create and initialize the buffer database
+///   at the specified location.
 pub fn initialize_client_buffer(buffer_location: String) {
     println!("inicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
 
@@ -137,6 +156,13 @@ pub fn initialize_client_buffer(buffer_location: String) {
 // handle_connection is a function that handles each TCP stream. It reads from the stream into a buffer,
 // then writes the contents of the buffer back to the stream.
 
+/// Retrieves the available command patterns registered for the socket client.
+///
+/// This function provides access to the current command patterns registered in the socket client.
+/// These patterns dictate how commands are recognized and processed.
+///
+/// # Returns
+/// - A `HashMap` containing the available command patterns.
 pub fn get_socket_client_available_commands_registered() -> HashMap<String, Value> {
     let command_patterns = COMMAND_PATTERNS.lock();
     return command_patterns.clone();
@@ -152,6 +178,13 @@ pub fn get_socket_client_available_commands_registered() -> HashMap<String, Valu
 
 // The Debug Trait, is also derived, which allows the structure to be printed fro debugging purposes
 
+/// Represents possible responses from the server.
+///
+/// This enum is used to capture the different types of responses that the server can send.
+///
+/// Variants:
+/// - `Command`: Represents a valid command response from the server.
+/// - `None`: Represents an absence of response or an invalid response.
 enum Response {
     Command(Command),
     None,
@@ -173,6 +206,20 @@ macro_rules! create_special_command {
     }};
 }
 
+/// Verifies the connection to the server by sending a special command and checking the response.
+///
+/// This function sends a special command `"C202"` to the server and expects a response with the function `"C200"`.
+/// If the response matches the expectation, it means the connection is verified.
+///
+/// # Arguments
+/// - `stream`: A mutable reference to the active TcpStream.
+///
+/// # Returns
+/// - `true` if the connection is verified successfully.
+/// - `false` otherwise.
+///
+/// # Behavior
+/// - The function logs any unexpected responses or errors.
 fn verify_connection(stream: &mut TcpStream) -> bool {
     let logger = acquire_logger!("Core");
 
@@ -206,6 +253,20 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
     }
 }
 
+/// Sends a command to the server and waits for a response.
+///
+/// Before sending the command, the function verifies the connection using the `verify_connection` function.
+/// If the connection is not verified, the function returns `Response::None`.
+///
+/// # Arguments
+/// - `stream`: A mutable reference to the active TcpStream.
+/// - `command`: The `Command` object to be sent to the server.
+///
+/// # Returns
+/// - A `Response` variant containing the server's response.
+///
+/// # Behavior
+/// - If the connection is not verified, the function logs the event and returns `Response::None`.
 fn send(stream: &mut TcpStream, command: Command) -> Response {
     let logger = acquire_logger!("Core");
 
@@ -232,6 +293,19 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
     return Response::Command(command);
 }
 
+/// Sends a ping request to the server.
+///
+/// This function sends a special command `"C206"` to ping the server. It utilizes the `send` function
+/// to send the ping request and then processes the received response using the `handle_response` function.
+///
+/// # Arguments
+/// - `stream`: A mutable reference to the active TcpStream.
+///
+/// # Returns
+/// - An `Option<DownCommand>` containing the processed command if there's any, or `None` otherwise.
+///
+/// # Behavior
+/// - If the `CLIENT_IS_RUNNING` global flag is set to false, the function will immediately return `None`.
 pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
     if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
         return None;
@@ -246,7 +320,31 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
     }
 }
 
-// This function handles the response and returns an appropriate action.
+/// Handles the received response from the server and processes it accordingly.
+///
+/// This function processes the response from the server based on its type. Depending on the
+/// type and content of the received response, the function might remove a command from the
+/// schedule, log an error or warning, shut down the client, or produce a new down command for
+/// further processing.
+///
+/// # Arguments
+/// - `received`: A `Response` variant containing the server's response.
+///
+/// # Returns
+/// - An `Option<DownCommand>`: If a new down command is produced based on the received response,
+///   this function will return `Some(DownCommand)`. Otherwise, it will return `None`.
+///
+/// # Behavior
+/// - If the received response indicates a confirmation (`C210`), the corresponding command is
+///   removed from the schedule and no further action is taken.
+/// - If an error is received, the error is logged and the client might be shut down.
+/// - If the received command is of type `Response`, a new down command may be produced based on
+///   the received content.
+/// - If the received command is of an unknown type, a warning is logged.
+///
+/// # Notes
+/// - This function uses the `COMMAND_PATTERNS` global lock to access and modify the command patterns.
+/// - The function also accesses the `CLIENT_IS_RUNNING` global flag to control the client's running state.
 fn handle_response(received: Response) -> Option<DownCommand> {
     let logger = acquire_logger!("Core");
 
@@ -338,6 +436,33 @@ fn handle_response(received: Response) -> Option<DownCommand> {
     }
 }
 
+/// Initializes the client and sets up communication with the specified server address.
+///
+/// This function connects to the provided server address, and then periodically checks
+/// for scheduled commands and sends them to the server. The function also spawns a
+/// background thread to monitor for potential deadlocks.
+///
+/// # Arguments
+/// - `address`: The server address to connect to, in the format "ip:port".
+/// - `client_id`: A unique identifier for the client, used for communication purposes.
+///
+/// # How it works
+/// 1. The function first spawns a background thread that checks for deadlocks every 5 seconds.
+///    If a deadlock is detected, the involved threads' IDs and backtraces are printed.
+/// 2. The client attempts to establish a TCP connection with the server using the provided address.
+/// 3. Once connected, the function enters a loop where it checks the `CLIENT_IS_RUNNING` global flag.
+///    If the flag is set to false, the client will shut down.
+/// 4. Inside the loop, the function retrieves the list of scheduled commands (up_schedule) to be sent
+///    to the server. If there are no commands in the schedule, the client sends a ping to the server
+///    and then waits for a short duration before checking again.
+/// 5. For each command in the schedule, the client sends the command to the server and waits for a response.
+///    The received response is then processed and scheduled for further handling.
+///
+/// # Notes
+/// - The function uses `parking_lot::deadlock::check_deadlock()` to detect potential deadlocks.
+/// - The client sends a ping to the server when there are no commands in the schedule.
+/// - The client will wait for 200 milliseconds between retries if a command's response is not received.
+/// - The client will continue to check for scheduled commands as long as `CLIENT_IS_RUNNING` is true.
 pub fn initialize_client(address: String, client_id: String) {
     // Create a global Mutex for demonstration
     let mutex1 = Mutex::new(0);

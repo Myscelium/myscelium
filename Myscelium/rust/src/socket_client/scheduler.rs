@@ -23,6 +23,13 @@ macro_rules! acquire_logger {
     }};
 }
 
+/// Sets the global client ID to the specified value.
+///
+/// The client ID is a unique identifier that represents the client in the communication process.
+/// This function updates the global `CLIENT_ID` variable to the provided value.
+///
+/// # Arguments
+/// - `client_uid`: The new client ID to be set.
 pub fn set_client_id(client_uid: String) {
     println!("Setting client_id to: {:?}", client_uid.clone());
 
@@ -32,6 +39,10 @@ pub fn set_client_id(client_uid: String) {
     }
 }
 
+/// Requests the available commands that are registered on the host.
+///
+/// This function prepares a command request for the host to retrieve the list of
+/// registered commands. The constructed request is then scheduled for processing.
 pub fn request_host_avaliable_commands() {
     let mut request_host_commands: HashMap<String, String> = HashMap::new();
     request_host_commands.insert("function".to_string(), "get_registred_commands".to_string());
@@ -39,6 +50,16 @@ pub fn request_host_avaliable_commands() {
     schedule(request_host_commands, 11)
 }
 
+/// Schedules a command for processing.
+///
+/// The function takes in a command and its priority, then schedules it for processing
+/// by converting the command to a string, generating a unique parity ID, and adding it
+/// to the up buffer manager's schedule.
+///
+/// # Arguments
+/// - `command`: A map representing the command to be scheduled.
+/// - `priority`: The priority level of the command. Commands with higher priority values
+///               are processed before those with lower priority values.
 pub fn schedule(command: HashMap<String, String>, priority: u8) {
     let logger = acquire_logger!("Core - Scheduler");
 
