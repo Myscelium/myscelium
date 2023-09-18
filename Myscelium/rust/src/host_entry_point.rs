@@ -399,7 +399,12 @@ fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
 // > --------------------------------------------------------------------------------------------------------
 // > Client Manangement
 
-use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, clients_mananger_initialize_table, set_host_clients_mananger__pool_workers_num, Client, ClientError};
+use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, clients_mananger_initialize_table, set_host_clients_mananger__pool_workers_num};
+use crate::socket_host::client_mananger::mananger::{Client, ClientError};
+
+#[macro_use]
+use crate::handle_client_error;
+
 use crate::socket_host::permissions_mananger::mananger::{GroupError, PermissionGroup};
 
 macro_rules! extract_string {
@@ -478,7 +483,7 @@ fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()>
         // }
 
         if !check_if_client_key_exists(client_key.clone()) {
-            let _ = Client::new(
+            let client = handle_client_error!(Client::new(
                 client_name.clone(),
                 client_key.clone(),
                 client_type,
@@ -486,7 +491,9 @@ fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()>
                 client_is_super_user,
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
-            );
+            ));
+
+            client.save_into_db();
         }
 
         println!("Successfully created client: {} of key: {}", client_name, client_key)
@@ -525,7 +532,7 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
         let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
 
         if !check_if_client_key_exists(client_key.clone()) {
-            let _ = Client::new(
+            let client = handle_client_error!(Client::new(
                 client_name.clone(),
                 client_key.clone(),
                 client_type,
@@ -533,7 +540,9 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
                 client_is_super_user,
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
-            );
+            ));
+
+            client.save_into_db()
         }
 
         println!("Successfully created client: {} of key: {}", client_name, client_key)

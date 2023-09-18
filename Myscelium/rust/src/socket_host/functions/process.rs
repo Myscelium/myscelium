@@ -161,7 +161,72 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 if !inner_map.contains_key("new_client") {
                     return create_error_response_and_return!("Error! Callback response kwargs don't have new_client kwarg!", converted_m, to_send);
                 }
+
                 // TODO >>> Add the case where need to add the client
+
+                let result: HashMap<String, ResultType> = kwargs.to_map().unwrap();
+                let new_client: ResultType = result.get("new_client").unwrap().clone();
+
+                // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
+
+                let mut expected: HashMap<String, ResultType> = HashMap::new();
+
+                expected.insert("client_name".to_string(), ResultType::Str("".to_string()));
+                expected.insert("client_key".to_string(), ResultType::Str("".to_string()));
+                expected.insert("client_type".to_string(), ResultType::Str("".to_string()));
+                expected.insert("permission_group".to_string(), ResultType::Str("".to_string()));
+                expected.insert("is_super_user".to_string(), ResultType::Bool(false));
+                expected.insert("max_sub_channels".to_string(), ResultType::Int(0));
+                expected.insert("owned_sub_channels_keys".to_string(), ResultType::List(Vec::new()));
+
+                let expectation_result: Result<(), ExpectationError> = new_client.fast_verify_kwargs_and_types(&ResultType::Map(expected));
+
+                match expectation_result {
+                    Err(e) => match e {
+                        ExpectationError::MismatchType(tp) => {
+                            return create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp), converted_m, to_send);
+                        },
+                        ExpectationError::MismatchRelativeLength => {
+                            return create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!", converted_m, to_send);
+                        },
+                        ExpectationError::Missingkwarg(k) => {
+                            return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k), converted_m, to_send);
+                        },
+                        ExpectationError::TargetIsEmpty => {
+                            return create_error_response_and_return!("Error! Client target pattern is empty!", converted_m, to_send);
+                        },
+                    },
+
+                    Ok(_) => {},
+                }
+
+                let updated_client_unwraped: HashMap<String, ResultType> = new_client.to_map().unwrap();
+
+                let owned_sub_channels_keys: Vec<String> = updated_client_unwraped.get("owned_sub_channels_keys").unwrap().to_list().unwrap().iter().map(|v| v.to_str().unwrap()).collect();
+
+                let client_key = updated_client_unwraped.get("client_key").unwrap().to_str().unwrap();
+
+                let new_client = handle_client_error!(Client::new(
+                    updated_client_unwraped.get("client_name").unwrap().to_str().unwrap(),
+                    client_key.clone(),
+                    updated_client_unwraped.get("client_type").unwrap().to_str().unwrap(),
+                    updated_client_unwraped.get("permission_group").unwrap().to_str().unwrap(),
+                    updated_client_unwraped.get("is_super_user").unwrap().to_bool().unwrap(),
+                    updated_client_unwraped.get("max_sub_channels").unwrap().to_int().unwrap() as u32,
+                    owned_sub_channels_keys,
+                )); //> It Alwready create the new client
+
+                new_client.save_into_db();
+
+                let mut resp: HashMap<String, ResultType> = HashMap::new();
+
+                resp.insert("Success".to_string(), ResultType::Str(format!("Sussefuly add a client: {}!", client_key).to_string()));
+
+                to_send.insert("response".to_string(), ResultType::Map(resp));
+                to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
+                to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+
+                return to_send;
             } else {
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
             }
@@ -286,7 +351,17 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
             }
         },
 
-        _ => {},
+        _ => {
+            let mut resp: HashMap<String, ResultType> = HashMap::new();
+
+            resp.insert("Success".to_string(), ResultType::Str(format!("Response Activation Function: {} doesn't exists!!", activation_function).to_string()));
+
+            to_send.insert("response".to_string(), ResultType::Map(resp));
+            to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
+            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+
+            return to_send;
+        },
     }
 
     // TODO >>> Add the cases to handle the following internal mannangement things:

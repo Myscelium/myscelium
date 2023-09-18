@@ -38,7 +38,7 @@ def host_thread_to_test_communication(event_host_received):
 
 def client_1_thread_to_test_communication(event_client_received):
     print("Waiting for host to be ready...")
-    time.sleep(10)
+    time.sleep(15)
     print("Starting client 1 thread...")
     
     client_instance = MyClient1ToTestCommunication()
