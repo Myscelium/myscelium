@@ -70,7 +70,7 @@ class MyClient:
         result = mys_client.send(command, priority=10)
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended")
+        EVMananger.Set_Event("Data Sended", event_type="Send", event_key="0j5u25oh3c9n6at7")
 
         print(result)
 

@@ -86,7 +86,7 @@ class Events_Mananger:
                                                         StepCompleted TEXT,
                                                         EventType TEXT, 
                                                         EventKey TEXT,
-                                                        Time NUMBER,
+                                                        Time NUMBER
                                                         )''')
         
         
@@ -151,7 +151,6 @@ class Events_Mananger:
 
         ID = self.AutoId.Gen()
 
-        Data = ((ID, self.Unit, step))
 
         ts = time.time()
 
@@ -166,8 +165,10 @@ class Events_Mananger:
 
             event_key = kwargs["event_key"]
 
-        sqlite_insert_with_param = """INSERT INTO Events (ID, Unit, StepCompleted, EventType, EventKey, Time) VALUES (?, ?, ?, ?);"""
-        cur.execute(sqlite_insert_with_param, Data, event_type, event_key, ts)
+        Data = ((ID, self.Unit, step, event_type, event_key, ts))
+
+        sqlite_insert_with_param = """INSERT INTO Events (ID, Unit, StepCompleted, EventType, EventKey, Time) VALUES (?, ?, ?, ?, ?, ?);"""
+        cur.execute(sqlite_insert_with_param, Data)
         self.connection.commit()
 
         return

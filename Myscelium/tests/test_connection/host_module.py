@@ -10,7 +10,7 @@ import time
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
-    Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Contact received from Client: {client_key}")
+    Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
     pass
 
@@ -33,37 +33,13 @@ class MyHost:
             response={"data": 'hello!'}
         )
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Basic Callback", event_type="Receive", event_key="088p72pbv9Ozj7T1")
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Send Response", event_type="Send", event_key="74L648VZDI7J1GV5")
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback", event_type="Receive", event_key="088p72pbv9Ozj7T1")
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Send Response", event_type="Send", event_key="74L648VZDI7J1GV5")
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
 
-        #                                                            (callback name) - Receive Data: [Data received list for comparison]
+        # (callback name) - Receive Data: [Data received list for comparison]
 
         return response
-
-    @staticmethod
-    def test_redirect(client_id, data, event_key=None):
-        if isinstance(client_id, str):
-            print(f"Redirecting data: {data} to client: {client_id}")
-            host_patterns = HostPatterns()
-            response = host_patterns.response_pattern(
-                response=data,
-                response_mode='redirect',
-                redirect_to_client_id=client_id
-            )
-            return response
-        else:
-            print("Client id isn't a string, failed to redirect data!")
-            return None
-
-    # @staticmethod
-    # def handle_client_contact(client_id, event_key='client_contact'):
-    #     print("Access heartbeat handler")
-    #     print(f"Client: {client_id}, made contact")
-
-    #     Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
-
-    #     # TODO >>> Save event in the test databse log
 
     def monitor_stop_event(self):
 
@@ -102,8 +78,8 @@ class MyHost:
         callbacks = [
             self.host_patterns.callback_pattern(callback=self.python_function,
                                                 args={"birth": "str", "name": "str", "age": "int", "event_key": "str"}),
-            self.host_patterns.callback_pattern(callback=self.test_redirect,
-                                                args={"client_id": "str", "data": "dict", "event_key": "str"}),
+            # self.host_patterns.callback_pattern(callback=self.test_redirect,
+            #                                     args={"client_id": "str", "data": "dict", "event_key": "str"}),
         ]
 
         allowed_clients = [

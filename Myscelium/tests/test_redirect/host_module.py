@@ -10,7 +10,7 @@ import time
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
-    Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Contact received from Client: {client_key}")
+    Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
     pass
 
@@ -33,8 +33,8 @@ class MyHost:
             response={"data": 'hello!'}
         )
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Basic Callback")
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback")
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
 
         #                                                            (callback name) - Receive Data: [Data received list for comparison]
 
@@ -57,7 +57,7 @@ class MyHost:
 
             print(f"Response Before send to engine: {response}")
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Host Redirect Callback")
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Host Redirect Callback")
             
             return response
         else:
