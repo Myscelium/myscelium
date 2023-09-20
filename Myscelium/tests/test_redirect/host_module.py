@@ -33,8 +33,18 @@ class MyHost:
             response={"data": 'hello!'}
         )
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback")
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
+        match age:
+
+            case 8:
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback", event_type="Receive", event_key="1dX2A63Rp7O79x6t")
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Return Basic Callback Response", event_type="Send", event_key="r99F3i89D20Oj1lq")
+        
+            case 9:
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback", event_type="Receive")
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Return Basic Callback Response", event_type="Send", event_key="")
+
 
         #                                                            (callback name) - Receive Data: [Data received list for comparison]
 
@@ -57,7 +67,7 @@ class MyHost:
 
             print(f"Response Before send to engine: {response}")
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Host Redirect Callback")
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Host Redirect Callback") # This doesn't have a event_key because it is on the destine
             
             return response
         else:

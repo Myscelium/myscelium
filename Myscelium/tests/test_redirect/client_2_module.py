@@ -33,7 +33,7 @@ class MyClient:
         result = mys_client.send(command, priority=10)
 
         EVMananger = Events_Mananger(Unit="Client2", path="Logs")
-        EVMananger.Set_Event("Data To Redirect Sended")
+        EVMananger.Set_Event("Data To Redirect Sended", event_type="Send", event_key="02V0P37Dz09zR3fL")
 
         print(result)
 

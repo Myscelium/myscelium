@@ -14,7 +14,7 @@ class MyClient:
     def test_handler(data):
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+        EVMananger.Set_Event("Activate Basic Response Test callback handler", event_type="Receive", event_key="r99F3i89D20Oj1lq")
 
         print("Received data: ", data)
 
@@ -26,7 +26,7 @@ class MyClient:
     def test_redirect_handler(data):
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Redirect Test callback handler")
+        EVMananger.Set_Event("Activate Basic Redirect Test callback handler", event_type="Receive", event_key="02V0P37Dz09zR3fL")
 
         print("Received redirected data: ", data)
 
@@ -45,7 +45,7 @@ class MyClient:
         result = mys_client.send(command, priority=10)
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended")
+        EVMananger.Set_Event("Data Sended", event_type="Send", event_key="1dX2A63Rp7O79x6t")
 
         print(result)
 
