@@ -35,6 +35,12 @@
         - Whel if this is only possible throught callbacks response you will need to config it, so it will not be possible if you don't add a callback to it, what gives more sucurity to you dont have to mannage all the permissions manually at all, so even that a user has permission to do so but you dont have this callback registred the user will not be able to do so what gives another layer of security
 
 - Add `type_of` and `fast_verify_kwargs_and_types` to `ResultType` enum, this can facilitate the process of checking a type of a `ResultType` and also recursively check if the Result matches with a predefined pattern in a very fast way by providing a reference target to `fast_verify_kwargs_and_types` that cant return an empy Ok() when all is fine and return a enum `ExpectationError` when something isn't correct. 
+- Now test events has 3 categories `Send`, `Receive` and `Default`:
+    - `Send` is when a host or client is sending some data
+    - `Receive` is when a client or a host is receiving some data
+    - `Default` is addded to handle the other cases.
+    - This config allow to track how much time takes to receive some fn, response or redirect, and consequently allowing to tract the performance of the lib in the development process throught a permanent database that tracs the event medium time, allowing to do some performance tests. The `Send` and `Receive` needs a special kwarg: `event_key` that can be generated with the helper `gen_valid-event_key.py` in `test/Logs`.
+- Add a helper in `tests/Logs/gen_valid_event_key.py` to help gen parity keys to Events
 
 ### Fixes:
 

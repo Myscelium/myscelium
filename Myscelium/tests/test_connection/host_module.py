@@ -33,7 +33,8 @@ class MyHost:
             response={"data": 'hello!'}
         )
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Basic Callback")
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Basic Callback", event_type="Receive", event_key="088p72pbv9Ozj7T1")
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Send Response", event_type="Send", event_key="74L648VZDI7J1GV5")
         Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
 
         #                                                            (callback name) - Receive Data: [Data received list for comparison]

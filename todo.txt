@@ -1,3 +1,8 @@
+
+
+TODO >>> Add a mecanism to get the Key of a Send Event and match with a Receive event key that are ideantical and alculate the ts interval and store in a poermanent database in the crate to track conn performance for each task
+TODO >>> Add a mecanism to track client send and receive response minimal process time
+
 TODO >>> Host Client Permission mananger
 TODO >>> Improve tests to test host client permission mananger
 

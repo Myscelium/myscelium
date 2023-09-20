@@ -36,12 +36,14 @@ def split_dataframe(df, num_chunks):
     
     chunks = []
     start = 0
+    
     for i in range(num_chunks):
         end = start + chunk_size
-        # Distribute the remainder across the initial chunks
-        if remainder:
+       
+        if remainder: # Distribute the remainder across the initial chunks
             end += 1
             remainder -= 1
+
         chunks.append(df.iloc[start:end])
         start = end
     
@@ -640,7 +642,6 @@ class HostPatterns:
                 ```
 
         """
-
 
         if activation_function == "add_client":
 

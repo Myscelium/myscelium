@@ -172,7 +172,6 @@ class MyHost:
                                                 args={
                                                     "client_key":"str", 
                                                 }),
-
         ]
 
         allowed_clients = [

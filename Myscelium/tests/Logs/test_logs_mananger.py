@@ -3,9 +3,10 @@ import random
 import os
 import pandas as pd
 import json
-from datetime import datetime
+import time
 from queue import Queue
 from threading import Lock, Thread
+from datetime import datetime
 
 # TODO >>> Create a client table to set the logs and the client state and the host state
 # TODO >>> if the host or client state in the table was set to false it will close the host or the client
@@ -82,7 +83,10 @@ class Events_Mananger:
         cur = self.connection.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS Events (ID INT PRIMARY KEY,
                                                         Unit TEXT,
-                                                        StepCompleted TEXT
+                                                        StepCompleted TEXT,
+                                                        EventType TEXT, 
+                                                        EventKey TEXT,
+                                                        Time NUMBER,
                                                         )''')
         
         
@@ -111,17 +115,32 @@ class Events_Mananger:
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
-        df = pd.DataFrame(df, columns=['ID', 'Unit', 'StepCompleted'])
+        df = pd.DataFrame(df, columns=['ID', 'Unit', 'StepCompleted', 'EventType', 'EventKey', 'Time'])
         dict_df = df.to_dict()
         
         return dict_df
     
-    def Set_Event (self, Step:str):     
+    def Set_Event (self, step:str, event_type:str="Default", **kwargs):     
+
+        """
+        Set a event
+
+        event_type: str - can be:
+            - Default
+            - Send
+            - Receive
+        
+        if event_type is Send and Receive it needs a predefined `event_key:str` kwarg,
+        the event key is a str and need to contain at least 16 digits that need to be random,
+        to generate a valid key pair and have 100% sure that this isn't registred you can use the 
+        helper `gen_valid_event_key.py` at Myscelium/tests/Logs/gen_valid_event_key.py
+
+        """
 
         events = pd.DataFrame.from_dict(self.List_Events())   
 
         for i in events.index:
-            if events.loc[i, "StepCompleted"] == Step:
+            if events.loc[i, "StepCompleted"] == step:
                 return
             else:
                 continue
@@ -132,10 +151,23 @@ class Events_Mananger:
 
         ID = self.AutoId.Gen()
 
-        Data = ((ID, self.Unit, Step))
+        Data = ((ID, self.Unit, step))
 
-        sqlite_insert_with_param = """INSERT INTO Events (ID, Unit, StepCompleted) VALUES (?, ?, ?);"""
-        cur.execute(sqlite_insert_with_param, Data)
+        ts = time.time()
+
+        event_key = ""
+
+        if event_type == "Send" or event_type == "Receive":
+
+            if not ("event_key" in kwargs):
+                raise "You need to especify a event code to Send an Receive event_types"
+            else:   
+                pass
+
+            event_key = kwargs["event_key"]
+
+        sqlite_insert_with_param = """INSERT INTO Events (ID, Unit, StepCompleted, EventType, EventKey, Time) VALUES (?, ?, ?, ?);"""
+        cur.execute(sqlite_insert_with_param, Data, event_type, event_key, ts)
         self.connection.commit()
 
         return

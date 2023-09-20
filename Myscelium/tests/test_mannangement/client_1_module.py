@@ -8,7 +8,44 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
-class MyClient:
+class MyClient: 
+
+
+    @staticmethod
+    def test_crete_a_client_reponse_handler(data):
+
+        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
+        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+
+        print("Received data: ", data)
+
+        time.sleep(5)
+        
+        # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+
+    @staticmethod
+    def test_update_a_client_reponse_handler(data):
+
+        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
+        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+
+        print("Received data: ", data)
+
+        time.sleep(5)
+        
+        # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+
+    @staticmethod
+    def test_remove_a_client_reponse_handler(data):
+
+        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
+        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+
+        print("Received data: ", data)
+
+        time.sleep(5)
+        
+        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
     def test_handler(data):

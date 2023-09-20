@@ -14,7 +14,7 @@ class MyClient:
     def test_handler(data):
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+        EVMananger.Set_Event("Activate Basic Response Test callback handler", event_type="Receive", event_key="74L648VZDI7J1GV5")
 
         print("Received data: ", data)
 
@@ -33,7 +33,7 @@ class MyClient:
         result = mys_client.send(command, priority=10)
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended")
+        EVMananger.Set_Event("Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1")
 
         print(result)
 
