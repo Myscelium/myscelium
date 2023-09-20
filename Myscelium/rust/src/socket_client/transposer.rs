@@ -433,7 +433,7 @@ pub fn initialize_socket_client_transposer() {
     if !(schedule.len() > 0) {
         logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
-        thread::sleep(Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(100));
         return;
     }
 

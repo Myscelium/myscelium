@@ -29,8 +29,6 @@ class MyClient:
         EVMananger.Set_Event("Activate Basic Redirect Test callback handler", event_type="Receive", event_key="02V0P37Dz09zR3fL")
 
         print("Received redirected data: ", data)
-
-        time.sleep(5)
         
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
@@ -51,7 +49,7 @@ class MyClient:
 
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Client1Data/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Client1Data/", log_level="WARN")
 
         self.mys_client = mys_client
 

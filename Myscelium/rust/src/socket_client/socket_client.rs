@@ -508,8 +508,8 @@ pub fn initialize_client(address: String, client_id: String) {
             if let Some(down_command) = send_ping(&mut stream) {
                 enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
             }
-            println!("[Socket] - Nothing in schedule, skipping..");
-            thread::sleep(Duration::from_millis(500));
+            // println!("[Socket] - Nothing in schedule, skipping..");
+            thread::sleep(Duration::from_millis(100));
             continue;
         }
 
