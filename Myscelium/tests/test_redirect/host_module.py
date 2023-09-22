@@ -92,7 +92,7 @@ class MyHost:
         n = 0 
         COUNTER = 62 # Each counter is 5 secs of waiting
         
-        mys_host_interface = MysceliumHostInterface("Data/")
+        mys_host_interface = MysceliumHostInterface("Temp/Data/")
 
         mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
 
@@ -145,7 +145,7 @@ class MyHost:
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="WARN")
+                                 allowed_clients=allowed_clients, buffer_path="Temp/Data/", n_workers=2, log_level="WARN")
 
         self.mys_host = mys_host
 

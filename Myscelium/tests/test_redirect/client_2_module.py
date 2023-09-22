@@ -26,7 +26,7 @@ class MyClient:
     def send_some_data_to_redirect():
 
         time.sleep(20)
-        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Client2Data/")
+        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="randomsclientids")
         command = client_patterns.command_pattern("test_redirect", args={"client_id": "some_client_id", "data": 8})
@@ -39,7 +39,7 @@ class MyClient:
 
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Client2Data/", log_level="WARN")
+        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/", log_level="WARN")
 
         self.mys_client = mys_client
 

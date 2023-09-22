@@ -61,14 +61,14 @@ def test_communication():
     System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
     System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
-    if os.path.exists("Client1Data/"):
-        shutil.rmtree("Client1Data/")
+    if os.path.exists("Temp/Client1Data/"):
+        shutil.rmtree("Temp/Client1Data/")
 
-    if os.path.exists("Client2Data/"):
-        shutil.rmtree("Client2Data/")
+    if os.path.exists("Temp/Client2Data/"):
+        shutil.rmtree("Temp/Client2Data/")
 
-    if os.path.exists("Data/"):
-        shutil.rmtree("Data/")
+    if os.path.exists("Temp/Data/"):
+        shutil.rmtree("Temp/Data/")
 
     t1 = Process(target=host_thread_to_test_communication, args=('main_event',)) # Passing event_key
     t2 = Process(target=client_1_thread_to_test_communication, args=('main_event',)) # Passing event_key
@@ -201,14 +201,14 @@ def test_redirect ():
     System_Status(path="Logs").change_unit_status(Unit="Client2", Status=True)
     System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
-    if os.path.exists("Client1Data/"):
-        shutil.rmtree("Client1Data/")
+    if os.path.exists("Temp/Client1Data/"):
+        shutil.rmtree("Temp/Client1Data/")
 
-    if os.path.exists("Client2Data/"):
-        shutil.rmtree("Client2Data/")
+    if os.path.exists("Temp/Client2Data/"):
+        shutil.rmtree("Temp/Client2Data/")
 
-    if os.path.exists("Data/"):
-        shutil.rmtree("Data/")
+    if os.path.exists("Temp/Data/"):
+        shutil.rmtree("Temp/Data/")
 
     t1 = Process(target=host_thread_to_test_redirect, args=('main_event',)) # Passing event_key
     t2 = Process(target=client_1_thread_to_test_redirect, args=('main_event',)) # Passing event_key

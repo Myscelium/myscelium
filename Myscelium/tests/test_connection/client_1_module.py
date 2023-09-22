@@ -26,7 +26,7 @@ class MyClient:
     def send_some_data():
 
         time.sleep(10)
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Client1Data/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")
         command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
@@ -39,7 +39,7 @@ class MyClient:
 
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Client1Data/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
 
         self.mys_client = mys_client
 
