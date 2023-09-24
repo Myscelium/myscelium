@@ -8,11 +8,11 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
-class MyClient: 
 
+class Handlers:
 
     @staticmethod
-    def test_crete_a_client_reponse_handler(data):
+    def test_update_a_client (data):
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
         EVMananger.Set_Event("Activate Basic Response Test callback handler")
@@ -24,19 +24,7 @@ class MyClient:
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_update_a_client_reponse_handler(data):
-
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler")
-
-        print("Received data: ", data)
-
-        time.sleep(5)
-        
-        # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
-
-    @staticmethod
-    def test_remove_a_client_reponse_handler(data):
+    def test_remove_a_client (data): # TODO
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
         EVMananger.Set_Event("Activate Basic Response Test callback handler")
@@ -48,7 +36,7 @@ class MyClient:
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_handler(data):
+    def test_add_client (data): # TODO
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
         EVMananger.Set_Event("Activate Basic Response Test callback handler")
@@ -59,22 +47,85 @@ class MyClient:
         
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
+class Senders:
+
     @staticmethod
-    def send_some_data():
+    def test_add_client (): 
 
         time.sleep(10)
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")
-        command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
+        
+        command = client_patterns.command_pattern(
+                        "test_add_client", 
+                        args={
+                            "client_name":"test_client", 
+                            "client_key":"xMndjslwpedcnfe", 
+                            "client_type":"Test", 
+                            "permission_group":"", 
+                            "is_super_user":1, 
+                            "max_sub_channels":5, 
+                            "owned_sub_channels_keys":[],
+                        }
+                    )
+
         result = mys_client.send(command, priority=10)
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended", event_type="Send", event_key="0j5u25oh3c9n6at7")
+        EVMananger.Set_Event("Data Sended", event_type="Send test add client", event_key="") # TODO >>> Add the event key
 
-        print(result)
+    @staticmethod
+    def test_update_a_client (): 
+
+        time.sleep(10)
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client.runing = True
+        mys_client.set_client_uid(client_uid="some_client_id")
+        
+        command = client_patterns.command_pattern(
+                        "test_update_client", 
+                        args={
+                            "client_name":"test_client", 
+                            "client_key":"xMndjslwpedcnfe", 
+                            "client_type":"Test", 
+                            "permission_group":"", 
+                            "is_super_user":1, 
+                            "max_sub_channels":10, 
+                            "owned_sub_channels_keys":[]
+                        }
+                    )
+        
+        result = mys_client.send(command, priority=10)
+
+        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
+        EVMananger.Set_Event("Data Sended", event_type="Send test update a client", event_key="") # TODO >>> Add the event key
+
+    @staticmethod
+    def test_remove_a_client (): 
+
+        time.sleep(10)
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client.runing = True
+        mys_client.set_client_uid(client_uid="some_client_id")
+        
+        command = client_patterns.command_pattern(
+                        "test_remove_client", 
+                        args={
+                            "client_key": "xMndjslwpedcnfe"
+                        }
+                    )
+        
+        result = mys_client.send(command, priority=10)
+
+        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
+        EVMananger.Set_Event("Data Sended", event_type="Send", event_key="") # TODO >>> Add the event key
+
+class MyClient: 
 
     def initializer(self):
+
+        my_handlers = Handlers ()
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
 
@@ -83,8 +134,16 @@ class MyClient:
         mys_client.set_client_uid(client_uid="some_client_id")
 
         callbacks = [
-            client_patterns.callback_pattern(callback=MyClient.test_handler, args={
-                "data": "dict"
+            client_patterns.callback_pattern(callback=my_handlers.test_add_client, args={
+                "data":"dict"
+            }),
+
+            client_patterns.callback_pattern(callback=my_handlers.test_update_a_client, args= {
+                "data":"dict"
+            }),
+
+            client_patterns.callback_pattern(callback=my_handlers.test_remove_a_client, args= {
+                "data":"dict"
             }),
         ]
         

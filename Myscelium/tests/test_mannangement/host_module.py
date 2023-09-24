@@ -14,70 +14,40 @@ def client_contact_event_handler (client_name:str, client_key:str, client_last_c
     print(client_name, client_key, client_last_contact)
     pass
 
-class MyHost:
 
-    def __init__(self):
-        self.host_patterns = HostPatterns()
+class MyCallbacks:
 
-    @staticmethod
-    def python_function(age, birth, name):
-        print("Access python function")
-        print(birth)
-        print(name)
-        print(age)
-
-        host_patterns = HostPatterns()
-        response = host_patterns.response_pattern(
-            response_mode='to_origin',
-            response_activation_function="test_handler",
-            response={"data": 'hello!'}
-        )
-
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback")
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
-
-        #                                                            (callback name) - Receive Data: [Data received list for comparison]
-
-        return response
-
-    @staticmethod
-    def test_redirect(client_id, data, event_key=None):
-        if isinstance(client_id, str):
-            print(f"Redirecting data: {data} to client: {client_id}")
-            host_patterns = HostPatterns()
-            response = host_patterns.response_pattern(
-                response=data,
-                response_mode='redirect',
-                redirect_to_client_id=client_id
-            )
-            return response
-        else:
-            print("Client id isn't a string, failed to redirect data!")
-            return None
-    
     @staticmethod
     def test_add_client (client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
 
-        new_client = [HostPatterns.client_pattern(client_name=client_name,
-                                           client_key=client_key,
-                                           client_type=client_type,
-                                           client_permission_group=permission_group,
-                                           client_is_super_user=is_super_user,
-                                           max_sub_channels=max_sub_channels,
-                                           client_max_sub_channes=owned_sub_channels_keys)]
+        new_client = [
+            HostPatterns.client_pattern(
+                client_name=client_name,
+                client_key=client_key,
+                client_type=client_type,
+                client_permission_group=permission_group,
+                client_is_super_user=is_super_user,
+                max_sub_channels=max_sub_channels,
+                client_max_sub_channels=owned_sub_channels_keys
+            )
+        ]
 
         return HostPatterns.update_host_configs(activation_function="add_client", new_client=new_client)
     
     @staticmethod
     def test_update_client (actual_client_key:str,client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
 
-        updated_client = [HostPatterns.client_pattern(client_name=client_name,
-                                                  client_key=client_key,
-                                                  client_type=client_type,
-                                                  client_permission_group=permission_group,
-                                                  client_is_super_user=is_super_user,
-                                                  max_sub_channels=max_sub_channels,
-                                                  client_max_sub_channes=owned_sub_channels_keys)]
+        updated_client = [
+            HostPatterns.client_pattern(
+                client_name=client_name,
+                client_key=client_key,
+                client_type=client_type,
+                client_permission_group=permission_group,
+                client_is_super_user=is_super_user,
+                max_sub_channels=max_sub_channels,
+                client_max_sub_channels=owned_sub_channels_keys
+            )
+        ]
         
         return HostPatterns.update_host_configs(activation_function="update_client", actual_client_key=actual_client_key, updated_client=updated_client)
 
@@ -86,6 +56,12 @@ class MyHost:
 
         return HostPatterns.update_host_configs(activation_function="remove_client", actual_client_key=client_key)
 
+class MyHost:
+
+    def __init__(self):
+        self.host_patterns = HostPatterns()
+
+        self.my_callbacks = MyCallbacks()
 
     # @staticmethod
     # def handle_client_contact(client_id, event_key='client_contact'):
@@ -131,22 +107,8 @@ class MyHost:
     def run_host(self, ip, port):
 
         callbacks = [
-            self.host_patterns.callback_pattern(callback=self.python_function,
-                                                args={
-                                                    "birth": "str", 
-                                                    "name": "str", 
-                                                    "age": "int", 
-                                                    "event_key": "str"
-                                                }),
-            
-            self.host_patterns.callback_pattern(callback=self.test_redirect, 
-                                                args={
-                                                    "client_id": "str", 
-                                                    "data": "dict", 
-                                                    "event_key": "str"
-                                                }),
 
-            self.host_patterns.callback_pattern(callback=self.test_add_client, 
+            self.host_patterns.callback_pattern(callback=self.my_callbacks.test_add_client, 
                                                 args={
                                                     "client_name":"str", 
                                                     "client_key":"str", 
@@ -157,7 +119,7 @@ class MyHost:
                                                     "owned_sub_channels_keys":"list"
                                                 }),
 
-            self.host_patterns.callback_pattern(callback=self.test_update_client, 
+            self.host_patterns.callback_pattern(callback=self.my_callbacks.test_update_client, 
                                                 args={
                                                     "client_name":"str", 
                                                     "client_key":"str", 
@@ -168,7 +130,7 @@ class MyHost:
                                                     "owned_sub_channels_keys":"list"
                                                 }),
                                             
-            self.host_patterns.callback_pattern(callback=self.test_remove_client, 
+            self.host_patterns.callback_pattern(callback=self.my_callbacks.test_remove_client, 
                                                 args={
                                                     "client_key":"str", 
                                                 }),
