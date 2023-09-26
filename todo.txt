@@ -16,3 +16,5 @@ TODO >>> Improve tests to test host client sub channel mananger
 
 TODO >>> Transform host core into procedural macro wrapper based crate that are injected when build the lib version
 TODO >>> Transform client core into procedural macro wrapper based crate that are injected when build the lib version
+
+TODO >>> Verify the callback infering mecanism because i thing the tipe checking for remote activation is not working at all!

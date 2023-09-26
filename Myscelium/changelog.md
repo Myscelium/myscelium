@@ -41,6 +41,7 @@
     - `Default` is addded to handle the other cases.
     - This config allow to track how much time takes to receive some fn, response or redirect, and consequently allowing to tract the performance of the lib in the development process throught a permanent database that tracs the event medium time, allowing to do some performance tests. The `Send` and `Receive` needs a special kwarg: `event_key` that can be generated with the helper `gen_valid-event_key.py` in `test/Logs`.
 - Add a helper in `tests/Logs/gen_valid_event_key.py` to help gen parity keys to Events
+- Now callbacks doesn't need the args field, this because now the args and their types are automatically infered by the callback pattern wrapper
 
 ### Fixes:
 

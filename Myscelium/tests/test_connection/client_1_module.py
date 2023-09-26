@@ -17,7 +17,9 @@ class Senders:
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")
+
         command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
+
         result = mys_client.send(command, priority=10)
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
@@ -28,7 +30,7 @@ class Senders:
 class Receivers:
 
     @staticmethod
-    def test_handler(data):
+    def test_handler(data:dict):
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
         EVMananger.Set_Event("Activate Basic Response Test callback handler", event_type="Receive", event_key="74L648VZDI7J1GV5")
@@ -38,7 +40,6 @@ class Receivers:
         time.sleep(5)
         
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
-
 
 class MyClient:
 
@@ -53,9 +54,7 @@ class MyClient:
         mys_client.set_client_uid(client_uid="some_client_id")
 
         callbacks = [
-            client_patterns.callback_pattern(callback=receivers.test_handler, args={
-                "data": "dict"
-            }),
+            client_patterns.callback_pattern(callback=receivers.test_handler),
         ]
         
         mys_client.set_callbacks(callbacks=callbacks)

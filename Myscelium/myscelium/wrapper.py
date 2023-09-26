@@ -10,6 +10,7 @@ import os
 
 from . import sql_pool 
 
+import inspect
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
@@ -692,25 +693,44 @@ class HostPatterns:
         else:
             raise f"activation_function: {activation_function} doesn't registred in the avalaible host internal mannangement commands!"
 
-    def callback_pattern (self, callback, args) -> dict:
+    def callback_pattern (self, callback) -> dict:
 
             """
             Create a callback pattern.
 
             Parameters:
             - callback: The callback function.
-            - args: Arguments for the callback function.
+            
+            args and kwargs: Whill be auto infered by the wrapper, just add the anotations to your functions.
 
             Returns:
             - Dictionary representing the callback pattern.
-            """
-            
+            """ 
+
+            sig = inspect.signature(callback)
+            params = sig.parameters
+
+            args = {}
+
+            for name, param in params.items():
+
+                if param.annotation is inspect._empty:
+                    raise f"function: {callback.__name__} has args or kwargs without the required anotations!"    
+                else:
+                    pass
+
+                args[name] = str(param.annotation.__name__)
+
+            else:
+                pass
+
             callback_pattern =  {
                 "function": callback,
                 "args": args,
             }
             
             return callback_pattern
+    
     
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > CLIENT
@@ -1060,7 +1080,7 @@ class ClientPatterns:
         Returns:
         - Dictionary representing the command pattern.
         """
-
+ 
         if args != None:
             return {"function":command_function, "kwargs":args}
         else:
@@ -1082,8 +1102,6 @@ class ClientPatterns:
         - Dictionary representing the response pattern.
         """
 
-        # TODO >>> Verify if need to convert response to kwargs
-
         if response_mode == "retransmit":
 
             if retransmit_to_client_id != None:
@@ -1100,19 +1118,37 @@ class ClientPatterns:
         else:
             raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
 
-    def callback_pattern (self, callback, args) -> dict:
-            
+    def callback_pattern (self, callback) -> dict:
+
         """
         Create a callback pattern.
 
         Parameters:
         - callback: The callback function.
-        - args: Arguments for the callback function.
+        
+        args and kwargs: Whill be auto infered by the wrapper, just add the anotations to your functions.
 
         Returns:
         - Dictionary representing the callback pattern.
         """
-            
+
+        sig = inspect.signature(callback)
+        params = sig.parameters
+
+        args = {}
+
+        for name, param in params.items():
+
+            if param.annotation is inspect._empty:
+                raise f"function: {callback.__name__} has args or kwargs without the required anotations!"    
+            else:
+                pass
+
+            args[name] = str(param.annotation.__name__)
+
+        else:
+            pass
+
         callback_pattern =  {
             "function": callback,
             "args": args,

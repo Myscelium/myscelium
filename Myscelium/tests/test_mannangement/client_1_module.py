@@ -136,23 +136,14 @@ class MyClient:
         callbacks = [
             client_patterns.callback_pattern(
                 callback=my_handlers.test_add_client, 
-                args={
-                    "data":"dict"
-                }
             ),
 
             client_patterns.callback_pattern(
                 callback=my_handlers.test_update_client, 
-                args= {
-                    "data":"dict"
-                }
             ),
 
             client_patterns.callback_pattern(
                 callback=my_handlers.test_remove_client, 
-                args= {
-                    "data":"dict"
-                }
             ),
         ]
         

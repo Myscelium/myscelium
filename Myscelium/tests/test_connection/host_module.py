@@ -17,7 +17,7 @@ def client_contact_event_handler (client_name:str, client_key:str, client_last_c
 class Handlers:
 
     @staticmethod
-    def python_function(age, birth, name):
+    def python_function(age:int, birth:int, name:str):
         print("Access python function")
         print(birth)
         print(name)
@@ -98,20 +98,9 @@ class MyHost:
 
         callbacks = [
             
-            self.host_patterns.callback_pattern(
+            self.host_patterns.callback_pattern(callback=handlers.python_function),
+            # self.host_patterns.callback_pattern(callback=self.test_redirect),
 
-                callback=handlers.python_function,
-                args={
-                    "birth": "str", 
-                    "name": "str", 
-                    "age": "int", 
-                    "event_key": "str"
-                }
-                
-            ),
-
-            # self.host_patterns.callback_pattern(callback=self.test_redirect,
-            #                                     args={"client_id": "str", "data": "dict", "event_key": "str"}),
         ]
 
         allowed_clients = [
