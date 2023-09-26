@@ -14,10 +14,7 @@ def client_contact_event_handler (client_name:str, client_key:str, client_last_c
     print(client_name, client_key, client_last_contact)
     pass
 
-class MyHost:
-
-    def __init__(self):
-        self.host_patterns = HostPatterns()
+class Handlers:
 
     @staticmethod
     def python_function(age, birth, name):
@@ -33,13 +30,33 @@ class MyHost:
             response={"data": 'hello!'}
         )
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback", event_type="Receive", event_key="088p72pbv9Ozj7T1")
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Send Response", event_type="Send", event_key="74L648VZDI7J1GV5")
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
+        Events_Mananger(Unit="Host", 
+                        path="Logs").Set_Event(
+                                            step="Active Basic Callback", 
+                                            event_type="Receive", 
+                                            event_key="088p72pbv9Ozj7T1"
+                                        )
+        
+        Events_Mananger(Unit="Host", 
+                        path="Logs").Set_Event(
+                                        step="Send Response", 
+                                        event_type="Send", 
+                                        event_key="74L648VZDI7J1GV5"
+                                    )
+        
+        Events_Mananger(Unit="Host", 
+                        path="Logs").Set_Event(
+                                        step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
+                                    )
 
         # (callback name) - Receive Data: [Data received list for comparison]
 
         return response
+
+class MyHost:
+
+    def __init__(self):
+        self.host_patterns = HostPatterns()
 
     def monitor_stop_event(self):
 
@@ -47,6 +64,7 @@ class MyHost:
 
         # -> Define how much time host will be alive!
         # TODO >>> In the future change to use 100% timeout
+        
         n = 0 
         COUNTER = 12 # Each counter is 5 secs of waiting
 
@@ -66,6 +84,7 @@ class MyHost:
                 mys_host_interface.stop_client_events_retriver()
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
+
             else:
                 time.sleep(5)
                 n += 1
@@ -75,24 +94,60 @@ class MyHost:
 
     def run_host(self, ip, port):
 
+        handlers = Handlers()
+
         callbacks = [
-            self.host_patterns.callback_pattern(callback=self.python_function,
-                                                args={"birth": "str", "name": "str", "age": "int", "event_key": "str"}),
+            
+            self.host_patterns.callback_pattern(
+
+                callback=handlers.python_function,
+                args={
+                    "birth": "str", 
+                    "name": "str", 
+                    "age": "int", 
+                    "event_key": "str"
+                }
+                
+            ),
+
             # self.host_patterns.callback_pattern(callback=self.test_redirect,
             #                                     args={"client_id": "str", "data": "dict", "event_key": "str"}),
         ]
 
         allowed_clients = [
-            self.host_patterns.client_pattern(client_name="TestClient1", client_type="Interface", client_key="some_client_id", client_permission_group="", client_is_super_user=True, client_max_sub_channes=5),
-            self.host_patterns.client_pattern(client_name="TestClient2", client_type="Interface", client_key="randomsclientids", client_permission_group="", client_is_super_user=True, client_max_sub_channes=5),
+
+            self.host_patterns.client_pattern(
+                client_name="TestClient1", 
+                client_type="Interface", 
+                client_key="some_client_id", 
+                client_permission_group="", 
+                client_is_super_user=True, 
+                client_max_sub_channes=5
+            ),
+
+            self.host_patterns.client_pattern(
+                client_name="TestClient2", 
+                client_type="Interface", 
+                client_key="randomsclientids", 
+                client_permission_group="", 
+                client_is_super_user=True, 
+                client_max_sub_channes=5
+            ),
+
         ]
 
         print(allowed_clients)
 
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
-        mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Temp/Data/", n_workers=2, log_level="DEBUG")
+        mys_host = MysceliumHost(
+                        callbacks=callbacks, 
+                        host_id="xnsmdkeflerpfsa",
+                        allowed_clients=allowed_clients, 
+                        buffer_path="Temp/Data/", 
+                        n_workers=2, 
+                        log_level="DEBUG"
+                    )
 
         self.mys_host = mys_host
 

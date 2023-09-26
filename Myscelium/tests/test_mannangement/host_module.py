@@ -20,6 +20,8 @@ class MyCallbacks:
     @staticmethod
     def test_add_client (client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
 
+        #! activation_function in this case is strictly defined as a internal function activated by callback responses
+
         new_client = [
             HostPatterns.client_pattern(
                 client_name=client_name,
@@ -37,6 +39,8 @@ class MyCallbacks:
     @staticmethod
     def test_update_client (actual_client_key:str,client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
 
+        #! activation_function in this case is strictly defined as a internal function activated by callback responses
+
         updated_client = [
             HostPatterns.client_pattern(
                 client_name=client_name,
@@ -53,6 +57,8 @@ class MyCallbacks:
 
     @staticmethod
     def test_remove_client (client_key:str):
+
+        #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
         return HostPatterns.update_host_configs(activation_function="remove_client", actual_client_key=client_key)
 

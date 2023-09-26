@@ -9,10 +9,10 @@ from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
 
-class Handlers:
+class Receivers:
 
     @staticmethod
-    def test_update_a_client (data):
+    def test_update_client (data):
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
         EVMananger.Set_Event("Activate Basic Response Test callback handler")
@@ -24,7 +24,7 @@ class Handlers:
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_remove_a_client (data): # TODO
+    def test_remove_client (data): # TODO
 
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
         EVMananger.Set_Event("Activate Basic Response Test callback handler")
@@ -76,7 +76,7 @@ class Senders:
         EVMananger.Set_Event("Data Sended", event_type="Send test add client", event_key="") # TODO >>> Add the event key
 
     @staticmethod
-    def test_update_a_client (): 
+    def test_update_client (): 
 
         time.sleep(10)
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
@@ -102,7 +102,7 @@ class Senders:
         EVMananger.Set_Event("Data Sended", event_type="Send test update a client", event_key="") # TODO >>> Add the event key
 
     @staticmethod
-    def test_remove_a_client (): 
+    def test_remove_client (): 
 
         time.sleep(10)
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
@@ -125,7 +125,7 @@ class MyClient:
 
     def initializer(self):
 
-        my_handlers = Handlers ()
+        my_handlers = Receivers ()
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
 
@@ -138,11 +138,11 @@ class MyClient:
                 "data":"dict"
             }),
 
-            client_patterns.callback_pattern(callback=my_handlers.test_update_a_client, args= {
+            client_patterns.callback_pattern(callback=my_handlers.test_update_client, args= {
                 "data":"dict"
             }),
 
-            client_patterns.callback_pattern(callback=my_handlers.test_remove_a_client, args= {
+            client_patterns.callback_pattern(callback=my_handlers.test_remove_client, args= {
                 "data":"dict"
             }),
         ]
@@ -179,6 +179,9 @@ class MyClient:
 
         t1 = Process(target=self.initializer, args=())
         t2 = Process(target=self.send_some_data, args=())
+
+        # TODO >>> Implement new senders
+
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()

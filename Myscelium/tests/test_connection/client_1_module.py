@@ -8,19 +8,7 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
-class MyClient:
-
-    @staticmethod
-    def test_handler(data):
-
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler", event_type="Receive", event_key="74L648VZDI7J1GV5")
-
-        print("Received data: ", data)
-
-        time.sleep(5)
-        
-        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+class Senders:
 
     @staticmethod
     def send_some_data():
@@ -37,7 +25,26 @@ class MyClient:
 
         print(result)
 
+class Receivers:
+
+    @staticmethod
+    def test_handler(data):
+
+        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
+        EVMananger.Set_Event("Activate Basic Response Test callback handler", event_type="Receive", event_key="74L648VZDI7J1GV5")
+
+        print("Received data: ", data)
+
+        time.sleep(5)
+        
+        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+
+
+class MyClient:
+
     def initializer(self):
+
+        receivers = Receivers()
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
 
@@ -46,7 +53,7 @@ class MyClient:
         mys_client.set_client_uid(client_uid="some_client_id")
 
         callbacks = [
-            client_patterns.callback_pattern(callback=MyClient.test_handler, args={
+            client_patterns.callback_pattern(callback=receivers.test_handler, args={
                 "data": "dict"
             }),
         ]
@@ -81,8 +88,10 @@ class MyClient:
 
     def run(self):
 
+        senders = Senders()
+
         t1 = Process(target=self.initializer, args=())
-        t2 = Process(target=self.send_some_data, args=())
+        t2 = Process(target=senders.send_some_data, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
