@@ -21,9 +21,12 @@ class Senders:
         command = client_patterns.command_pattern("test_redirect", args={"client_id": "some_client_id", "data": 8})
         result = mys_client.send(command, priority=10)
 
-        EVMananger = Events_Mananger(Unit="Client2", path="Logs")
-        EVMananger.Set_Event("Data To Redirect Sended", event_type="Send", event_key="02V0P37Dz09zR3fL")
-
+        Events_Mananger(Unit="Client2", path="Logs").Set_Event(
+            "Data To Redirect Sended", 
+            event_type="Send", 
+            event_key="02V0P37Dz09zR3fL"
+        )
+        
         print(result)
 
 
@@ -32,8 +35,9 @@ class Receivers:
     @staticmethod
     def test_handler(data:str):
 
-        EVMananger = Events_Mananger(Unit="Client2", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+        Events_Mananger(Unit="Client2", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler"
+        )
 
         print("Received data: ", data)
 
@@ -71,7 +75,10 @@ class MyClient:
         
         time.sleep(20)
 
-        System_Status(path="Logs").change_unit_status(Unit="Client2", Status=True)
+        System_Status(path="Logs").change_unit_status(
+            Unit="Client2", 
+            Status=True
+        )
 
         while True:
 

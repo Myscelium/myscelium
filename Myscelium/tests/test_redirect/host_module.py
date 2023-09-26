@@ -42,14 +42,39 @@ class Handlers:
         match age:
 
             case 8:
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback", event_type="Receive", event_key="1dX2A63Rp7O79x6t")
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Return Basic Callback Response", event_type="Send", event_key="r99F3i89D20Oj1lq")
+                
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step="Active Basic Callback", 
+                    event_type="Receive", 
+                    event_key="1dX2A63Rp7O79x6t"
+                )
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
+                )
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step="Return Basic Callback Response", 
+                    event_type="Send", 
+                    event_key="r99F3i89D20Oj1lq"
+                )
         
             case 9:
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback", event_type="Receive")
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Return Basic Callback Response", event_type="Send", event_key="")
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step="Active Basic Callback", 
+                    event_type="Receive"
+                )
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
+                )
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step="Return Basic Callback Response",
+                    event_type="Send", 
+                    event_key=""
+                )
 
         #                                                            (callback name) - Receive Data: [Data received list for comparison]
 

@@ -15,7 +15,7 @@ def client_contact_event_handler (client_name:str, client_key:str, client_last_c
     pass
 
 
-class MyCallbacks:
+class Handlers:
 
     @staticmethod
     def test_add_client (client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
@@ -67,7 +67,7 @@ class MyHost:
     def __init__(self):
         self.host_patterns = HostPatterns()
 
-        self.my_callbacks = MyCallbacks()
+        self.my_callbacks = Handlers()
 
     # @staticmethod
     # def handle_client_contact(client_id, event_key='client_contact'):
@@ -103,6 +103,7 @@ class MyHost:
                 mys_host_interface.stop_client_events_retriver()
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
+
             else:
                 time.sleep(5)
                 n += 1
@@ -115,37 +116,17 @@ class MyHost:
         callbacks = [
 
             self.host_patterns.callback_pattern(
-                callback=self.my_callbacks.test_add_client, 
-                args={
-                    "client_name":"str", 
-                    "client_key":"str", 
-                    "client_type":"str", 
-                    "permission_group":"str", 
-                    "is_super_user":"bool", 
-                    "max_sub_channels":"int", 
-                    "owned_sub_channels_keys":"list"
-                }
+                callback=self.my_callbacks.test_add_client
             ),
 
             self.host_patterns.callback_pattern(
-                callback=self.my_callbacks.test_update_client, 
-                args={
-                    "client_name":"str", 
-                    "client_key":"str", 
-                    "client_type":"str", 
-                    "permission_group":"str", 
-                    "is_super_user":"bool", 
-                    "max_sub_channels":"int", 
-                    "owned_sub_channels_keys":"list"
-                }
+                callback=self.my_callbacks.test_update_client
             ),
                                             
             self.host_patterns.callback_pattern(
-                callback=self.my_callbacks.test_remove_client, 
-                args={
-                    "client_key":"str", 
-                }
+                callback=self.my_callbacks.test_remove_client
             ),
+
         ]
 
         allowed_clients = [
@@ -191,11 +172,3 @@ class MyHost:
         host_process.join()
 
         return 
-
-            
-
-
-        
-
-    
-

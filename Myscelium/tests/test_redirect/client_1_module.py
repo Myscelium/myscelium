@@ -13,8 +13,11 @@ class MyClient:
     @staticmethod
     def test_handler(data:str):
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler", event_type="Receive", event_key="r99F3i89D20Oj1lq")
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler", 
+            event_type="Receive", 
+            event_key="r99F3i89D20Oj1lq"
+        )
 
         print("Received data: ", data)
 
@@ -25,8 +28,11 @@ class MyClient:
     @staticmethod
     def test_redirect_handler(data:dict):
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Redirect Test callback handler", event_type="Receive", event_key="02V0P37Dz09zR3fL")
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Redirect Test callback handler", 
+            event_type="Receive", 
+            event_key="02V0P37Dz09zR3fL"
+        )
 
         print("Received redirected data: ", data)
         
@@ -42,8 +48,11 @@ class MyClient:
         command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
         result = mys_client.send(command, priority=10)
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended", event_type="Send", event_key="1dX2A63Rp7O79x6t")
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Data Sended", 
+            event_type="Send", 
+            event_key="1dX2A63Rp7O79x6t"
+        )
 
         print(result)
 

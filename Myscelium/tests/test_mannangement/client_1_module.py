@@ -8,14 +8,14 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
-
 class Receivers:
 
     @staticmethod
     def test_update_client (data):
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler"
+        )
 
         print("Received data: ", data)
 
@@ -26,9 +26,10 @@ class Receivers:
     @staticmethod
     def test_remove_client (data): # TODO
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler")
-
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler"
+        )
+ 
         print("Received data: ", data)
 
         time.sleep(5)
@@ -38,8 +39,9 @@ class Receivers:
     @staticmethod
     def test_add_client (data): # TODO
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler"
+        )
 
         print("Received data: ", data)
 
@@ -72,8 +74,12 @@ class Senders:
 
         result = mys_client.send(command, priority=10)
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended", event_type="Send test add client", event_key="") # TODO >>> Add the event key
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Data Sended", 
+            event_type="Send test add client", 
+            event_key=""
+        ) # TODO >>> Add the event key
+        
 
     @staticmethod
     def test_update_client (): 
@@ -98,9 +104,12 @@ class Senders:
         
         result = mys_client.send(command, priority=10)
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended", event_type="Send test update a client", event_key="") # TODO >>> Add the event key
-
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Data Sended", 
+            event_type="Send test update a client", 
+            event_key=""
+        ) # TODO >>> Add the event key
+ 
     @staticmethod
     def test_remove_client (): 
 
@@ -118,8 +127,11 @@ class Senders:
         
         result = mys_client.send(command, priority=10)
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended", event_type="Send", event_key="") # TODO >>> Add the event key
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Data Sended", 
+            event_type="Send", 
+            event_key=""
+        ) # TODO >>> Add the event key        
 
 class MyClient: 
 
@@ -134,6 +146,7 @@ class MyClient:
         mys_client.set_client_uid(client_uid="some_client_id")
 
         callbacks = [
+
             client_patterns.callback_pattern(
                 callback=my_handlers.test_add_client, 
             ),
@@ -145,6 +158,7 @@ class MyClient:
             client_patterns.callback_pattern(
                 callback=my_handlers.test_remove_client, 
             ),
+
         ]
         
         mys_client.set_callbacks(callbacks=callbacks)

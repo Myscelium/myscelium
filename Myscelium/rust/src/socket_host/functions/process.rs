@@ -214,16 +214,16 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     updated_client_unwraped.get("is_super_user").unwrap().to_bool().unwrap(),
                     updated_client_unwraped.get("max_sub_channels").unwrap().to_int().unwrap() as u32,
                     owned_sub_channels_keys,
-                )); //> It Alwready create the new client
+                ));
 
-                new_client.save_into_db();
+                new_client.save_into_db(); //> It Alwready create the new client
 
                 let mut resp: HashMap<String, ResultType> = HashMap::new();
 
                 resp.insert("Success".to_string(), ResultType::Str(format!("Sussefuly add a client: {}!", client_key).to_string()));
 
                 to_send.insert("response".to_string(), ResultType::Map(resp));
-                to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
+                to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("add_client_handler").unwrap().to_string()));
                 to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
 
                 return to_send;
@@ -290,9 +290,11 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                 let owned_sub_channels_keys: Vec<String> = updated_client_unwraped.get("owned_sub_channels_keys").unwrap().to_list().unwrap().iter().map(|v| v.to_str().unwrap()).collect();
 
+                let client_key = updated_client_unwraped.get("client_key").unwrap().to_str().unwrap();
+
                 let new_client = handle_client_error!(Client::new(
                     updated_client_unwraped.get("client_name").unwrap().to_str().unwrap(),
-                    updated_client_unwraped.get("client_key").unwrap().to_str().unwrap(),
+                    client_key.clone(),
                     updated_client_unwraped.get("client_type").unwrap().to_str().unwrap(),
                     updated_client_unwraped.get("permission_group").unwrap().to_str().unwrap(),
                     updated_client_unwraped.get("is_super_user").unwrap().to_bool().unwrap(),
@@ -302,9 +304,31 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                 let old_client = handle_client_error!(Client::get_by_key(&actual_client_key));
 
-                let _ = old_client.update_to(&new_client); // It alwready saves into the database
-                                                           // TODO >>> Do better error manangement of the client error, and return it to the process unit
-                                                           // TODO >>> Maybe implement a fast resultype to client if needed
+                let result = old_client.update_to(&new_client); // It alwready saves into the database
+
+                // TODO >>> Maybe implement a fast resultype to client if needed
+
+                match result {
+                    Ok(c) => {
+                        let mut resp: HashMap<String, ResultType> = HashMap::new();
+
+                        resp.insert(
+                            "Success".to_string(),
+                            ResultType::Str(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key).to_string()),
+                        );
+
+                        to_send.insert("response".to_string(), ResultType::Map(resp));
+                        to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("update_client_handler").unwrap().to_string()));
+                        to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+
+                        return to_send;
+                    },
+
+                    Err(e) => match e {
+                        ClientError::ClientDoesNotExist(e) => return create_error_response_and_return!(format!("Error! Can't Update client because client {} Don't exist!", e), converted_m, to_send.clone()),
+                        _ => return create_error_response_and_return!("Error! Can Update client because a unexpected error!", converted_m, to_send.clone()),
+                    },
+                }
             } else {
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
             }
@@ -340,7 +364,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                         );
 
                         to_send.insert("response".to_string(), ResultType::Map(resp));
-                        to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
+                        to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("remove_client_handler").unwrap().to_string()));
                         to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
 
                         return to_send;
