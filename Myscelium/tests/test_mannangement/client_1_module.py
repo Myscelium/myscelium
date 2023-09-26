@@ -134,17 +134,26 @@ class MyClient:
         mys_client.set_client_uid(client_uid="some_client_id")
 
         callbacks = [
-            client_patterns.callback_pattern(callback=my_handlers.test_add_client, args={
-                "data":"dict"
-            }),
+            client_patterns.callback_pattern(
+                callback=my_handlers.test_add_client, 
+                args={
+                    "data":"dict"
+                }
+            ),
 
-            client_patterns.callback_pattern(callback=my_handlers.test_update_client, args= {
-                "data":"dict"
-            }),
+            client_patterns.callback_pattern(
+                callback=my_handlers.test_update_client, 
+                args= {
+                    "data":"dict"
+                }
+            ),
 
-            client_patterns.callback_pattern(callback=my_handlers.test_remove_client, args= {
-                "data":"dict"
-            }),
+            client_patterns.callback_pattern(
+                callback=my_handlers.test_remove_client, 
+                args= {
+                    "data":"dict"
+                }
+            ),
         ]
         
         mys_client.set_callbacks(callbacks=callbacks)

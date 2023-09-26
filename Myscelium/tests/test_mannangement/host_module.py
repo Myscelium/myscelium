@@ -114,32 +114,38 @@ class MyHost:
 
         callbacks = [
 
-            self.host_patterns.callback_pattern(callback=self.my_callbacks.test_add_client, 
-                                                args={
-                                                    "client_name":"str", 
-                                                    "client_key":"str", 
-                                                    "client_type":"str", 
-                                                    "permission_group":"str", 
-                                                    "is_super_user":"bool", 
-                                                    "max_sub_channels":"int", 
-                                                    "owned_sub_channels_keys":"list"
-                                                }),
+            self.host_patterns.callback_pattern(
+                callback=self.my_callbacks.test_add_client, 
+                args={
+                    "client_name":"str", 
+                    "client_key":"str", 
+                    "client_type":"str", 
+                    "permission_group":"str", 
+                    "is_super_user":"bool", 
+                    "max_sub_channels":"int", 
+                    "owned_sub_channels_keys":"list"
+                }
+            ),
 
-            self.host_patterns.callback_pattern(callback=self.my_callbacks.test_update_client, 
-                                                args={
-                                                    "client_name":"str", 
-                                                    "client_key":"str", 
-                                                    "client_type":"str", 
-                                                    "permission_group":"str", 
-                                                    "is_super_user":"bool", 
-                                                    "max_sub_channels":"int", 
-                                                    "owned_sub_channels_keys":"list"
-                                                }),
+            self.host_patterns.callback_pattern(
+                callback=self.my_callbacks.test_update_client, 
+                args={
+                    "client_name":"str", 
+                    "client_key":"str", 
+                    "client_type":"str", 
+                    "permission_group":"str", 
+                    "is_super_user":"bool", 
+                    "max_sub_channels":"int", 
+                    "owned_sub_channels_keys":"list"
+                }
+            ),
                                             
-            self.host_patterns.callback_pattern(callback=self.my_callbacks.test_remove_client, 
-                                                args={
-                                                    "client_key":"str", 
-                                                }),
+            self.host_patterns.callback_pattern(
+                callback=self.my_callbacks.test_remove_client, 
+                args={
+                    "client_key":"str", 
+                }
+            ),
         ]
 
         allowed_clients = [
