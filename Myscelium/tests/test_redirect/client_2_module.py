@@ -8,19 +8,8 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
-class MyClient:
 
-    @staticmethod
-    def test_handler(data:str):
-
-        EVMananger = Events_Mananger(Unit="Client2", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler")
-
-        print("Received data: ", data)
-
-        # time.sleep(5)
-        
-        # System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
+class Senders:
 
     @staticmethod
     def send_some_data_to_redirect():
@@ -37,6 +26,24 @@ class MyClient:
 
         print(result)
 
+
+class Receivers:
+
+    @staticmethod
+    def test_handler(data:str):
+
+        EVMananger = Events_Mananger(Unit="Client2", path="Logs")
+        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+
+        print("Received data: ", data)
+
+        # time.sleep(5)
+        
+        # System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
+
+
+class MyClient:
+
     def initializer(self):
 
         mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/", log_level="WARN")
@@ -45,8 +52,10 @@ class MyClient:
 
         mys_client.set_client_uid(client_uid="randomsclientids")
 
+        receivers = Receivers()
+
         callbacks = [
-            client_patterns.callback_pattern(callback=MyClient.test_handler),
+            client_patterns.callback_pattern(callback=receivers.test_handler),
         ]
         
         mys_client.set_callbacks(callbacks=callbacks)
@@ -80,10 +89,12 @@ class MyClient:
 
         return
 
-    def run(self):
+    def run(self):  
+
+        senders = Senders ()
 
         t1 = Process(target=self.initializer, args=())
-        t2 = Process(target=self.send_some_data_to_redirect, args=())
+        t2 = Process(target=senders.send_some_data_to_redirect, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()

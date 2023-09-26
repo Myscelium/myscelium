@@ -14,12 +14,18 @@ def client_contact_event_handler (client_name:str, client_key:str, client_last_c
     print(client_name, client_key, client_last_contact)
     pass
 
-class MyHost:
+class Handlers:
 
-    def __init__(self):
-        self.host_patterns = HostPatterns()
+    # @staticmethod
+    # def handle_client_contact(client_id, event_key='client_contact'):
+    #     print("Access heartbeat handler")
+    #     print(f"Client: {client_id}, made contact")
 
-    @staticmethod
+    #     Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
+
+    #     # TODO >>> Save event in the test databse log
+
+    @staticmethod   
     def python_function(age:int, birth:str, name:str):
         print("Access python function")
         print(birth)
@@ -44,7 +50,6 @@ class MyHost:
                 Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Basic Callback", event_type="Receive")
                 Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
                 Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Return Basic Callback Response", event_type="Send", event_key="")
-
 
         #                                                            (callback name) - Receive Data: [Data received list for comparison]
 
@@ -74,14 +79,11 @@ class MyHost:
             print("Client id isn't a string, failed to redirect data!")
             return None
 
-    # @staticmethod
-    # def handle_client_contact(client_id, event_key='client_contact'):
-    #     print("Access heartbeat handler")
-    #     print(f"Client: {client_id}, made contact")
+class MyHost:
 
-    #     Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
+    def __init__(self):
+        self.host_patterns = HostPatterns()
 
-    #     # TODO >>> Save event in the test databse log
 
     def monitor_stop_event(self):
 
@@ -128,9 +130,11 @@ class MyHost:
 
     def run_host(self, ip, port):
 
+        handlers = Handlers()
+
         callbacks = [
-            self.host_patterns.callback_pattern(callback=self.python_function),
-            self.host_patterns.callback_pattern(callback=self.test_redirect),
+            self.host_patterns.callback_pattern(callback=handlers.python_function),
+            self.host_patterns.callback_pattern(callback=handlers.test_redirect),
         ]
 
         allowed_clients = [
