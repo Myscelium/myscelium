@@ -61,7 +61,7 @@ The `HostPatterns` class provides patterns for the host.
 
 - `client_pattern(client_type:str, client_id:str) -> dict`: Returns a client pattern.
 - `response_pattern(response:any, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict`: Returns a response pattern.
-- `callback_pattern(callback, args) -> dict`: Returns a callback pattern.
+- `callback_pattern(callback) -> dict`: Returns a callback pattern.
 
 ---
 
@@ -139,12 +139,12 @@ Certain callback functions must have specific names for the system to recognize 
     ```python
     callbacks = [
         host_patterns.callback_pattern(
-            callback=python_function, 
-            args={...}
+            callback=python_function
         ),
         # Add other callbacks here
     ]
     ```
+    * IMPORTANT! : Since v1.3 callbacks args are automatically infered!
 
 4. **Specify Allowed Clients**: Define which clients are allowed to connect to your host.
     ```python
@@ -179,8 +179,7 @@ Certain callback functions must have specific names for the system to recognize 
     ```python
     client_heart_beat_handler = [
         host_patterns.callback_pattern(
-            callback=handle_client_contact, 
-            args={"client_id": "str"}
+            callback=handle_client_contact
         )
     ]
     
@@ -194,7 +193,6 @@ Certain callback functions must have specific names for the system to recognize 
     logs_handler_callback = [
         host_patterns.callback_pattern(
             callback=logs_handler, 
-            args={...}
         )
     ]
     mys_host.set_logs_callback_handler(
