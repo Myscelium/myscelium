@@ -20,7 +20,7 @@ class MyHost:
         self.host_patterns = HostPatterns()
 
     @staticmethod
-    def python_function(age, birth, name):
+    def python_function(age:int, birth:str, name:str):
         print("Access python function")
         print(birth)
         print(name)
@@ -51,7 +51,7 @@ class MyHost:
         return response
 
     @staticmethod
-    def test_redirect(client_id, data):
+    def test_redirect(client_id:str, data:int):
         if isinstance(client_id, str):
             print(f"Redirecting data: {data} to client: {client_id}")
             host_patterns = HostPatterns()
@@ -129,10 +129,8 @@ class MyHost:
     def run_host(self, ip, port):
 
         callbacks = [
-            self.host_patterns.callback_pattern(callback=self.python_function,
-                                                args={"birth": "str", "name": "str", "age": "int", "event_key": "str"}),
-            self.host_patterns.callback_pattern(callback=self.test_redirect,
-                                                args={"client_id": "str", "data": "int"}),
+            self.host_patterns.callback_pattern(callback=self.python_function),
+            self.host_patterns.callback_pattern(callback=self.test_redirect),
         ]
 
         allowed_clients = [

@@ -11,7 +11,7 @@ from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 class MyClient:
 
     @staticmethod
-    def test_handler(data):
+    def test_handler(data:str):
 
         EVMananger = Events_Mananger(Unit="Client2", path="Logs")
         EVMananger.Set_Event("Activate Basic Response Test callback handler")
@@ -25,7 +25,7 @@ class MyClient:
     @staticmethod
     def send_some_data_to_redirect():
 
-        time.sleep(20)
+        # time.sleep(20)
         mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="randomsclientids")
@@ -46,9 +46,7 @@ class MyClient:
         mys_client.set_client_uid(client_uid="randomsclientids")
 
         callbacks = [
-            client_patterns.callback_pattern(callback=MyClient.test_handler, args={
-                "data": "dict"
-            }),
+            client_patterns.callback_pattern(callback=MyClient.test_handler),
         ]
         
         mys_client.set_callbacks(callbacks=callbacks)
