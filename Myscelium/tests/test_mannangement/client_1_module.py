@@ -24,7 +24,7 @@ class Receivers:
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_remove_client (data): # TODO
+    def test_remove_client (data): # TODO >>> test_remove_client
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test callback handler"
@@ -37,7 +37,7 @@ class Receivers:
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_add_client (data): # TODO
+    def test_add_client (data): # TODO >>> test_add_client 
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test callback handler"
