@@ -77,9 +77,11 @@ Parameters:
 - add_client, needed kwrags: 
 
     ```python
-    update_host_configs (self, 
-                        activation_function="add_client", 
-                        new_client=[client_patter])
+    update_host_configs (
+        self, 
+        activation_function="add_client", 
+        new_client=[client_pattern]
+    )
 
     # - new_client:list[client_pattern] -> This is a list that contains the new client to add!
     ```
@@ -87,10 +89,12 @@ Parameters:
 - update_client, needed kwargs:
 
     ```python
-    update_host_configs (self, 
-                        activation_function="update_client", 
-                        actual_client_key="xMsndkdlenfjedLj", 
-                        updated_client=[client_patter])
+    update_host_configs (
+        self, 
+        activation_function="update_client", 
+        actual_client_key="xMsndkdlenfjedLj", 
+        updated_client=[client_pattern]
+    )
 
     # - actual_client_key:str
     # - updated_client:list[client_pattern] -> This is a list that contains the new client updated!    
@@ -99,9 +103,11 @@ Parameters:
 - remove_client, need kwargs:
 
     ```python
-    update_host_configs (self, 
-                        activation_function="remove_client", 
-                        actual_client_key="xMsndkdlenfjedLj")
+    update_host_configs (
+        self, 
+        activation_function="remove_client", 
+        actual_client_key="xMsndkdlenfjedLj"
+    )
 
     # - client_key:str -> The client key of the client that you want to remove.
     ```

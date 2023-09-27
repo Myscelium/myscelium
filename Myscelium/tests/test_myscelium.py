@@ -322,6 +322,120 @@ def test_redirect ():
 
     pass
 
+
+#> ------------------------------------------------------------------------------------------------------------------------------------
+#> Inner Mannangement Test:
+
+def host_thread_to_test_inner_mannangement(event_host_received):
+    print("Starting host thread...")
+    
+    # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
+
+    host_instance = MyHostToTestRedirect().run(event=event_host_received)
+
+    print("Host thread finished.")
+
+def client_1_thread_to_test_inner_mannangement(event_client_received):
+    print("Waiting for host to be ready...")
+    time.sleep(5)
+    print("Starting client 1 thread...")
+    
+    client_instance = MyClient1ToTestRedirect()
+    client_instance.run() 
+    
+    print("Client1 thread finished.")
+
+def test_redirect ():
+
+    time.sleep(5)
+
+    System_Status(path="Logs").create_unit("Client1")
+    System_Status(path="Logs").create_unit("Host")
+
+    System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+
+    if os.path.exists("Temp/Client1Data/"):
+        shutil.rmtree("Temp/Client1Data/")
+
+    if os.path.exists("Temp/Data/"):
+        shutil.rmtree("Temp/Data/")
+
+    t1 = Process(target=host_thread_to_test_inner_mannangement, args=('main_event',)) # Passing event_key
+    t2 = Process(target=client_1_thread_to_test_inner_mannangement, args=('main_event',)) # Passing event_key
+
+    t1.start()
+    t2.start()
+
+    t2.join()
+
+    host_events = Events_Mananger(Unit="Host", path="Logs").List_Events()
+    host_events_df = pd.DataFrame.from_dict(host_events)
+
+    client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_1_events_df = pd.DataFrame.from_dict(client_1_events)
+
+    #>----------------------------------------------------------------------------------------------------
+    #> Tests Controler
+
+    #> Host events:
+
+    # TODO >>> Continue to implement the tests to avaliate if the test inner mannangement is working!
+
+    client_1_contact            = False
+    client_contact              = False
+    
+    add_client_callback         = False 
+    update_client_callback      = False 
+    remove_client_callback      = False 
+
+    #> Client 1 events:
+
+    send_add_client             = False
+    send_update_client_callback = False
+    send_remove_client_callback = False
+
+    #>----------------------------------------------------------------------------------------------------
+
+    # -> Host Tests
+    for i in host_events_df.index:
+        event = host_events_df.loc[i, 'StepCompleted']
+
+        if "Contact received from Client: some_client_id" in event:
+            client_1_contact = True
+
+        if "Contact received from Client: randomsclientids" in event:
+            client_2_contact = True
+
+        if "Active Host Redirect Callback" in event:
+            host_redirect_callback = True
+
+    # -> Client 1 Tests
+    for i in client_1_events_df.index:
+        event = client_1_events_df.loc[i, 'StepCompleted']
+
+        # if "Data Sended" in event:
+        #     send_data = True
+
+        # if "Activate Basic Response Test callback handler" in event:
+        #     basic_response_handler = True
+
+        if "Activate Basic Redirect Test callback handler" in event:
+            active_callback_remotely = True
+ 
+    # -> Client 1
+
+    # assert send_data, "Cant send data"
+    # assert basic_response_handler, "Don't called basic response handler"
+    assert active_callback_remotely, "Don't received redirect response!"
+
+    # -> Host
+    assert client_1_contact, "Client 1 doesn't make any contact with host!"
+
+    assert host_redirect_callback, "Baisc redirect callback not called!"
+
+    pass
+
 # def test_communication_resistance():
 #     success_count = 0
 #     total_attempts = 100
@@ -336,6 +450,9 @@ def test_redirect ():
 #     success_porcentage = (success_count/total_attempts)*100
 #     print(f"\n\nTest succeeded {success_count} out of {total_attempts} attempts. Test have {success_porcentage}% of success")
 #     assert success_count == total_attempts, "Not all attempts were successful!"
+
+
+
 
 if __name__ == '__main__':
     pytest.main()
