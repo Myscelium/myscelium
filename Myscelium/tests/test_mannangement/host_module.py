@@ -34,6 +34,17 @@ class Handlers:
             )
         ]
 
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            step="Active Test Add Client", 
+            event_type="Receive", 
+            event_key="94G2zy6cV54GN64O"
+        )
+
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            step=f"New Client: [{new_client}]"
+        )
+
+
         return HostPatterns.update_host_configs(activation_function="add_client", new_client=new_client)
     
     @staticmethod
@@ -52,6 +63,16 @@ class Handlers:
                 client_max_sub_channels=owned_sub_channels_keys
             )
         ]
+
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            step="Active Test Update Client", 
+            event_type="Receive", 
+            event_key="3p7194Y33W6BnYlA"
+        )
+
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            step=f"Updated Client: [{updated_client}]"
+        )
         
         return HostPatterns.update_host_configs(activation_function="update_client", actual_client_key=actual_client_key, updated_client=updated_client)
 
@@ -59,6 +80,16 @@ class Handlers:
     def test_remove_client (client_key:str):
 
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
+
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            step="Active Test Update Client", 
+            event_type="Receive", 
+            event_key="30bt28u819A1QDpH"
+        )
+
+        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            step=f"Client Client: [{client_key}]"
+        )
 
         return HostPatterns.update_host_configs(activation_function="remove_client", actual_client_key=client_key)
 

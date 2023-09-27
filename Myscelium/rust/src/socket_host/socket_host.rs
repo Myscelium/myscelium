@@ -543,7 +543,7 @@ fn handle_connection(mut stream: TcpStream) {
             return;
         }
 
-        // ! WE CAN USE THIS PY AQUIRE UNTILL THE PYTHON POOL IS FINISHED !
+        // ! WE CAN'T USE THIS PY AQUIRE UNTILL THE PYTHON POOL IS FINISHED !
 
         update_last_contact(command.client_id.clone());
 

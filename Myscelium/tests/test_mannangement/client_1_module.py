@@ -75,10 +75,10 @@ class Senders:
         result = mys_client.send(command, priority=10)
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Data Sended", 
-            event_type="Send test add client", 
-            event_key=""
-        ) # TODO >>> Add the event key
+            "Send test add a client", 
+            event_type="Send", 
+            event_key="94G2zy6cV54GN64O"
+        ) 
         
 
     @staticmethod
@@ -105,10 +105,10 @@ class Senders:
         result = mys_client.send(command, priority=10)
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Data Sended", 
-            event_type="Send test update a client", 
-            event_key=""
-        ) # TODO >>> Add the event key
+            "Send test update a client", 
+            event_type="Send", 
+            event_key="3p7194Y33W6BnYlA"
+        ) 
  
     @staticmethod
     def test_remove_client (): 
@@ -128,10 +128,10 @@ class Senders:
         result = mys_client.send(command, priority=10)
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Data Sended", 
+            "Send test remove a client", 
             event_type="Send", 
-            event_key=""
-        ) # TODO >>> Add the event key        
+            event_key="30bt28u819A1QDpH"
+        )     
 
 class MyClient: 
 
