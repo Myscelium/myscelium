@@ -184,20 +184,26 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 match expectation_result {
                     Err(e) => match e {
                         ExpectationError::MismatchType(tp) => {
+                            println!("ERROR, Client kwargs have mismatch type {} kwarg!", tp);
                             return create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp), converted_m, to_send);
                         },
                         ExpectationError::MismatchRelativeLength => {
+                            println!("ERROR, Client kwargs have mismatch relative length kwargs!");
                             return create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!", converted_m, to_send);
                         },
                         ExpectationError::Missingkwarg(k) => {
+                            println!("ERROR, Client kwargs have a missing kwarg: {}!", k);
                             return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k), converted_m, to_send);
                         },
                         ExpectationError::TargetIsEmpty => {
+                            println!("ERROR, Client target pattern is empty!");
                             return create_error_response_and_return!("Error! Client target pattern is empty!", converted_m, to_send);
                         },
                     },
 
-                    Ok(_) => {},
+                    Ok(_) => {
+                        println!("Command add_client received matches the expectations!");
+                    },
                 }
 
                 let updated_client_unwraped: HashMap<String, ResultType> = new_client.to_map().unwrap();
@@ -216,7 +222,11 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     owned_sub_channels_keys,
                 ));
 
+                println!("New client: {:?}", new_client);
+
                 new_client.save_into_db(); //> It Alwready create the new client
+
+                println!("New client saved into the database!");
 
                 let mut resp: HashMap<String, ResultType> = HashMap::new();
 
@@ -238,12 +248,15 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
             // 'kwargs':{'actual_client_key':String, 'updated_client':client} // Client have to have the same client key
             // 'client': {"client_name":str, "client_key":str, "client_type":str, "permission_group":str, "is_super_user":bool, "max_sub_channels":int, "owned_sub_channels_keys":list}
 
+            println!("Receive a update client inner command!");
+
             if let ResultType::Map(inner_map) = &kwargs {
                 if !inner_map.contains_key("actual_client_key") {
                     return create_error_response_and_return!("Error! Callback response kwargs don't have actual_client_key kwarg!", converted_m, to_send);
                 }
 
                 if !inner_map.contains_key("updated_client") {
+                    println!("ERROR, Error! Callback response kwargs don't have update_client kwarg!");
                     return create_error_response_and_return!("Error! Callback response kwargs don't have update_client kwarg!", converted_m, to_send);
                 }
 
@@ -270,15 +283,19 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 match expectation_result {
                     Err(e) => match e {
                         ExpectationError::MismatchType(tp) => {
+                            println!("ERROR, Client kwargs have mismatch type {} kwarg!", tp);
                             return create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp), converted_m, to_send);
                         },
                         ExpectationError::MismatchRelativeLength => {
+                            println!("ERROR, Client kwargs have mismatch relative length kwargs!");
                             return create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!", converted_m, to_send);
                         },
                         ExpectationError::Missingkwarg(k) => {
+                            println!("ERROR, Client kwargs have a missing kwarg: {}!", k);
                             return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k), converted_m, to_send);
                         },
                         ExpectationError::TargetIsEmpty => {
+                            println!("ERROR, Client target pattern is empty!");
                             return create_error_response_and_return!("Error! Client target pattern is empty!", converted_m, to_send);
                         },
                     },
@@ -300,11 +317,11 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     updated_client_unwraped.get("is_super_user").unwrap().to_bool().unwrap(),
                     updated_client_unwraped.get("max_sub_channels").unwrap().to_int().unwrap() as u32,
                     owned_sub_channels_keys,
-                )); //> It Alwready create the new client
+                ));
 
                 let old_client = handle_client_error!(Client::get_by_key(&actual_client_key));
 
-                let result = old_client.update_to(&new_client); // It alwready saves into the database
+                let result = old_client.update_to(&new_client); //> It alwready saves into the database
 
                 // TODO >>> Maybe implement a fast resultype to client if needed
 

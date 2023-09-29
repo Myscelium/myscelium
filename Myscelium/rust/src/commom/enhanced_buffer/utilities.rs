@@ -12,6 +12,7 @@ pub enum CommandType {
     Response(String),
     Redirect(String),
     Error(String),
+    InternalMannangement(String),
     Unknown,
 }
 
@@ -113,6 +114,8 @@ impl Command {
             CommandType::Response(self.command.get("response").unwrap().to_string())
         } else if self.command.contains_key("redirect") {
             CommandType::Redirect(self.command.get("redirect").unwrap().to_string())
+        } else if self.command.contains_key("internal_mannangement") {
+            CommandType::InternalMannangement(self.command.get("internal_mannangement").unwrap().to_string())
         } else if self.command.contains_key("error") {
             CommandType::Error(self.command.get("error").unwrap().to_string())
         } else {

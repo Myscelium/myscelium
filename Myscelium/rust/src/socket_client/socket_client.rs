@@ -413,6 +413,11 @@ fn handle_response(received: Response) -> Option<DownCommand> {
             return Some(down_command);
         },
 
+        CommandType::InternalMannangement(_) => {
+            logger.warn(format!("Received an Unknown command!"));
+            return None;
+        },
+
         CommandType::Error(e) => {
             let down_command = DownCommand::from_command(command_received.clone());
 

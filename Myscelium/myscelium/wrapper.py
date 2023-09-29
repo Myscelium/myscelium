@@ -546,7 +546,7 @@ class HostPatterns:
 
         pass
 
-    def client_pattern (self, client_name:str, client_key:str, client_type:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list = []) -> dict:
+    def client_pattern (self, client_name:str, client_key:str, client_type:str, client_permission_group:str, client_is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list = []) -> dict:
 
         """
         Create a client pattern.
@@ -564,7 +564,7 @@ class HostPatterns:
         - Dictionary representing the client pattern.
         """
 
-        return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":client_max_sub_channes, "owned_sub_channels_keys":client_owned_sub_channels_keys}
+        return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":max_sub_channels, "owned_sub_channels_keys":owned_sub_channels_keys}
 
     def response_pattern (self, response:dict, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict:
 
@@ -655,7 +655,7 @@ class HostPatterns:
 
             response = {'new_client':new_client}
 
-            return {'response_mode':'InternalMannangement', 'activation_function':'add_client', 'kwargs':response}
+            return {'response_mode':'internal_mannangement', 'activation_function':'add_client', 'kwargs':response}
 
         elif activation_function == "update_client":
 
@@ -675,7 +675,7 @@ class HostPatterns:
 
             response = {'actual_client_key':actual_client_key, 'updated_client':updated_client}
 
-            return {'response_mode':'InternalMannangement', 'activation_function':'update_client', 'kwargs':response}
+            return {'response_mode':'internal_mannangement', 'activation_function':'update_client', 'kwargs':response}
         
         elif activation_function == "remove_client":
 
@@ -688,7 +688,7 @@ class HostPatterns:
 
             response = {'client_key':client_key}
 
-            return {'response_mode':'InternalMannangement', 'activation_function':'remove_client', 'kwargs':response}
+            return {'response_mode':'internal_mannangement', 'activation_function':'remove_client', 'kwargs':response}
 
         else:
             raise f"activation_function: {activation_function} doesn't registred in the avalaible host internal mannangement commands!"
@@ -1140,7 +1140,8 @@ class ClientPatterns:
         for name, param in params.items():
 
             if param.annotation is inspect._empty:
-                raise f"function: {callback.__name__} has args or kwargs without the required anotations!"    
+                function_name = callback.__name__
+                raise f"function: {function_name} has args or kwargs without the required anotations!"    
             else:
                 pass
 

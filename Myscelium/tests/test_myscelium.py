@@ -14,6 +14,10 @@ from .test_redirect.host_module import MyHost as MyHostToTestRedirect
 from .test_redirect.client_1_module import MyClient as MyClient1ToTestRedirect
 from .test_redirect.client_2_module import MyClient as MyClient2ToTestRedirect
 
+#> Test Inner Mannangement
+from .test_mannangement.host_module import MyHost as MyHostToTestMannangement
+from .test_mannangement.client_1_module import MyClient as MyClient1ToTestMannangement
+
 #> Events mananger
 from multiprocessing import Process
 from .Logs.test_logs_mananger import Events_Mananger, System_Status
@@ -326,26 +330,26 @@ def test_redirect ():
 #> ------------------------------------------------------------------------------------------------------------------------------------
 #> Inner Mannangement Test:
 
-def host_thread_to_test_inner_mannangement(event_host_received):
+def host_thread_to_test_inner_mannangement (event_host_received):
     print("Starting host thread...")
     
     # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
 
-    host_instance = MyHostToTestRedirect().run(event=event_host_received)
+    host_instance = MyHostToTestMannangement().run(event=event_host_received)
 
     print("Host thread finished.")
 
-def client_1_thread_to_test_inner_mannangement(event_client_received):
+def client_1_thread_to_test_inner_mannangement (event_client_received):
     print("Waiting for host to be ready...")
     time.sleep(5)
     print("Starting client 1 thread...")
     
-    client_instance = MyClient1ToTestRedirect()
+    client_instance = MyClient1ToTestMannangement()
     client_instance.run() 
     
     print("Client1 thread finished.")
 
-def test_redirect ():
+def test_mannangement ():
 
     time.sleep(5)
 
@@ -392,8 +396,8 @@ def test_redirect ():
     #> Client 1 events:
 
     send_add_client             = False
-    send_update_client_callback = False
-    send_remove_client_callback = False
+    send_update_client          = False
+    send_remove_client          = False
 
     #>----------------------------------------------------------------------------------------------------
 
@@ -401,40 +405,41 @@ def test_redirect ():
     for i in host_events_df.index:
         event = host_events_df.loc[i, 'StepCompleted']
 
-        if "Contact received from Client: some_client_id" in event:
-            client_1_contact = True
+        if "Active Test Add Client" in event:
+            add_client_callback     = True
 
-        if "Contact received from Client: randomsclientids" in event:
-            client_2_contact = True
+        if "Active Test Update Client" in event:
+            update_client_callback  = True
 
-        if "Active Host Redirect Callback" in event:
-            host_redirect_callback = True
+        if "Active Test Remove Client" in event:
+            remove_client_callback  = True
 
     # -> Client 1 Tests
     for i in client_1_events_df.index:
         event = client_1_events_df.loc[i, 'StepCompleted']
 
-        # if "Data Sended" in event:
-        #     send_data = True
+        if "Send test add a client" in event:
+            send_add_client     = True
 
-        # if "Activate Basic Response Test callback handler" in event:
-        #     basic_response_handler = True
+        if "Send test update a client" in event:
+            send_update_client  = True
 
-        if "Activate Basic Redirect Test callback handler" in event:
-            active_callback_remotely = True
+        if "Send test remove a client" in event:
+            send_remove_client  = True
  
     # -> Client 1
 
-    # assert send_data, "Cant send data"
-    # assert basic_response_handler, "Don't called basic response handler"
-    assert active_callback_remotely, "Don't received redirect response!"
+    assert send_add_client, "Can't send command to add client!"
+    assert send_update_client, "Can't send command to update client!"
+    assert send_remove_client, "Can't send command to remove client!"
 
     # -> Host
-    assert client_1_contact, "Client 1 doesn't make any contact with host!"
 
-    assert host_redirect_callback, "Baisc redirect callback not called!"
+    assert add_client_callback, "Host don't receive add client!"
+    assert update_client_callback, "Host don't receive update client!"
+    assert remove_client_callback, "Host don't receive remove client!"
 
-    pass
+    
 
 # def test_communication_resistance():
 #     success_count = 0

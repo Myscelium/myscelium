@@ -23,14 +23,14 @@ class Handlers:
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
         new_client = [
-            HostPatterns.client_pattern(
+            HostPatterns().client_pattern(
                 client_name=client_name,
                 client_key=client_key,
                 client_type=client_type,
                 client_permission_group=permission_group,
                 client_is_super_user=is_super_user,
                 max_sub_channels=max_sub_channels,
-                client_max_sub_channels=owned_sub_channels_keys
+                owned_sub_channels_keys=owned_sub_channels_keys
             )
         ]
 
@@ -45,7 +45,7 @@ class Handlers:
         )
 
 
-        return HostPatterns.update_host_configs(activation_function="add_client", new_client=new_client)
+        return HostPatterns().update_host_configs(activation_function="add_client", new_client=new_client)
     
     @staticmethod
     def test_update_client (actual_client_key:str,client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
@@ -53,14 +53,14 @@ class Handlers:
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
         updated_client = [
-            HostPatterns.client_pattern(
+            HostPatterns().client_pattern(
                 client_name=client_name,
                 client_key=client_key,
                 client_type=client_type,
                 client_permission_group=permission_group,
                 client_is_super_user=is_super_user,
                 max_sub_channels=max_sub_channels,
-                client_max_sub_channels=owned_sub_channels_keys
+                owned_sub_channels_keys=owned_sub_channels_keys
             )
         ]
 
@@ -74,7 +74,7 @@ class Handlers:
             step=f"Updated Client: [{updated_client}]"
         )
         
-        return HostPatterns.update_host_configs(activation_function="update_client", actual_client_key=actual_client_key, updated_client=updated_client)
+        return HostPatterns().update_host_configs(activation_function="update_client", actual_client_key=actual_client_key, updated_client=updated_client)
 
     @staticmethod
     def test_remove_client (client_key:str):
@@ -82,7 +82,7 @@ class Handlers:
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
         Events_Mananger(Unit="Host", path="Logs").Set_Event(
-            step="Active Test Update Client", 
+            step="Active Test Remove Client", 
             event_type="Receive", 
             event_key="30bt28u819A1QDpH"
         )
@@ -91,7 +91,7 @@ class Handlers:
             step=f"Client Client: [{client_key}]"
         )
 
-        return HostPatterns.update_host_configs(activation_function="remove_client", actual_client_key=client_key)
+        return HostPatterns().update_host_configs(activation_function="remove_client", actual_client_key=client_key)
 
 class MyHost:
 
@@ -119,7 +119,7 @@ class MyHost:
         COUNTER = 12 # Each counter is 5 secs of waiting
 
 
-        mys_host_interface = MysceliumHostInterface("Data/")
+        mys_host_interface = MysceliumHostInterface("Temp/Data/")
 
         mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
 
@@ -161,13 +161,13 @@ class MyHost:
         ]
 
         allowed_clients = [
-            self.host_patterns.client_pattern(client_name="TestClient1", client_type="Interface", client_key="some_client_id", client_permission_group="", client_is_super_user=True, client_max_sub_channes=5),
-            self.host_patterns.client_pattern(client_name="TestClient2", client_type="Interface", client_key="randomsclientids", client_permission_group="", client_is_super_user=True, client_max_sub_channes=5),
+            self.host_patterns.client_pattern(client_name="TestClient1", client_type="Interface", client_key="some_client_id", client_permission_group="", client_is_super_user=True, max_sub_channels=5),
+            self.host_patterns.client_pattern(client_name="TestClient2", client_type="Interface", client_key="randomsclientids", client_permission_group="", client_is_super_user=True, max_sub_channels=5),
         ]
 
         print(allowed_clients)
 
-        # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
+        # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, max_sub_channels:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
                                  allowed_clients=allowed_clients, buffer_path="Temp/Data/", n_workers=2, log_level="DEBUG")

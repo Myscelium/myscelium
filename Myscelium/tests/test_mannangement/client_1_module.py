@@ -11,10 +11,10 @@ from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 class Receivers:
 
     @staticmethod
-    def test_update_client (data):
+    def test_update_client (data:any):
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Activate Basic Response Test callback handler"
+            "Activate Basic Response Test Update Client"
         )
 
         print("Received data: ", data)
@@ -24,10 +24,10 @@ class Receivers:
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_remove_client (data): # TODO >>> test_remove_client
+    def test_remove_client (data:any): # TODO >>> test_remove_client
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Activate Basic Response Test callback handler"
+            "Activate Basic Response Test Remove Client"
         )
  
         print("Received data: ", data)
@@ -37,10 +37,10 @@ class Receivers:
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_add_client (data): # TODO >>> test_add_client 
+    def test_add_client (data:any): # TODO >>> test_add_client 
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Activate Basic Response Test callback handler"
+            "Activate Basic Response Test Add Client"
         )
 
         print("Received data: ", data)
@@ -50,6 +50,17 @@ class Receivers:
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
 class Senders:
+
+    def start_send_sequence (self):
+
+        time.sleep(10)
+        self.test_add_client()
+
+        time.sleep(10)
+        self.test_update_client()
+
+        time.sleep(10)
+        self.test_remove_client()
 
     @staticmethod
     def test_add_client (): 
@@ -72,7 +83,7 @@ class Senders:
                         }
                     )
 
-        result = mys_client.send(command, priority=10)
+        result = mys_client.send(command, priority=9)
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Send test add a client", 
@@ -102,7 +113,7 @@ class Senders:
                         }
                     )
         
-        result = mys_client.send(command, priority=10)
+        result = mys_client.send(command, priority=8)
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Send test update a client", 
@@ -125,7 +136,7 @@ class Senders:
                         }
                     )
         
-        result = mys_client.send(command, priority=10)
+        result = mys_client.send(command, priority=7)
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Send test remove a client", 
@@ -139,7 +150,7 @@ class MyClient:
 
         my_handlers = Receivers ()
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level="DEBUG")
 
         self.mys_client = mys_client
 
@@ -191,8 +202,10 @@ class MyClient:
 
     def run(self):
 
+        senders = Senders()
+
         t1 = Process(target=self.initializer, args=())
-        t2 = Process(target=self.send_some_data, args=())
+        t2 = Process(target=senders.start_send_sequence, args=())
 
         # TODO >>> Implement new senders
 

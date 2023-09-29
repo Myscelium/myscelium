@@ -253,6 +253,9 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
                 },
             };
         },
+        CommandType::InternalMannangement(i) => {
+            // TODO >>> Do the internal mannangement handling mecanism
+        },
         CommandType::Error(e) => {
             return Err(ProcessError::Error(e));
         },
