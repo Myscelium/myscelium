@@ -184,6 +184,8 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                 let expectation_result: Result<(), ExpectationError> = new_client.fast_verify_kwargs_and_types(&ResultType::Map(expected));
 
+                // TODO >>> Implement a way to know not only the type that has a error but what key that this is wrong
+
                 match expectation_result {
                     Err(e) => match e {
                         ExpectationError::MismatchType(tp) => {

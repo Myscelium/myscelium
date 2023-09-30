@@ -267,6 +267,8 @@ fn process(py: Python, down_command: DownCommand) {
         },
     };
 
+    println!("Callback call response converted to rust: {:?}", result);
+
     let mut client_id = down_command.client_id.clone();
 
     let response;

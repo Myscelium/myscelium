@@ -22,8 +22,7 @@ class Handlers:
 
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
-        new_client = [
-            HostPatterns().client_pattern(
+        new_client = HostPatterns().client_pattern(
                 client_name=client_name,
                 client_key=client_key,
                 client_type=client_type,
@@ -32,7 +31,7 @@ class Handlers:
                 max_sub_channels=max_sub_channels,
                 owned_sub_channels_keys=owned_sub_channels_keys
             )
-        ]
+        
 
         Events_Mananger(Unit="Host", path="Logs").Set_Event(
             step="Active Test Add Client", 
@@ -44,16 +43,18 @@ class Handlers:
             step=f"New Client: [{new_client}]"
         )
 
+        response = HostPatterns().update_host_configs(activation_function="add_client", new_client=new_client)
 
-        return HostPatterns().update_host_configs(activation_function="add_client", new_client=new_client)
+        print(f"Response to send back to rust to inner mannangement: {response}")
+
+        return response
     
     @staticmethod
     def test_update_client (actual_client_key:str,client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
 
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
-        updated_client = [
-            HostPatterns().client_pattern(
+        updated_client = HostPatterns().client_pattern(
                 client_name=client_name,
                 client_key=client_key,
                 client_type=client_type,
@@ -62,7 +63,7 @@ class Handlers:
                 max_sub_channels=max_sub_channels,
                 owned_sub_channels_keys=owned_sub_channels_keys
             )
-        ]
+        
 
         Events_Mananger(Unit="Host", path="Logs").Set_Event(
             step="Active Test Update Client", 

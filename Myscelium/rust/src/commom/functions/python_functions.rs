@@ -130,49 +130,74 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> ResultType {
         let mut rust_dict = HashMap::new();
 
         for (key, value) in dict.iter() {
-            let key_str: String = key.extract().unwrap();
+            let key_str = match key.extract::<String>() {
+                Ok(k) => k,
+                Err(e) => {
+                    println!("Failed to extract key as string: {:?}", e);
+                    continue; // Skip this key-value pair
+                },
+            };
+
             if let Ok(value_str) = value.extract::<String>() {
                 rust_dict.insert(key_str, ResultType::Str(value_str));
             } else if let Ok(value_int) = value.extract::<i32>() {
                 rust_dict.insert(key_str, ResultType::Int(value_int));
-            } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-                let rust_list = value_list.into_iter().map(ResultType::Str).collect();
+            } else if let Ok(value_list) = value.cast_as::<PyList>() {
+                let rust_list: Vec<_> = value_list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
                 rust_dict.insert(key_str, ResultType::List(rust_list));
             } else if let Ok(nested_dict) = value.cast_as::<PyDict>() {
-                let inner_map = extract_pyobject(py, nested_dict.into());
-                rust_dict.insert(key_str, inner_map);
+                rust_dict.insert(key_str, extract_pyobject(py, nested_dict.into()));
             } else {
-                // Handle other types as needed
+                println!("Unmatched type for key: {}", key_str);
+                // You may decide how to handle other types
             }
         }
 
-        return ResultType::Map(rust_dict);
+        ResultType::Map(rust_dict)
     } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
-        // Handle tuple
-        let rust_list: Vec<_> = tuple.iter().map(|item| extract_pyobject(py, item.into())).collect();
-        return ResultType::List(rust_list);
+        let rust_list: Vec<_> = tuple.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
+        ResultType::List(rust_list)
     } else if let Ok(list) = obj.cast_as::<PyList>(py) {
-        // Handle list
-        let rust_list: Vec<_> = list.iter().map(|item| extract_pyobject(py, item.into())).collect();
-        return ResultType::List(rust_list);
+        let rust_list: Vec<_> = list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
+        ResultType::List(rust_list)
     } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
-        // Handle int
-        return ResultType::Int(int.extract().unwrap());
+        match int.extract() {
+            Ok(i) => ResultType::Int(i),
+            Err(e) => {
+                println!("Failed to extract integer: {:?}", e);
+                ResultType::Empty
+            },
+        }
     } else if let Ok(float) = obj.cast_as::<PyFloat>(py) {
-        // Handle float
-        return ResultType::Float(float.extract().unwrap());
+        match float.extract() {
+            Ok(f) => ResultType::Float(f),
+            Err(e) => {
+                println!("Failed to extract float: {:?}", e);
+                ResultType::Empty
+            },
+        }
     } else if let Ok(string) = obj.cast_as::<PyString>(py) {
-        // Handle string
-        return ResultType::Str(string.extract().unwrap());
+        match string.extract() {
+            Ok(s) => ResultType::Str(s),
+            Err(e) => {
+                println!("Failed to extract string: {:?}", e);
+                ResultType::Empty
+            },
+        }
     } else if let Ok(boolean) = obj.cast_as::<PyBool>(py) {
-        // Handle bool
-        return ResultType::Bool(boolean.extract().unwrap());
+        match boolean.extract() {
+            Ok(b) => ResultType::Bool(b),
+            Err(e) => {
+                println!("Failed to extract boolean: {:?}", e);
+                ResultType::Empty
+            },
+        }
     } else if obj.is_none(py) {
-        // Handle None
-        return ResultType::Empty;
+        ResultType::Empty
+    } else {
+        println!("Unmatched type for object: {:?}", obj);
+        ResultType::Empty
     }
-
-    return ResultType::Empty;
 }
 
 pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<PyObject> {
@@ -218,7 +243,7 @@ pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexG
         _ => dict_to_kwargs(py, &command.command).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e)))?,
     };
 
-    println!("Converted kwargs_map: {:?}", kwargs_map);
+    println!("Converted to Python kwargs_map: {:?}", kwargs_map);
 
     // -> Convert to py dict
     let kwargs = PyDict::new(py);
