@@ -140,10 +140,13 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
     let converted_m = convert_to_value_map(&m);
 
     if !m.contains_key("response_mode") {
+        println!("Error! Callback response args don't have response_mode kwarg!");
         return create_error_response_and_return!("Error! Callback response args don't have response_mode kwarg!", converted_m, to_send);
     } else if !m.contains_key("activation_function") {
+        println!("Error! Callback response args don't have activation_function kwarg!");
         return create_error_response_and_return!("Error! Callback response args don't have activation_function kwarg!", converted_m, to_send);
     } else if !m.contains_key("kwargs") {
+        println!("Error! Callback response args don't have kwargs kwarg!");
         return create_error_response_and_return!("Error! Callback response args don't have kwargs kwarg!", converted_m, to_send);
     }
 

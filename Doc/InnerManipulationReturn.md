@@ -111,3 +111,208 @@ Parameters:
 
     # - client_key:str -> The client key of the client that you want to remove.
     ```
+
+### Host Setup:
+
+##### Required Randlers
+
+
+```python
+class Handlers:
+
+    @staticmethod
+    def test_add_client (
+	    client_name:str, 
+	    client_key:str, 
+	    client_type:str, 
+	    permission_group:str, 
+	    is_super_user:bool, 
+	    max_sub_channels:int, 
+	    owned_sub_channels_keys:list):
+    
+        new_client = [
+            HostPatterns.client_pattern(
+                client_name=client_name,
+                client_key=client_key,
+                client_type=client_type,
+                client_permission_group=permission_group,
+                client_is_super_user=is_super_user,
+                max_sub_channels=max_sub_channels,
+                owned_sub_channels_keys=owned_sub_channels_keys
+            )
+        ]
+
+        return HostPatterns.update_host_configs(
+	        activation_function="add_client", 
+	        new_client=new_client
+	    )
+
+    @staticmethod
+    def test_update_client (
+	    actual_client_key:str,
+	    client_name:str, 
+	    client_key:str, 
+	    client_type:str, 
+	    permission_group:str, 
+	    is_super_user:bool, 
+	    max_sub_channels:int, 
+	    owned_sub_channels_keys:list):
+
+        updated_client = [
+            HostPatterns.client_pattern(
+                client_name=client_name,
+                client_key=client_key,
+                client_type=client_type,
+                client_permission_group=permission_group,
+                client_is_super_user=is_super_user,
+                max_sub_channels=max_sub_channels,
+                owned_sub_channels_keys=owned_sub_channels_keys
+            )
+        ]
+
+        return HostPatterns.update_host_configs(
+	        activation_function="update_client", 
+	        actual_client_key=actual_client_key, 
+	        updated_client=updated_client
+	    )
+
+    @staticmethod
+    def test_remove_client (client_key:str):
+        return HostPatterns.update_host_configs(
+	        activation_function="remove_client", 
+	        actual_client_key=client_key
+	    )
+```
+
+---
+
+## Client setup
+### Senders:
+
+```python
+class Senders:
+
+    @staticmethod
+    def test_add_client ():
+
+        time.sleep(10)
+
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client.runing = True
+        mys_client.set_client_uid(client_uid="some_client_id")
+
+        command = client_patterns.command_pattern(
+                        "test_add_client",
+                        args={
+                            "client_name":"test_client",
+                            "client_key":"xMndjslwpedcnfe",
+                            "client_type":"Test",
+                            "permission_group":"",
+                            "is_super_user":1,
+                            "max_sub_channels":5,
+                            "owned_sub_channels_keys":[],
+                        }
+                    )
+
+        result = mys_client.send(command, priority=10)
+        
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Data Sended",
+            event_type="Send test add client",
+            event_key=""
+        ) # TODO >>> Add the event key
+
+
+    @staticmethod
+    def test_update_client ():
+    
+        time.sleep(10)
+
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client.runing = True
+        mys_client.set_client_uid(client_uid="some_client_id")
+
+        command = client_patterns.command_pattern(
+                        "test_update_client",
+                        args={
+                            "client_name":"test_client",
+                            "client_key":"xMndjslwpedcnfe",
+                            "client_type":"Test",
+                            "permission_group":"",
+                            "is_super_user":1,
+                            "max_sub_channels":10,
+                            "owned_sub_channels_keys":[]
+                        }
+                    )
+
+        result = mys_client.send(command, priority=10)
+        
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Data Sended",
+            event_type="Send test update a client",
+            event_key=""
+        ) # TODO >>> Add the event key
+
+    @staticmethod
+    def test_remove_client ():
+    
+        time.sleep(10)
+        
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client.runing = True
+        mys_client.set_client_uid(client_uid="some_client_id")
+
+        command = client_patterns.command_pattern(
+                        "test_remove_client",
+                        args={
+                            "client_key": "xMndjslwpedcnfe"
+                        }
+                    )
+
+        result = mys_client.send(command, priority=10)
+        
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Data Sended",
+            event_type="Send",
+            event_key=""
+        ) # TODO >>> Add the event key
+```
+
+#### Receivers:
+
+```python
+class Receivers:
+
+    @staticmethod
+    def test_update_client (data):
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler"
+        )
+        
+        print("Received data: ", data)
+        time.sleep(5)
+        # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+
+    @staticmethod
+    def test_remove_client (data): # TODO
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler"
+        )
+
+        print("Received data: ", data)
+        
+        time.sleep(5)
+        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+
+    @staticmethod
+    def test_add_client (data): # TODO
+    
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler"
+        )
+        
+        print("Received data: ", data)
+        
+        time.sleep(5)
+        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+```

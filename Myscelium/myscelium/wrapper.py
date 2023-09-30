@@ -653,6 +653,16 @@ class HostPatterns:
 
             new_client = kwargs["new_client"]
 
+            if isinstance(new_client, list):
+                pass
+            else:
+                raise "New client needs to be wrapped inside a list"
+            
+            if len(new_client) == 0  or len(new_client) > 1:
+                raise "New client wrapped list can't be empty or have more than one client!"
+            else:
+                pass
+
             response = {'new_client':new_client}
 
             return {'response_mode':'internal_mannangement', 'activation_function':'add_client', 'kwargs':response}
@@ -666,12 +676,27 @@ class HostPatterns:
             
             actual_client_key = kwargs["actual_client_key"]
 
+            if isinstance(actual_client_key, str):
+                pass
+            else:
+                raise "client key needs to be a string!"
+
             if "updated_client" in kwargs:
                 pass
             else:
                 raise "new client isn't in kwargs, so can't edit client!"
             
             updated_client = ["updated_client"]
+
+            if isinstance(updated_client, list):
+                pass
+            else:
+                raise "Updated client needs to be wrapped inside a list"
+            
+            if len(updated_client) == 0  or len(updated_client) > 1:
+                raise "Updated client wrapped list can't be empty or have more than one client!"
+            else:
+                pass
 
             response = {'actual_client_key':actual_client_key, 'updated_client':updated_client}
 
@@ -685,6 +710,11 @@ class HostPatterns:
                 raise "client_key isn't in kwargs, so can't remove client!"
             
             client_key = kwargs["client_key"]
+
+            if isinstance(actual_client_key, str):
+                pass
+            else:
+                raise "client key needs to be a string!"
 
             response = {'client_key':client_key}
 

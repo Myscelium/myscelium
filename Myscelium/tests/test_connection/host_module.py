@@ -111,7 +111,7 @@ class MyHost:
                 client_key="some_client_id", 
                 client_permission_group="", 
                 client_is_super_user=True, 
-                client_max_sub_channes=5
+                max_sub_channels=5
             ),
 
             self.host_patterns.client_pattern(
@@ -120,7 +120,7 @@ class MyHost:
                 client_key="randomsclientids", 
                 client_permission_group="", 
                 client_is_super_user=True, 
-                client_max_sub_channes=5
+                max_sub_channels=5
             ),
 
         ]

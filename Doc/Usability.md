@@ -156,7 +156,7 @@ Certain callback functions must have specific names for the system to recognize 
             client_key="randomsclientids", 
             client_permission_group="", 
             client_is_super_user=True, 
-            client_max_sub_channes=5
+            max_sub_channes=5
         ),
         # Add other clients here
     ]
@@ -216,7 +216,7 @@ Certain callback functions must have specific names for the system to recognize 
             client_key="randomsclientids", 
             client_permission_group="", 
             client_is_super_user=True, 
-            client_max_sub_channes=5
+            max_sub_channes=5
         ),      
     ]
     ```

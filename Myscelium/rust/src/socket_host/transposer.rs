@@ -285,7 +285,7 @@ fn process(py: Python, down_command: DownCommand) {
                     let resp = handle_redirect(m, &mut client_id, down_command.clone());
                     let converted_to_value = convert_to_value_map(&resp);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-                } else if *response_mode == ResultType::Str("InternalMannangement".to_string()) {
+                } else if *response_mode == ResultType::Str("internal_mannangement".to_string()) {
                     let resp = handle_internal_mannangment(m, &mut client_id);
                     let converted_to_value = convert_to_value_map(&resp);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
