@@ -71,17 +71,17 @@ class Senders:
         mys_client.set_client_uid(client_uid="some_client_id")
         
         command = client_patterns.command_pattern(
-                        "test_add_client", 
-                        args={
-                            "client_name":"test_client", 
-                            "client_key":"xMndjslwpedcnfe", 
-                            "client_type":"Test", 
-                            "permission_group":"", 
-                            "is_super_user":1, 
-                            "max_sub_channels":5, 
-                            "owned_sub_channels_keys":[],
-                        }
-                    )
+            "test_add_client", 
+            args={
+                "client_name":"test_client", 
+                "client_key":"xMndjslwpedcnfe", 
+                "client_type":"Test", 
+                "permission_group":"", 
+                "is_super_user":True, 
+                "max_sub_channels":5, 
+                "owned_sub_channels_keys":[],
+            }
+        )
 
         result = mys_client.send(command, priority=9)
 
@@ -101,17 +101,17 @@ class Senders:
         mys_client.set_client_uid(client_uid="some_client_id")
         
         command = client_patterns.command_pattern(
-                        "test_update_client", 
-                        args={
-                            "client_name":"test_client", 
-                            "client_key":"xMndjslwpedcnfe", 
-                            "client_type":"Test", 
-                            "permission_group":"", 
-                            "is_super_user":1, 
-                            "max_sub_channels":10, 
-                            "owned_sub_channels_keys":[]
-                        }
-                    )
+            "test_update_client", 
+            args={
+                "client_name":"test_client", 
+                "client_key":"xMndjslwpedcnfe", 
+                "client_type":"Test", 
+                "permission_group":"", 
+                "is_super_user":True, 
+                "max_sub_channels":10, 
+                "owned_sub_channels_keys":[]
+            }
+        )
         
         result = mys_client.send(command, priority=8)
 

@@ -64,6 +64,7 @@ impl fmt::Display for ResultType {
         }
     }
 }
+
 /// Utility Methods for `ResultType`
 ///
 /// These methods allow for extracting data from the `ResultType` enum by providing
@@ -177,6 +178,105 @@ impl ResultType {
 
     /// Quickly verifies the structure and types of the current `ResultType` against a target.
     ///
+    /// And then convert based in the target equivalent tipes, like int(1) == Bool(True)
+    /// or like int(0) == Bool(False), this allow users to don't need to pass exactly the required type.
+    /// This works similar to python Eval() but based in a target patterns to don'v convert things that
+    /// we can't conver like floats into bool or ints into list, etc..
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - The `ResultType` instance that represents the expected structure and types.
+    ///
+    /// # Returns
+    ///
+    /// * new parsed `ResultType` if the current instance matches the target in both structure and types.
+    /// * a `Err(ExpectationError)` if there's any mismatch.
+    pub fn fast_parse(&self, target: &ResultType) -> Result<ResultType, ExpectationError> {
+        match (self, target) {
+            // Check if the Maps have matching keys and types.
+            (ResultType::Map(map), ResultType::Map(target_map)) => {
+                if target_map.is_empty() {
+                    return Ok(ResultType::Map(map.clone())); // Skip because if the target is empt the list does not require any args
+                }
+
+                let mut new_map: HashMap<String, ResultType> = HashMap::new();
+
+                for (tk, tv) in target_map {
+                    // Case where the map doesn't contain the expected key
+                    if !&map.contains_key(tk) {
+                        return Err(ExpectationError::Missingkwarg(format!("{}:{}", tk.clone(), tv.clone()).to_string()));
+                    }
+
+                    // Check if inner ResultsTypes are correct and then insert the update one into the new map
+                    new_map.insert(tk.clone(), map.get(tk).unwrap().fast_parse(tv)?);
+                }
+
+                return Ok(ResultType::Map(new_map));
+            },
+
+            // Check if Lists have matching elements and types.
+            (ResultType::List(list), ResultType::List(target_list)) => {
+                if target_list.is_empty() {
+                    return Ok(ResultType::List(list.to_vec())); // Skip because if the target is empt the list does not require any args
+                }
+
+                if list.len() != target_list.len() {
+                    return Err(ExpectationError::MismatchRelativeLength);
+                }
+
+                let mut new_list: Vec<ResultType> = vec![];
+
+                // Otherwise, we'll use the first entry in target_map as the example structure for all values in list.
+                for (i, element) in list.iter().enumerate() {
+                    new_list.push(element.fast_parse(&target_list[i])?);
+                }
+
+                return Ok(ResultType::List(new_list));
+            },
+
+            // Special case: self is Int and target is Bool
+            (ResultType::Int(i), ResultType::Bool(_)) => {
+                match *i {
+                    1 => Ok(ResultType::Bool(true)),  // Consider 1 as true
+                    0 => Ok(ResultType::Bool(false)), // Consider 0 as false
+                    _ => Err(ExpectationError::MismatchType(format!("get: Int({}), expecting: Bool", i))),
+                }
+            },
+
+            // Special case: self is Str("1" or "0") and target is Bool
+            (ResultType::Str(s), ResultType::Bool(_)) => {
+                match s.as_str() {
+                    "1" => Ok(ResultType::Bool(true)),  // Consider "1" as true
+                    "0" => Ok(ResultType::Bool(false)), // Consider "0" as false
+                    _ => Err(ExpectationError::MismatchType(format!("get: Str({}), expecting: Bool", s))),
+                }
+            },
+
+            // Special case: self is Str("i64") and target is Int
+            (ResultType::Str(s), ResultType::Int(_)) => match s.parse::<i32>() {
+                Ok(i) => Ok(ResultType::Int(i)),
+                Err(_) => Err(ExpectationError::MismatchType(format!("get: Str({}), expecting: Int", s))),
+            },
+
+            // Special case: self is Str("f64") and target is Float
+            (ResultType::Str(s), ResultType::Float(_)) => match s.parse::<f64>() {
+                Ok(f) => Ok(ResultType::Float(f)),
+                Err(_) => Err(ExpectationError::MismatchType(format!("get: Str({}), expecting: Float", s))),
+            },
+
+            // For other types, just check if the types match.
+            _ => {
+                if std::mem::discriminant(self) == std::mem::discriminant(target) {
+                    Ok(self.clone())
+                } else {
+                    Err(ExpectationError::MismatchType(format!("get: {}, expecting: {}", self.type_of().to_string(), target.type_of())))
+                }
+            },
+        }
+    }
+
+    /// Quickly verifies the structure and types of the current `ResultType` against a target.
+    ///
     /// This function performs a recursive check of nested structures (like maps and lists)
     /// to ensure that the current instance matches the expected structure of the target.
     /// If the structures match but the types within them differ, an error is returned.
@@ -193,15 +293,14 @@ impl ResultType {
         match (self, target) {
             // Check if the Maps have matching keys and types.
             (ResultType::Map(map), ResultType::Map(target_map)) => {
-                // For simplicity, we'll assume that if the target_map is empty, we just want to return false
                 if target_map.is_empty() {
-                    return Err(ExpectationError::TargetIsEmpty);
+                    return Ok(()); // Skip because if the target is empt the list does not require any args
                 }
 
                 for (tk, tv) in target_map {
                     // Case where the map doesn't contain the expected key
                     if !&map.contains_key(tk) {
-                        return Err(ExpectationError::Missingkwarg(tk.clone()));
+                        return Err(ExpectationError::Missingkwarg(format!("{}:{}", tk.clone(), tv.clone()).to_string()));
                     }
 
                     // Check if inner ResultsTypes are correct
@@ -213,8 +312,9 @@ impl ResultType {
 
             // Check if Lists have matching elements and types.
             (ResultType::List(list), ResultType::List(target_list)) => {
+                // TODO >>> Possible implement a Str List ResultType to handle cases where all in the list are indead Strings
                 if target_list.is_empty() {
-                    return Err(ExpectationError::TargetIsEmpty);
+                    return Ok(()); // Skip because if the target is empt the list does not require any args
                 }
 
                 if list.len() != target_list.len() {
@@ -234,7 +334,7 @@ impl ResultType {
                 if std::mem::discriminant(self) == std::mem::discriminant(target) {
                     return Ok(());
                 } else {
-                    return Err(ExpectationError::MismatchType(self.type_of().to_string()));
+                    return Err(ExpectationError::MismatchType(format!("get: {}, expecting: {}", self.type_of().to_string(), target.type_of())));
                 }
             },
         }

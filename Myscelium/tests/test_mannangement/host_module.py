@@ -23,13 +23,13 @@ class Handlers:
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
         new_client = HostPatterns().client_pattern(
-                client_name=client_name,
-                client_key=client_key,
-                client_type=client_type,
-                client_permission_group=permission_group,
-                client_is_super_user=is_super_user,
-                max_sub_channels=max_sub_channels,
-                owned_sub_channels_keys=owned_sub_channels_keys
+                client_name=str(client_name),
+                client_key=str(client_key),
+                client_type=str(client_type),
+                client_permission_group=str(permission_group),
+                client_is_super_user=bool(is_super_user),
+                max_sub_channels=int(max_sub_channels),
+                owned_sub_channels_keys=list(owned_sub_channels_keys)
             )
         
 
@@ -55,14 +55,14 @@ class Handlers:
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
         updated_client = HostPatterns().client_pattern(
-                client_name=client_name,
-                client_key=client_key,
-                client_type=client_type,
-                client_permission_group=permission_group,
-                client_is_super_user=is_super_user,
-                max_sub_channels=max_sub_channels,
-                owned_sub_channels_keys=owned_sub_channels_keys
-            )
+            client_name=str(client_name),
+            client_key=str(client_key),
+            client_type=str(client_type),
+            client_permission_group=str(permission_group),
+            client_is_super_user=bool(is_super_user),
+            max_sub_channels=int(max_sub_channels),
+            owned_sub_channels_keys=list(owned_sub_channels_keys)
+        )	
         
 
         Events_Mananger(Unit="Host", path="Logs").Set_Event(

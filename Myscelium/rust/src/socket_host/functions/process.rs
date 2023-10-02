@@ -180,11 +180,34 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 expected.insert("permission_group".to_string(), ResultType::Str("".to_string()));
                 expected.insert("is_super_user".to_string(), ResultType::Bool(false));
                 expected.insert("max_sub_channels".to_string(), ResultType::Int(0));
-                expected.insert("owned_sub_channels_keys".to_string(), ResultType::List(Vec::new()));
+                expected.insert("owned_sub_channels_keys".to_string(), ResultType::List(vec![]));
+
+                let parsed_new_client = new_client.fast_parse(&ResultType::Map(expected.clone()));
+
+                let new_client = match parsed_new_client {
+                    Err(e) => match e {
+                        ExpectationError::MismatchType(tp) => {
+                            println!("ERROR, Client kwargs have mismatch type {} kwarg!", tp);
+                            return create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp), converted_m, to_send);
+                        },
+                        ExpectationError::MismatchRelativeLength => {
+                            println!("ERROR, Client kwargs have mismatch relative length kwargs!");
+                            return create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!", converted_m, to_send);
+                        },
+                        ExpectationError::Missingkwarg(k) => {
+                            println!("ERROR, Client kwargs have a missing kwarg: {}!", k);
+                            return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k), converted_m, to_send);
+                        },
+                        ExpectationError::TargetIsEmpty => {
+                            println!("ERROR, Client target pattern is empty!");
+                            return create_error_response_and_return!("Error! Client target pattern is empty!", converted_m, to_send);
+                        },
+                    },
+
+                    Ok(new_client) => new_client,
+                };
 
                 let expectation_result: Result<(), ExpectationError> = new_client.fast_verify_kwargs_and_types(&ResultType::Map(expected));
-
-                // TODO >>> Implement a way to know not only the type that has a error but what key that this is wrong
 
                 match expectation_result {
                     Err(e) => match e {
@@ -281,9 +304,34 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 expected.insert("permission_group".to_string(), ResultType::Str("".to_string()));
                 expected.insert("is_super_user".to_string(), ResultType::Bool(false));
                 expected.insert("max_sub_channels".to_string(), ResultType::Int(0));
-                expected.insert("owned_sub_channels_keys".to_string(), ResultType::List(Vec::new()));
+                expected.insert("owned_sub_channels_keys".to_string(), ResultType::List(vec![]));
 
-                let expectation_result = updated_client.fast_verify_kwargs_and_types(&ResultType::Map(expected));
+                let parsed_new_client = updated_client.fast_parse(&ResultType::Map(expected.clone()));
+
+                let new_client = match parsed_new_client {
+                    Err(e) => match e {
+                        ExpectationError::MismatchType(tp) => {
+                            println!("ERROR, Client kwargs have mismatch type {} kwarg!", tp);
+                            return create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp), converted_m, to_send);
+                        },
+                        ExpectationError::MismatchRelativeLength => {
+                            println!("ERROR, Client kwargs have mismatch relative length kwargs!");
+                            return create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!", converted_m, to_send);
+                        },
+                        ExpectationError::Missingkwarg(k) => {
+                            println!("ERROR, Client kwargs have a missing kwarg: {}!", k);
+                            return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k), converted_m, to_send);
+                        },
+                        ExpectationError::TargetIsEmpty => {
+                            println!("ERROR, Client target pattern is empty!");
+                            return create_error_response_and_return!("Error! Client target pattern is empty!", converted_m, to_send);
+                        },
+                    },
+
+                    Ok(new_client) => new_client,
+                };
+
+                let expectation_result: Result<(), ExpectationError> = new_client.fast_verify_kwargs_and_types(&ResultType::Map(expected));
 
                 match expectation_result {
                     Err(e) => match e {
