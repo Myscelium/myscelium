@@ -246,7 +246,7 @@ fn process(py: Python, down_command: DownCommand) {
     if !patterns.contains_key(function) {
         logger.warn(format!("Command isn't registred in the patterns"));
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
-        logger.warn(format!("command skipped and remvoed from schedule"));
+        logger.warn(format!("command skipped and removed from schedule"));
         return;
     }
 
@@ -274,6 +274,7 @@ fn process(py: Python, down_command: DownCommand) {
     let response;
 
     match result {
+        // TODO >>> Implement change of response here
         ResultType::Map(m) => {
             if m.contains_key("response_mode") {
                 let response_mode = m.get("response_mode").unwrap();
@@ -282,11 +283,28 @@ fn process(py: Python, down_command: DownCommand) {
                     let converted_to_value = convert_to_value_map(&m);
                     println!("Converted to Value: {:?}", &converted_to_value);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
+                    // Response at this point is like this: Map({
+                    //      "command_type":String("function"),
+                    //      "response_mode":String("to_origin"),
+                    //      "status": String("success"),
+                    //      "response_activation_function":String(response_activation_function),
+                    //      "message":String(_),
+                    //      "kwargs":Map(response)
+                    // })
                 } else if *response_mode == ResultType::Str("redirect".to_string()) {
                     println!("Response: {:?}", m);
                     let resp = handle_redirect(m, &mut client_id, down_command.clone());
                     let converted_to_value = convert_to_value_map(&resp);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
+                    // Response at this point is like this: Map({
+                    //      "command_type":String("function"),
+                    //      "response_mode":String("redirect"),
+                    //      "status": String("success"),
+                    //      "response_activation_function":String(response_activation_function),
+                    //      "message":String(_),
+                    //      "kwargs":Map(response),
+                    //      "redirect_to":String(redirect_to_client_id)
+                    //  })
                 } else if *response_mode == ResultType::Str("internal_mannangement".to_string()) {
                     let resp = handle_internal_mannangment(m, &mut client_id);
                     let converted_to_value = convert_to_value_map(&resp);
@@ -314,7 +332,10 @@ fn process(py: Python, down_command: DownCommand) {
             response = error_response!("Error! Received a list, but expected a map!");
         },
         ResultType::Empty => {
-            response = Ok(serde_json::to_string(&"C210".to_string()).unwrap());
+            let mut command_map = HashMap::new();
+            command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+            command_map.insert("function".to_string(), Value::String("C210".to_string()));
+            response = Ok(serde_json::to_string(&command_map).unwrap());
         },
         ResultType::Error(e) => {
             response = error_response!(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));

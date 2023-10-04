@@ -486,7 +486,7 @@ class MysceliumHost:
     def initialize_host (self, ip:str, port:int):
 
         """
-        Initialize the host with the given IP and port.
+        Initialize the host with the given IP and port.FResponse patterj 
 
         Parameters:
         - ip: IP address for the host.
@@ -591,13 +591,32 @@ class HostPatterns:
             else:
                 raise ("Invalid redirect! Missing client_id to redirect!")
 
-            return {'response_mode':'redirect', 'response_activation_function':response_activation_function, 'kwargs':response, 'redirect_to':redirect_to_client_id}
+            response = {
+                "command_type":"function",
+                "response_mode":"redirect", 
+                "status": "success", 
+                "response_activation_function":response_activation_function,
+                "message":"", 
+                "kwargs":response,
+                "redirect_to":redirect_to_client_id
+            }
+
+            return response
 
         elif response_mode == 'to_origin':
 
             print("Response mode set to origin")
-            
-            return {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'kwargs':response}
+
+            response = {
+                "command_type":"response",
+                "response_mode":"to_origin", 
+                "status": "success", 
+                "response_activation_function":response_activation_function,
+                "message":"", 
+                "kwargs":response,
+            }
+
+            return response
         
         else:
             raise ("Response mode invalid! Please use one of this: ('redirect', 'to_origin')")
@@ -660,9 +679,17 @@ class HostPatterns:
             
             # TODO Check if have all fields needed in the client!
 
-            response = {'new_client':new_client}
+            kwargs = {'new_client':new_client}
 
-            return {'response_mode':'internal_mannangement', 'activation_function':'add_client', 'kwargs':response}
+            response = {
+                "response_mode":"internal_mannangement", 
+                "status": "success", 
+                "activation_function":"add_client",
+                "message":"", 
+                "kwargs":kwargs,
+            }
+
+            return response
 
         elif activation_function == "update_client":
 
@@ -692,9 +719,17 @@ class HostPatterns:
             
             # TODO Check if have all fields needed in the client!
 
-            response = {'actual_client_key':actual_client_key, 'updated_client':updated_client}
+            kwargs = {'actual_client_key':actual_client_key, 'updated_client':updated_client}
 
-            return {'response_mode':'internal_mannangement', 'activation_function':'update_client', 'kwargs':response}
+            response = {
+                "response_mode":"internal_mannangement", 
+                "status": "success", 
+                "activation_function":"update_client",
+                "message":"", 
+                "kwargs":kwargs,
+            }
+
+            return response
         
         elif activation_function == "remove_client":
 
@@ -710,9 +745,17 @@ class HostPatterns:
             else:
                 raise "client key needs to be a string!"
 
-            response = {'client_key':client_key}
+            kwargs = {'client_key':client_key}
 
-            return {'response_mode':'internal_mannangement', 'activation_function':'remove_client', 'kwargs':response}
+            response = {
+                "response_mode":"internal_mannangement", 
+                "status": "success", 
+                "activation_function":"remove_client",
+                "message":"", 
+                "kwargs":kwargs,
+            }
+
+            return response
 
         else:
             raise f"activation_function: {activation_function} doesn't registred in the avalaible host internal mannangement commands!"
@@ -1106,13 +1149,13 @@ class ClientPatterns:
         """
  
         if args != None:
-            return {"function":command_function, "kwargs":args}
+            return {"command_type":"function", "function":command_function, "kwargs":args}
         else:
             pass
 
-        return {"function":command_function, "kwargs":""}
+        return {"command_type":"function", "function":command_function, "kwargs":""}
 
-    def response_pattern (self, response:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
+    def response_pattern (self, kwargs:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
 
         """
         Create a response pattern.
@@ -1133,11 +1176,11 @@ class ClientPatterns:
             else:
                 raise ("Invalid redirect! Missing client_id to redirect!")
 
-            return {'response_mode':'retransmit', 'response':response, 'redirect_to':retransmit_to_client_id}
+            return {"command_type":"response", "response_mode":"retransmit", "kwargs":kwargs, "redirect_to":retransmit_to_client_id}
 
         elif response_mode == 'to_host':
             
-            return {'response_mode':'to_host', 'response':response}
+            return {"command_type":"response", "response_mode":"to_host", "kwargs":kwargs}
         
         else:
             raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")

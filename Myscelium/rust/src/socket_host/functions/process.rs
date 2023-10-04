@@ -25,13 +25,11 @@ use crate::commom::structs::results_structs::ExpectationError;
 
 macro_rules! create_error_response_and_return {
     ($error_msg:expr, $converted_m:expr, $to_send:expr) => {{
-        let mut resp: HashMap<String, ResultType> = HashMap::new();
-        resp.insert("Error".to_string(), ResultType::Str($error_msg.to_string()));
-
-        $to_send.insert("response".to_string(), ResultType::Map(resp));
-        $to_send.insert("response_activation_function".to_string(), ResultType::Str($converted_m.get("response_activation_function").unwrap().to_string()));
+        $to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
         $to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-
+        $to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
+        $to_send.insert("response_activation_function".to_string(), ResultType::Str($converted_m.get("response_activation_function").unwrap().to_string()));
+        $to_send.insert("message".to_string(), ResultType::Str($error_msg.to_string()));
         $to_send
     }};
 }
@@ -102,7 +100,12 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
         // return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
     }
 
-    let up_command = UpCommand::new(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), "C210".to_string());
+    let mut command_map = HashMap::new();
+    command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+    command_map.insert("function".to_string(), Value::String("C210".to_string()));
+    let response = serde_json::to_string(&command_map).unwrap();
+
+    let up_command = UpCommand::new(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), response);
     enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
 
     *client_id = redirect_to.to_string(); // > Update the client id that it will send to
@@ -114,21 +117,20 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
         // return error_response!("Error! Callback response args don't have response kwarg!");
     }
 
-    let mut resp: HashMap<String, ResultType> = HashMap::new();
-
     let response_act_fn_value = converted_m.get("response_activation_function").unwrap().clone();
     let response_act_fn: String = serde_json::from_value(response_act_fn_value).unwrap();
 
-    to_send.insert("kwargs".to_string(), m.get("kwargs").unwrap().clone());
-    to_send.insert("response_activation_function".to_string(), ResultType::Str(response_act_fn.to_string()));
+    to_send.insert("command_type".to_string(), ResultType::Str("function".to_string()));
     to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+    to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+    to_send.insert("response_activation_function".to_string(), ResultType::Str(response_act_fn.to_string()));
+    to_send.insert("kwargs".to_string(), m.get("kwargs").unwrap().clone());
+    // to_send.insert("message".to_string(), ResultType::Str($error_msg.to_string()));
 
     // {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
     // {"response": Map({"data": Str("hello!")}), "response_activation_function": Str("test_handler"), "response_mode": Str("to_origin")}
 
-    resp.insert("response".to_string(), ResultType::Map(to_send));
-
-    return resp;
+    return to_send;
 }
 
 // > --------------------------------------------------------------------------------------------------------------------------------------------
@@ -138,6 +140,8 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
     let mut to_send = HashMap::new();
 
     let converted_m = convert_to_value_map(&m);
+
+    println!("Converted m: {:?}", &converted_m);
 
     if !m.contains_key("response_mode") {
         println!("Error! Callback response args don't have response_mode kwarg!");
@@ -256,13 +260,16 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                 println!("New client saved into the database!");
 
-                let mut resp: HashMap<String, ResultType> = HashMap::new();
+                let mut resp_kwargs: HashMap<String, ResultType> = HashMap::new();
 
-                resp.insert("Success".to_string(), ResultType::Str(format!("Sussefuly add a client: {}!", client_key).to_string()));
+                resp_kwargs.insert("actual_client_key".to_string(), ResultType::Str(client_key.to_string()));
 
-                to_send.insert("response".to_string(), ResultType::Map(resp));
-                to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("add_client_handler").unwrap().to_string()));
+                to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
                 to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+                to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+                to_send.insert("message".to_string(), ResultType::Str(format!("Sussefuly add a client: {}!", client_key).to_string()));
+                to_send.insert("response_activation_function".to_string(), ResultType::Str("add_client_handler".to_string()));
+                to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
 
                 return to_send;
             } else {
@@ -380,16 +387,20 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                 match result {
                     Ok(c) => {
-                        let mut resp: HashMap<String, ResultType> = HashMap::new();
-
-                        resp.insert(
-                            "Success".to_string(),
+                        to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
+                        to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+                        to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+                        to_send.insert(
+                            "message".to_string(),
                             ResultType::Str(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key).to_string()),
                         );
+                        to_send.insert("response_activation_function".to_string(), ResultType::Str("update_client_handler".to_string()));
 
-                        to_send.insert("response".to_string(), ResultType::Map(resp));
-                        to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("update_client_handler").unwrap().to_string()));
-                        to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+                        let mut resp_kwargs: HashMap<String, ResultType> = HashMap::new();
+
+                        resp_kwargs.insert("actual_client_key".to_string(), ResultType::Str(client_key.to_string()));
+
+                        to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
 
                         return to_send;
                     },
@@ -426,16 +437,20 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                         _ => return create_error_response_and_return!("Error! Can Remove client because a unexpected error!", converted_m, to_send.clone()),
                     },
                     Ok(_) => {
-                        let mut resp: HashMap<String, ResultType> = HashMap::new();
-
-                        resp.insert(
-                            "Success".to_string(),
+                        to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
+                        to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+                        to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+                        to_send.insert(
+                            "message".to_string(),
                             ResultType::Str(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key).to_string()),
                         );
+                        to_send.insert("response_activation_function".to_string(), ResultType::Str("remove_client_handler".to_string()));
 
-                        to_send.insert("response".to_string(), ResultType::Map(resp));
-                        to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("remove_client_handler").unwrap().to_string()));
-                        to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+                        let mut resp_kwargs: HashMap<String, ResultType> = HashMap::new();
+
+                        resp_kwargs.insert("actual_client_key".to_string(), ResultType::Str(client_key.to_string()));
+
+                        to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
 
                         return to_send;
                     },
@@ -446,13 +461,11 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
         },
 
         _ => {
-            let mut resp: HashMap<String, ResultType> = HashMap::new();
-
-            resp.insert("Success".to_string(), ResultType::Str(format!("Response Activation Function: {} doesn't exists!!", activation_function).to_string()));
-
-            to_send.insert("response".to_string(), ResultType::Map(resp));
-            to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
+            to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
             to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+            to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
+            to_send.insert("message".to_string(), ResultType::Str(format!("Response Activation Function: {} doesn't exists!!", activation_function).to_string()));
+            to_send.insert("response_activation_function".to_string(), ResultType::Str("response_activation_function".to_string()));
 
             return to_send;
         },
@@ -461,14 +474,4 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
     // TODO >>> Add the cases to handle the following internal mannangement things:
 
     //* Need to implement the 'response_activation_function' in the wrapper
-
-    let mut resp: HashMap<String, ResultType> = HashMap::new();
-
-    resp.insert("Success".to_string(), ResultType::Str(format!("Sussefuly executed the function: {}!", activation_function).to_string()));
-
-    to_send.insert("response".to_string(), ResultType::Map(resp));
-    to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
-    to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-
-    return to_send;
 }

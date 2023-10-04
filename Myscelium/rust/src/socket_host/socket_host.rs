@@ -111,6 +111,7 @@ macro_rules! acquire_logger {
 macro_rules! create_special_command {
     ($client_id:expr, $response:expr) => {{
         let mut command_map = HashMap::new();
+        command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
         command_map.insert("function".to_string(), Value::String($response.to_string()));
 
         let command = Command {
@@ -125,14 +126,11 @@ macro_rules! create_special_command {
 
 macro_rules! create_response_command {
     ($client_id:expr, $parity_id:expr, $priority:expr, $response:expr) => {{
-        let mut command_map = HashMap::new();
-        command_map.insert("response".to_string(), Value::String($response.to_string()));
-
         let command = Command {
             client_id: $client_id.to_string(),
             parity_id: $parity_id.to_string(),
             priority: $priority,
-            command: command_map,
+            command: $response,
         };
         command
     }};
@@ -424,14 +422,25 @@ fn handle_commom_function(command: Command) -> Command {
 
     let json_command = serde_json::to_string(&command.command).unwrap();
 
-    let down_command = DownCommand::new(command.client_id.clone(), command.parity_id, command.priority, json_command);
+    let down_command = DownCommand::new(command.client_id.clone(), command.parity_id.clone(), command.priority, json_command);
 
     enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command);
 
     // >----------
     // > Send receive conf
 
-    return create_special_command!(command.client_id.clone(), "C210");
+    let mut command_map = HashMap::new();
+    command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+    command_map.insert("function".to_string(), Value::String("C210".to_string()));
+
+    let conf_command = Command {
+        client_id: command.client_id.to_string().clone(),
+        parity_id: command.parity_id.to_string().clone(),
+        priority: 11,
+        command: command_map,
+    };
+
+    return conf_command;
 }
 
 /// Enum representing possible responses.
@@ -471,7 +480,9 @@ fn get_response(command: Command) -> Response {
 
     let command_response = &up_schedule[0];
 
-    let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response.command);
+    let command_response_command = serde_json::from_str(command_response.command.as_str()).unwrap();
+
+    let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response_command);
 
     enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
 

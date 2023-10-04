@@ -35,6 +35,59 @@ pub fn convert_to_resulttype_map(m: &HashMap<String, ResultType>) -> HashMap<Str
         .collect()
 }
 
+/// Converts a `serde_json::Value` into a `ResultType`.
+///
+/// This function takes a reference to a `serde_json::Value` and attempts to convert it into a
+/// corresponding `ResultType`. The function returns a `Result` wrapping the `ResultType` to handle
+/// potential conversion errors.
+///
+/// # Parameters
+/// - `value`: A reference to the `serde_json::Value` to be converted.
+///
+/// # Returns
+/// - `Ok(ResultType)`: If the conversion is successful.
+/// - `Err(String)`: If the conversion fails, returning an error message as a `String`.
+///
+/// # Examples
+/// ```
+/// use serde_json::json;
+/// use your_module::ResultType;
+/// use your_module::value_to_resulttype;
+///
+/// let value = json!("Hello, World!");
+/// let result_type = value_to_resulttype(&value);
+/// assert!(matches!(result_type, Ok(ResultType::Str(_))));
+/// ```
+pub fn value_to_resulttype(value: &Value) -> Result<ResultType, String> {
+    match value {
+        Value::String(s) => Ok(ResultType::Str(s.clone())),
+        Value::Number(n) => {
+            if n.is_i64() {
+                Ok(ResultType::Int(n.as_i64().unwrap()))
+            } else if n.is_f64() {
+                Ok(ResultType::Float(n.as_f64().unwrap()))
+            } else {
+                Err("Number is neither i64 nor f64".to_string())
+            }
+        },
+        Value::Bool(b) => Ok(ResultType::Bool(*b)),
+        Value::Object(map) => {
+            let mut result_map = HashMap::new();
+            for (k, v) in map.iter() {
+                result_map.insert(k.clone(), value_to_resulttype(v)?);
+            }
+            Ok(ResultType::Map(result_map))
+        },
+        Value::Array(list) => {
+            let results: Result<Vec<_>, _> = list.iter().map(value_to_resulttype).collect();
+            results.map(ResultType::List)
+        },
+        Value::Null => Ok(ResultType::Empty),
+        // Handling of other Value variants if needed
+        _ => Err("Unsupported Value variant".to_string()),
+    }
+}
+
 /// Converts a `ResultType` into its corresponding `serde_json::Value` representation.
 ///
 /// This function is useful when you need to serialize a `ResultType` into JSON.

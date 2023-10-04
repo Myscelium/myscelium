@@ -168,6 +168,9 @@ enum ProcessError {
 
     /// Indicates that a response key is missing from a command.
     MissingResponseKey(String),
+
+    // Indicates that a kwargs key is missing from a command.
+    MissingKwargsKey(String),
 }
 
 // -> One idea is to create a obrigatory key in the command.command and instead of only function create a type kwarg field
@@ -227,6 +230,20 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     // Determine the type of the command
     match translated_command.command_type() {
+        CommandType::SpecialFunction(f) => {
+            if let Some(Value::Object(function_obj)) = translated_command.command.get("function") {
+                activation_key = match function_obj.get("function") {
+                    // Replace "desired_inner_key" with the key you want to access
+                    Some(Value::String(activation_key)) => activation_key,
+                    _ => {
+                        return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
+                    },
+                };
+            } else {
+                return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
+            }
+        },
+
         CommandType::Function(f) => {
             if let Some(Value::Object(function_obj)) = translated_command.command.get("function") {
                 activation_key = match function_obj.get("function") {
@@ -240,21 +257,17 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
                 return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
             }
         },
-        CommandType::Response(r) => {
-            activation_key = match translated_command.command.get("response") {
-                Some(Value::Object(inner_map)) => match inner_map.get("response_activation_function") {
-                    Some(Value::String(activation_key)) => activation_key,
-                    _ => {
-                        return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
-                    },
-                },
+
+        CommandType::Response(_) => {
+            activation_key = match translated_command.command.get("response_activation_function") {
+                Some(Value::String(activation_key)) => activation_key,
                 _ => {
                     return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
                 },
             };
         },
         CommandType::Error(e) => {
-            return Err(ProcessError::Error(e));
+            return Err(ProcessError::Error(serde_json::from_value::<String>(e).unwrap()));
         },
         CommandType::Redirect(_) => {
             return Err(ProcessError::UnknownCommandType);
@@ -264,11 +277,13 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
     }
 
+    println!("Resolved Activation Key are: {:?}", activation_key);
+
     // Special handling for "update available host commands" command
     if activation_key == &"update_avaliable_host_commands".to_string() {
         logger.info(format!("Receive Host Allowed Commands"));
 
-        if let Some(Value::Object(response_obj)) = translated_command.command.get("response") {
+        if let Some(Value::Object(response_obj)) = translated_command.command.get("kwargs") {
             // Clone the object to get a HashMap<String, Value>
             let response_map: HashMap<String, Value> = response_obj.clone().into_iter().collect();
 
@@ -285,7 +300,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
             return Ok(());
         } else {
-            return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
+            return Err(ProcessError::MissingKwargsKey(format!("{:?}", translated_command.clone())));
         }
     }
 
@@ -380,6 +395,9 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
     }
 
+    // TODO >>> Remake the command, in a way that it accept Values instead of only string, to we be able to use Value map isntead of a json str
+    //> This will allow to easily mannage commands, reducing the times that it needs to be parsed from strs and allowing convert from value directly.
+
     logger.debug(format!("Function returned: {:?}", response));
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
@@ -463,6 +481,9 @@ pub fn initialize_socket_client_transposer() {
                 },
                 ProcessError::MissingResponseKey(m) => {
                     format!("Command: {:?}, missing command response key", m)
+                },
+                ProcessError::MissingKwargsKey(m) => {
+                    format!("Command: {:?}, missing command kwargs key", m)
                 },
                 ProcessError::MissingCommandFunction(m) => {
                     format!("Command: {:?}, missing command function", m)

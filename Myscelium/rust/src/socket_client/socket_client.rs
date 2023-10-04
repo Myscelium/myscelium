@@ -1,8 +1,7 @@
 use crate::commom::enhanced_buffer;
 use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
-use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
+
 use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
-use crate::commom::functions::converters::recursive_deserialize_command;
 
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
@@ -10,27 +9,13 @@ use std::collections::HashMap;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
-use serde::{Deserialize, Serialize};
+use crate::commom::functions::converters::value_to_resulttype;
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Condvar,
-};
+use std::sync::atomic::Ordering;
 
-use pyo3::exceptions::PyException;
-use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
-use pyo3::IntoPy;
-use pyo3::Py;
-use pyo3::ToPyObject;
-use pyo3::{PyErr, PyObject, PyResult, Python};
-
-use std::time::{Duration, Instant};
-
-use std::error::Error;
+use std::time::Duration;
 
 use crate::CLIENT_IS_RUNING;
-
-use std::fmt;
 
 use std::net::TcpStream;
 
@@ -195,6 +180,7 @@ macro_rules! create_special_command {
         use std::collections::HashMap;
 
         let mut command_map = HashMap::new();
+        command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
         command_map.insert("function".to_string(), Value::String($code.to_string()));
 
         Command {
@@ -363,7 +349,38 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
     match command_received.command_type() {
         CommandType::Function(f) => {
-            let function: String = serde_json::from_str(&f).unwrap();
+            logger.info(format!("Received a response!"));
+
+            match serde_json::from_value::<String>(f) {
+                Ok(response) => {
+                    if response == "C210" {
+                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                        logger.info(format!("Received Confirmation!"));
+                        return None;
+                    } else if response == "Error" {
+                        let val = Value::String("Unknown error".to_string());
+                        let error_msg = command_received.command.get("Error").unwrap_or(&val);
+                        logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
+                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                        CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+                        return None;
+                    } // Optionally handle other string cases here...
+                },
+                Err(_) => {
+                    // This block will execute if the JSON is not a string.
+                    // Just continue, without doing anything.
+                },
+            }
+
+            let down_command = DownCommand::from_command(command_received.clone());
+
+            enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+
+            return Some(down_command);
+        },
+
+        CommandType::SpecialFunction(f) => {
+            let function: String = serde_json::from_value(f.clone()).unwrap();
 
             if command_received.parity_id != "itisaspecialcase" {
                 if function == "C210".to_string() {
@@ -383,27 +400,18 @@ fn handle_response(received: Response) -> Option<DownCommand> {
         },
 
         CommandType::Response(r) => {
+            //* From now this is basically equal to response
             logger.info(format!("Received a response!"));
 
-            match serde_json::from_str::<String>(&r) {
-                Ok(response) => {
-                    if response == "C210" {
-                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                        logger.info(format!("Received Confirmation!"));
-                        return None;
-                    } else if response == "Error" {
-                        let val = Value::String("Unknown error".to_string());
-                        let error_msg = command_received.command.get("Error").unwrap_or(&val);
-                        logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
-                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                        CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
-                        return None;
-                    } // Optionally handle other string cases here...
-                },
-                Err(_) => {
-                    // This block will execute if the JSON is not a string.
-                    // Just continue, without doing anything.
-                },
+            let status = serde_json::from_value::<String>(r.get("status").unwrap().clone()).unwrap();
+
+            if status == "error".to_string() {
+                let val = Value::String("Unknown error".to_string());
+                let error_msg = command_received.command.get("message").unwrap_or(&val);
+                logger.exception(format!("\nAn error occurred in host, the error was: {}\n", serde_json::from_value::<String>(error_msg.clone()).unwrap()));
+                enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+                return None;
             }
 
             let down_command = DownCommand::from_command(command_received.clone());

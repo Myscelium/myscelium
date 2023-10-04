@@ -15,7 +15,7 @@ pub enum ResultType {
     /// Represents a simple string.
     Str(String),
     /// Represents an integer value.
-    Int(i32),
+    Int(i64),
     /// Represents a floating-point number.
     Float(f64),
     /// Represents a boolean value.
@@ -98,7 +98,7 @@ impl ResultType {
     }
 
     /// Attempts to extract the `Int` variant.
-    pub fn to_int(&self) -> Option<i32> {
+    pub fn to_int(&self) -> Option<i64> {
         if let ResultType::Int(i) = &self {
             Some(*i)
         } else {
@@ -253,7 +253,7 @@ impl ResultType {
             },
 
             // Special case: self is Str("i64") and target is Int
-            (ResultType::Str(s), ResultType::Int(_)) => match s.parse::<i32>() {
+            (ResultType::Str(s), ResultType::Int(_)) => match s.parse::<i64>() {
                 Ok(i) => Ok(ResultType::Int(i)),
                 Err(_) => Err(ExpectationError::MismatchType(format!("get: Str({}), expecting: Int", s))),
             },
