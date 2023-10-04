@@ -4,44 +4,50 @@
 
 ### Updates:
 
-- Modify client allowed by implementing a client table that you can personalize several permissions of client
-- Now is possible to use again the client contact event watcher without having exceptions by multiple python gill aquire
-- Improve tests capabilities
-- Add base to start the binary sub channels links
-- Add a base to implement permission groups and indexing that to client
-- Thread pools was being update in both client and host, this provides more precise executions
-- Centralize commom functions reducing code complexity and improve code efficient
-- Improve verification of buffer responses
-- Make tests of connection more stroger
-- Enhance client event transposition threads structure
-- Start planing a graphical representation of tests
-- Implement Test of redirect
-- Centrilize morre python functions in commom, like extract_args_type, dict_to tuple and the handle_pyobject that was changed to extract_pyobject
-- Add a mecanism to add new allowed client in flight from mys_host obj
-- Add direct conversion from `ResultType` to rust types
-- Add a new type of responses to host patters `ResponseType:InternalMannangement` this allows to change internals of host throught callbacks responses
-   
-    - This allows:
-        - User Manipulation:
-            - Add users from callbacks responses
-            - Remove users from callback responses
-            - Update users Throught callbacks Responses
-        - Groups manipulation
-            - // TODO - Edit a group from callbacks responses
-            - // TODO - Add a group from callbacks responses
-            - // TODO - Remove a group from calbacks response
-   
-    - Why only from callbacks response:
-        - Whel if this is only possible throught callbacks response you will need to config it, so it will not be possible if you don't add a callback to it, what gives more sucurity to you dont have to mannage all the permissions manually at all, so even that a user has permission to do so but you dont have this callback registred the user will not be able to do so what gives another layer of security
+1. **Client and Permissions:**
+   - "Modify client allowed by implementing a client table that you can personalize several permissions of client"
+   - "Add a mechanism to add new allowed client in flight from mys_host obj"
+   - "Add a base to implement permission groups and indexing that to client"
 
-- Add `type_of` and `fast_verify_kwargs_and_types` to `ResultType` enum, this can facilitate the process of checking a type of a `ResultType` and also recursively check if the Result matches with a predefined pattern in a very fast way by providing a reference target to `fast_verify_kwargs_and_types` that cant return an empy Ok() when all is fine and return a enum `ExpectationError` when something isn't correct. 
-- Now test events has 3 categories `Send`, `Receive` and `Default`:
-    - `Send` is when a host or client is sending some data
-    - `Receive` is when a client or a host is receiving some data
-    - `Default` is addded to handle the other cases.
-    - This config allow to track how much time takes to receive some fn, response or redirect, and consequently allowing to tract the performance of the lib in the development process throught a permanent database that tracs the event medium time, allowing to do some performance tests. The `Send` and `Receive` needs a special kwarg: `event_key` that can be generated with the helper `gen_valid-event_key.py` in `test/Logs`.
-- Add a helper in `tests/Logs/gen_valid_event_key.py` to help gen parity keys to Events
-- Now callbacks doesn't need the args field, this because now the args and their types are automatically infered by the callback pattern wrapper
+2. **Callbacks and Responses:**
+   - "Add a new type of responses to host patterns `ResponseType:InternalMannangement` this allows to change internals of host through callbacks responses"
+   - "Why only from callbacks response: ..."
+   - "Blocked the reception of InternalMaannangement commands from external sources unless redirected by callbacks."
+   - "Updated the response command structure to include a status, message, and kwargs inside a response."
+   
+3. **Improvements and Fixes:**
+   - "Improve tests capabilities"
+   - "Improve verification of buffer responses"
+   - "Make tests of connection more stronger"
+   - "Enhance client event transposition threads structure"
+   - "Improved debugging in handle internal command functions."
+   - "Made improvements to the `new_client.fast_verify_kwargs_and_types` function to check both mismatched types and keys."
+   - "Fixed the issue with the Python object extractor not being able to extract lists."
+   - "Fixed various errors and issues related to response formulation and command handling."
+   - "Fixed buffer bug that caused multiple commands with the same ID to be registered."
+
+4. **Centralization and Common Functions:**
+   - "Centralize common functions reducing code complexity and improve code efficient"
+   - "Centralize more python functions in common, like extract_args_type, dict_to tuple and the handle_pyobject that was changed to extract_pyobject"
+
+5. **Tests and Events:**
+   - "Start planning a graphical representation of tests"
+   - "Implement Test of redirect"
+   - "Now test events have 3 categories `Send`, `Receive`, and `Default`"
+   - "This config allows to track how much time takes to receive some fn, response or redirect, and consequently allowing to track the performance of the lib in the development process through a permanent database that tracks the event medium time, allowing to do some performance tests."
+
+6. **Internal Management and Commands:**
+   - "Added a command type called InternalMaannangement and implemented the necessary changes to handle it."
+   - "Blocked the reception of InternalMaannangement commands from external sources unless redirected by callbacks."
+   - "Added the InternalMannangement handler in the transposer."
+
+7. **Type and Verification:**
+   - "Add `type_of` and `fast_verify_kwargs_and_types` to `ResultType` enum, this can facilitate the process of checking a type of a `ResultType` and also recursively check if the Result matches with a predefined pattern in a very fast way by providing a reference target to `fast_verify_kwargs_and_types` that can return an empty Ok() when all is fine and return a enum `ExpectationError` when something isn't correct."
+
+8. **Groups Manipulation**:
+    - "// TODO - Edit a group from callbacks responses"
+    - "// TODO - Add a group from callbacks responses"
+    - "// TODO - Remove a group from callbacks response"
 
 ### Fixes:
 
