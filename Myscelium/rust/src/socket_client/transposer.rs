@@ -230,7 +230,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     // Determine the type of the command
     match translated_command.command_type() {
-        CommandType::SpecialFunction(f) => {
+        CommandType::SpecialFunction(_) => {
             if let Some(Value::Object(function_obj)) = translated_command.command.get("function") {
                 activation_key = match function_obj.get("function") {
                     // Replace "desired_inner_key" with the key you want to access
@@ -244,18 +244,14 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
             }
         },
 
-        CommandType::Function(f) => {
-            if let Some(Value::Object(function_obj)) = translated_command.command.get("function") {
-                activation_key = match function_obj.get("function") {
-                    // Replace "desired_inner_key" with the key you want to access
-                    Some(Value::String(activation_key)) => activation_key,
-                    _ => {
-                        return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
-                    },
-                };
-            } else {
-                return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
-            }
+        CommandType::Function(_) => {
+            activation_key = match translated_command.command.get("function") {
+                // Replace "desired_inner_key" with the key you want to access
+                Some(Value::String(activation_key)) => activation_key,
+                _ => {
+                    return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
+                },
+            };
         },
 
         CommandType::Response(_) => {

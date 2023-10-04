@@ -118,12 +118,12 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
     }
 
     let response_act_fn_value = converted_m.get("response_activation_function").unwrap().clone();
-    let response_act_fn: String = serde_json::from_value(response_act_fn_value).unwrap();
+    let function: String = serde_json::from_value(response_act_fn_value).unwrap();
 
     to_send.insert("command_type".to_string(), ResultType::Str("function".to_string()));
     to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
     to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-    to_send.insert("response_activation_function".to_string(), ResultType::Str(response_act_fn.to_string()));
+    to_send.insert("function".to_string(), ResultType::Str(function.to_string()));
     to_send.insert("kwargs".to_string(), m.get("kwargs").unwrap().clone());
     // to_send.insert("message".to_string(), ResultType::Str($error_msg.to_string()));
 

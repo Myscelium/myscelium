@@ -349,15 +349,14 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
     match command_received.command_type() {
         CommandType::Function(f) => {
-            logger.info(format!("Received a response!"));
+            // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
+            // > Also we can use a similar sistem to sinc multiple hosts
+
+            logger.info(format!("[Socket Client] - Received a function!:\n {:?}", f));
 
             match serde_json::from_value::<String>(f) {
-                Ok(response) => {
-                    if response == "C210" {
-                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                        logger.info(format!("Received Confirmation!"));
-                        return None;
-                    } else if response == "Error" {
+                Ok(function) => {
+                    if function == "Error" {
                         let val = Value::String("Unknown error".to_string());
                         let error_msg = command_received.command.get("Error").unwrap_or(&val);
                         logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
@@ -373,8 +372,6 @@ fn handle_response(received: Response) -> Option<DownCommand> {
             }
 
             let down_command = DownCommand::from_command(command_received.clone());
-
-            enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
 
             return Some(down_command);
         },
@@ -395,13 +392,13 @@ fn handle_response(received: Response) -> Option<DownCommand> {
                 }
             }
 
-            logger.debug(format!("Receive a function: {:?}", f));
+            logger.debug(format!("Receive a special function: {:?}", f));
             return None;
         },
 
         CommandType::Response(r) => {
             //* From now this is basically equal to response
-            logger.info(format!("Received a response!"));
+            logger.info(format!("[Socket Client] - Received a response!: \n{:?}", r));
 
             let status = serde_json::from_value::<String>(r.get("status").unwrap().clone()).unwrap();
 
@@ -528,7 +525,7 @@ pub fn initialize_client(address: String, client_id: String) {
                 let received = send(&mut stream, command_to_request.clone());
 
                 if let Some(down_command) = handle_response(received) {
-                    println!("[Socket] - Socket Receives Data..");
+                    println!("[Socket Client] - Receives Data.. : {:?}", down_command);
                     enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
                     break;
                 }

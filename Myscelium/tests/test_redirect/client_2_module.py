@@ -50,7 +50,7 @@ class MyClient:
 
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/", log_level="WARN")
+        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/", log_level="DEBUG")
 
         self.mys_client = mys_client
 
