@@ -209,33 +209,6 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     Ok(new_client) => new_client,
                 };
 
-                let expectation_result: Result<(), ExpectationError> = new_client.fast_verify_kwargs_and_types(&ResultType::Map(expected));
-
-                match expectation_result {
-                    Err(e) => match e {
-                        ExpectationError::MismatchType(tp) => {
-                            println!("ERROR, Client kwargs have mismatch type {} kwarg!", tp);
-                            return create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp), converted_m, to_send);
-                        },
-                        ExpectationError::MismatchRelativeLength => {
-                            println!("ERROR, Client kwargs have mismatch relative length kwargs!");
-                            return create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!", converted_m, to_send);
-                        },
-                        ExpectationError::Missingkwarg(k) => {
-                            println!("ERROR, Client kwargs have a missing kwarg: {}!", k);
-                            return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k), converted_m, to_send);
-                        },
-                        ExpectationError::TargetIsEmpty => {
-                            println!("ERROR, Client target pattern is empty!");
-                            return create_error_response_and_return!("Error! Client target pattern is empty!", converted_m, to_send);
-                        },
-                    },
-
-                    Ok(_) => {
-                        println!("Command add_client received matches the expectations!");
-                    },
-                }
-
                 let updated_client_unwraped: HashMap<String, ResultType> = new_client.to_map().unwrap();
 
                 let owned_sub_channels_keys: Vec<String> = updated_client_unwraped.get("owned_sub_channels_keys").unwrap().to_list().unwrap().iter().map(|v| v.to_str().unwrap()).collect();
