@@ -169,8 +169,6 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     return create_error_response_and_return!("Error! Callback response kwargs don't have new_client kwarg!", converted_m, to_send);
                 }
 
-                // TODO >>> Add the case where need to add the client
-
                 let result: HashMap<String, ResultType> = kwargs.to_map().unwrap();
                 let new_client: ResultType = result.get("new_client").unwrap().clone();
 
@@ -271,6 +269,8 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 to_send.insert("response_activation_function".to_string(), ResultType::Str("add_client_handler".to_string()));
                 to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
 
+                // TODO >>> Implement a mecanism to send back the confirmation or a error message originated from the operation
+
                 return to_send;
             } else {
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
@@ -294,8 +294,6 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     println!("ERROR, Error! Callback response kwargs don't have update_client kwarg!");
                     return create_error_response_and_return!("Error! Callback response kwargs don't have update_client kwarg!", converted_m, to_send);
                 }
-
-                // TODO >>> Add the case where need to update the client
 
                 let result = kwargs.to_map().unwrap();
                 let actual_client_key = result.get("actual_client_key").unwrap().to_str().unwrap();
@@ -387,6 +385,8 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                         _ => return create_error_response_and_return!("Error! Can Update client because a unexpected error!", converted_m, to_send.clone()),
                     },
                 }
+
+                // TODO >>> Implement a mecanism to send back the confirmation or a error message originated from the operation
             } else {
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
             }
@@ -435,6 +435,8 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
             } else {
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
             }
+
+            // TODO >>> Implement a mecanism to send back the confirmation or a error message originated from the operation
         },
 
         _ => {
