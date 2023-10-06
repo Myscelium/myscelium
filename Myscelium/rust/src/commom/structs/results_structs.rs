@@ -128,6 +128,8 @@ impl ResultType {
         } else {
             None
         }
+        // TODO >>> Add String to Bool
+        // TODO >>> Add unsigned int to Bool
     }
 
     /// Attempts to extract the `Error` variant.
