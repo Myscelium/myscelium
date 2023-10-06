@@ -423,7 +423,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
 
-            logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("error").unwrap()));
+            logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("message").unwrap()));
             CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
 
             return None;

@@ -298,7 +298,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 // TODO >>> Add the case where need to update the client
 
                 let result = kwargs.to_map().unwrap();
-                let actual_client_key: String = result.get("actual_client_key").unwrap().clone().to_string();
+                let actual_client_key = result.get("actual_client_key").unwrap().to_str().unwrap();
                 let updated_client = result.get("updated_client").unwrap().clone();
 
                 // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
@@ -338,36 +338,13 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     Ok(new_client) => new_client,
                 };
 
-                let expectation_result: Result<(), ExpectationError> = new_client.fast_verify_kwargs_and_types(&ResultType::Map(expected));
-
-                match expectation_result {
-                    Err(e) => match e {
-                        ExpectationError::MismatchType(tp) => {
-                            println!("ERROR, Client kwargs have mismatch type {} kwarg!", tp);
-                            return create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp), converted_m, to_send);
-                        },
-                        ExpectationError::MismatchRelativeLength => {
-                            println!("ERROR, Client kwargs have mismatch relative length kwargs!");
-                            return create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!", converted_m, to_send);
-                        },
-                        ExpectationError::Missingkwarg(k) => {
-                            println!("ERROR, Client kwargs have a missing kwarg: {}!", k);
-                            return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k), converted_m, to_send);
-                        },
-                        ExpectationError::TargetIsEmpty => {
-                            println!("ERROR, Client target pattern is empty!");
-                            return create_error_response_and_return!("Error! Client target pattern is empty!", converted_m, to_send);
-                        },
-                    },
-
-                    Ok(_) => {},
-                }
-
-                let updated_client_unwraped: HashMap<String, ResultType> = updated_client.to_map().unwrap();
+                let updated_client_unwraped: HashMap<String, ResultType> = new_client.to_map().unwrap();
 
                 let owned_sub_channels_keys: Vec<String> = updated_client_unwraped.get("owned_sub_channels_keys").unwrap().to_list().unwrap().iter().map(|v| v.to_str().unwrap()).collect();
 
                 let client_key = updated_client_unwraped.get("client_key").unwrap().to_str().unwrap();
+
+                println!("Updated client: {:?}", new_client);
 
                 let new_client = handle_client_error!(Client::new(
                     updated_client_unwraped.get("client_name").unwrap().to_str().unwrap(),

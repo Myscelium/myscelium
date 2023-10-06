@@ -119,6 +119,12 @@ impl ResultType {
     pub fn to_bool(&self) -> Option<bool> {
         if let ResultType::Bool(b) = &self {
             Some(*b)
+        } else if let ResultType::Int(b) = &self {
+            match b {
+                1i64 => Some(true),
+                0i64 => Some(false),
+                _ => None,
+            }
         } else {
             None
         }

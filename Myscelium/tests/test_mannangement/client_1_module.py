@@ -11,15 +11,22 @@ from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 class Receivers:
 
     @staticmethod
-    def test_update_client (data:any):
+    def test_add_client (data:any): # -> Need to be implemeneted
+
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test Add Client"
+        )
+
+        print("Received data: ", data)
+
+    @staticmethod
+    def test_update_client (data:any): # -> Need to be implemeneted
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Update Client"
         )
 
         print("Received data: ", data)
-
-        time.sleep(5)
         
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
@@ -32,22 +39,10 @@ class Receivers:
  
         print("Received data: ", data)
 
-        time.sleep(5)
+        time.sleep(10)
         
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
-    @staticmethod
-    def test_add_client (data:any): # TODO >>> test_add_client 
-
-        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Activate Basic Response Test Add Client"
-        )
-
-        print("Received data: ", data)
-
-        time.sleep(5)
-        
-        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
 class Senders:
 
@@ -65,7 +60,6 @@ class Senders:
     @staticmethod
     def test_add_client (): 
 
-        time.sleep(10)
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")
@@ -95,7 +89,6 @@ class Senders:
     @staticmethod
     def test_update_client (): 
 
-        time.sleep(10)
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")
@@ -103,8 +96,9 @@ class Senders:
         command = client_patterns.command_pattern(
             "test_update_client", 
             args={
-                "client_name":"test_client", 
+                "actual_client_key":"xMndjslwpedcnfe",
                 "client_key":"xMndjslwpedcnfe", 
+                "client_name":"test_client", 
                 "client_type":"Test", 
                 "permission_group":"", 
                 "is_super_user":True, 
@@ -124,7 +118,6 @@ class Senders:
     @staticmethod
     def test_remove_client (): 
 
-        time.sleep(10)
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")

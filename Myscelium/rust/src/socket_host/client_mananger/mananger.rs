@@ -231,7 +231,7 @@ impl Client {
                     new_client.max_sub_channels,
                     serialzied_owned_sub_channels_keys,
                     new_client.sub_channels_in_use,
-                    new_client.client_id,
+                    self.client_id,
                 ],
             );
 
@@ -308,7 +308,7 @@ impl Client {
                 let mut smtp = conn.prepare("SELECT * FROM Clients WHERE ClientKey = ?").unwrap();
 
                 let clients_iter = smtp
-                    .query_map(params![client_key], |row| {
+                    .query_map(params![*client_key], |row| {
                         Ok(Client::from(
                             row.get(0).unwrap(),
                             row.get(1).unwrap(),
