@@ -35,6 +35,16 @@ class Receivers:
         EVMananger = Events_Mananger(Unit="Client1", path="Logs")
         EVMananger.Set_Event("Activate Basic Response Test callback handler", event_type="Receive", event_key="74L648VZDI7J1GV5")
 
+        if "status" in data:
+            pass
+        else:
+            return None
+        
+        if data["status"] == "success":
+            pass
+        else:
+            return None
+
         print("Received data: ", data)
 
         time.sleep(5)

@@ -2,7 +2,7 @@ use crate::commom::enhanced_buffer;
 use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
 use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
 use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
-use crate::commom::functions::python_functions::{call_callback, dict_to_kwargs, extract_pyobject};
+use crate::commom::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
 use crate::commom::structs::results_structs::ResultType;
 
 use lazy_static::lazy_static;
@@ -323,7 +323,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     let response;
     {
         let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
-        response = call_callback(py, translated_command.clone(), callback_patterns);
+        response = client_call_callback(py, translated_command.clone(), callback_patterns);
     }
 
     // Process the Python callback's return value

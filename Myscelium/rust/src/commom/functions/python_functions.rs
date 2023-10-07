@@ -14,6 +14,7 @@ use crate::commom::enhanced_buffer::utilities::CommandType;
 use crate::commom::structs::results_structs::ResultType;
 
 use std::collections::HashMap;
+use std::result;
 use std::sync::MutexGuard;
 
 use crate::commom::enhanced_buffer::utilities::Command;
@@ -286,6 +287,96 @@ pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexG
                 },
                 _ => HashMap::new(),
             }
+        },
+        CommandType::SpecialFunction(_) => {
+            let command = &command.command;
+
+            match command.get("kwargs") {
+                // Some(Value::String(inner_map)) => {
+                //     HashMap::new()
+                // },
+                _ => HashMap::new(),
+            }
+        },
+        _ => dict_to_kwargs(py, &command.command).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?,
+    };
+
+    println!("Converted to Python kwargs_map: {:?}", kwargs_map);
+
+    // -> Convert to py dict
+    let kwargs = PyDict::new(py);
+    for (key, value) in kwargs_map {
+        kwargs.set_item(key, value).unwrap();
+    }
+
+    // Call the Python function with the converted arguments
+    let result = function.call(py, (), Some(kwargs)).map_err(|e| e)?;
+
+    let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
+
+    Ok(result_obj) // Return the PyObject
+}
+
+pub fn client_call_callback(py: Python<'_>, command: Command, callback_patterns: MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<PyObject> {
+    println!("Command to call a callback: {:?}", command);
+
+    let function_name: &String = match command.command.get("function") {
+        //> To Handle both functions and response activation function and use a single code to do so
+        Some(Value::String(function_name)) => function_name,
+        _ => match command.command.get("response_activation_function") {
+            Some(Value::String(function_name)) => function_name,
+            _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
+        },
+    };
+
+    // Get the function and args_types from the CALLBACK_PATTERNS
+    let (function, _) = callback_patterns.get(function_name).unwrap();
+
+    let kwargs_map = match command.command_type() {
+        CommandType::Response(_) => {
+            let command = &command.command;
+
+            let mut inner_hash_map: HashMap<String, Value> = HashMap::new();
+
+            inner_hash_map.insert("data".to_string(), Value::Object(command.clone().into_iter().collect()));
+
+            let resultexpected = dict_to_kwargs(py, &inner_hash_map)
+                .map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))
+                .unwrap();
+
+            println!("Result expected: {:?}", resultexpected);
+
+            resultexpected
+        },
+        CommandType::Function(_) => {
+            let command = &command.command;
+
+            let mut inner_hash_map: HashMap<String, Value> = HashMap::new();
+
+            inner_hash_map.insert("data".to_string(), Value::Object(command.clone().into_iter().collect()));
+
+            let resultexpected = dict_to_kwargs(py, &inner_hash_map)
+                .map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))
+                .unwrap();
+
+            println!("Result expected: {:?}", resultexpected);
+
+            resultexpected
+        },
+        CommandType::Redirect(_) => {
+            let command = &command.command;
+
+            let mut inner_hash_map: HashMap<String, Value> = HashMap::new();
+
+            inner_hash_map.insert("data".to_string(), Value::Object(command.clone().into_iter().collect()));
+
+            let resultexpected = dict_to_kwargs(py, &inner_hash_map)
+                .map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))
+                .unwrap();
+
+            println!("Result expected: {:?}", resultexpected);
+
+            resultexpected
         },
         CommandType::SpecialFunction(_) => {
             let command = &command.command;

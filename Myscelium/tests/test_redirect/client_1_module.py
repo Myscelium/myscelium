@@ -8,35 +8,11 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
-class MyClient:
 
-    @staticmethod
-    def test_handler(data:str):
+class Senders:
 
-        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Activate Basic Response Test callback handler", 
-            event_type="Receive", 
-            event_key="r99F3i89D20Oj1lq"
-        )
-
-        print("Received data: ", data)
-
-        # time.sleep(5)
-        
-        # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
-
-    @staticmethod
-    def test_redirect_handler(data:dict):
-
-        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Activate Basic Redirect Test callback handler", 
-            event_type="Receive", 
-            event_key="02V0P37Dz09zR3fL"
-        )
-
-        print("Received redirected data: ", data)
-        
-        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+    def __init__ (self):
+        pass
 
     @staticmethod
     def send_some_data():
@@ -56,6 +32,62 @@ class MyClient:
 
         print(result)
 
+
+class Receivers:
+
+    def __init__ (self):
+        pass
+
+    @staticmethod
+    def test_handler(data:str):
+
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler", 
+            event_type="Receive", 
+            event_key="r99F3i89D20Oj1lq"
+        )
+
+        if "status" in data:
+            pass
+        else:
+            return None
+        
+        if data["status"] == "success":
+            pass
+        else:
+            return None
+
+        print("Received data: ", data)
+
+        # time.sleep(5)
+        
+        # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+
+    @staticmethod
+    def test_redirect_handler(data:dict):
+
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Redirect Test callback handler", 
+            event_type="Receive", 
+            event_key="02V0P37Dz09zR3fL"
+        )
+
+        if "status" in data:
+            pass
+        else:
+            return None
+        
+        if data["status"] == "success":
+            pass
+        else:
+            return None
+
+        print("Received redirected data: ", data)
+        
+        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+
+class MyClient:
+
     def initializer(self):
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level="DEBUG")
@@ -63,10 +95,12 @@ class MyClient:
         self.mys_client = mys_client
 
         mys_client.set_client_uid(client_uid="some_client_id")
+        	
+        receivers = Receivers()
 
         callbacks = [
-            client_patterns.callback_pattern(callback=MyClient.test_handler),
-            client_patterns.callback_pattern(callback=MyClient.test_redirect_handler),
+            client_patterns.callback_pattern(callback=receivers.test_handler),
+            client_patterns.callback_pattern(callback=receivers.test_redirect_handler),
         ]
 
         mys_client.set_callbacks(callbacks=callbacks)
@@ -103,7 +137,10 @@ class MyClient:
     def run(self):
 
         t1 = Process(target=self.initializer, args=())
-        # t2 = Process(target=self.send_some_data, args=())
+
+        senders = Senders()
+
+        # t2 = Process(target=senders.send_some_data, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()

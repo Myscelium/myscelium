@@ -29,7 +29,6 @@ class Senders:
         
         print(result)
 
-
 class Receivers:
 
     @staticmethod
@@ -38,6 +37,16 @@ class Receivers:
         Events_Mananger(Unit="Client2", path="Logs").Set_Event(
             "Activate Basic Response Test callback handler"
         )
+
+        if "status" in data:
+            pass
+        else:
+            return None
+        
+        if data["status"] == "success":
+            pass
+        else:
+            return None
 
         print("Received data: ", data)
 

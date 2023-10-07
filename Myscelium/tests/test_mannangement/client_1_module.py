@@ -12,6 +12,26 @@ class Receivers:
 
     @staticmethod
     def test_add_client (data:any): # -> Need to be implemeneted
+        
+        # "data" {
+        #     "command_type":"response",
+        #     "status": "success"
+        #     "response_activation_function":"",
+        #     "message":"", 
+        #     "kwargs":{"arg1": [], "arg2": "", "arg3": {}}
+        #     "response_mode":"",
+        # }
+        
+        if "status" in data:
+            pass
+        else:
+            return None
+        
+        if data["status"] == "success":
+            pass
+        else:
+            return None
+
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Add Client"
@@ -26,6 +46,16 @@ class Receivers:
             "Activate Basic Response Test Update Client"
         )
 
+        if "status" in data:
+            pass
+        else:
+            return None
+        
+        if data["status"] == "success":
+            pass
+        else:
+            return None
+
         print("Received data: ", data)
         
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
@@ -36,6 +66,16 @@ class Receivers:
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Remove Client"
         )
+        
+        if "status" in data:
+            pass
+        else:
+            return None
+        
+        if data["status"] == "success":
+            pass
+        else:
+            return None
  
         print("Received data: ", data)
 
