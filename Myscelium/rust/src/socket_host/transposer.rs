@@ -267,7 +267,7 @@ fn process(py: Python, down_command: DownCommand) {
         },
     };
 
-    println!("Callback call response converted to rust: {:?}", result);
+    logger.debug(format!("Callback call response converted to rust: {:?}", result));
 
     let mut client_id = down_command.client_id.clone();
 
@@ -281,7 +281,7 @@ fn process(py: Python, down_command: DownCommand) {
 
                 if *response_mode == ResultType::Str("to_origin".to_string()) {
                     let converted_to_value = convert_to_value_map(&m);
-                    println!("Converted to Value: {:?}", &converted_to_value);
+                    logger.debug(format!("Converted to Value: {:?}", &converted_to_value));
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
                     // Response at this point is like this: Map({
                     //      "command_type":String("function"),
@@ -292,7 +292,7 @@ fn process(py: Python, down_command: DownCommand) {
                     //      "kwargs":Map(response)
                     // })
                 } else if *response_mode == ResultType::Str("redirect".to_string()) {
-                    println!("Response: {:?}", m);
+                    logger.debug(format!("Response: {:?}", m));
                     let resp = handle_redirect(m, &mut client_id, down_command.clone());
                     let converted_to_value = convert_to_value_map(&resp);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
@@ -310,9 +310,11 @@ fn process(py: Python, down_command: DownCommand) {
                     let converted_to_value = convert_to_value_map(&resp);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
                 } else {
+                    logger.warn("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!".to_string());
                     response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
                 }
             } else {
+                logger.warn("Error! Callback doesn't implement response mode!".to_string());
                 response = error_response!("Error! Callback doesn't implement response mode!");
             }
         },
@@ -338,6 +340,7 @@ fn process(py: Python, down_command: DownCommand) {
             response = Ok(serde_json::to_string(&command_map).unwrap());
         },
         ResultType::Error(e) => {
+            logger.warn(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
             response = error_response!(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
         },
     }
