@@ -261,7 +261,7 @@ fn process(py: Python, down_command: DownCommand) {
         Ok(r) => extract_pyobject(py, r),
         Err(e) => {
             // Handle the error or log it
-            eprintln!("Python error: {:?}", e);
+            logger.exception(format!("Python error: {:?}", e));
             // You can return a default value or propagate the error further
             ResultType::Error(format!("{:?}", e))
         },

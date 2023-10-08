@@ -181,19 +181,21 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
 pub fn update_last_contact(client_key: String) {
     let client = Client::get_by_key(&client_key);
 
+    let logger = acquire_logger!("[Socker][Update Last Contact]");
+
     match client {
         Ok(c) => {
             _ = c.update_last_contact();
         },
         Err(e) => match e {
             ClientError::ClientAlwreadyExist(e) => {
-                println!("Error client: {} alwready exist", e);
+                logger.exception(format!("Error client: {} alwready exist", e));
             },
             ClientError::ClientDoesNotExist(e) => {
-                println!("Error client: {} does't exist", e);
+                logger.exception(format!("Error client: {} does't exist", e));
             },
             ClientError::UnexpectedError(e) => {
-                println!("Get a unexpected error: {}", e);
+                logger.exception(format!("Get a unexpected error: {}", e));
             },
         },
     }
@@ -280,13 +282,15 @@ pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
 /// # Parameters
 /// - `buffer_location`: The location where the buffer databases should be initialized.
 pub fn initialize_host_buffer(buffer_location: String) {
-    println!("inicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
+    let logger = acquire_logger!("[Socket][Initialize Host Buffer]");
+
+    logger.info(format!("inicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location));
 
     enhanced_buffer::buffer_down_mananger::buffer_down_initialize_table(buffer_location.clone());
 
     enhanced_buffer::buffer_up_mananger::buffer_up_initialize_table(buffer_location.clone());
 
-    println!("All buffer initialized succefully!");
+    logger.info(format!("All buffer initialized succefully!"));
 
     return;
 }
@@ -312,13 +316,13 @@ pub fn initialize_host(address: String, client_id: String) {
     logger.info(format!("Listening: {}", address));
 
     loop {
-        println!("Waiting conn!");
+        logger.info("Waiting conn!".to_string());
 
         // Keep the thread alive until HOST_IS_RUNNING is set to false
         if !HOST_IS_RUNNING.load(Ordering::SeqCst) {
             // Lock the pool and stop it
             terminate_pool!(CONNECTION_HANDLER_POOL);
-            println!("Stopped the thread pool!");
+            logger.info("Stopped the thread pool!".to_string());
             break;
         }
 
