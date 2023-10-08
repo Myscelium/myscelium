@@ -34,6 +34,19 @@ macro_rules! create_error_response_and_return {
     }};
 }
 
+use crate::socket_host::host_logger::log_handler::Logger;
+use crate::HOST_LOG_LEVEL;
+
+macro_rules! acquire_logger {
+    ($section_name:expr) => {{
+        let host_log_level;
+        {
+            host_log_level = HOST_LOG_LEVEL.lock().clone();
+        }
+        Logger::new(host_log_level, $section_name)
+    }};
+}
+
 //> ------------------------------------------------------------------------------------------------------------------------------------------------
 //> Handle Redirect
 
@@ -137,6 +150,8 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
 // > Internal Mannangement Handler
 
 pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &mut String) -> HashMap<String, ResultType> {
+    let logger = acquire_logger!("[Process][Internal Manangement]");
+
     let mut to_send = HashMap::new();
 
     let converted_m = convert_to_value_map(&m);
@@ -144,13 +159,13 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
     println!("Converted m: {:?}", &converted_m);
 
     if !m.contains_key("response_mode") {
-        println!("Error! Callback response args don't have response_mode kwarg!");
+        logger.warn("Error! Callback response args don't have response_mode kwarg!".to_string());
         return create_error_response_and_return!("Error! Callback response args don't have response_mode kwarg!", converted_m, to_send);
     } else if !m.contains_key("activation_function") {
-        println!("Error! Callback response args don't have activation_function kwarg!");
+        logger.warn("Error! Callback response args don't have activation_function kwarg!".to_string());
         return create_error_response_and_return!("Error! Callback response args don't have activation_function kwarg!", converted_m, to_send);
     } else if !m.contains_key("kwargs") {
-        println!("Error! Callback response args don't have kwargs kwarg!");
+        logger.warn("Error! Callback response args don't have kwargs kwarg!".to_string());
         return create_error_response_and_return!("Error! Callback response args don't have kwargs kwarg!", converted_m, to_send);
     }
 
@@ -166,6 +181,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
             if let ResultType::Map(inner_map) = &kwargs {
                 if !inner_map.contains_key("new_client") {
+                    logger.warn("Error! Callback response kwargs don't have new_client kwarg!".to_string());
                     return create_error_response_and_return!("Error! Callback response kwargs don't have new_client kwarg!", converted_m, to_send);
                 }
 
@@ -189,19 +205,19 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 let new_client = match parsed_new_client {
                     Err(e) => match e {
                         ExpectationError::MismatchType(tp) => {
-                            println!("ERROR, Client kwargs have mismatch type {} kwarg!", tp);
+                            logger.warn(format!("ERROR, Client kwargs have mismatch type {} kwarg!", tp));
                             return create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp), converted_m, to_send);
                         },
                         ExpectationError::MismatchRelativeLength => {
-                            println!("ERROR, Client kwargs have mismatch relative length kwargs!");
+                            logger.warn("ERROR, Client kwargs have mismatch relative length kwargs!".to_string());
                             return create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!", converted_m, to_send);
                         },
                         ExpectationError::Missingkwarg(k) => {
-                            println!("ERROR, Client kwargs have a missing kwarg: {}!", k);
+                            logger.warn(format!("ERROR, Client kwargs have a missing kwarg: {}!", k));
                             return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k), converted_m, to_send);
                         },
                         ExpectationError::TargetIsEmpty => {
-                            println!("ERROR, Client target pattern is empty!");
+                            logger.warn("ERROR, Client target pattern is empty!".to_string());
                             return create_error_response_and_return!("Error! Client target pattern is empty!", converted_m, to_send);
                         },
                     },
@@ -225,11 +241,11 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     owned_sub_channels_keys,
                 ));
 
-                println!("New client: {:?}", new_client);
+                logger.debug(format!("New client: {:?}", new_client));
 
                 new_client.save_into_db(); //> It Alwready create the new client
 
-                println!("New client saved into the database!");
+                logger.debug("New client saved into the database!".to_string());
 
                 let mut resp_kwargs: HashMap<String, ResultType> = HashMap::new();
 
@@ -242,10 +258,13 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 to_send.insert("response_activation_function".to_string(), ResultType::Str("add_client_handler".to_string()));
                 to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
 
+                logger.info(format!("Sussefuly add a client: {}!", client_key));
+
                 // TODO >>> Implement a mecanism to send back the confirmation or a error message originated from the operation
 
                 return to_send;
             } else {
+                logger.warn("Error! Callback response kwargs isn't a Map!".to_string());
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
             }
         },
@@ -256,15 +275,16 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
             // 'kwargs':{'actual_client_key':String, 'updated_client':client} // Client have to have the same client key
             // 'client': {"client_name":str, "client_key":str, "client_type":str, "permission_group":str, "is_super_user":bool, "max_sub_channels":int, "owned_sub_channels_keys":list}
 
-            println!("Receive a update client inner command!");
+            logger.debug("Receive a update client inner command!".to_string());
 
             if let ResultType::Map(inner_map) = &kwargs {
                 if !inner_map.contains_key("actual_client_key") {
+                    logger.warn("Error! Callback response kwargs don't have actual_client_key kwarg!".to_string());
                     return create_error_response_and_return!("Error! Callback response kwargs don't have actual_client_key kwarg!", converted_m, to_send);
                 }
 
                 if !inner_map.contains_key("updated_client") {
-                    println!("ERROR, Error! Callback response kwargs don't have update_client kwarg!");
+                    logger.warn("ERROR, Error! Callback response kwargs don't have update_client kwarg!".to_string());
                     return create_error_response_and_return!("Error! Callback response kwargs don't have update_client kwarg!", converted_m, to_send);
                 }
 
@@ -289,19 +309,19 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 let new_client = match parsed_new_client {
                     Err(e) => match e {
                         ExpectationError::MismatchType(tp) => {
-                            println!("ERROR, Client kwargs have mismatch type {} kwarg!", tp);
+                            logger.warn(format!("ERROR, Client kwargs have mismatch type {} kwarg!", tp));
                             return create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp), converted_m, to_send);
                         },
                         ExpectationError::MismatchRelativeLength => {
-                            println!("ERROR, Client kwargs have mismatch relative length kwargs!");
+                            logger.warn("ERROR, Client kwargs have mismatch relative length kwargs!".to_string());
                             return create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!", converted_m, to_send);
                         },
                         ExpectationError::Missingkwarg(k) => {
-                            println!("ERROR, Client kwargs have a missing kwarg: {}!", k);
+                            logger.warn(format!("ERROR, Client kwargs have a missing kwarg: {}!", k));
                             return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k), converted_m, to_send);
                         },
                         ExpectationError::TargetIsEmpty => {
-                            println!("ERROR, Client target pattern is empty!");
+                            logger.warn("ERROR, Client target pattern is empty!".to_string());
                             return create_error_response_and_return!("Error! Client target pattern is empty!", converted_m, to_send);
                         },
                     },
@@ -315,7 +335,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                 let client_key = updated_client_unwraped.get("client_key").unwrap().to_str().unwrap();
 
-                println!("Updated client: {:?}", new_client);
+                logger.debug(format!("Updated client: {:?}", new_client));
 
                 let new_client = handle_client_error!(Client::new(
                     updated_client_unwraped.get("client_name").unwrap().to_str().unwrap(),
@@ -350,17 +370,26 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                         to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
 
+                        logger.info(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key));
+
                         return to_send;
                     },
 
                     Err(e) => match e {
-                        ClientError::ClientDoesNotExist(e) => return create_error_response_and_return!(format!("Error! Can't Update client because client {} Don't exist!", e), converted_m, to_send.clone()),
-                        _ => return create_error_response_and_return!("Error! Can Update client because a unexpected error!", converted_m, to_send.clone()),
+                        ClientError::ClientDoesNotExist(e) => {
+                            logger.warn(format!("Error! Can't Update client because client {} Don't exist!", e));
+                            return create_error_response_and_return!(format!("Error! Can't Update client because client {} Don't exist!", e), converted_m, to_send.clone());
+                        },
+                        _ => {
+                            logger.warn("Error! Can Update client because a unexpected error!".to_string());
+                            return create_error_response_and_return!("Error! Can Update client because a unexpected error!", converted_m, to_send.clone());
+                        },
                     },
                 }
 
                 // TODO >>> Implement a mecanism to send back the confirmation or a error message originated from the operation
             } else {
+                logger.warn("Error! Callback response kwargs isn't a Map!".to_string());
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
             }
         },
@@ -383,8 +412,14 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                 match result {
                     Err(e) => match e {
-                        ClientError::ClientDoesNotExist(e) => return create_error_response_and_return!(format!("Error! Can't Remove client because client {} Don't exist!", e), converted_m, to_send.clone()),
-                        _ => return create_error_response_and_return!("Error! Can Remove client because a unexpected error!", converted_m, to_send.clone()),
+                        ClientError::ClientDoesNotExist(e) => {
+                            logger.warn(format!("Error! Can't Remove client because client {} Don't exist!", e));
+                            return create_error_response_and_return!(format!("Error! Can't Remove client because client {} Don't exist!", e), converted_m, to_send.clone());
+                        },
+                        _ => {
+                            logger.warn("Error! Can Remove client because a unexpected error!".to_string());
+                            return create_error_response_and_return!("Error! Can Remove client because a unexpected error!", converted_m, to_send.clone());
+                        },
                     },
                     Ok(_) => {
                         to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
@@ -402,10 +437,13 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                         to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
 
+                        logger.info(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key));
+
                         return to_send;
                     },
                 }
             } else {
+                logger.warn("Error! Callback response kwargs isn't a Map!".to_string());
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
             }
 
@@ -418,6 +456,8 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
             to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
             to_send.insert("message".to_string(), ResultType::Str(format!("Response Activation Function: {} doesn't exists!!", activation_function).to_string()));
             to_send.insert("response_activation_function".to_string(), ResultType::Str("response_activation_function".to_string()));
+
+            logger.warn(format!("Response Activation Function: {} doesn't exists!!", activation_function));
 
             return to_send;
         },
