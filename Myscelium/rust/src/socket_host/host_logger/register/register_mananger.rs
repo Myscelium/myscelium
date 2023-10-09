@@ -168,9 +168,9 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
         match result {
             Ok(rows) => {
                 if rows > 0 {
-                    println!("Successfully inserted Log in the table HostLogs. {} row(s) were affected.", rows);
+                    // println!("Successfully inserted Log in the table HostLogs. {} row(s) were affected.", rows);
                 } else {
-                    println!("No rows were affected.");
+                    // println!("No rows were affected.");
                 }
             },
             Err(e) => {

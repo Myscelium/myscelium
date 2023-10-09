@@ -435,10 +435,10 @@ def test_mannangement ():
 
         # > Receivers   
         
-        if "Activate Basic Response Test Remove Client" in event:
+        if "Activate Basic Response Test Add Client" in event:
             receive_add_client_conf = True
 
-        if "Activate Basic Response Test Remove Client" in event:
+        if "Activate Basic Response Test Update Client" in event:
             receive_update_client_conf = True
 
         if "Activate Basic Response Test Remove Client" in event:

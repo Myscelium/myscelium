@@ -404,7 +404,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     return create_error_response_and_return!("Error! Callback response kwargs don't have client_key kwarg!", converted_m, to_send);
                 }
 
-                let client_key = inner_map.get("client_key").unwrap().to_string();
+                let client_key = inner_map.get("client_key").unwrap().to_str().unwrap();
 
                 let client = handle_client_error!(Client::get_by_key(&client_key));
 

@@ -753,7 +753,7 @@ class HostPatterns:
             
             client_key = kwargs["client_key"]
 
-            if isinstance(actual_client_key, str):
+            if isinstance(client_key, str):
                 pass
             else:
                 print("client key needs to be a string!")

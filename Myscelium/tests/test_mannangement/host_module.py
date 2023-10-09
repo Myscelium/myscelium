@@ -92,7 +92,7 @@ class Handlers:
             step=f"Client Client: [{client_key}]"
         )
 
-        return HostPatterns().update_host_configs(activation_function="remove_client", actual_client_key=client_key)
+        return HostPatterns().update_host_configs(activation_function="remove_client", client_key=client_key)
 
 class MyHost:
 
