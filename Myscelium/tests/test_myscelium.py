@@ -399,6 +399,10 @@ def test_mannangement ():
     send_update_client          = False
     send_remove_client          = False
 
+    receive_add_client_conf     = False
+    receive_update_client_conf  = False
+    receive_remove_client_conf  = False
+
     #>----------------------------------------------------------------------------------------------------
 
     # -> Host Tests
@@ -418,6 +422,8 @@ def test_mannangement ():
     for i in client_1_events_df.index:
         event = client_1_events_df.loc[i, 'StepCompleted']
 
+        # > Senders
+
         if "Send test add a client" in event:
             send_add_client     = True
 
@@ -426,12 +432,28 @@ def test_mannangement ():
 
         if "Send test remove a client" in event:
             send_remove_client  = True
+
+        # > Receivers   
+        
+        if "Activate Basic Response Test Remove Client" in event:
+            receive_add_client_conf = True
+
+        if "Activate Basic Response Test Remove Client" in event:
+            receive_update_client_conf = True
+
+        if "Activate Basic Response Test Remove Client" in event:
+            receive_remove_client_conf = True
+
  
     # -> Client 1
 
     assert send_add_client, "Can't send command to add client!"
     assert send_update_client, "Can't send command to update client!"
     assert send_remove_client, "Can't send command to remove client!"
+
+    assert receive_add_client_conf, "Can't receive client creation conf"
+    assert receive_update_client_conf, "Can't receive client update conf"
+    assert receive_remove_client_conf, "Can't receive remove client conf"
 
     # -> Host
 
