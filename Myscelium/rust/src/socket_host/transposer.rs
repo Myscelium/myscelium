@@ -1,43 +1,22 @@
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::thread;
-
-use serde::{Deserialize, Serialize};
-
-use crate::socket_host::client_mananger::mananger::check_if_client_key_exists;
 
 use crate::commom::enhanced_buffer;
 use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
 use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
-use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
-use crate::commom::functions::converters::{convert_to_resulttype_map, convert_to_value_map};
-use crate::commom::functions::python_functions::{call_callback, dict_to_kwargs, extract_pyobject};
+use crate::commom::enhanced_buffer::utilities::Command;
+use crate::commom::functions::converters::convert_to_value_map;
+use crate::commom::functions::python_functions::{call_callback, extract_pyobject};
 use crate::commom::structs::results_structs::ResultType;
 
-#[macro_use]
-use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
-use crate::commom::custom_thread_pool::thread_pool::UnifiedThreadPool;
-
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Condvar,
-};
-
-use pyo3::exceptions::PyException;
-use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
-use pyo3::IntoPy;
+use pyo3::types::PyFunction;
 use pyo3::Py;
-use pyo3::ToPyObject;
-use pyo3::{PyErr, PyObject, PyResult, Python};
+use pyo3::Python;
 
-use std::error::Error;
-use std::time::{Duration, Instant};
-
-use crate::HOST_IS_RUNNING;
-
-use std::fmt;
+use std::time::Duration;
 
 use super::host_logger;
 use super::host_logger::log_handler::Logger;
@@ -84,6 +63,34 @@ lazy_static! {
     static ref NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
 }
 
+/// Sets the number of workers for the socket host transposer and its associated modules.
+///
+/// This function updates the number of worker threads that the transposer and its associated modules
+/// will use for processing. This can be useful to optimize performance based on available resources.
+///
+/// # Parameters
+///
+/// - `n_workers`: The desired number of worker threads. The actual number of workers set for the
+///   register manager will be 7 times this value, as each worker requires 7 threads for its operations.
+///
+/// # Behavior
+///
+/// - The register manager's workers are set to 7 times the `n_workers` value.
+/// - The default number of workers is updated to `n_workers`.
+/// - The number of workers for both the down buffer manager and the up buffer manager are set to `n_workers`.
+///
+/// # Usage
+///
+/// This function is typically called during the initialization phase of the socket host transposer or
+/// when there's a need to adjust performance based on changing workloads or available system resources.
+///
+/// # Examples
+///
+/// ```rust
+/// let desired_num_workers = 5;
+/// set_socket_host_transposer_workers_num(desired_num_workers);
+/// ```
+///
 pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
     host_logger::register::register_mananger::set_workers_num(n_workers.clone() * 7); // 7 * n because we need 7 for each
     let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
@@ -94,6 +101,35 @@ pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
     enhanced_buffer::buffer_up_mananger::set_workers_num(n_workers);
 }
 
+/// Sets the command patterns and callback patterns for the socket host transposer.
+///
+/// This function updates the global patterns used by the transposer to handle incoming commands
+/// and their associated callbacks. By setting these patterns, the behavior of the transposer
+/// in response to specific commands can be defined or modified.
+///
+/// # Parameters
+///
+/// - `commands_patterns`: A `HashMap` that maps command names (as `String`s) to their associated
+///   patterns (as `Value`s). These patterns determine how specific commands are processed.
+/// - `callbacks_patterns`: A `HashMap` that maps command names (as `String`s) to their associated
+///   Python callbacks and patterns. The callback (of type `Py<PyFunction>`) is executed when the
+///   corresponding command is received, and the pattern (as `Value`) determines the expected structure
+///   or behavior of the callback.
+///
+/// # Usage
+///
+/// This function is typically called during the initialization phase of the socket host transposer or
+/// when there's a need to update or modify the behavior of command processing.
+///
+/// # Examples
+///
+/// ```rust
+/// let commands_patterns = ...; // Initialize command patterns
+/// let callbacks_patterns = ...; // Initialize callback patterns
+///
+/// set_socket_host_transposer_callbacks(commands_patterns, callbacks_patterns);
+/// ```
+///
 pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
     *command_patterns = commands_patterns;
@@ -113,81 +149,58 @@ macro_rules! error_response {
     }};
 }
 
+use crate::socket_host::functions::process::{handle_internal_mannangment, handle_redirect};
+
+/// Processes a given `DownCommand`, executing the corresponding logic and handling redirection.
+///
+/// This function serves as a central processing unit for commands that come in. Based on the command's
+/// contents, it can:
+/// - Execute callbacks
+/// - Translate commands
+/// - Handle redirections
+/// - Schedule `UpCommand`s for execution
+///
+/// # Parameters
+///
+/// - `py`: A Python interpreter instance, used for executing Python callbacks.
+/// - `down_command`: The command to be processed.
+///
+/// # Flow
+///
+/// 1. Checks if the command is already registered. If it is, removes it from the schedule.
+/// 2. Translates the `down_command` into a general `Command`.
+/// 3. Retrieves the function to be executed from the command.
+/// 4. Executes the callback associated with the function.
+/// 5. Processes the response from the callback. This can involve:
+///    - Handling direct responses
+///    - Handling redirections
+///    - Handling internal management commands
+/// 6. Based on the processed response, schedules an `UpCommand` for execution.
+///
+/// # Notes
+///
+/// The function heavily relies on global patterns (`COMMAND_PATTERNS` and `CALLBACK_PATTERNS`)
+/// which determine how commands are processed and which callbacks are executed.
+///
+/// The function can handle various response types including maps, strings, integers, floats, and booleans.
+/// It also has error handling capabilities to handle unexpected response types or errors during processing.
+///
+/// # Panics
+///
+/// This function can panic in scenarios related to unwrapping values, especially when certain expected
+/// keys are not present in command maps or when deserialization from JSON fails.
+///
+/// # Examples
+///
+/// ```rust
+/// let py = Python::acquire_gil().python();
+/// let down_command = DownCommand::new(...); // Initialize a DownCommand
+///
+/// process(py, down_command);
+/// ```
+///
 fn process(py: Python, down_command: DownCommand) {
     let logger = acquire_logger!("Transposer - Process");
-
-    fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, down_command: DownCommand) -> HashMap<String, ResultType> {
-        let mut to_send = HashMap::new();
-
-        if !m.contains_key("redirect_to") {
-            let mut resp: HashMap<String, ResultType> = HashMap::new();
-
-            resp.insert("Error".to_string(), ResultType::Str("Error! Callback response args don't have redirect_to client_id field!".to_string()));
-
-            to_send.insert("response".to_string(), ResultType::Map(resp));
-            to_send.insert("response_activation_function".to_string(), ResultType::Str(m.get("response_activation_function").unwrap().to_string()));
-            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-
-            return to_send;
-            // error_response!("Error! Callback response args don't have redirect_to client_id field!");
-        }
-
-        let converted_m = convert_to_value_map(&m);
-        let redirect_to_value = converted_m.get("redirect_to").unwrap().clone();
-        let redirect_to: String = serde_json::from_value(redirect_to_value).unwrap();
-
-        if !check_if_client_key_exists(redirect_to.to_string()) {
-            let mut resp: HashMap<String, ResultType> = HashMap::new();
-
-            resp.insert("Error".to_string(), ResultType::Str(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string())));
-
-            to_send.insert("response".to_string(), ResultType::Map(resp));
-            to_send.insert("response_activation_function".to_string(), ResultType::Str(m.get("response_activation_function").unwrap().to_string()));
-            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-
-            return to_send;
-
-            // return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
-        }
-
-        let up_command = UpCommand::new(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), "C210".to_string());
-        enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
-
-        *client_id = redirect_to.to_string(); // > Update the client id that it will send to
-
-        println!("Converted redirect command: {:?}", converted_m);
-
-        if !converted_m.contains_key("kwargs") {
-            let mut resp: HashMap<String, ResultType> = HashMap::new();
-
-            resp.insert("Error".to_string(), ResultType::Str("Error! Callback response args don't have response kwarg!".to_string()));
-
-            to_send.insert("response".to_string(), ResultType::Map(resp));
-            to_send.insert("response_activation_function".to_string(), ResultType::Str(converted_m.get("response_activation_function").unwrap().to_string()));
-            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-
-            return to_send;
-
-            // return error_response!("Error! Callback response args don't have response kwarg!");
-        }
-
-        let mut resp: HashMap<String, ResultType> = HashMap::new();
-
-        let response_act_fn_value = converted_m.get("response_activation_function").unwrap().clone();
-        let response_act_fn: String = serde_json::from_value(response_act_fn_value).unwrap();
-
-        to_send.insert("kwargs".to_string(), m.get("kwargs").unwrap().clone());
-        to_send.insert("response_activation_function".to_string(), ResultType::Str(response_act_fn.to_string()));
-        to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-
-        // {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
-
-        // {"response": Map({"data": Str("hello!")}), "response_activation_function": Str("test_handler"), "response_mode": Str("to_origin")}
-
-        resp.insert("response".to_string(), ResultType::Map(to_send));
-
-        return resp;
-    }
 
     logger.debug(format!("Initializing prossesing!"));
 
@@ -229,20 +242,13 @@ fn process(py: Python, down_command: DownCommand) {
     let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
     let patterns = command_patterns;
 
+    // -> Remove command from schedule if it isn't on the patterns
     if !patterns.contains_key(function) {
-        // -> Remove command from schedule if it isn't on the patterns
-
         logger.warn(format!("Command isn't registred in the patterns"));
-
         enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
-
-        logger.warn(format!("command skipped and remvoed from schedule"));
+        logger.warn(format!("command skipped and removed from schedule"));
         return;
     }
-
-    logger.debug(format!("Command function: {} is a valid function!", function));
-    logger.debug(format!("Calling the callback!"));
-    logger.debug(format!("Acquired the GIL"));
 
     let response;
 
@@ -261,31 +267,46 @@ fn process(py: Python, down_command: DownCommand) {
         },
     };
 
+    println!("Callback call response converted to rust: {:?}", result);
+
     let mut client_id = down_command.client_id.clone();
 
     let response;
 
     match result {
+        // TODO >>> Implement change of response here
         ResultType::Map(m) => {
             if m.contains_key("response_mode") {
                 let response_mode = m.get("response_mode").unwrap();
 
                 if *response_mode == ResultType::Str("to_origin".to_string()) {
-                    // println!("{:?}", &m);
-                    // let converted: HashMap<String, ResultType> = convert_to_resulttype_map(&m);
-                    // // println!("Converted to ResultType: {:?}", &converted);
                     let converted_to_value = convert_to_value_map(&m);
                     println!("Converted to Value: {:?}", &converted_to_value);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
+                    // Response at this point is like this: Map({
+                    //      "command_type":String("function"),
+                    //      "response_mode":String("to_origin"),
+                    //      "status": String("success"),
+                    //      "response_activation_function":String(response_activation_function),
+                    //      "message":String(_),
+                    //      "kwargs":Map(response)
+                    // })
                 } else if *response_mode == ResultType::Str("redirect".to_string()) {
-                    // println!("{:?}", &m);
-                    // let converted: HashMap<String, String> = convert_to_resulttype_map(&m);
-                    // println!("{:?}", &converted);
-
                     println!("Response: {:?}", m);
-                    //* probraly the cause of redirect bug
-                    // TODO >>> Verify if has the response field
                     let resp = handle_redirect(m, &mut client_id, down_command.clone());
+                    let converted_to_value = convert_to_value_map(&resp);
+                    response = Ok(serde_json::to_string(&converted_to_value).unwrap());
+                    // Response at this point is like this: Map({
+                    //      "command_type":String("function"),
+                    //      "response_mode":String("redirect"),
+                    //      "status": String("success"),
+                    //      "response_activation_function":String(response_activation_function),
+                    //      "message":String(_),
+                    //      "kwargs":Map(response),
+                    //      "redirect_to":String(redirect_to_client_id)
+                    //  })
+                } else if *response_mode == ResultType::Str("internal_mannangement".to_string()) {
+                    let resp = handle_internal_mannangment(m, &mut client_id);
                     let converted_to_value = convert_to_value_map(&resp);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
                 } else {
@@ -311,7 +332,10 @@ fn process(py: Python, down_command: DownCommand) {
             response = error_response!("Error! Received a list, but expected a map!");
         },
         ResultType::Empty => {
-            response = Ok(serde_json::to_string(&"C210".to_string()).unwrap());
+            let mut command_map = HashMap::new();
+            command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+            command_map.insert("function".to_string(), Value::String("C210".to_string()));
+            response = Ok(serde_json::to_string(&command_map).unwrap());
         },
         ResultType::Error(e) => {
             response = error_response!(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
@@ -336,8 +360,6 @@ fn clear_old_data() {
 pub fn initialize_socket_host_transposer(py: Python<'_>) {
     let logger = acquire_logger!("Transposer");
 
-    let num_of_workers = NUM_WORKERS.lock().unwrap();
-
     let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
     schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
@@ -347,7 +369,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
     if !(schedule.len() > 0) {
         // logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
-        thread::sleep(Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(100));
         return;
     }
 
@@ -368,16 +390,14 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
             py = gil_pool.python();
 
             logger.debug(format!("Aquired python in a process task!"));
-
             process(py, dow_command);
-
             logger.debug(format!("Finalize a process task!"));
         }
     }
 
     thread::sleep(Duration::from_millis(100));
 
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    // let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
     return;
 

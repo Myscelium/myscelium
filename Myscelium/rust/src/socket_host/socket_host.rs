@@ -111,6 +111,7 @@ macro_rules! acquire_logger {
 macro_rules! create_special_command {
     ($client_id:expr, $response:expr) => {{
         let mut command_map = HashMap::new();
+        command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
         command_map.insert("function".to_string(), Value::String($response.to_string()));
 
         let command = Command {
@@ -125,14 +126,11 @@ macro_rules! create_special_command {
 
 macro_rules! create_response_command {
     ($client_id:expr, $parity_id:expr, $priority:expr, $response:expr) => {{
-        let mut command_map = HashMap::new();
-        command_map.insert("response".to_string(), Value::String($response.to_string()));
-
         let command = Command {
             client_id: $client_id.to_string(),
             parity_id: $parity_id.to_string(),
             priority: $priority,
-            command: command_map,
+            command: $response,
         };
         command
     }};
@@ -173,8 +171,15 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
 // }
 // }
 
+/// Update the last contact time for a given client.
+///
+/// This function fetches a client based on their key and attempts to update their last contact time.
+/// If the client does not exist or other errors occur, the appropriate error messages are printed.
+///
+/// # Parameters
+/// - `client_key`: The unique key associated with the client whose last contact time needs to be updated.
 pub fn update_last_contact(client_key: String) {
-    let client = Client::get_by_key(client_key);
+    let client = Client::get_by_key(&client_key);
 
     match client {
         Ok(c) => {
@@ -194,7 +199,7 @@ pub fn update_last_contact(client_key: String) {
     }
 }
 
-// > Commands Manangemement & Checking
+// > Commands Manangemement & Checking:
 
 // fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
 //     let function_name = match command.command.get("function") {
@@ -241,6 +246,13 @@ pub fn update_last_contact(client_key: String) {
 
 // > Socket Interactive Functions:
 
+/// Set the maximum number of allowed connections.
+///
+/// This function sets the maximum number of connections and adjusts the number of worker threads accordingly.
+/// Each connection requires seven workers, so the total number of workers is `7 * n_max_conns`.
+///
+/// # Parameters
+/// - `n_max_conns`: The desired maximum number of connections.
 pub fn set_max_conns(n_max_conns: u32) {
     host_logger::register::register_mananger::set_workers_num(n_max_conns.clone() * 7); // 7 * n because we need 7 for each
 
@@ -249,11 +261,24 @@ pub fn set_max_conns(n_max_conns: u32) {
     *default_max_conns = n_max_conns;
 }
 
+/// Update the socket host callback patterns.
+///
+/// This function updates the global `COMMAND_PATTERNS` hashmap with the new provided callback patterns.
+///
+/// # Parameters
+/// - `callbacks_patterns`: A `HashMap` containing the new callback patterns to be set.
 pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
     let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
     *command_patterns = callbacks_patterns;
 }
 
+/// Initializes the host buffer databases.
+///
+/// This function initializes the buffer databases for both up and down managers.
+/// If the databases aren't already initialized, they will be created at the specified location.
+///
+/// # Parameters
+/// - `buffer_location`: The location where the buffer databases should be initialized.
 pub fn initialize_host_buffer(buffer_location: String) {
     println!("inicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
 
@@ -266,6 +291,14 @@ pub fn initialize_host_buffer(buffer_location: String) {
     return;
 }
 
+/// Starts and initializes the host to listen for incoming connections.
+///
+/// This function binds a `TcpListener` to the provided address and starts listening for incoming connections.
+/// Each incoming connection is handled in a new thread from the thread pool, allowing for concurrent processing.
+///
+/// # Parameters
+/// - `address`: The IP address and port on which the host should listen, in the format `ip:port`.
+/// - `client_id`: The client ID for the host.
 pub fn initialize_host(address: String, client_id: String) {
     let logger = acquire_logger!("Core");
 
@@ -313,6 +346,12 @@ pub fn initialize_host(address: String, client_id: String) {
 // handle_connection is a function that handles each TCP stream. It reads from the stream into a buffer,
 // then writes the contents of the buffer back to the stream.
 
+/// Fetches all available registered command patterns.
+///
+/// This function retrieves and returns a clone of the global `COMMAND_PATTERNS` hashmap, which contains the registered command patterns.
+///
+/// # Returns
+/// - A `HashMap<String, Value>` representing the cloned command patterns.
 pub fn get_available_commands_registered() -> HashMap<String, Value> {
     let command_patterns = COMMAND_PATTERNS.lock().unwrap();
     return command_patterns.clone();
@@ -320,6 +359,17 @@ pub fn get_available_commands_registered() -> HashMap<String, Value> {
 
 // > Socket main structure:
 
+/// Handles special command functions based on their string representation.
+///
+/// This function checks the provided function string and returns an appropriate `Command` based on predefined special cases.
+/// Special cases currently supported are "C202" (Connection conf request) and "C206" (Ping request).
+///
+/// # Parameters
+/// - `client_id`: The client ID associated with the request.
+/// - `function`: The string representation of the special function to be handled.
+///
+/// # Returns
+/// - A `Command` object representing the response for the special function.
 fn handle_special_functions(client_id: String, function: String) -> Command {
     let command;
 
@@ -350,40 +400,77 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
     return command;
 }
 
+/// Handles common commands that don't fall under special functions.
+///
+/// This function schedules the command for processing using the `buffer_down_mananger`. After scheduling, it sends a "C210" special command as a receive confirmation.
+///
+/// # Parameters
+/// - `command`: The `Command` object that needs to be handled.
+///
+/// # Returns
+/// - A `Command` object representing the response for the common command.
 fn handle_commom_function(command: Command) -> Command {
     // let actual_client_id = CLIENT_ID.lock().unwrap();
 
-    let mut command_map = HashMap::new();
-    command_map.insert("function".to_string(), Value::String("C210".to_string()));
+    // let mut command_map = HashMap::new();
+    // command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-    let response_command = Command::new(command.client_id.clone(), "itisaspecialcase".to_string(), 11, command_map);
+    // let response_command = Command::new(command.client_id.clone(), "itisaspecialcase".to_string(), 11, command_map);
 
-    // TODO >> If have responses in the dabase to the client here is a good idea to send back
-
-    // let command_patterns = COMMAND_PATTERNS.lock().unwrap();
-
-    // if !validate_command(&command, &command_patterns) {
-    //     return response_command;
-    // } else {
-
-    // }
+    // >----------
+    // > Schedule to process
 
     let json_command = serde_json::to_string(&command.command).unwrap();
 
-    let down_command = DownCommand::new(command.client_id.clone(), command.parity_id, command.priority, json_command);
+    let down_command = DownCommand::new(command.client_id.clone(), command.parity_id.clone(), command.priority, json_command);
 
     enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command);
 
-    // TODO >>> Add a mecanism to get the buffer up responses and send back to client or redirect to antoher client
+    // >----------
+    // > Send receive conf
 
-    return response_command;
+    let mut command_map = HashMap::new();
+    command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+    command_map.insert("function".to_string(), Value::String("C210".to_string()));
+
+    let conf_command = Command {
+        client_id: command.client_id.to_string().clone(),
+        parity_id: command.parity_id.to_string().clone(),
+        priority: 11,
+        command: command_map,
+    };
+
+    return conf_command;
 }
 
+/// Enum representing possible responses.
+///
+/// This enum encapsulates the two possible response types:
+/// 1. A valid `Command` response.
+/// 2. An absence of a response, represented by `None`.
 enum Response {
     Command(Command),
     None,
 }
 
+/// Retrieves a response for a given command.
+///
+/// This function is responsible for fetching a pre-scheduled response based on the provided command's client ID and parity ID.
+/// Once found, the scheduled response is transformed into a `Response::Command` variant, and the original schedule is removed from the buffer.
+///
+/// # Parameters
+/// - `command`: The `Command` object for which a response needs to be fetched.
+///
+/// # Returns
+/// - `Response::Command(response_command)`: If a pre-scheduled response is found in the buffer.
+/// - `Response::None`: If no scheduled response is found for the provided command.
+///
+/// # Logic Flow
+/// 1. The function queries the `buffer_up_mananger` to fetch any scheduled responses that match the provided command's client ID and parity ID.
+/// 2. If no scheduled response is found, the function returns a `Response::None`.
+/// 3. If a scheduled response is found, it is converted into a `Command` object.
+/// 4. The original scheduled response is then removed from the buffer to avoid any future retrievals.
+/// 5. The transformed command is returned as `Response::Command(response_command)`.
 fn get_response(command: Command) -> Response {
     let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
 
@@ -393,13 +480,37 @@ fn get_response(command: Command) -> Response {
 
     let command_response = &up_schedule[0];
 
-    let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response.command);
+    let command_response_command = serde_json::from_str(command_response.command.as_str()).unwrap();
+
+    let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response_command);
 
     enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
 
     return Response::Command(response_command);
 }
 
+/// Handles an individual connection to the server.
+///
+/// This function is responsible for managing the lifecycle of a client connection to the server.
+/// Upon receiving data from the client, it processes the received commands, logs relevant information,
+/// and sends back appropriate responses.
+///
+/// # Parameters
+/// - `stream`: The TCP stream associated with the client connection.
+///
+/// # Flow
+/// 1. A logger specific to the "Core" section is acquired for logging purposes.
+/// 2. The function continuously reads data from the client's stream.
+/// 3. If no data is read, it simply continues to the next iteration.
+/// 4. Upon successfully reading data, the buffer is converted to a string and then deserialized into a `Command` object.
+/// 5. The function then checks if the received command is a "special function" or a recognized regular command.
+/// 6. If the command is neither special nor recognized, an error response is sent back to the client.
+/// 7. Throughout the process, all key events and errors are logged.
+///
+/// # Notes
+/// - The TODO within the function indicates a need to enhance error handling during deserialization of the command.
+/// - Special care is given to the handling of special functions, which are identified by specific codes (e.g., "C202" and "C206").
+/// - There is a mechanism in place to check if a command's parity ID is already registered and to retrieve existing responses if necessary.
 fn handle_connection(mut stream: TcpStream) {
     // Aquire logger to section Handle Conn
     let logger = acquire_logger!("Core");
@@ -443,7 +554,7 @@ fn handle_connection(mut stream: TcpStream) {
             return;
         }
 
-        // ! WE CAN USE THIS PY AQUIRE UNTILL THE PYTHON POOL IS FINISHED !
+        // ! WE CAN'T USE THIS PY AQUIRE UNTILL THE PYTHON POOL IS FINISHED !
 
         update_last_contact(command.client_id.clone());
 
@@ -487,7 +598,6 @@ fn handle_connection(mut stream: TcpStream) {
                                 },
                                 Response::None => {
                                     logger.info("Response is None!".to_string());
-
                                     response = create_special_command!(command.client_id, "C210");
                                 },
                             }

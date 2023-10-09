@@ -10,17 +10,23 @@ import time
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
-    Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Contact received from Client: {client_key}")
+    Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
     pass
 
-class MyHost:
+class Handlers:
 
-    def __init__(self):
-        self.host_patterns = HostPatterns()
+    # @staticmethod
+    # def handle_client_contact(client_id, event_key='client_contact'):
+    #     print("Access heartbeat handler")
+    #     print(f"Client: {client_id}, made contact")
 
-    @staticmethod
-    def python_function(age, birth, name):
+    #     Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
+
+    #     # TODO >>> Save event in the test databse log
+
+    @staticmethod   
+    def python_function(age:int, birth:str, name:str):
         print("Access python function")
         print(birth)
         print(name)
@@ -33,15 +39,49 @@ class MyHost:
             response={"data": 'hello!'}
         )
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Basic Callback")
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(Step=f"Base callback - Receive Data: [{age}, {birth}, {name}]")
+        match age:
+
+            case 8:
+                
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step="Active Basic Callback", 
+                    event_type="Receive", 
+                    event_key="1dX2A63Rp7O79x6t"
+                )
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
+                )
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step="Return Basic Callback Response", 
+                    event_type="Send", 
+                    event_key="r99F3i89D20Oj1lq"
+                )
+        
+            case 9:
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step="Active Basic Callback", 
+                    event_type="Receive"
+                )
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
+                )
+
+                Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                    step="Return Basic Callback Response",
+                    event_type="Send", 
+                    event_key=""
+                )
 
         #                                                            (callback name) - Receive Data: [Data received list for comparison]
 
         return response
 
     @staticmethod
-    def test_redirect(client_id, data):
+    def test_redirect(client_id:str, data:int):
         if isinstance(client_id, str):
             print(f"Redirecting data: {data} to client: {client_id}")
             host_patterns = HostPatterns()
@@ -57,21 +97,18 @@ class MyHost:
 
             print(f"Response Before send to engine: {response}")
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(Step="Active Host Redirect Callback")
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Host Redirect Callback") # This doesn't have a event_key because it is on the destine
             
             return response
         else:
             print("Client id isn't a string, failed to redirect data!")
             return None
 
-    # @staticmethod
-    # def handle_client_contact(client_id, event_key='client_contact'):
-    #     print("Access heartbeat handler")
-    #     print(f"Client: {client_id}, made contact")
+class MyHost:
 
-    #     Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
+    def __init__(self):
+        self.host_patterns = HostPatterns()
 
-    #     # TODO >>> Save event in the test databse log
 
     def monitor_stop_event(self):
 
@@ -82,7 +119,7 @@ class MyHost:
         n = 0 
         COUNTER = 62 # Each counter is 5 secs of waiting
         
-        mys_host_interface = MysceliumHostInterface("Data/")
+        mys_host_interface = MysceliumHostInterface("Temp/Data/")
 
         mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
 
@@ -118,16 +155,16 @@ class MyHost:
 
     def run_host(self, ip, port):
 
+        handlers = Handlers()
+
         callbacks = [
-            self.host_patterns.callback_pattern(callback=self.python_function,
-                                                args={"birth": "str", "name": "str", "age": "int", "event_key": "str"}),
-            self.host_patterns.callback_pattern(callback=self.test_redirect,
-                                                args={"client_id": "str", "data": "int"}),
+            self.host_patterns.callback_pattern(callback=handlers.python_function),
+            self.host_patterns.callback_pattern(callback=handlers.test_redirect),
         ]
 
         allowed_clients = [
-            self.host_patterns.client_pattern(client_name="TestClient1", client_type="Interface", client_key="some_client_id", client_permission_group="", client_is_super_user=True, client_max_sub_channes=5),
-            self.host_patterns.client_pattern(client_name="TestClient2", client_type="Interface", client_key="randomsclientids", client_permission_group="", client_is_super_user=True, client_max_sub_channes=5),
+            self.host_patterns.client_pattern(client_name="TestClient1", client_type="Interface", client_key="some_client_id", client_permission_group="", client_is_super_user=True, max_sub_channels=5),
+            self.host_patterns.client_pattern(client_name="TestClient2", client_type="Interface", client_key="randomsclientids", client_permission_group="", client_is_super_user=True, max_sub_channels=5),
         ]
 
         print(allowed_clients)
@@ -135,7 +172,7 @@ class MyHost:
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Data/", n_workers=2, log_level="DEBUG")
+                                 allowed_clients=allowed_clients, buffer_path="Temp/Data/", n_workers=2, log_level="DEBUG")
 
         self.mys_host = mys_host
 

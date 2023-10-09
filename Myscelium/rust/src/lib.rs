@@ -70,6 +70,35 @@ lazy_static! {
 
 // -> Entries:
 
+/// The `myscelium_engine` Python module, providing socket host and client functionalities.
+///
+/// This module contains functions related to both the host and client aspects of the `myscelium_engine`.
+/// Users can utilize these functions to set up and manage the socket host and client configurations and operations.
+///
+/// # Host Functions:
+///
+/// - `initalize_host_buffer_tables`: Initializes the buffer tables for the host.
+/// - `registry_socket_host_callbacks`: Registers callback functions for the socket host.
+/// - `initialize_socket_host`: Initializes and starts the socket host.
+/// - `get_socket_host_available_commands`: Fetches the list of available commands that the socket host can recognize.
+/// - `set_socket_host_max_connections`: Sets the maximum number of connections for the socket host.
+/// - `set_socket_host_transposer_num_of_workers`: Sets the number of workers for the socket host transposer.
+/// - `set_socket_host_allowed_clients`: Configures the list of clients allowed to connect to the socket host.
+/// - `registry_socket_host_client_heartbeat_contact_callback`: Registers a callback function for the socket host to trigger when a client sends a heartbeat message.
+/// - `set_socket_host_log_level`: Sets the logging level for the socket host.
+/// - `registry_new_allowed_clients`: Registers a new list of allowed clients for the socket host.
+///
+/// # Client Functions:
+///
+/// - `initalize_client_buffer_tables`: Initializes the buffer tables for the client.
+/// - `registry_socket_client_callbacks`: Registers callback functions for the socket client.
+/// - `initialize_socket_client`: Initializes and starts the socket client.
+/// - `set_socket_client_transposer_num_of_workers`: Sets the number of workers for the socket client transposer.
+/// - `client_send`: Allows the client to send a command to the host.
+/// - `set_client_uid`: Sets the unique identifier for the client.
+/// - `set_socket_client_log_level`: Sets the logging level for the socket client.
+///
+/// Note: Some functions, like `registry_host_logs_handler` and `registry_client_logs_handler`, have been commented out and are not currently available.
 #[pymodule]
 fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // -> Host
@@ -83,6 +112,7 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(registry_socket_host_client_heartbeat_contact_callback, m)?)?;
     // m.add_function(wrap_pyfunction!(registry_host_logs_handler, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_host_log_level, m)?)?;
+    m.add_function(wrap_pyfunction!(registry_new_allowed_clients, m)?)?;
 
     // -> Client
     m.add_function(wrap_pyfunction!(initalize_client_buffer_tables, m)?)?;

@@ -152,6 +152,23 @@ fn set_socket_host_log_level(log_level: &PyString) {
 //     Ok(())
 // }
 
+/// Registers a callback function for the socket host to trigger when a client sends a heartbeat message.
+///
+/// This function updates the global callback that will be called each time the socket host receives a heartbeat
+/// message from a client.
+///
+/// # Parameters
+///
+/// - `py`: The Python interpreter.
+/// - `commands`: A Python list of dictionaries containing the callback function and its expected arguments.
+///
+/// # Returns
+///
+/// Returns an empty result if successful, or a Python error if there's a problem with the provided list.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
     let mut callback_pattern = HashMap::new();
@@ -163,10 +180,30 @@ fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: 
     Ok(())
 }
 
+/// Stops the socket host.
+///
+/// This function sets the global `HOST_IS_RUNNING` flag to false, indicating that the socket host should stop running.
 fn stop_socket_host() {
     HOST_IS_RUNNING.store(false, Ordering::SeqCst);
 }
 
+/// Registers callback functions for the socket host.
+///
+/// This function updates the global list of callback functions that the socket host can call. Each callback is associated
+/// with a specific command that the host might receive.
+///
+/// # Parameters
+///
+/// - `py`: The Python interpreter.
+/// - `commands`: A Python list of dictionaries containing the callback functions and their expected arguments.
+///
+/// # Returns
+///
+/// Returns an empty result if successful, or a Python error if there's a problem with the provided list.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
@@ -221,6 +258,20 @@ fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()>
     Ok(())
 }
 
+/// Initializes and starts the socket host.
+///
+/// This function sets up the socket host and starts it, allowing it to accept incoming connections.
+///
+/// # Parameters
+///
+/// - `py`: The Python interpreter.
+/// - `ip`: IP address for the socket host.
+/// - `port`: Port for the socket host.
+/// - `client_id`: ID of the client.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: String) {
     // Create a global Mutex for demonstration
@@ -275,6 +326,19 @@ fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: Stri
     println!("Socket transposer exited ssucefully!");
 }
 
+/// Converts a JSON value to its corresponding Python object.
+///
+/// This helper function takes in a JSON value and recursively converts it to the corresponding Python object.
+/// This can be useful for translating between Rust and Python data structures.
+///
+/// # Parameters
+///
+/// - `py`: The Python interpreter.
+/// - `value`: The JSON value to convert.
+///
+/// # Returns
+///
+/// Returns the converted Python object.
 fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject> {
     // Convert the JSON value to the appropriate Python object
     match value {
@@ -302,6 +366,22 @@ fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject>
     }
 }
 
+/// Fetches the list of available commands that the socket host can recognize.
+///
+/// This function returns a dictionary of the commands that have been registered with the socket host.
+/// Each command is associated with its expected arguments and callback function.
+///
+/// # Parameters
+///
+/// - `py`: The Python interpreter.
+///
+/// # Returns
+///
+/// Returns a Python dictionary containing the available commands.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
     let commands = get_available_commands_registered();
@@ -319,7 +399,12 @@ fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
 // > --------------------------------------------------------------------------------------------------------
 // > Client Manangement
 
-use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, clients_mananger_initialize_table, set_host_clients_mananger__pool_workers_num, Client, ClientError};
+use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, clients_mananger_initialize_table, set_host_clients_mananger__pool_workers_num};
+use crate::socket_host::client_mananger::mananger::{Client, ClientError};
+
+#[macro_use]
+use crate::handle_client_error;
+
 use crate::socket_host::permissions_mananger::mananger::{GroupError, PermissionGroup};
 
 macro_rules! extract_string {
@@ -352,6 +437,29 @@ macro_rules! extract_boolean {
     };
 }
 
+/// Sets the list of clients allowed to connect to the socket host.
+///
+/// This function updates the global list of clients that are permitted to connect to the socket host.
+/// If a client is not present in this list, they will be denied access.
+///
+/// # Parameters
+///
+/// - `allowed_client_list`: A Python list of dictionaries. Each dictionary should contain the following keys:
+///   - `client_name`: Name of the client.
+///   - `client_key`: Unique key for the client.
+///   - `client_type`: Type of the client.
+///   - `permission_group`: The permission group the client belongs to.
+///   - `is_super_user`: Boolean indicating if the client has superuser privileges.
+///   - `max_sub_channels`: Maximum number of sub-channels the client can use.
+///   - `owned_sub_channels_keys`: List of keys of sub-channels owned by the client.
+///
+/// # Returns
+///
+/// Returns an empty result if successful, or a Python error if there's a problem with the provided list.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()> {
     for client_allowed in allowed_client_list.iter() {
@@ -375,7 +483,7 @@ fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()>
         // }
 
         if !check_if_client_key_exists(client_key.clone()) {
-            let _ = Client::new(
+            let client = handle_client_error!(Client::new(
                 client_name.clone(),
                 client_key.clone(),
                 client_type,
@@ -383,7 +491,9 @@ fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()>
                 client_is_super_user,
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
-            );
+            ));
+
+            client.save_into_db();
         }
 
         println!("Successfully created client: {} of key: {}", client_name, client_key)
@@ -391,6 +501,66 @@ fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()>
     Ok(())
 }
 
+/// Registers new clients that are allowed to connect to the socket host.
+///
+/// This function adds new clients to the global list of clients that are permitted to connect to the socket host.
+///
+/// # Parameters
+///
+/// Same as `set_socket_host_allowed_clients`.
+///
+/// # Returns
+///
+/// Returns an empty result if successful, or a Python error if there's a problem with the provided list.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
+#[pyfunction]
+pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResult<()> {
+    for client_allowed in new_allowed_clients_list.iter() {
+        let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
+
+        let client_name = extract_string!(allowed_clients_dict.get_item("client_name").unwrap(), "Error: client_name must be a String!");
+        let client_key = extract_string!(allowed_clients_dict.get_item("client_key").unwrap(), "Error: client_key must be a String with 16 characters!");
+
+        let client_type = extract_string!(allowed_clients_dict.get_item("client_type").unwrap(), "Error: client_type must be a String!");
+        let client_permission_group = extract_string!(allowed_clients_dict.get_item("permission_group").unwrap(), "Error: permission_group must be a String!");
+        let client_is_super_user = extract_boolean!(allowed_clients_dict.get_item("is_super_user").unwrap(), "Error: is_super_user must be a String!");
+
+        let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
+        let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
+
+        if !check_if_client_key_exists(client_key.clone()) {
+            let client = handle_client_error!(Client::new(
+                client_name.clone(),
+                client_key.clone(),
+                client_type,
+                client_permission_group,
+                client_is_super_user,
+                client_max_sub_channels,
+                client_owned_sub_channels_keys,
+            ));
+
+            client.save_into_db()
+        }
+
+        println!("Successfully created client: {} of key: {}", client_name, client_key)
+    }
+    Ok(())
+}
+
+/// Removes all clients from the list of clients allowed to connect to the socket host.
+///
+/// This function clears the global list of clients that are permitted to connect to the socket host. After calling this function,
+/// no client will be able to connect until new clients are added using either `set_socket_host_allowed_clients` or `registry_new_allowed_clients`.
+///
+/// # Parameters
+///
+/// - `allowed_client_list`: A Python list of dictionaries, same structure as `set_socket_host_allowed_clients`.
+///
+/// # Python Binding
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn remove_all_allowed_clients(allowed_client_list: &PyList) {
     let _ = Client::delete_all();

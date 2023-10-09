@@ -137,10 +137,7 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
     set_new_path_to_buffer_db!(LOGS_REGISTERS_POOL, NUM_WORKERS, loggs_storage_path, BUFFER_NAME);
 
     with_connection!(LOGS_REGISTERS_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute(
-            "CREATE TABLE IF NOT EXISTS ClientLogs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)",
-            params![],
-        );
+        let result = conn.execute("CREATE TABLE IF NOT EXISTS ClientLogs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)", params![]);
 
         match result {
             Ok(_) => {
@@ -161,9 +158,7 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
 
         let registered_ids = get_registred_ids();
 
-        let mut id_generator = UniqueIdGenerator {
-            registered_ids: registered_ids,
-        };
+        let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
 
         let result = conn.execute(
             "INSERT INTO ClientLogs (ID, NodeName, LogTime, LogName, LogLevel, LogMsg) VALUES (?, ?, ?, ?, ?, ?);",
@@ -173,9 +168,9 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
         match result {
             Ok(rows) => {
                 if rows > 0 {
-                    println!("Successfully inserted Log in the table ClientLogs. {} row(s) were affected.", rows);
+                    // println!("Successfully inserted Log in the table ClientLogs. {} row(s) were affected.", rows);
                 } else {
-                    println!("No rows were affected.");
+                    // println!("No rows were affected.");
                 }
             },
             Err(e) => {

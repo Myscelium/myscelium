@@ -4,20 +4,50 @@
 
 ### Updates:
 
-- Modify client allowed by implementing a client table that you can personalize several permissions of client
-- Now is possible to use again the client contact event watcher without having exceptions by multiple python gill aquire
-- Improve tests capabilities
-- Add base to start the binary sub channels links
-- Add a base to implement permission groups and indexing that to client
-- Thread pools was being update in both client and host, this provides more precise executions
-- Centralize commom functions reducing code complexity and improve code efficient
-- Improve verification of buffer responses
-- Make tests of connection more stroger
-- Enhance client event transposition threads structure
-- Start planing a graphical representation of tests
-- Implement Test of redirect
-- Centrilize morre python functions in commom, like extract_args_type, dict_to tuple and the handle_pyobject that was changed to extract_pyobject
-- Fix the redirect adding the code to handle this case in host
+1. **Client and Permissions:**
+   - "Modify client allowed by implementing a client table that you can personalize several permissions of client"
+   - "Add a mechanism to add new allowed client in flight from mys_host obj"
+   - "Add a base to implement permission groups and indexing that to client"
+
+2. **Callbacks and Responses:**
+   - "Add a new type of responses to host patterns `ResponseType:InternalMannangement` this allows to change internals of host through callbacks responses"
+   - "Why only from callbacks response: ..."
+   - "Blocked the reception of InternalMaannangement commands from external sources unless redirected by callbacks."
+   - "Updated the response command structure to include a status, message, and kwargs inside a response."
+   
+3. **Improvements and Fixes:**
+   - "Improve tests capabilities"
+   - "Improve verification of buffer responses"
+   - "Make tests of connection more stronger"
+   - "Enhance client event transposition threads structure"
+   - "Improved debugging in handle internal command functions."
+   - "Made improvements to the `new_client.fast_verify_kwargs_and_types` function to check both mismatched types and keys."
+   - "Fixed the issue with the Python object extractor not being able to extract lists."
+   - "Fixed various errors and issues related to response formulation and command handling."
+   - "Fixed buffer bug that caused multiple commands with the same ID to be registered."
+
+4. **Centralization and Common Functions:**
+   - "Centralize common functions reducing code complexity and improve code efficient"
+   - "Centralize more python functions in common, like extract_args_type, dict_to tuple and the handle_pyobject that was changed to extract_pyobject"
+
+5. **Tests and Events:**
+   - "Start planning a graphical representation of tests"
+   - "Implement Test of redirect"
+   - "Now test events have 3 categories `Send`, `Receive`, and `Default`"
+   - "This config allows to track how much time takes to receive some fn, response or redirect, and consequently allowing to track the performance of the lib in the development process through a permanent database that tracks the event medium time, allowing to do some performance tests."
+
+6. **Internal Management and Commands:**
+   - "Added a command type called InternalMaannangement and implemented the necessary changes to handle it."
+   - "Blocked the reception of InternalMaannangement commands from external sources unless redirected by callbacks."
+   - "Added the InternalMannangement handler in the transposer."
+
+7. **Type and Verification:**
+   - "Add `type_of` and `fast_verify_kwargs_and_types` to `ResultType` enum, this can facilitate the process of checking a type of a `ResultType` and also recursively check if the Result matches with a predefined pattern in a very fast way by providing a reference target to `fast_verify_kwargs_and_types` that can return an empty Ok() when all is fine and return a enum `ExpectationError` when something isn't correct."
+
+8. **Groups Manipulation**:
+    - "// TODO - Edit a group from callbacks responses"
+    - "// TODO - Add a group from callbacks responses"
+    - "// TODO - Remove a group from callbacks response"
 
 ### Fixes:
 
@@ -31,6 +61,8 @@
 - Fix removing commands from queue when alwready receive a response from were we send it to
 - Fix wrapper client transposition zombiee threads
 - Fix client random quiting by rearagin the processes event controlers in python side
+- Fix the redirect adding the code to handle this case in host
+
 
 ## v1.2.0 - ReliseCandidate (18/08/2023)
 

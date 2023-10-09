@@ -39,6 +39,19 @@ use crate::socket_client::transposer::{initialize_socket_client_transposer, set_
 
 use crate::commom::functions::python_functions::extract_arg_types;
 
+/// Sets the number of worker threads for the socket client transposer.
+///
+/// # Parameters
+///
+/// - `n_workers`: The desired number of worker threads.
+///
+/// # Behavior
+///
+/// This function updates the number of worker threads the client transposer will use.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
     let workers_num: u32 = n_workers.extract().unwrap();
@@ -48,10 +61,29 @@ fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
     return;
 }
 
+/// Stops the socket client.
+///
+/// # Behavior
+///
+/// Sets the global `CLIENT_IS_RUNING` atomic flag to `false`.
+///
 fn stop_socket_client() {
     CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
 }
 
+/// Initializes the buffer tables for the client.
+///
+/// # Parameters
+///
+/// - `path`: The path to the location where buffer tables should be initialized.
+///
+/// # Behavior
+///
+/// Initializes the directories and tables required for client logs and buffer management.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn initalize_client_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
@@ -69,6 +101,17 @@ enum ResultType {
     Error(String),
 }
 
+/// A utility function that recursively converts a Python dictionary into a Rust `HashMap`.
+///
+/// # Parameters
+///
+/// - `py`: Python interpreter instance.
+/// - `dict`: The Python dictionary to be converted.
+///
+/// # Returns
+///
+/// Returns a `HashMap<String, String>` representation of the provided Python dictionary.
+///
 fn handle_dict(py: Python, dict: &PyDict) -> HashMap<String, String> {
     let mut rust_dict = HashMap::new();
 
@@ -90,6 +133,17 @@ fn handle_dict(py: Python, dict: &PyDict) -> HashMap<String, String> {
     rust_dict
 }
 
+/// Handles a generic Python object and extracts its data.
+///
+/// # Parameters
+///
+/// - `py`: Python interpreter instance.
+/// - `obj`: The Python object to be handled.
+///
+/// # Returns
+///
+/// Returns a `ResultType` indicating the outcome of the handling and any extracted data.
+///
 fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     if let Ok(dict) = obj.cast_as::<PyDict>(py) {
         return ResultType::Map(handle_dict(py, &dict));
@@ -125,6 +179,21 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     ResultType::Empty
 }
 
+/// Sends a command from the client.
+///
+/// # Parameters
+///
+/// - `py`: Python interpreter instance.
+/// - `command`: The command to be sent.
+/// - `priority`: Priority level of the command.
+///
+/// # Returns
+///
+/// Returns a PyResult indicating the outcome of the send operation.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
     let mut client_id;
@@ -171,12 +240,43 @@ fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<P
     Ok("Sended!".to_string().into_py(py))
 }
 
+/// Sets the target host for the client.
+///
+/// # TODO
+///
+/// This function's implementation is not provided. It needs to be implemented.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn set_client_host_target() {}
 
+/// Sets the number of worker threads for the client.
+///
+/// # TODO
+///
+/// This function's implementation is not provided. It needs to be implemented.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn set_client_workers_num() {}
 
+/// Sets the log level for the client.
+///
+/// # Parameters
+///
+/// - `log_level`: The desired log level as a string.
+///
+/// # Behavior
+///
+/// Updates the logging level of the client.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn set_socket_client_log_level(log_level: &PyString) {
     let log_level: String = log_level.extract().unwrap();
@@ -199,6 +299,25 @@ fn set_socket_client_log_level(log_level: &PyString) {
 //     Ok(())
 // }
 
+/// Registers Python callback functions for the socket client.
+///
+/// This function allows the registration of Python callback functions to handle specific commands from the server.
+/// Each command has an associated function and expected arguments.
+///
+/// # Parameters
+///
+/// - `py`: Python interpreter instance.
+/// - `commands`: A Python list of dictionaries. Each dictionary contains:
+///   - `function`: The Python callback function to be executed.
+///   - `args`: A dictionary describing the expected arguments for the function or the string "None" if no arguments are expected.
+///
+/// # Returns
+///
+/// Returns an empty result if successful, or a Python error if there's a problem with the provided commands.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
@@ -253,6 +372,30 @@ fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<(
     Ok(())
 }
 
+/// Initializes the socket client, sets up deadlock detection, and starts the main processing loop.
+///
+/// This function sets up the socket client to communicate with a server and starts the main loop
+/// for processing commands and callbacks. It also spawns a thread to periodically check for deadlocks.
+///
+/// # Parameters
+///
+/// - `py`: Python interpreter instance.
+/// - `ip`: IP address of the server.
+/// - `port`: Port number of the server.
+/// - `client_id`: A unique identifier for the client.
+///
+/// # Behavior
+///
+/// - Sets up a thread to periodically detect deadlocks.
+/// - Initializes global client state.
+/// - Spawns a thread to handle `Ctrl+C` and gracefully shut down the client.
+/// - Initializes the socket client connection.
+/// - Requests available commands from the host.
+/// - Enters the main command processing loop.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: String) {
     // Create a global Mutex for demonstration
@@ -316,6 +459,19 @@ fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: St
     println!("Socket transposer exited ssucefully!");
 }
 
+/// Sets the unique identifier (UID) for the client.
+///
+/// This function updates the global client UID which can be used to identify this client instance
+/// in communications with the server.
+///
+/// # Parameters
+///
+/// - `py`: Python interpreter instance.
+/// - `client_uid`: The new unique identifier for the client.
+///
+/// # Python Binding
+///
+/// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 fn set_client_uid(py: Python<'_>, client_uid: String) {
     scheduler::set_client_id(client_uid);

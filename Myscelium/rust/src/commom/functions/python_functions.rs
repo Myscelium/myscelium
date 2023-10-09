@@ -14,6 +14,7 @@ use crate::commom::enhanced_buffer::utilities::CommandType;
 use crate::commom::structs::results_structs::ResultType;
 
 use std::collections::HashMap;
+use std::result;
 use std::sync::MutexGuard;
 
 use crate::commom::enhanced_buffer::utilities::Command;
@@ -40,17 +41,8 @@ pub fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
 pub fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
     println!("map to convert to python kwargs: {:?}", dict);
 
-    let args_map: HashMap<String, Value> = match dict.get("kwargs") {
-        Some(Value::Object(map)) => map.clone().into_iter().collect(), // Convert the inner serde_json::Map to a HashMap
-        Some(Value::String(s)) => serde_json::from_str(s).unwrap(),    // Deserialize the JSON string into a HashMap
-        _ => {
-            println!("The kwargs key is not found or not a correct type, so assuming callback doesn't need any kargs");
-            return Ok(HashMap::new());
-        },
-    };
-
     let mut kwargs: HashMap<String, PyObject> = HashMap::new();
-    for (key, value) in args_map.iter() {
+    for (key, value) in dict.iter() {
         let py_value = match value {
             Value::Object(inner_map) => {
                 let map_as_hashmap: HashMap<String, Value> = inner_map.clone().into_iter().collect();
@@ -130,62 +122,85 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> ResultType {
         let mut rust_dict = HashMap::new();
 
         for (key, value) in dict.iter() {
-            let key_str: String = key.extract().unwrap();
+            let key_str = match key.extract::<String>() {
+                Ok(k) => k,
+                Err(e) => {
+                    println!("Failed to extract key as string: {:?}", e);
+                    continue; // Skip this key-value pair
+                },
+            };
+
             if let Ok(value_str) = value.extract::<String>() {
                 rust_dict.insert(key_str, ResultType::Str(value_str));
-            } else if let Ok(value_int) = value.extract::<i32>() {
+            } else if let Ok(value_int) = value.extract::<i64>() {
                 rust_dict.insert(key_str, ResultType::Int(value_int));
-            } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-                let rust_list = value_list.into_iter().map(ResultType::Str).collect();
+            } else if let Ok(value_list) = value.cast_as::<PyList>() {
+                let rust_list: Vec<_> = value_list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
                 rust_dict.insert(key_str, ResultType::List(rust_list));
             } else if let Ok(nested_dict) = value.cast_as::<PyDict>() {
-                let inner_map = extract_pyobject(py, nested_dict.into());
-                rust_dict.insert(key_str, inner_map);
+                rust_dict.insert(key_str, extract_pyobject(py, nested_dict.into()));
             } else {
-                // Handle other types as needed
+                println!("Unmatched type for key: {}", key_str);
+                // You may decide how to handle other types
             }
         }
 
-        return ResultType::Map(rust_dict);
+        ResultType::Map(rust_dict)
     } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
-        // Handle tuple
-        let rust_list: Vec<_> = tuple.iter().map(|item| extract_pyobject(py, item.into())).collect();
-        return ResultType::List(rust_list);
+        let rust_list: Vec<_> = tuple.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
+        ResultType::List(rust_list)
     } else if let Ok(list) = obj.cast_as::<PyList>(py) {
-        // Handle list
-        let rust_list: Vec<_> = list.iter().map(|item| extract_pyobject(py, item.into())).collect();
-        return ResultType::List(rust_list);
+        let rust_list: Vec<_> = list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
+        ResultType::List(rust_list)
     } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
-        // Handle int
-        return ResultType::Int(int.extract().unwrap());
+        match int.extract() {
+            Ok(i) => ResultType::Int(i),
+            Err(e) => {
+                println!("Failed to extract integer: {:?}", e);
+                ResultType::Empty
+            },
+        }
     } else if let Ok(float) = obj.cast_as::<PyFloat>(py) {
-        // Handle float
-        return ResultType::Float(float.extract().unwrap());
+        match float.extract() {
+            Ok(f) => ResultType::Float(f),
+            Err(e) => {
+                println!("Failed to extract float: {:?}", e);
+                ResultType::Empty
+            },
+        }
     } else if let Ok(string) = obj.cast_as::<PyString>(py) {
-        // Handle string
-        return ResultType::Str(string.extract().unwrap());
+        match string.extract() {
+            Ok(s) => ResultType::Str(s),
+            Err(e) => {
+                println!("Failed to extract string: {:?}", e);
+                ResultType::Empty
+            },
+        }
     } else if let Ok(boolean) = obj.cast_as::<PyBool>(py) {
-        // Handle bool
-        return ResultType::Bool(boolean.extract().unwrap());
+        match boolean.extract() {
+            Ok(b) => ResultType::Bool(b),
+            Err(e) => {
+                println!("Failed to extract boolean: {:?}", e);
+                ResultType::Empty
+            },
+        }
     } else if obj.is_none(py) {
-        // Handle None
-        return ResultType::Empty;
+        ResultType::Empty
+    } else {
+        println!("Unmatched type for object: {:?}", obj);
+        ResultType::Empty
     }
-
-    return ResultType::Empty;
 }
 
 pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<PyObject> {
     println!("Command to call a callback: {:?}", command);
 
     let function_name: &String = match command.command.get("function") {
+        //> To Handle both functions and response activation function and use a single code to do so
         Some(Value::String(function_name)) => function_name,
-        _ => match command.command.get("response") {
-            Some(Value::Object(inner_map)) => match inner_map.get("response_activation_function") {
-                Some(Value::String(function_name)) => function_name,
-                _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
-            },
-            _ => return Err(PyErr::new::<PyException, _>("The response key is not found or not an object.")),
+        _ => match command.command.get("response_activation_function") {
+            Some(Value::String(function_name)) => function_name,
+            _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
         },
     };
 
@@ -207,18 +222,176 @@ pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexG
         CommandType::Response(_) => {
             let command = &command.command;
 
-            match command.get("response") {
+            match command.get("kwargs") {
+                Some(Value::String(inner_stringfied_map)) => {
+                    //* This was added because when a kwarg is a String({}) it need firstly to be parsed*/
+                    let result = match serde_json::from_str::<HashMap<_, _>>(inner_stringfied_map) {
+                        //> Then when we obtained the kwargs Value we parse it using the default mehod
+                        Ok(r) => {
+                            let inner_hash_map: HashMap<_, _> = r.clone().into_iter().collect();
+                            dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
+                        },
+                        Err(_) => dict_to_kwargs(py, &HashMap::new()).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?,
+                    };
+                    result
+                },
                 Some(Value::Object(inner_map)) => {
                     let inner_hash_map: HashMap<_, _> = inner_map.clone().into_iter().collect();
-                    dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e)))?
+                    dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
                 },
                 _ => HashMap::new(),
             }
         },
-        _ => dict_to_kwargs(py, &command.command).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs: {:?}", e)))?,
+        CommandType::Function(_) => {
+            let command = &command.command;
+
+            match command.get("kwargs") {
+                Some(Value::String(inner_stringfied_map)) => {
+                    //* This was added because when a kwarg is a String({}) it need firstly to be parsed*/
+                    let result = match serde_json::from_str::<HashMap<_, _>>(inner_stringfied_map) {
+                        //> Then when we obtained the kwargs Value we parse it using the default mehod
+                        Ok(r) => {
+                            let inner_hash_map: HashMap<_, _> = r.clone().into_iter().collect();
+                            dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
+                        },
+                        Err(_) => dict_to_kwargs(py, &HashMap::new()).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?,
+                    };
+                    result
+                },
+                Some(Value::Object(inner_map)) => {
+                    let inner_hash_map: HashMap<_, _> = inner_map.clone().into_iter().collect();
+                    dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
+                },
+                _ => HashMap::new(),
+            }
+        },
+        CommandType::Redirect(_) => {
+            let command = &command.command;
+
+            match command.get("kwargs") {
+                Some(Value::String(inner_stringfied_map)) => {
+                    //* This was added because when a kwarg is a String({}) it need firstly to be parsed*/
+                    let result = match serde_json::from_str::<HashMap<_, _>>(inner_stringfied_map) {
+                        //> Then when we obtained the kwargs Value we parse it using the default mehod
+                        Ok(r) => {
+                            let inner_hash_map: HashMap<_, _> = r.clone().into_iter().collect();
+                            dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
+                        },
+                        Err(_) => dict_to_kwargs(py, &HashMap::new()).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?,
+                    };
+                    result
+                },
+                Some(Value::Object(inner_map)) => {
+                    let inner_hash_map: HashMap<_, _> = inner_map.clone().into_iter().collect();
+                    dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
+                },
+                _ => HashMap::new(),
+            }
+        },
+        CommandType::SpecialFunction(_) => {
+            let command = &command.command;
+
+            match command.get("kwargs") {
+                // Some(Value::String(inner_map)) => {
+                //     HashMap::new()
+                // },
+                _ => HashMap::new(),
+            }
+        },
+        _ => dict_to_kwargs(py, &command.command).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?,
     };
 
-    println!("Converted kwargs_map: {:?}", kwargs_map);
+    println!("Converted to Python kwargs_map: {:?}", kwargs_map);
+
+    // -> Convert to py dict
+    let kwargs = PyDict::new(py);
+    for (key, value) in kwargs_map {
+        kwargs.set_item(key, value).unwrap();
+    }
+
+    // Call the Python function with the converted arguments
+    let result = function.call(py, (), Some(kwargs)).map_err(|e| e)?;
+
+    let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
+
+    Ok(result_obj) // Return the PyObject
+}
+
+pub fn client_call_callback(py: Python<'_>, command: Command, callback_patterns: MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<PyObject> {
+    println!("Command to call a callback: {:?}", command);
+
+    let function_name: &String = match command.command.get("function") {
+        //> To Handle both functions and response activation function and use a single code to do so
+        Some(Value::String(function_name)) => function_name,
+        _ => match command.command.get("response_activation_function") {
+            Some(Value::String(function_name)) => function_name,
+            _ => return Err(PyErr::new::<PyException, _>("The function name is not found or not a string.")),
+        },
+    };
+
+    // Get the function and args_types from the CALLBACK_PATTERNS
+    let (function, _) = callback_patterns.get(function_name).unwrap();
+
+    let kwargs_map = match command.command_type() {
+        CommandType::Response(_) => {
+            let command = &command.command;
+
+            let mut inner_hash_map: HashMap<String, Value> = HashMap::new();
+
+            inner_hash_map.insert("data".to_string(), Value::Object(command.clone().into_iter().collect()));
+
+            let resultexpected = dict_to_kwargs(py, &inner_hash_map)
+                .map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))
+                .unwrap();
+
+            println!("Result expected: {:?}", resultexpected);
+
+            resultexpected
+        },
+        CommandType::Function(_) => {
+            let command = &command.command;
+
+            let mut inner_hash_map: HashMap<String, Value> = HashMap::new();
+
+            inner_hash_map.insert("data".to_string(), Value::Object(command.clone().into_iter().collect()));
+
+            let resultexpected = dict_to_kwargs(py, &inner_hash_map)
+                .map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))
+                .unwrap();
+
+            println!("Result expected: {:?}", resultexpected);
+
+            resultexpected
+        },
+        CommandType::Redirect(_) => {
+            let command = &command.command;
+
+            let mut inner_hash_map: HashMap<String, Value> = HashMap::new();
+
+            inner_hash_map.insert("data".to_string(), Value::Object(command.clone().into_iter().collect()));
+
+            let resultexpected = dict_to_kwargs(py, &inner_hash_map)
+                .map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))
+                .unwrap();
+
+            println!("Result expected: {:?}", resultexpected);
+
+            resultexpected
+        },
+        CommandType::SpecialFunction(_) => {
+            let command = &command.command;
+
+            match command.get("kwargs") {
+                // Some(Value::String(inner_map)) => {
+                //     HashMap::new()
+                // },
+                _ => HashMap::new(),
+            }
+        },
+        _ => dict_to_kwargs(py, &command.command).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?,
+    };
+
+    println!("Converted to Python kwargs_map: {:?}", kwargs_map);
 
     // -> Convert to py dict
     let kwargs = PyDict::new(py);

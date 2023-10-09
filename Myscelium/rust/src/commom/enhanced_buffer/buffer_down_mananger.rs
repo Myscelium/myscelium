@@ -271,6 +271,10 @@ pub fn buffer_down_list_schedule() -> Vec<DownCommand> {
 }
 
 pub fn buffer_down_schedule(command: DownCommand) {
+    if !check_if_parity_id_is_registred(command.parity_id.clone()) {
+        return;
+    };
+
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let registered_ids = get_registred_ids(conn);
 

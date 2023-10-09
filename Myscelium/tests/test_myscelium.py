@@ -14,6 +14,10 @@ from .test_redirect.host_module import MyHost as MyHostToTestRedirect
 from .test_redirect.client_1_module import MyClient as MyClient1ToTestRedirect
 from .test_redirect.client_2_module import MyClient as MyClient2ToTestRedirect
 
+#> Test Inner Mannangement
+from .test_mannangement.host_module import MyHost as MyHostToTestMannangement
+from .test_mannangement.client_1_module import MyClient as MyClient1ToTestMannangement
+
 #> Events mananger
 from multiprocessing import Process
 from .Logs.test_logs_mananger import Events_Mananger, System_Status
@@ -38,7 +42,7 @@ def host_thread_to_test_communication(event_host_received):
 
 def client_1_thread_to_test_communication(event_client_received):
     print("Waiting for host to be ready...")
-    time.sleep(10)
+    time.sleep(15)
     print("Starting client 1 thread...")
     
     client_instance = MyClient1ToTestCommunication()
@@ -61,14 +65,14 @@ def test_communication():
     System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
     System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
-    if os.path.exists("Client1Data/"):
-        shutil.rmtree("Client1Data/")
+    if os.path.exists("Temp/Client1Data/"):
+        shutil.rmtree("Temp/Client1Data/")
 
-    if os.path.exists("Client2Data/"):
-        shutil.rmtree("Client2Data/")
+    if os.path.exists("Temp/Client2Data/"):
+        shutil.rmtree("Temp/Client2Data/")
 
-    if os.path.exists("Data/"):
-        shutil.rmtree("Data/")
+    if os.path.exists("Temp/Data/"):
+        shutil.rmtree("Temp/Data/")
 
     t1 = Process(target=host_thread_to_test_communication, args=('main_event',)) # Passing event_key
     t2 = Process(target=client_1_thread_to_test_communication, args=('main_event',)) # Passing event_key
@@ -201,14 +205,14 @@ def test_redirect ():
     System_Status(path="Logs").change_unit_status(Unit="Client2", Status=True)
     System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
-    if os.path.exists("Client1Data/"):
-        shutil.rmtree("Client1Data/")
+    if os.path.exists("Temp/Client1Data/"):
+        shutil.rmtree("Temp/Client1Data/")
 
-    if os.path.exists("Client2Data/"):
-        shutil.rmtree("Client2Data/")
+    if os.path.exists("Temp/Client2Data/"):
+        shutil.rmtree("Temp/Client2Data/")
 
-    if os.path.exists("Data/"):
-        shutil.rmtree("Data/")
+    if os.path.exists("Temp/Data/"):
+        shutil.rmtree("Temp/Data/")
 
     t1 = Process(target=host_thread_to_test_redirect, args=('main_event',)) # Passing event_key
     t2 = Process(target=client_1_thread_to_test_redirect, args=('main_event',)) # Passing event_key
@@ -322,6 +326,143 @@ def test_redirect ():
 
     pass
 
+
+#> ------------------------------------------------------------------------------------------------------------------------------------
+#> Inner Mannangement Test:
+
+def host_thread_to_test_inner_mannangement (event_host_received):
+    print("Starting host thread...")
+    
+    # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
+
+    host_instance = MyHostToTestMannangement().run(event=event_host_received)
+
+    print("Host thread finished.")
+
+def client_1_thread_to_test_inner_mannangement (event_client_received):
+    print("Waiting for host to be ready...")
+    time.sleep(5)
+    print("Starting client 1 thread...")
+    
+    client_instance = MyClient1ToTestMannangement()
+    client_instance.run() 
+    
+    print("Client1 thread finished.")
+
+def test_mannangement ():
+
+    time.sleep(5)
+
+    System_Status(path="Logs").create_unit("Client1")
+    System_Status(path="Logs").create_unit("Host")
+
+    System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+
+    if os.path.exists("Temp/Client1Data/"):
+        shutil.rmtree("Temp/Client1Data/")
+
+    if os.path.exists("Temp/Data/"):
+        shutil.rmtree("Temp/Data/")
+
+    t1 = Process(target=host_thread_to_test_inner_mannangement, args=('main_event',)) # Passing event_key
+    t2 = Process(target=client_1_thread_to_test_inner_mannangement, args=('main_event',)) # Passing event_key
+
+    t1.start()
+    t2.start()
+
+    t2.join()
+
+    host_events = Events_Mananger(Unit="Host", path="Logs").List_Events()
+    host_events_df = pd.DataFrame.from_dict(host_events)
+
+    client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_1_events_df = pd.DataFrame.from_dict(client_1_events)
+
+    #>----------------------------------------------------------------------------------------------------
+    #> Tests Controler
+
+    #> Host events:
+
+    # TODO >>> Continue to implement the tests to avaliate if the test inner mannangement is working!
+
+    client_1_contact            = False
+    client_contact              = False
+    
+    add_client_callback         = False 
+    update_client_callback      = False 
+    remove_client_callback      = False 
+
+    #> Client 1 events:
+
+    send_add_client             = False
+    send_update_client          = False
+    send_remove_client          = False
+
+    receive_add_client_conf     = False
+    receive_update_client_conf  = False
+    receive_remove_client_conf  = False
+
+    #>----------------------------------------------------------------------------------------------------
+
+    # -> Host Tests
+    for i in host_events_df.index:
+        event = host_events_df.loc[i, 'StepCompleted']
+
+        if "Active Test Add Client" in event:
+            add_client_callback     = True
+
+        if "Active Test Update Client" in event:
+            update_client_callback  = True
+
+        if "Active Test Remove Client" in event:
+            remove_client_callback  = True
+
+    # -> Client 1 Tests
+    for i in client_1_events_df.index:
+        event = client_1_events_df.loc[i, 'StepCompleted']
+
+        # > Senders
+
+        if "Send test add a client" in event:
+            send_add_client     = True
+
+        if "Send test update a client" in event:
+            send_update_client  = True
+
+        if "Send test remove a client" in event:
+            send_remove_client  = True
+
+        # > Receivers   
+        
+        if "Activate Basic Response Test Add Client" in event:
+            receive_add_client_conf = True
+
+        if "Activate Basic Response Test Update Client" in event:
+            receive_update_client_conf = True
+
+        if "Activate Basic Response Test Remove Client" in event:
+            receive_remove_client_conf = True
+
+ 
+    # -> Client 1
+
+    assert send_add_client, "Can't send command to add client!"
+    assert send_update_client, "Can't send command to update client!"
+    assert send_remove_client, "Can't send command to remove client!"
+
+    assert receive_add_client_conf, "Can't receive client creation conf"
+    assert receive_update_client_conf, "Can't receive client update conf"
+    assert receive_remove_client_conf, "Can't receive remove client conf"
+
+    # -> Host
+
+    assert add_client_callback, "Host don't receive add client!"
+    assert update_client_callback, "Host don't receive update client!"
+    assert remove_client_callback, "Host don't receive remove client!"
+
+    
+
 # def test_communication_resistance():
 #     success_count = 0
 #     total_attempts = 100
@@ -336,6 +477,9 @@ def test_redirect ():
 #     success_porcentage = (success_count/total_attempts)*100
 #     print(f"\n\nTest succeeded {success_count} out of {total_attempts} attempts. Test have {success_porcentage}% of success")
 #     assert success_count == total_attempts, "Not all attempts were successful!"
+
+
+
 
 if __name__ == '__main__':
     pytest.main()

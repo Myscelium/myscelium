@@ -8,10 +8,11 @@ use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
 
 #[derive(Debug)]
 pub enum CommandType {
-    Function(String),
-    Response(String),
-    Redirect(String),
-    Error(String),
+    SpecialFunction(Value),
+    Function(Value),
+    Response(HashMap<String, Value>),
+    Redirect(HashMap<String, Value>),
+    Error(Value),
     Unknown,
 }
 
@@ -74,22 +75,7 @@ impl Command {
 
         // Extract the inner JSON string and deserialize it again
         if let Value::Object(outer_map) = &outer_value {
-            if let Some(Value::String(inner_json)) = outer_map.get("response") {
-                command = serde_json::from_str(inner_json).unwrap();
-
-                // Transform the command right after deserialization
-                let transformed_value = transform_value(&Value::Object(serde_json::Map::from_iter(command.into_iter()))); // Convert HashMap to serde_json::Map using into()
-
-                if let Value::Object(transformed_map) = transformed_value {
-                    command = HashMap::new();
-                    command.insert("response".to_string(), Value::Object(transformed_map.into_iter().collect()));
-                // Convert serde_json::Map back to HashMap
-                } else {
-                    command = HashMap::new();
-                }
-            } else {
-                command = serde_json::from_str(&down_command.command).unwrap();
-            }
+            command = serde_json::from_value::<HashMap<String, Value>>(Value::Object(outer_map.clone())).unwrap();
         } else {
             command = HashMap::new();
             // Handle the case where the outer_value is not an object
@@ -103,20 +89,42 @@ impl Command {
         let priority = up_command.priority.clone();
         let command: HashMap<String, Value> = serde_json::from_str(&up_command.command).unwrap();
 
+        println!("Client -> Command from UpCommand: {:?}", command);
+
         Self { client_id, parity_id, priority, command }
     }
 
     pub fn command_type(&self) -> CommandType {
-        if self.command.contains_key("function") {
-            CommandType::Function(self.command.get("function").unwrap().to_string())
-        } else if self.command.contains_key("response") {
-            CommandType::Response(self.command.get("response").unwrap().to_string())
-        } else if self.command.contains_key("redirect") {
-            CommandType::Redirect(self.command.get("redirect").unwrap().to_string())
-        } else if self.command.contains_key("error") {
-            CommandType::Error(self.command.get("error").unwrap().to_string())
+        if self.command.contains_key("command_type") {
+            let command_type: String = serde_json::from_value(self.command.get("command_type").unwrap().clone()).unwrap();
+
+            println!("Command Type: {:?}", command_type);
+
+            return match command_type.as_str() {
+                "function" => {
+                    println!("Self: {:?} have function: {:?}", self.command, self.command.get("function"));
+                    CommandType::Function(self.command.get("function").unwrap().clone())
+                },
+                "special_function" => {
+                    println!("Self: {:?} have special function: {:?}", self.command, self.command.get("function"));
+                    CommandType::SpecialFunction(self.command.get("function").unwrap().clone())
+                },
+                "response" => {
+                    println!("Self: {:?} have response: {:?}", self.command, self.command.get("kwargs"));
+                    CommandType::Response(self.command.clone())
+                },
+                "redirect" => {
+                    println!("Self: {:?} have redirect: {:?}", self.command, self.command.get("response"));
+                    CommandType::Redirect(self.command.clone())
+                },
+                "error" => {
+                    println!("Self: {:?} have error: {:?}", self.command, self.command.get("error"));
+                    CommandType::Error(self.command.get("error").unwrap().clone())
+                },
+                _ => CommandType::Unknown,
+            };
         } else {
-            CommandType::Unknown
+            return CommandType::Unknown;
         }
     }
 }

@@ -5,7 +5,4 @@ target/
 *.log
 build
 myscelium.egg-info
-Client1Data
-Client2Data
-Data
-Logs/
+Temp/

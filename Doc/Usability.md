@@ -51,6 +51,7 @@ def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_pat
 - `get_registred_commands() -> dict`: Retrieves the registered commands.
 - `initialize_host(ip:str, port:int)`: Initializes the host with the given IP and port.
 - `stop_host(signal, frame)`: Stops the host.
+- `registry_new_allowed_clients`: Allow to registry new client allowed, using a list of HostPatterns.ClientPatterns
 
 ### HostPatterns Class
 
@@ -60,9 +61,7 @@ The `HostPatterns` class provides patterns for the host.
 
 - `client_pattern(client_type:str, client_id:str) -> dict`: Returns a client pattern.
 - `response_pattern(response:any, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict`: Returns a response pattern.
-- `callback_pattern(callback, args) -> dict`: Returns a callback pattern.
-
-Certainly! Let's enhance the documentation to specify the requirements for the callback function names:
+- `callback_pattern(callback) -> dict`: Returns a callback pattern.
 
 ---
 
@@ -140,12 +139,12 @@ Certain callback functions must have specific names for the system to recognize 
     ```python
     callbacks = [
         host_patterns.callback_pattern(
-            callback=python_function, 
-            args={...}
+            callback=python_function
         ),
         # Add other callbacks here
     ]
     ```
+    * IMPORTANT! : Since v1.3 callbacks args are automatically infered!
 
 4. **Specify Allowed Clients**: Define which clients are allowed to connect to your host.
     ```python
@@ -157,7 +156,7 @@ Certain callback functions must have specific names for the system to recognize 
             client_key="randomsclientids", 
             client_permission_group="", 
             client_is_super_user=True, 
-            client_max_sub_channes=5
+            max_sub_channes=5
         ),
         # Add other clients here
     ]
@@ -180,8 +179,7 @@ Certain callback functions must have specific names for the system to recognize 
     ```python
     client_heart_beat_handler = [
         host_patterns.callback_pattern(
-            callback=handle_client_contact, 
-            args={"client_id": "str"}
+            callback=handle_client_contact
         )
     ]
     
@@ -195,7 +193,6 @@ Certain callback functions must have specific names for the system to recognize 
     logs_handler_callback = [
         host_patterns.callback_pattern(
             callback=logs_handler, 
-            args={...}
         )
     ]
     mys_host.set_logs_callback_handler(
@@ -208,6 +205,26 @@ Certain callback functions must have specific names for the system to recognize 
     mys_host.initialize_host(ip="127.0.0.1", port=4444)
     ```
 
+### To Add new CLients in Flight:
+
+1. **Create new Clients Allowed List**: This will create a new list of clients allwoed with the correct patterns.
+    ```python
+    new_clients_allowed = [
+         self.host_patterns.client_pattern(
+            client_name="TestClient1", 
+            client_type="Interface", 
+            client_key="randomsclientids", 
+            client_permission_group="", 
+            client_is_super_user=True, 
+            max_sub_channes=5
+        ),      
+    ]
+    ```
+
+2. **Send the new client list to be added**: Thiss will send the allowed clients to the myscelium engine to registry.
+    ```python
+    mys_host.registry_new_allowed_clients(new_clients_allowed)
+    ```
 
 ### Thread pool diagram
 

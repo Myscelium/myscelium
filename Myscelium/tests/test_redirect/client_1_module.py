@@ -8,13 +8,54 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
-class MyClient:
+
+class Senders:
+
+    def __init__ (self):
+        pass
 
     @staticmethod
-    def test_handler(data):
+    def send_some_data():
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler")
+        # time.sleep(10)
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client.runing = True
+        mys_client.set_client_uid(client_uid="some_client_id")
+        command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
+        result = mys_client.send(command, priority=10)
+
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Data Sended", 
+            event_type="Send", 
+            event_key="1dX2A63Rp7O79x6t"
+        )
+
+        print(result)
+
+
+class Receivers:
+
+    def __init__ (self):
+        pass
+
+    @staticmethod
+    def test_handler(data:str):
+
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test callback handler", 
+            event_type="Receive", 
+            event_key="r99F3i89D20Oj1lq"
+        )
+
+        if "status" in data:
+            pass
+        else:
+            return None
+        
+        if data["status"] == "success":
+            pass
+        else:
+            return None
 
         print("Received data: ", data)
 
@@ -23,47 +64,43 @@ class MyClient:
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_redirect_handler(data):
+    def test_redirect_handler(data:dict):
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Redirect Test callback handler")
+        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Redirect Test callback handler", 
+            event_type="Receive", 
+            event_key="02V0P37Dz09zR3fL"
+        )
+
+        if "status" in data:
+            pass
+        else:
+            return None
+        
+        if data["status"] == "success":
+            pass
+        else:
+            return None
 
         print("Received redirected data: ", data)
-
-        time.sleep(5)
         
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
-    @staticmethod
-    def send_some_data():
-
-        time.sleep(10)
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Client1Data/")
-        mys_client.runing = True
-        mys_client.set_client_uid(client_uid="some_client_id")
-        command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
-        result = mys_client.send(command, priority=10)
-
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended")
-
-        print(result)
+class MyClient:
 
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Client1Data/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level="DEBUG")
 
         self.mys_client = mys_client
 
         mys_client.set_client_uid(client_uid="some_client_id")
+        	
+        receivers = Receivers()
 
         callbacks = [
-            client_patterns.callback_pattern(callback=MyClient.test_handler, args={
-                "data": "dict"
-            }),
-            client_patterns.callback_pattern(callback=MyClient.test_redirect_handler, args={
-                "data": "int"
-            }),
+            client_patterns.callback_pattern(callback=receivers.test_handler),
+            client_patterns.callback_pattern(callback=receivers.test_redirect_handler),
         ]
 
         mys_client.set_callbacks(callbacks=callbacks)
@@ -100,7 +137,10 @@ class MyClient:
     def run(self):
 
         t1 = Process(target=self.initializer, args=())
-        # t2 = Process(target=self.send_some_data, args=())
+
+        senders = Senders()
+
+        # t2 = Process(target=senders.send_some_data, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
