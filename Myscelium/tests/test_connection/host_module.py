@@ -55,8 +55,9 @@ class Handlers:
 
 class MyHost:
 
-    def __init__(self):
+    def __init__(self, debug_level):
         self.host_patterns = HostPatterns()
+        self.debug_level = debug_level
 
     def monitor_stop_event(self):
 
@@ -135,7 +136,7 @@ class MyHost:
                         allowed_clients=allowed_clients, 
                         buffer_path="Temp/Data/", 
                         n_workers=2, 
-                        log_level="DEBUG"
+                        log_level=self.debug_level
                     )
 
         self.mys_host = mys_host

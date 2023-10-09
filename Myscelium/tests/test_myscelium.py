@@ -26,6 +26,11 @@ Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in t
 Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
 
+# DEBUG_LEVEL = "DEBUG"
+# DEBUG_LEVEL = "INFO"
+DEBUG_LEVEL = "WARN"
+
+
 # -> ----------------------------------------------------------------------------------------------------------------------------
 # -> Tests:
 
@@ -36,7 +41,7 @@ def host_thread_to_test_communication(event_host_received):
     
     # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
 
-    host_instance = MyHostToTestCommunication().run(event=event_host_received)
+    host_instance = MyHostToTestCommunication(DEBUG_LEVEL).run(event=event_host_received)
 
     print("Host thread finished.")
 
@@ -45,7 +50,7 @@ def client_1_thread_to_test_communication(event_client_received):
     time.sleep(15)
     print("Starting client 1 thread...")
     
-    client_instance = MyClient1ToTestCommunication()
+    client_instance = MyClient1ToTestCommunication(DEBUG_LEVEL)
     client_instance.run() 
     
     print("Client1 thread finished.")
@@ -169,7 +174,7 @@ def host_thread_to_test_redirect(event_host_received):
     
     # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
 
-    host_instance = MyHostToTestRedirect().run(event=event_host_received)
+    host_instance = MyHostToTestRedirect(DEBUG_LEVEL).run(event=event_host_received)
 
     print("Host thread finished.")
 
@@ -178,7 +183,7 @@ def client_1_thread_to_test_redirect(event_client_received):
     time.sleep(5)
     print("Starting client 1 thread...")
     
-    client_instance = MyClient1ToTestRedirect()
+    client_instance = MyClient1ToTestRedirect(DEBUG_LEVEL)
     client_instance.run() 
     
     print("Client1 thread finished.")
@@ -188,7 +193,7 @@ def client_2_thread_to_test_redirect(event_client_received):
     time.sleep(5)
     print("Starting client 2 thread...")
     
-    client_instance = MyClient2ToTestRedirect()
+    client_instance = MyClient2ToTestRedirect(DEBUG_LEVEL)
     client_instance.run() 
     
     print("Client2 thread finished.")
@@ -335,7 +340,7 @@ def host_thread_to_test_inner_mannangement (event_host_received):
     
     # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
 
-    host_instance = MyHostToTestMannangement().run(event=event_host_received)
+    host_instance = MyHostToTestMannangement(DEBUG_LEVEL).run(event=event_host_received)
 
     print("Host thread finished.")
 
@@ -344,7 +349,7 @@ def client_1_thread_to_test_inner_mannangement (event_client_received):
     time.sleep(5)
     print("Starting client 1 thread...")
     
-    client_instance = MyClient1ToTestMannangement()
+    client_instance = MyClient1ToTestMannangement(DEBUG_LEVEL)
     client_instance.run() 
     
     print("Client1 thread finished.")
