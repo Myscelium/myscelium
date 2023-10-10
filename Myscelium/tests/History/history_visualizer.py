@@ -3,6 +3,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 
+import datetime
+
 from history_controler import History_Mannanger
 
 # Set the page config to use the full width
@@ -12,7 +14,7 @@ pd_dict_df = History_Mannanger().list_history()
 df = pd.DataFrame.from_dict(pd_dict_df)
 
 # Convert 'Time' to datetime if it's not
-df['Time'] = pd.to_datetime(df['Time'], errors='coerce')
+df['Time'] = df['Time'].apply(datetime.datetime.fromtimestamp)
 
 # Handle missing values (optional based on your requirement)
 df = df.dropna(subset=['Time'])
