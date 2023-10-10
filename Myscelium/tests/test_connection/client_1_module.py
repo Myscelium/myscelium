@@ -53,11 +53,14 @@ class Receivers:
 
 class MyClient:
 
+    def __init__ (self, debug_level):
+        self.debug_level = debug_level
+
     def initializer(self):
 
         receivers = Receivers()
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
 

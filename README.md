@@ -21,3 +21,7 @@ then:
 -> run: `pytest -v -s ./test_myscelium.py`
 
 
+## To see tests results 
+cd \Myscelium\tests\History
+then:
+-> run: `streamlit run .\history_visualizer.py`

@@ -96,11 +96,14 @@ macro_rules! acquire_logger {
 /// ```
 ///
 pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, down_command: DownCommand) -> HashMap<String, ResultType> {
+    let logger = acquire_logger!("[Process][Handle Redirect]");
+
     let mut to_send = HashMap::new();
 
     let converted_m = convert_to_value_map(&m);
 
     if !m.contains_key("redirect_to") {
+        logger.warn("Error! Callback response args don't have redirect_to client_id field!".to_string());
         return create_error_response_and_return!("Error! Callback response args don't have redirect_to client_id field!", converted_m, to_send);
         // error_response!("Error! Callback response args don't have redirect_to client_id field!");
     }
@@ -109,6 +112,7 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
     let redirect_to: String = serde_json::from_value(redirect_to_value).unwrap();
 
     if !check_if_client_key_exists(redirect_to.to_string()) {
+        logger.warn(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
         return create_error_response_and_return!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()), converted_m, to_send);
         // return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
     }
@@ -123,9 +127,10 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
 
     *client_id = redirect_to.to_string(); // > Update the client id that it will send to
 
-    println!("Converted redirect command: {:?}", converted_m);
+    logger.debug(format!("Converted redirect command: {:?}", converted_m));
 
     if !converted_m.contains_key("kwargs") {
+        logger.warn("Error! Callback response args don't have response kwarg!".to_string());
         return create_error_response_and_return!("Error! Callback response args don't have response kwarg!", converted_m, to_send);
         // return error_response!("Error! Callback response args don't have response kwarg!");
     }
@@ -156,7 +161,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
     let converted_m = convert_to_value_map(&m);
 
-    println!("Converted m: {:?}", &converted_m);
+    logger.debug(format!("Converted m: {:?}", &converted_m));
 
     if !m.contains_key("response_mode") {
         logger.warn("Error! Callback response args don't have response_mode kwarg!".to_string());
@@ -404,7 +409,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     return create_error_response_and_return!("Error! Callback response kwargs don't have client_key kwarg!", converted_m, to_send);
                 }
 
-                let client_key = inner_map.get("client_key").unwrap().to_string();
+                let client_key = inner_map.get("client_key").unwrap().to_str().unwrap();
 
                 let client = handle_client_error!(Client::get_by_key(&client_key));
 

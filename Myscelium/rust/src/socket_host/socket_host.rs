@@ -181,7 +181,7 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
 pub fn update_last_contact(client_key: String) {
     let client = Client::get_by_key(&client_key);
 
-    let logger = acquire_logger!("[Socker][Update Last Contact]");
+    let logger = acquire_logger!("[Socket Host][Update Last Contact]");
 
     match client {
         Ok(c) => {

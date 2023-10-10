@@ -11,7 +11,7 @@ from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 class Receivers:
 
     @staticmethod
-    def test_add_client (data:any): # -> Need to be implemeneted
+    def add_client_handler (data:any): # -> Need to be implemeneted
         
         # "data" {
         #     "command_type":"response",
@@ -40,7 +40,7 @@ class Receivers:
         print("Received data: ", data)
 
     @staticmethod
-    def test_update_client (data:any): # -> Need to be implemeneted
+    def update_client_handler (data:any): # -> Need to be implemeneted
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Update Client"
@@ -61,7 +61,7 @@ class Receivers:
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_remove_client (data:any): # TODO >>> test_remove_client
+    def remove_client_handler (data:any): # TODO >>> test_remove_client
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Remove Client"
@@ -106,7 +106,7 @@ class Senders:
         
         command = client_patterns.command_pattern(
             "test_add_client", 
-            args={
+            args = {
                 "client_name":"test_client", 
                 "client_key":"xMndjslwpedcnfe", 
                 "client_type":"Test", 
@@ -121,8 +121,8 @@ class Senders:
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Send test add a client", 
-            event_type="Send", 
-            event_key="94G2zy6cV54GN64O"
+            event_type = "Send", 
+            event_key = "94G2zy6cV54GN64O"
         ) 
         
 
@@ -135,7 +135,7 @@ class Senders:
         
         command = client_patterns.command_pattern(
             "test_update_client", 
-            args={
+            args = {
                 "actual_client_key":"xMndjslwpedcnfe",
                 "client_key":"xMndjslwpedcnfe", 
                 "client_name":"test_client", 
@@ -164,7 +164,7 @@ class Senders:
         
         command = client_patterns.command_pattern(
                         "test_remove_client", 
-                        args={
+                        args = {
                             "client_key": "xMndjslwpedcnfe"
                         }
                     )
@@ -179,11 +179,14 @@ class Senders:
 
 class MyClient: 
 
+    def __init__ (self, debug_level):
+        self.debug_level = debug_level
+
     def initializer(self):
 
         my_handlers = Receivers ()
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level="DEBUG")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
 
@@ -192,15 +195,15 @@ class MyClient:
         callbacks = [
 
             client_patterns.callback_pattern(
-                callback=my_handlers.test_add_client, 
+                callback=my_handlers.add_client_handler, 
             ),
 
             client_patterns.callback_pattern(
-                callback=my_handlers.test_update_client, 
+                callback=my_handlers.update_client_handler, 
             ),
 
             client_patterns.callback_pattern(
-                callback=my_handlers.test_remove_client, 
+                callback=my_handlers.remove_client_handler, 
             ),
 
         ]

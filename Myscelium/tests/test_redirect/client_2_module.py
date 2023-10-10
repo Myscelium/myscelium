@@ -8,7 +8,6 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_mananger import Events_Mananger, System_Status
 
-
 class Senders:
 
     @staticmethod
@@ -57,9 +56,12 @@ class Receivers:
 
 class MyClient:
 
+    def __init__ (self, debug_level):
+        self.debug_level = debug_level
+
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/", log_level="DEBUG")
+        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
 

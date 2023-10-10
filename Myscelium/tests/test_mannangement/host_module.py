@@ -14,7 +14,6 @@ def client_contact_event_handler (client_name:str, client_key:str, client_last_c
     print(client_name, client_key, client_last_contact)
     pass
 
-
 class Handlers:
 
     @staticmethod
@@ -92,14 +91,14 @@ class Handlers:
             step=f"Client Client: [{client_key}]"
         )
 
-        return HostPatterns().update_host_configs(activation_function="remove_client", actual_client_key=client_key)
+        return HostPatterns().update_host_configs(activation_function="remove_client", client_key=client_key)
 
 class MyHost:
 
-    def __init__(self):
+    def __init__(self, debug_level):
         self.host_patterns = HostPatterns()
-
         self.my_callbacks = Handlers()
+        self.debug_level = debug_level
 
     # @staticmethod
     # def handle_client_contact(client_id, event_key='client_contact'):
@@ -171,7 +170,7 @@ class MyHost:
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, max_sub_channels:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Temp/Data/", n_workers=2, log_level="DEBUG")
+                                 allowed_clients=allowed_clients, buffer_path="Temp/Data/", n_workers=2, log_level=self.debug_level)
 
         self.mys_host = mys_host
 
