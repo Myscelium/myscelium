@@ -2,6 +2,8 @@
 
 ## v1.3.0 - ReliseCandidate (18/08/2023)
 
+Certainly! Here's how you might integrate the additional updates into the existing ones:
+
 ### Updates:
 
 1. **Client and Permissions:**
@@ -14,7 +16,9 @@
    - "Why only from callbacks response: ..."
    - "Blocked the reception of InternalMaannangement commands from external sources unless redirected by callbacks."
    - "Updated the response command structure to include a status, message, and kwargs inside a response."
-   
+   - "Updated receivers to receive the entire command, including command type, status, response activation function, message, kwargs, and response mode"
+   - "Handled the inner management responses in the receiver for both errors and confirmations"
+
 3. **Improvements and Fixes:**
    - "Improve tests capabilities"
    - "Improve verification of buffer responses"
@@ -25,6 +29,12 @@
    - "Fixed the issue with the Python object extractor not being able to extract lists."
    - "Fixed various errors and issues related to response formulation and command handling."
    - "Fixed buffer bug that caused multiple commands with the same ID to be registered."
+   - "Fix verification if client is in whitelist"
+   - "Fix removing commands from queue when already receive a response from where we send it to"
+   - "Fix wrapper client transposition zombie threads"
+   - "Fix client random quitting by rearranging the processes event controllers in python side"
+   - "Fix the redirect adding the code to handle this case in host"
+   - "Improved logging by changing prints to logging and adding a print in the logging database emitter"
 
 4. **Centralization and Common Functions:**
    - "Centralize common functions reducing code complexity and improve code efficient"
@@ -35,11 +45,14 @@
    - "Implement Test of redirect"
    - "Now test events have 3 categories `Send`, `Receive`, and `Default`"
    - "This config allows to track how much time takes to receive some fn, response or redirect, and consequently allowing to track the performance of the lib in the development process through a permanent database that tracks the event medium time, allowing to do some performance tests."
+   - "Added the Historie controller and the history visualizer for host tests"
 
 6. **Internal Management and Commands:**
    - "Added a command type called InternalMaannangement and implemented the necessary changes to handle it."
    - "Blocked the reception of InternalMaannangement commands from external sources unless redirected by callbacks."
    - "Added the InternalMannangement handler in the transposer."
+   - "Implemented error patterns to send errors back to the client using the new communication method"
+   - "Added confirmation messages and error messages to the inner management"
 
 7. **Type and Verification:**
    - "Add `type_of` and `fast_verify_kwargs_and_types` to `ResultType` enum, this can facilitate the process of checking a type of a `ResultType` and also recursively check if the Result matches with a predefined pattern in a very fast way by providing a reference target to `fast_verify_kwargs_and_types` that can return an empty Ok() when all is fine and return a enum `ExpectationError` when something isn't correct."
@@ -55,13 +68,8 @@
 - Client permissions doesn't need to be passed every time because now has a permanent database table to hold the client informations
 - Tests now are working as intended
 - Thread pool has been improved, and now it doesn't bring errors anymore
-- Improve several mecanism implement new error capabilities and centralizing to better updates in future 
-- Fix verification if client is in whitelist
+- Improve several mechanisms, implement new error capabilities, and centralizing for better updates in the future 
 - Solve issues in tests of connection
-- Fix removing commands from queue when alwready receive a response from were we send it to
-- Fix wrapper client transposition zombiee threads
-- Fix client random quiting by rearagin the processes event controlers in python side
-- Fix the redirect adding the code to handle this case in host
 
 
 ## v1.2.0 - ReliseCandidate (18/08/2023)

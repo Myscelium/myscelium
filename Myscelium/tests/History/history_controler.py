@@ -97,7 +97,7 @@ class History_Mannanger:
         pool = SQLiteConnectionPool(3, DATABASE)
         self.connection = pool.get_connection()
 
-        self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
+        self.AutoId = Interface_Unique_ID_Generator(length=9999999999, registred_ids=[])
 
         cur = self.connection.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS History (ID INT PRIMARY KEY, Time NUMBER, TestName TEXT, CommunicationSpeed NUMBER, TestSpeed NUMBER, TestStatus TEXT, LogLevel TEXT)''')
