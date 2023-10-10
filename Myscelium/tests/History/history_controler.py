@@ -10,7 +10,7 @@ import json
 import time
 from queue import Queue
 from threading import Lock, Thread
-from datetime import datetime
+import datetime
 
 class Interface_Unique_ID_Generator:
 
@@ -76,6 +76,15 @@ class SQLiteConnectionPool:
             connection.close()
 
 THIS_DIR = os.path.dirname(__file__)
+DATABASE_PATH =os.path.join(THIS_DIR, "Data")
+
+if not os.path.exists(DATABASE_PATH):
+    os.makedirs(DATABASE_PATH)
+else:
+    pass
+
+DATABASE = os.path.join(DATABASE_PATH, "History.db")
+
 
 class History_Mannanger:
 
@@ -85,13 +94,13 @@ class History_Mannanger:
 
     def __init__(self): 
 
-        pool = SQLiteConnectionPool(3, os.path.join("Data", "History.db"))
+        pool = SQLiteConnectionPool(3, DATABASE)
         self.connection = pool.get_connection()
 
         self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
 
         cur = self.connection.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS History (ID INT PRIMARY KEY, Time NUMBER, TestName TEXT, CommunicationSpeed NUMBER, TestSpeed NUMBER, TestStatus TEXT)''')
+        cur.execute('''CREATE TABLE IF NOT EXISTS History (ID INT PRIMARY KEY, Time NUMBER, TestName TEXT, CommunicationSpeed NUMBER, TestSpeed NUMBER, TestStatus TEXT, LogLevel TEXT)''')
         
         
     def drop_events_table(self) -> None:
@@ -119,16 +128,16 @@ class History_Mannanger:
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
-        df = pd.DataFrame(df, columns=['ID', 'Time', 'TestName', 'CommunicationSpeed', 'TestSpeed', 'TestStatus'])
+        df = pd.DataFrame(df, columns=['ID', 'Time', 'TestName', 'CommunicationSpeed', 'TestSpeed', 'TestStatus', 'LogLevel'])
         dict_df = df.to_dict()
         
         return dict_df
     
-    def store_history_point (self, test_name:str, communications_speed:float, test_speed:float, test_status:str):    
+    def store_history_point (self, test_name:str, communications_speed:float, test_speed:float, test_status:str, log_level:str):    
 
         cur = self.connection.cursor()
         
-        self.AutoId.Update_Registred_Ids(registred_ids = self.list_keys())
+        self.AutoId.Update_Registred_Ids(registred_ids = self.list_history())
 
         if not isinstance(test_name, str):
             raise "test_name needs to be a string with the test name!"
@@ -144,12 +153,18 @@ class History_Mannanger:
         
         if not (test_status in ['PASSED', 'FAILED']):
             raise "test_status needs to be a str 'PASSED' or 'FAILED'!"
+        
+        if not isinstance(log_level, str):
+            raise "log_level needs to be a str!"
+        
+        if not (log_level in ['EXEPTION', 'WARN', 'INFO', 'DEBUG']):
+            raise "test_status needs to be a str like: 'EXEPTION', 'WARN', 'INFO' or 'DEBUG'!"
 
         ID = self.AutoId.Gen() 
-        ts = time.time()
+        ts = datetime.datetime.now()
 
-        sqlite_insert_with_param = """INSERT INTO Keys (ID, Time, TestName, CommunicationSpeed, TestSpeed, TestStatus) VALUES (?, ?, ?, ?, ?, ?);"""
-        cur.execute(sqlite_insert_with_param, (ID, ts, test_name, communications_speed, test_speed, test_status))
+        sqlite_insert_with_param = """INSERT INTO History (ID, Time, TestName, CommunicationSpeed, TestSpeed, TestStatus, LogLevel) VALUES (?, ?, ?, ?, ?, ?, ?);"""
+        cur.execute(sqlite_insert_with_param, (ID, ts.timestamp(), test_name, communications_speed, test_speed, test_status, log_level))
         self.connection.commit()
 
         return
@@ -158,7 +173,7 @@ class History_Mannanger:
 
     #     cur = self.connection.cursor()
 
-    #     keys_dict_df = pd.DataFrame.from_dict(self.list_keys())
+    #     keys_dict_df = pd.DataFrame.from_dict(self.list_history())
 
     #     keys = keys_dict_df["EventKey"].to_list()
 
@@ -170,7 +185,7 @@ class History_Mannanger:
     #     else:
     #         pass
         
-    #     sqlite_insert_with_param = """DELETE FROM Keys WHERE EventKey = ?"""
+    #     sqlite_insert_with_param = """DELETE FROM History WHERE EventKey = ?"""
     #     cur.execute(sqlite_insert_with_param, (key, ))
     #     self.connection.commit()
 

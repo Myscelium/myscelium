@@ -30,6 +30,7 @@ Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the 
 # DEBUG_LEVEL = "INFO"
 DEBUG_LEVEL = "WARN"
 
+from .History.history_controler import History_Mannanger
 
 # -> ----------------------------------------------------------------------------------------------------------------------------
 # -> Tests:
@@ -63,6 +64,8 @@ def test_communication():
 
     # Instead of having separate events for client and host, we use a shared event for simplicity
     # The event_key 'main_event' will be used to identify this event
+
+    test_start_time = time.time()
 
     System_Status(path="Logs").create_unit("Client1")
     System_Status(path="Logs").create_unit("Host")
@@ -123,6 +126,7 @@ def test_communication():
     basic_response_handler  = False
 
     for i in host_events_df.index:
+
         event = host_events_df.loc[i, 'StepCompleted']
 
         if "Contact received from Client: some_client_id" in event:
@@ -132,6 +136,7 @@ def test_communication():
             basic_callback = True
 
     for i in client_1_events_df.index:
+
         event = client_1_events_df.loc[i, 'StepCompleted']
 
         if "Data Sended" in event:
@@ -140,7 +145,41 @@ def test_communication():
         if "Activate Basic Response Test callback handler" in event:
             basic_response_handler = True
     
- 
+
+    unified_events = host_events_df.merge(client_1_events_df, how='outer')
+
+    tracking = {}
+    deltas = []
+
+    for i in unified_events.index:
+
+        event_type = host_events_df.loc[i, "EventType"]
+        event_key  = host_events_df.loc[i, "EventKey"]
+        event_time = host_events_df.loc[i, "Time"]
+
+        if event_type == "Send":
+            tracking[event_key] = event_time
+        
+        elif event_type == "Receive":
+        
+            if event_key in tracking:
+                start_ts = tracking[event_key]
+                deltas.append(event_time - start_ts)
+            else:
+                pass
+        
+        else:
+            pass
+    
+    test_end_time = time.time()
+    average_com_delta = (sum(deltas) / len(deltas)) 
+    test_run_time = test_end_time - test_start_time 
+
+    if (client_contact and basic_callback) and (send_data and basic_response_handler):
+        History_Mannanger().store_history_point("test_communication", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+    else:
+        History_Mannanger().store_history_point("test_communication", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+
     # -> Client1
 
     assert send_data, "Cant send data"
@@ -151,6 +190,7 @@ def test_communication():
     assert client_contact, "Client1 doesn't made any contact"
     assert basic_callback, "Baisc callback not called"
 
+    
     # TODO >>> When add the client tables mecanism re add the client contact test unit
     # TODO >>> Add a test mecanism to check if the logs are being stored and transposing
 
@@ -201,6 +241,8 @@ def client_2_thread_to_test_redirect(event_client_received):
 def test_redirect ():
 
     time.sleep(5)
+
+    test_start_time = time.time()
 
     System_Status(path="Logs").create_unit("Client1")
     System_Status(path="Logs").create_unit("Client2")
@@ -298,6 +340,42 @@ def test_redirect ():
         if "Data To Redirect Sended" in event:
             send_data_to_redirect = True
  
+
+    unified_events = host_events_df.merge(client_1_events_df, how='outer')
+    unified_events = unified_events.merge(client_2_events_df, how='outer')
+
+    tracking = {}
+    deltas = []
+
+    for i in unified_events.index:
+
+        event_type = host_events_df.loc[i, "EventType"]
+        event_key  = host_events_df.loc[i, "EventKey"]
+        event_time = host_events_df.loc[i, "Time"]
+
+        if event_type == "Send":
+            tracking[event_key] = event_time
+        
+        elif event_type == "Receive":
+        
+            if event_key in tracking:
+                start_ts = tracking[event_key]
+                deltas.append(event_time - start_ts)
+            else:
+                pass
+        
+        else:
+            pass
+    
+    test_end_time = time.time()
+    average_com_delta = (sum(deltas) / len(deltas)) 
+    test_run_time = test_end_time - test_start_time 
+
+    if (client_1_contact and client_2_contact) and (host_redirect_callback and active_callback_remotely) and send_data_to_redirect:
+        History_Mannanger().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+    else:
+        History_Mannanger().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+
     # -> Client 1
 
     # assert send_data, "Cant send data"
@@ -357,6 +435,8 @@ def client_1_thread_to_test_inner_mannangement (event_client_received):
 def test_mannangement ():
 
     time.sleep(5)
+
+    test_start_time = time.time()
 
     System_Status(path="Logs").create_unit("Client1")
     System_Status(path="Logs").create_unit("Host")
@@ -449,7 +529,41 @@ def test_mannangement ():
         if "Activate Basic Response Test Remove Client" in event:
             receive_remove_client_conf = True
 
- 
+
+    unified_events = host_events_df.merge(client_1_events_df, how='outer')
+
+    tracking = {}
+    deltas = []
+
+    for i in unified_events.index:
+
+        event_type = host_events_df.loc[i, "EventType"]
+        event_key  = host_events_df.loc[i, "EventKey"]
+        event_time = host_events_df.loc[i, "Time"]
+
+        if event_type == "Send":
+            tracking[event_key] = event_time
+        
+        elif event_type == "Receive":
+        
+            if event_key in tracking:
+                start_ts = tracking[event_key]
+                deltas.append(event_time - start_ts)
+            else:
+                pass
+        
+        else:
+            pass
+    
+    test_end_time = time.time()
+    average_com_delta = (sum(deltas) / len(deltas)) 
+    test_run_time = test_end_time - test_start_time 
+
+    if (add_client_callback and update_client_callback) and (remove_client_callback and send_add_client) and (send_update_client and send_remove_client) and (receive_add_client_conf and receive_update_client_conf) and receive_remove_client_conf:
+        History_Mannanger().store_history_point("test_mannangement", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+    else:
+        History_Mannanger().store_history_point("test_mannangement", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+
     # -> Client 1
 
     assert send_add_client, "Can't send command to add client!"

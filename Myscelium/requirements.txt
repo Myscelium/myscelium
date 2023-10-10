@@ -1,3 +1,6 @@
 pandas
 pytest
 sqlite3
+streamlit
+seaborn 
+matplotlib
