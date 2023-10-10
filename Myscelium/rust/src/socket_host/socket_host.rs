@@ -181,19 +181,21 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
 pub fn update_last_contact(client_key: String) {
     let client = Client::get_by_key(&client_key);
 
+    let logger = acquire_logger!("[Socket Host][Update Last Contact]");
+
     match client {
         Ok(c) => {
             _ = c.update_last_contact();
         },
         Err(e) => match e {
             ClientError::ClientAlwreadyExist(e) => {
-                println!("Error client: {} alwready exist", e);
+                logger.exception(format!("Error client: {} alwready exist", e));
             },
             ClientError::ClientDoesNotExist(e) => {
-                println!("Error client: {} does't exist", e);
+                logger.exception(format!("Error client: {} does't exist", e));
             },
             ClientError::UnexpectedError(e) => {
-                println!("Get a unexpected error: {}", e);
+                logger.exception(format!("Get a unexpected error: {}", e));
             },
         },
     }

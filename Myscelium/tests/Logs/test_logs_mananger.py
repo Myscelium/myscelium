@@ -189,8 +189,6 @@ class System_Status:
                                                                 Unit TEXT,
                                                                 RuningStatus BOOL)''')
 
-    
-
     def list_units (self) -> dict:
         
         cur = self.connection.cursor()
