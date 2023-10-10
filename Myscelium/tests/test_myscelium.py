@@ -26,9 +26,9 @@ Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in t
 Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
 
-# DEBUG_LEVEL = "DEBUG"
+DEBUG_LEVEL = "DEBUG"
 # DEBUG_LEVEL = "INFO"
-DEBUG_LEVEL = "WARN"
+# DEBUG_LEVEL = "WARN"
 
 from .History.history_controler import History_Mannanger
 

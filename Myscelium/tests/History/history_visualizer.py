@@ -31,25 +31,19 @@ filtered_df = df[df['LogLevel'] == selected_log_level]
 # Create columns
 col1, col2 = st.columns([1,1])
 
-# Use the left column for the first plot
+
 # Use the left column for the first plot
 with col1:
-    st.write('Line Plot: Test Speed over Time for Log Level:', selected_log_level)
+    st.write('Test Speed over Time for Log Level:', selected_log_level)
     fig, ax = plt.subplots(figsize=(8, 5))  # Adjust width and height as needed
     
     # Line plot for 'TestSpeed' over 'Time', separated by 'TestName'
     lineplot = sns.lineplot(x='Time', y='TestSpeed', hue='TestName', data=filtered_df, ci=None, marker="o", palette="tab10")
 
-    # Scatter plot on top of the line plot to color points based on 'TestStatus'
-    sns.scatterplot(x='Time', y='TestSpeed', hue='TestStatus', style='TestName', data=filtered_df, palette={'FAILED':'red', 'PASSED':'green'}, s=100, legend=False)
-
     # Get unique test names
     test_names = filtered_df['TestName'].unique()
     
-    # Get the colors used in the lineplot
-    line_colors = lineplot.get_lines()
-    
-    # Loop through each test name to add a shaded region for each line
+    # Loop through each test name to add a shaded region and mark outliers for each line
     for i, test_name in enumerate(test_names):
         # Filter data for the current test name
         test_data = filtered_df[filtered_df['TestName'] == test_name]
@@ -60,10 +54,16 @@ with col1:
         lower_tolerance = median_test_speed * 0.95  # -5%
         
         # Get the color of the current line
-        line_color = line_colors[i].get_color()
+        line_color = lineplot.get_lines()[i].get_color()
         
         # Add shaded region
         ax.fill_between(test_data['Time'], lower_tolerance, upper_tolerance, color=line_color, alpha=0.2)  # Adjust alpha as needed
+        
+        # Identify outliers
+        outliers = test_data[(test_data['TestSpeed'] > upper_tolerance) | (test_data['TestSpeed'] < lower_tolerance)]
+        
+        # Mark outliers with a triangle
+        sns.scatterplot(x='Time', y='TestSpeed', data=outliers, marker="^", color=line_color, s=100, ax=ax, zorder=3)
     
     plt.title('Test Speed over Time')
     plt.xticks(rotation=45)
@@ -85,23 +85,20 @@ st.dataframe(avg_comm_speed)
 
 # Use the right column for the second plot
 with col2:
-    st.write('Line Plot: Average Communication Speed over Time for Log Level:', selected_log_level)
+    st.write('Average Communication Speed over Time for Log Level:', selected_log_level)
     fig, ax = plt.subplots(figsize=(8, 5))  # Adjust width and height as needed
     
     # Line plot for average 'CommunicationSpeed' over 'Time', separated by 'TestName'
-    sns.lineplot(x='Time', y='CommunicationSpeed', hue='TestName', data=avg_comm_speed, ci=None, marker="o")
+    lineplot = sns.lineplot(x='Time', y='CommunicationSpeed', hue='TestName', data=avg_comm_speed, ci=None, marker="o", palette="tab10")
 
     # Get unique test names
     test_names = avg_comm_speed['TestName'].unique()
-
-    # Define a fixed value for the tolerance
-    tolerance = 5  # Adjust as needed
     
     # Define a multiplier for the standard deviation
     std_multiplier = 1  # Adjust as needed
-
-    # Loop through each test name to add a shaded region for each line
-    for test_name in test_names:
+    
+    # Loop through each test name to add a shaded region and mark outliers for each line
+    for i, test_name in enumerate(test_names):
         # Filter data for the current test name
         test_data = avg_comm_speed[avg_comm_speed['TestName'] == test_name]
 
@@ -109,9 +106,18 @@ with col2:
         mean_comm_speed = test_data['CommunicationSpeed'].mean()
         std_comm_speed = test_data['CommunicationSpeed'].std()
         
-        # Add shaded region
-        ax.fill_between(test_data['Time'], mean_comm_speed - std_multiplier * std_comm_speed, mean_comm_speed + std_multiplier * std_comm_speed, alpha=0.2)  # Adjust alpha as needed
+        # Get the color of the current line
+        line_color = lineplot.get_lines()[i].get_color()
         
+        # Add shaded region
+        ax.fill_between(test_data['Time'], mean_comm_speed - std_multiplier * std_comm_speed, mean_comm_speed + std_multiplier * std_comm_speed, color=line_color, alpha=0.2)  # Adjust alpha as needed
+        
+        # Identify outliers
+        outliers = test_data[(test_data['CommunicationSpeed'] > mean_comm_speed + std_multiplier * std_comm_speed) | (test_data['CommunicationSpeed'] < mean_comm_speed - std_multiplier * std_comm_speed)]
+        
+        # Mark outliers with a triangle
+        sns.scatterplot(x='Time', y='CommunicationSpeed', data=outliers, marker="^", color=line_color, s=100, ax=ax, zorder=3)
+    
     plt.title('Average Communication Speed over Time')
     plt.xticks(rotation=45)
     plt.tight_layout()
