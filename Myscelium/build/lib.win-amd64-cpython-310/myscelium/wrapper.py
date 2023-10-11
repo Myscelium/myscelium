@@ -10,6 +10,7 @@ import os
 
 from . import sql_pool 
 
+import inspect
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
@@ -36,12 +37,14 @@ def split_dataframe(df, num_chunks):
     
     chunks = []
     start = 0
+    
     for i in range(num_chunks):
         end = start + chunk_size
-        # Distribute the remainder across the initial chunks
-        if remainder:
+       
+        if remainder: # Distribute the remainder across the initial chunks
             end += 1
             remainder -= 1
+
         chunks.append(df.iloc[start:end])
         start = end
     
@@ -483,7 +486,7 @@ class MysceliumHost:
     def initialize_host (self, ip:str, port:int):
 
         """
-        Initialize the host with the given IP and port.
+        Initialize the host with the given IP and port.FResponse patterj 
 
         Parameters:
         - ip: IP address for the host.
@@ -543,7 +546,7 @@ class HostPatterns:
 
         pass
 
-    def client_pattern (self, client_name:str, client_key:str, client_type:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list = []) -> dict:
+    def client_pattern (self, client_name:str, client_key:str, client_type:str, client_permission_group:str, client_is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list = []) -> dict:
 
         """
         Create a client pattern.
@@ -561,7 +564,7 @@ class HostPatterns:
         - Dictionary representing the client pattern.
         """
 
-        return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":client_max_sub_channes, "owned_sub_channels_keys":client_owned_sub_channels_keys}
+        return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":max_sub_channels, "owned_sub_channels_keys":owned_sub_channels_keys}
 
     def response_pattern (self, response:dict, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict:
 
@@ -579,45 +582,275 @@ class HostPatterns:
         """
 
         if response_activation_function == "" or response_activation_function == None:
-            raise ("Missing response_activation_function!")
+            print ("Missing response_activation_function!")
+            return None
 
         if response_mode == "redirect":
 
             if redirect_to_client_id != None:
                 pass
             else:
-                raise ("Invalid redirect! Missing client_id to redirect!")
+                print ("Invalid redirect! Missing client_id to redirect!")
+                return None
 
-            return {'response_mode':'redirect', 'response_activation_function':response_activation_function, 'kwargs':response, 'redirect_to':redirect_to_client_id}
+            response = {
+                "command_type":"function",
+                "response_mode":"redirect", 
+                "status": "success", 
+                "response_activation_function":response_activation_function,
+                "message":"", 
+                "kwargs":response,
+                "redirect_to":redirect_to_client_id
+            }
+
+            return response
 
         elif response_mode == 'to_origin':
 
             print("Response mode set to origin")
-            
-            return {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'kwargs':response}
+
+            response = {
+                "command_type":"response",
+                "response_mode":"to_origin", 
+                "status": "success", 
+                "response_activation_function":response_activation_function,
+                "message":"", 
+                "kwargs":response,
+            }
+
+            return response
         
         else:
-            raise ("Response mode invalid! Please use one of this: ('redirect', 'to_origin')")
+            print ("Response mode invalid! Please use one of this: ('redirect', 'to_origin')")
+            return None
 
-    def callback_pattern (self, callback, args) -> dict:
+
+    # TODO >>> implement a mecanism to send back a error message if it happens to happen
+
+    def update_host_configs (self, activation_function:str, **kwargs): # TODO >>> Need rust backend implementation!
+
+        """
+        Create a response pattern.
+
+        
+        Parameters:
+
+            - add_client, needed kwrags: 
+
+                ```python
+                update_host_configs (self, 
+                                     activation_function="add_client", 
+                                     new_client=[client_patter])
+            
+                # - new_client:list[client_pattern] -> This is a list that contains the new client to add!
+                ```
+
+            - update_client, needed kwargs:
+
+                ```python
+                update_host_configs (self, 
+                                     activation_function="update_client", 
+                                     actual_client_key="xMsndkdlenfjedLj", 
+                                     updated_client=[client_patter])
+
+                # - actual_client_key:str
+                # - updated_client:list[client_pattern] -> This is a list that contains the new client updated!    
+                ```
+        
+            - remove_client, need kwargs:
+         
+                ```
+                update_host_configs (self, 
+                                     activation_function="remove_client", 
+                                     actual_client_key="xMsndkdlenfjedLj")
+
+                # - client_key:str -> The client key of the client that you want to remove.
+                ```
+
+        """
+
+        if activation_function == "add_client":
+
+            if "new_client" in kwargs:
+                pass
+            else:
+                print("new client isn't in kwargs, so can't add client!")
+                return None
+
+            new_client = kwargs["new_client"]
+
+            if isinstance(new_client, dict):
+                pass
+            else:
+                print("New client needs to be a dict generated by client_pattern")
+                return None
+            
+            # TODO Check if have all fields needed in the client!
+
+            kwargs = {'new_client':new_client}
+
+            response = {
+                "response_mode":"internal_mannangement", 
+                "status": "success", 
+                "activation_function":"add_client",
+                "message":"", 
+                "kwargs":kwargs,
+            }
+
+            return response
+
+        elif activation_function == "update_client":
+
+            if "actual_client_key" in kwargs:
+                pass
+            else:
+                print ("actual_client_key isn't in kwargs, so can't update client!") # TODO >>> Implement a mecanism to send a error message to host send to client
+                return None
+
+            actual_client_key = kwargs["actual_client_key"]
+
+            if isinstance(actual_client_key, str):
+                pass
+            else:
+                print ("client key needs to be a string!") # TODO >>> Implement a mecanism to send a error message to host send to client
+                return None
+
+            if "updated_client" in kwargs:
+                pass
+            else:
+                print ("new client isn't in kwargs, so can't edit client!") # TODO >>> Implement a mecanism to send a error message to host send to client
+                return None
+
+            updated_client = kwargs["updated_client"]
+
+            if isinstance(updated_client, dict):
+                pass
+            else:
+                print ("New client needs to be a dict generated by client_pattern") # TODO >>> Implement a mecanism to send a error message to host send to client
+                return None
+
+            # TODO Check if have all fields needed in the client!
+
+            kwargs = {'actual_client_key':actual_client_key, 'updated_client':updated_client}
+
+            response = {
+                "response_mode":"internal_mannangement", 
+                "status": "success", 
+                "activation_function":"update_client",
+                "message":"", 
+                "kwargs":kwargs,
+            }
+
+            return response
+        
+        elif activation_function == "remove_client":
+
+            if "client_key" in kwargs:
+                pass
+            else:
+                print("client_key isn't in kwargs, so can't remove client!")
+                return None
+            
+            client_key = kwargs["client_key"]
+
+            if isinstance(client_key, str):
+                pass
+            else:
+                print("client key needs to be a string!")
+                return None
+
+            kwargs = {'client_key':client_key}
+
+            response = {
+                "response_mode":"internal_mannangement", 
+                "status": "success", 
+                "activation_function":"remove_client",
+                "message":"", 
+                "kwargs":kwargs,
+            }
+
+            return response
+
+        else:
+            print (f"activation_function: {activation_function} doesn't registred in the avalaible host internal mannangement commands!")
+            return None
+
+    def callback_pattern (self, callback) -> dict:
 
             """
             Create a callback pattern.
 
             Parameters:
             - callback: The callback function.
-            - args: Arguments for the callback function.
+            
+            args and kwargs: Whill be auto infered by the wrapper, just add the anotations to your functions.
 
             Returns:
             - Dictionary representing the callback pattern.
-            """
-            
+            """ 
+
+            sig = inspect.signature(callback)
+            params = sig.parameters
+
+            args = {}
+
+            for name, param in params.items():
+
+                if param.annotation is inspect._empty:
+                    print(f"function: {callback.__name__} has args or kwargs without the required anotations!")
+                    return None
+                else:
+                    pass
+
+                args[name] = str(param.annotation.__name__)
+
+            else:
+                pass
+
             callback_pattern =  {
                 "function": callback,
                 "args": args,
             }
             
             return callback_pattern
+
+    def error_pattern (self, error_message:str, expected_remote_error_handler:str):
+        
+        # TODO >>> Implement a Error Handler Callback Caller in client, to allow personalize how errors will be treated or change the way that client handles responses
+
+        # > A possible impl is something like a data arg and in this arg will have sub kwargs in the dict that will formulate the response\
+        # > So the client response will be something like:
+
+        # "command" {
+        #     "command_type":"response",
+        #     "status": "success"
+        #     "response_activation_function":"",
+        #     "message":"", 
+        #     "kwargs":{"arg1": [], "arg2": "", "arg3": {}}
+        #     "response_mode":"",
+        # }
+
+        # so basically what we will do in this case is to send all the command or remove like the response_activation_function
+        # and keep the other things to alow the client Handler to extract the status, message, kwargs and response from the function
+        # This aay host dont need to keep trac of the client args in the handler, cause if this give a exception will be the client mistake
+        # also if we need to check the status to take some action in case of error it also will be possible, and then if receive a act_fn that doesn't 
+        # we simple can give it a exception.
+        
+        # In a more extreme case we can only require one randler named router in the client side and then if this doesn't exist dont even start client
+        # This router will be responsible to receive a entire command, so he will decide how to process it and what activation function to call
+        # Then this will be able to send a response for host redirect if something is worng redirecting the error for the client tha cause it and keep going
+
+        kwargs = []
+
+        response = {
+            "response_mode":"internal_mannangement", 
+            "status": "success", 
+            "activation_function":expected_remote_error_handler,
+            "message":error_message, 
+            "kwargs":kwargs,
+        }
+
+        return None
     
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > CLIENT
@@ -967,15 +1200,15 @@ class ClientPatterns:
         Returns:
         - Dictionary representing the command pattern.
         """
-
+ 
         if args != None:
-            return {"function":command_function, "kwargs":args}
+            return {"command_type":"function", "function":command_function, "kwargs":args}
         else:
             pass
 
-        return {"function":command_function, "kwargs":""}
+        return {"command_type":"function", "function":command_function, "kwargs":""}
 
-    def response_pattern (self, response:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
+    def response_pattern (self, kwargs:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
 
         """
         Create a response pattern.
@@ -989,37 +1222,56 @@ class ClientPatterns:
         - Dictionary representing the response pattern.
         """
 
-        # TODO >>> Verify if need to convert response to kwargs
-
         if response_mode == "retransmit":
 
             if retransmit_to_client_id != None:
                 pass
             else:
-                raise ("Invalid redirect! Missing client_id to redirect!")
+                print ("Invalid redirect! Missing client_id to redirect!")
+                return None
 
-            return {'response_mode':'retransmit', 'response':response, 'redirect_to':retransmit_to_client_id}
+            return {"command_type":"response", "response_mode":"retransmit", "kwargs":kwargs, "redirect_to":retransmit_to_client_id}
 
         elif response_mode == 'to_host':
             
-            return {'response_mode':'to_host', 'response':response}
+            return {"command_type":"response", "response_mode":"to_host", "kwargs":kwargs}
         
         else:
-            raise ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
+            print ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
+            return None
 
-    def callback_pattern (self, callback, args) -> dict:
-            
+    def callback_pattern (self, callback) -> dict:
+
         """
         Create a callback pattern.
 
         Parameters:
         - callback: The callback function.
-        - args: Arguments for the callback function.
+        
+        args and kwargs: Whill be auto infered by the wrapper, just add the anotations to your functions.
 
         Returns:
         - Dictionary representing the callback pattern.
         """
-            
+
+        sig = inspect.signature(callback)
+        params = sig.parameters
+
+        args = {}
+
+        for name, param in params.items():
+
+            if param.annotation is inspect._empty:
+                function_name = callback.__name__
+                raise f"function: {function_name} has args or kwargs without the required anotations!"    
+            else:
+                pass
+
+            args[name] = str(param.annotation.__name__)
+
+        else:
+            pass
+
         callback_pattern =  {
             "function": callback,
             "args": args,

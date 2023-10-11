@@ -118,6 +118,7 @@ impl Command {
                     CommandType::Redirect(self.command.clone())
                 },
                 "error" => {
+                    // TODO >>> Verify if the error command type stil a requirement since client now receives the entire command
                     println!("Self: {:?} have error: {:?}", self.command, self.command.get("error"));
                     CommandType::Error(self.command.get("error").unwrap().clone())
                 },

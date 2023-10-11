@@ -25,7 +25,7 @@ class Receivers:
         if "status" in data:
             pass
         else:
-            return None
+            return None # This return that the callback called don't have a response for this case 
         
         if data["status"] == "success":
             pass
