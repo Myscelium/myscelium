@@ -12,6 +12,126 @@ from . import sql_pool
 
 import inspect
 
+
+# >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# > Utilities
+
+import pandas as pd
+from . import sql_pool 
+
+class GetHostClients:
+
+    def __init__(self, db_path:str):
+    
+        self.pool = sql_pool.SQLiteConnectionPool(2, os.path.join(db_path, "Data.db"))
+        connection = self.pool.get_connection()
+    
+        cur = connection.cursor()
+        cur.execute('''CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY,
+                                                        ClientName TEXT,
+                                                        ClientKey TEXT,
+                                                        ClientType TEXT,
+                                                        PermissionGroup TEXT,
+                                                        SuperUser BOOL,
+                                                        LastContact FLOAT,
+                                                        MaxSubChannels NUMBER,
+                                                        OwnedSubChannelsKeys TEXT,
+                                                        SubChannelsInUse NUMBER
+                                                        )''')
+        
+        self.pool.release_connection(connection)
+
+    def list_clients(self) -> dict:
+
+        connection = self.pool.get_connection()
+
+        cur = connection.cursor()
+        
+        sqlite_select_query = """SELECT * FROM Clients"""
+        
+        cur.execute(sqlite_select_query)
+        
+        df = cur.fetchall()
+
+        self.pool.release_connection(connection)
+
+        df = pd.DataFrame(
+            df, 
+            columns=[
+                'ID',
+                'ClientName',
+                'ClientKey',
+                'ClientType',
+                'PermissionGroup',
+                'SuperUser',
+                'LastContact',
+                'MaxSubChannels',
+                'OwnedSubChannelsKeys',
+                'SubChannelsInUse'
+            ]
+        )
+
+        dict_df = df.to_dict()
+        
+        return dict_df
+
+
+import inspect
+
+class CallbackCollector:
+
+    """
+    Extract from a list of classes (Handlers, Receivers and Retransmiters) the methods and callbacks in it
+    And automatically creates the callback list, simplifiing even more the process of create new callbacks and
+    Methods for you host or to you client.
+
+    Usage:
+
+    ```
+    callbacks_list = CallbackCollector([Handlers, Receivers, Retransmiters]).get_callbacks()
+    ```
+    """
+
+    def __init__(self, callback_containers): 
+        self.callbacks = []
+        for container in callback_containers:
+            self._get_methods(container)
+ 
+    def _get_methods(self, callback_class): 
+        
+        # Get all attributes of Class
+        for name, obj in inspect.getmembers(callback_class):
+            
+            # Check if it is a function/method
+            if inspect.isfunction(obj) or inspect.ismethod(obj) or isinstance(obj, staticmethod):
+                
+                # If it's a static method, get the underlying function
+                if isinstance(obj, staticmethod):
+                    obj = obj.__get__(None, None)
+
+                # Check if obj is not None before proceeding
+                if obj is not None:
+                    callback_pattern_result = host_patterns.callback_pattern(callback=obj)
+                    # Check if callback_pattern_result is not None before appending
+                    if callback_pattern_result is not None:
+                        self.callbacks.append(callback_pattern_result)
+                
+    def get_callbacks(self):
+        """
+        Extract from a list of classes (Handlers, Receivers and Retransmiters) the methods and callbacks in it
+        And automatically creates the callback list, simplifiing even more the process of create new callbacks and
+        Methods for you host or to you client.
+
+        Usage:
+
+        ```
+        callbacks_list = CallbackCollector([Handlers, Receivers, Retransmiters]).get_callbacks()
+        ```
+        """
+        return self.callbacks
+
+
+
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
 
