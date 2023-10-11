@@ -13,6 +13,9 @@ cd \Myscelium
 cd \Myscelium
 then run `pip install -e .` (This guaranties that the binnaries will be installed too)
 
+# Installation:
+-> run `py -m pip install --force-reinstall myscelium-1.3-cp310-cp310-win_amd64.whl`
+
 ## To test:
 cd \Myscelium
 . /.venv/bin/activate
