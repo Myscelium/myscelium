@@ -24,30 +24,37 @@ class Handlers:
         print(age)
 
         host_patterns = HostPatterns()
+        
         response = host_patterns.response_pattern(
             response_mode='to_origin',
             response_activation_function="test_handler",
             response={"data": 'hello!'}
         )
 
-        Events_Mananger(Unit="Host", 
-                        path="Logs").Set_Event(
-                                            step="Active Basic Callback", 
-                                            event_type="Receive", 
-                                            event_key="088p72pbv9Ozj7T1"
-                                        )
+        Events_Mananger(
+            Unit="Host", 
+            path="Logs"
+        ).Set_Event(
+            step="Active Basic Callback", 
+            event_type="Receive", 
+            event_key="088p72pbv9Ozj7T1"
+        )
         
-        Events_Mananger(Unit="Host", 
-                        path="Logs").Set_Event(
-                                        step="Send Response", 
-                                        event_type="Send", 
-                                        event_key="74L648VZDI7J1GV5"
-                                    )
+        Events_Mananger(
+            Unit="Host", 
+            path="Logs"
+        ).Set_Event(
+            step="Send Response", 
+            event_type="Send", 
+            event_key="74L648VZDI7J1GV5"
+        )
         
-        Events_Mananger(Unit="Host", 
-                        path="Logs").Set_Event(
-                                        step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
-                                    )
+        Events_Mananger(
+            Unit="Host", 
+            path="Logs"
+        ).Set_Event(
+            step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
+        )
 
         # (callback name) - Receive Data: [Data received list for comparison]
 

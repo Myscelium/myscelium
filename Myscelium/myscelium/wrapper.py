@@ -686,7 +686,7 @@ class HostPatterns:
 
         return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":max_sub_channels, "owned_sub_channels_keys":owned_sub_channels_keys}
 
-    def response_pattern (self, response:dict, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict:
+    def response_pattern (self, response:dict, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None, message="") -> dict:
 
         """
         Create a response pattern.
@@ -696,6 +696,9 @@ class HostPatterns:
         - response_mode: Mode of the response (e.g., 'redirect' or 'to_origin').
         - response_activation_function: Activation function for the response.
         - redirect_to_client_id: Client ID to redirect to (if response_mode is 'redirect').
+
+        Aditional parameters for to_origin:
+        - message: Allow to send a message to client besides the args, needs to be a string!
 
         Returns:
         - Dictionary representing the response pattern.
@@ -732,7 +735,7 @@ class HostPatterns:
                 "response_mode":"to_origin", 
                 "status": "success", 
                 "response_activation_function":response_activation_function,
-                "message":"", 
+                "message":message, 
                 "kwargs":response,
             }
 

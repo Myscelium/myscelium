@@ -83,7 +83,6 @@ class Receivers:
         
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
-
 class Senders:
 
     def start_send_sequence (self):
