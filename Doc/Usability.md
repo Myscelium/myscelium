@@ -10,6 +10,10 @@ This guide provides a detailed overview of setting up a Myscelium host and clien
 
 ## Table of Contents
 
+
+- [Utilities](#utilities)
+    - [GetHostClients](#get-host-clients)
+
 - [Myscelium Host](#myscelium-host)
   - [Setting Up the Host](#setting-up-the-host)
   - [MysceliumHost Class](#mysceliumhost-class)
@@ -22,6 +26,32 @@ This guide provides a detailed overview of setting up a Myscelium host and clien
   - [ClientPatterns Class](#clientpatterns-class)
   - [Non Bloking Client Usage Guide](#myscelium-client-multithreading-usage-guide)
 
+
+
+# Utilities
+
+### GetHostClients
+
+- `list_clients` this returns a dict df with:
+    - ID
+    - ClientName
+    - ClientKey
+    - ClientType
+    - PermissionGroup
+    - SuperUser
+    - LastContact
+    - MaxSubChannels
+    - OwnedSubChannelsKeys
+    - SubChannelsInUse
+
+You can use this to generate a pandas df with this columns and then do whatever you want with this dataframe
+
+To use is very easy:
+
+```python
+dict_df = GetHostClients(db_path:str).list_clients()
+```
+  
 
 ## Myscelium Host
 
@@ -144,7 +174,39 @@ Certain callback functions must have specific names for the system to recognize 
         # Add other callbacks here
     ]
     ```
-    * IMPORTANT! : Since v1.3 callbacks args are automatically infered!
+    * IMPORTANT! : Since v1.3 callbacks and they args are automatically infered!
+
+    For this you can use the callbacks collector to automate this by do the following:
+
+    ```python
+        class Receivers:
+
+            def __init__ (self):
+                pass
+
+            @staticmethod
+            def example_receiver (arg1:dict, arg2:str, arg3:list, arg4:tuple):
+                pass
+
+        class Retransmiters:
+
+            def __init__ (self):
+                pass
+
+            @staticmethod
+            def example_retransmiter ():
+                pass
+
+            @staticmethod
+            def example_retransmiter (arg1:dict, arg2:str, arg3:list, arg4:tuple):
+                pass
+
+
+        callbacks = CallbackCollector([Receivers, Retransmiters]).get_callbacks()
+    ```
+
+    With this CallbackCollector we can extract all the callbacks of these call and also the types that these callbacks takes,
+    imediatly automate the callbacks of these receivers.
 
 4. **Specify Allowed Clients**: Define which clients are allowed to connect to your host.
     ```python
@@ -506,6 +568,65 @@ callbacks = [
         args={"data": "dict"}
     ),
 ]
+```
+
+Or you can use the callbacks collector to automate this by do the following:
+
+```python
+
+class Receivers:
+
+    def __init__ (self):
+        pass
+
+    @staticmethod
+    def example_receiver (data:dict):
+        pass
+
+class Retransmiters:
+
+    def __init__ (self):
+        pass
+
+    @staticmethod
+    def example_retransmiter (data:dict):
+        pass
+
+    @staticmethod
+    def example_retransmiter (data:dict):
+        pass
+
+callbacks = CallbackCollector([Receivers, Retransmiters]).get_callbacks()
+```
+
+With this CallbackCollector we can extract all the callbacks of these call and also the types that these callbacks takes,
+imediatly automate the callbacks of these receivers.
+
+** IMPORTANT! ** Take in consideration that now all client functions require data:dict arg, this is a thing to allow the following:
+
+```python
+"data": {
+	"command_type":"response",
+	"status": "success"
+	"response_activation_function":"",
+	"message":"", 
+	"kwargs":{"arg1": [], "arg2": "", "arg3": {}}
+	"response_mode":"",
+}
+```
+
+So now client have the entire control to status, activation function to allow create advanced activation switches,
+also you have the access to the entire kwargs, a message field and a response mode, the response mode indicates if it is:
+
+- `redirect`
+- `to_send`
+
+And also, now you can retransmit messages direct adding a possibility to return errors using the `error_pattern` introduced in v1.3 to host be able to send error messages to client:
+
+TODO >>> See to add a mecanism to retrasnmit from client to host to client without complications
+
+```python
+client_patterns.redirect_error_pattern (self, error_message:str, expected_remote_error_handler:str, redirect_to:str)
 ```
 
 #### 5. **Function to Send Data to the Host:**

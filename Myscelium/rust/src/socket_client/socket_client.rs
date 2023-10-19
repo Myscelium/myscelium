@@ -357,6 +357,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
             match serde_json::from_value::<String>(f) {
                 Ok(function) => {
                     if function == "Error" {
+                        // TODO >>> See if this is necessary to maintein since the errors now are pretended to be redirected
                         let val = Value::String("Unknown error".to_string());
                         let error_msg = command_received.command.get("Error").unwrap_or(&val);
                         logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
