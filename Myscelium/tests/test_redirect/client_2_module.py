@@ -53,7 +53,6 @@ class Receivers:
         
         # System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
 
-
 class MyClient:
 
     def __init__ (self, debug_level):

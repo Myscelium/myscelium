@@ -114,6 +114,83 @@ class SQLiteConnectionPool:
 
 THIS_DIR = os.path.dirname(__file__)
 
+
+class Test_Groups_Mannanger:
+
+    def __init__ (self):
+
+        pool = SQLiteConnectionPool(3, os.path.join("EventKeys", "Data.db"))
+        self.connection = pool.get_connection()
+
+        self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
+
+        cur = self.connection.cursor()
+        cur.execute('''CREATE TABLE IF NOT EXISTS TestCollections (ID INT PRIMARY KEY, TestCollection TEXT)''')
+
+        pass
+
+    def list_tests_collections (self) -> dict:
+
+        cur = self.connection.cursor()
+        
+        sqlite_select_query = """SELECT * FROM TestCollections"""
+        
+        cur.execute(sqlite_select_query)
+        
+        df = cur.fetchall()
+        df = pd.DataFrame(df, columns=['ID', 'TestCollection'])
+        dict_df = df.to_dict()
+        
+        return dict_df
+
+
+    def registry_new_test_collection (self, collection_name:str):
+
+        cur = self.connection.cursor()
+
+        tests_collections_df = pd.DataFrame.from_dict(self.list_tests_collections())
+
+        filtred_tests_collections_df = tests_collections_df[tests_collections_df["TestCollection"] == collection_name]
+
+        if not filtred_tests_collections_df.empty:
+            return 
+        else:
+            pass
+        
+        self.AutoId.Update_Registred_Ids(registred_ids = self.list_tests_collections())
+
+        ID = self.AutoId.Gen()
+
+        ts = time.time()
+
+        sqlite_insert_with_param = """INSERT INTO TestCollections (ID, TestCollection) VALUES (?, ?);"""
+        cur.execute(sqlite_insert_with_param, (ID, collection_name))
+        self.connection.commit()
+
+        pass
+
+    def delete_test_collection (self, collection_id:int):
+
+        cur = self.connection.cursor()
+
+        keys_dict_df = pd.DataFrame.from_dict(self.list_keys())
+
+        tests_collections_df = pd.DataFrame.from_dict(self.list_tests_collections())
+
+        filtred_tests_collections_df = tests_collections_df[tests_collections_df["ID"] == collection_id]
+
+        if not filtred_tests_collections_df.empty():
+            return 
+        else:
+            pass
+        
+        sqlite_delet_with_param = """DELETE FROM TestCollections WHERE ID = ?"""
+        cur.execute(sqlite_delet_with_param, (collection_id, ))
+        self.connection.commit()
+
+        print ("Test Colection successfully deleted!\n")
+
+
 class Events_Keys_Mannanger:
 
     def __init__(self): 
@@ -200,13 +277,20 @@ class Events_Keys_Mannanger:
 
         return
     
-    def remove_unique_key (self, key:str):
+    def remove_unique_key (self, key:str, test_collection:str):
 
         cur = self.connection.cursor()
 
         keys_dict_df = pd.DataFrame.from_dict(self.list_keys())
 
-        keys = keys_dict_df["EventKey"].to_list()
+        filtred_keys_dict_df = keys_dict_df[keys_dict_df["TestCollection"] == test_collection]
+
+        if filtred_keys_dict_df.empty:
+            return
+        else:
+            pass
+
+        keys = filtred_keys_dict_df["EventKey"].to_list()
 
         if not (key in keys):
             print (f"Key {key} alwready not registred!\n")
@@ -226,6 +310,62 @@ def format_timestamp(timestamp):
     dt = datetime.fromtimestamp(timestamp)
     return dt.strftime('%d//%m/%Y - %H::%M:%S')
 
+
+
+def mannange_test_collections ():
+
+    while True:
+
+        print("-[Collections Menu]-!\n")
+
+        print("Please select a option bellow:")
+        print("0 - See avaliable test collections")
+        print("1 - Gen new test collection")
+        print("2 - Remove test collection")
+        print("3 - Exit to primary menu")
+
+        inputed = input()
+
+        try: 
+            inputed = int(inputed)
+        except:
+            raise "\nThe imput needs to be int\n"
+
+        match inputed:
+
+            case 0:
+
+                test_collections_df = pd.DataFrame.from_dict(Test_Groups_Mannanger().list_tests_collections())
+
+                print("\nID    TestCollection\n")
+
+                for i in test_collections_df.index:
+                    
+                    print(f"{i:<3} - {str(test_collections_df.loc[i, 'TestCollection']):<15}")
+
+                print("\n")
+
+                continue
+
+            case 1:
+
+                inputed_test_collection = input("Insert the Test Collection Name: ")
+                Test_Groups_Mannanger().registry_new_test_collection(inputed_test_collection)
+
+                continue
+
+            case 2:
+
+                inputed_id = input("\nPlease insert the test collection id to remove:\n")
+                Test_Groups_Mannanger().delete_test_collection(int(inputed_id))
+
+                continue
+            
+            case 3:
+                break
+
+    pass
+
 def main ():
 
     print("Welcome to unique key generator!\n")
@@ -235,6 +375,7 @@ def main ():
     while True:
 
         print("Please select a option bellow:")
+        print("0 - Mannange test collections")
         print("1 - Gen a unique parity key")
         print("2 - See unique parity key")
         print("3 - Remove unique parity key")
@@ -250,24 +391,59 @@ def main ():
 
         match inputed:
 
+            case 0:
+                mannange_test_collections()
+
             case 1:
-                inputed_test_collection = input("Insert the Test Collection Name: ")
-                key = EKMannanger.gen_key(inputed_test_collection)
+
+                test_collections_df = pd.DataFrame.from_dict(Test_Groups_Mannanger().list_tests_collections())
+
+                print("Please select one of above:")
+                print("\nID    TestCollection\n")
+
+                for i in test_collections_df.index:
+                    
+                    print(f"{i:<3} - {str(test_collections_df.loc[i, 'TestCollection']):<15}")
+
+                print("\n")
+
+                inputed_test_collection_idx = input("Insert the Test Collection idx: ")
+
+                selected_test_collection = test_collections_df.loc[int(inputed_test_collection_idx), "TestCollection"]
+
+                key = EKMannanger.gen_key(selected_test_collection)
                 print(f"\nYour unique key are: {key}\n")
 
                 continue
 
             case 2:
 
-                EKMannanger.list_keys()
+                test_collections_df = pd.DataFrame.from_dict(Test_Groups_Mannanger().list_tests_collections())
 
-                keys_dict_df = pd.DataFrame.from_dict(EKMannanger.list_keys())
+                print("Please select one of above:")
+                print("\nID    TestCollection\n")
 
-                print("\nCreateAt              TestCollection               Key\n")
-
-                for i in keys_dict_df.index:
+                for i in test_collections_df.index:
                     
-                    print(f"{i:<3} - {format_timestamp(float(keys_dict_df.loc[i, 'DateTime'])):<15} - {str(keys_dict_df.loc[i, 'TestCollection'])} - {str(keys_dict_df.loc[i, 'EventKey'])}")
+                    print(f"{i:<3} - {str(test_collections_df.loc[i, 'TestCollection']):<15}")
+
+                print("\n")
+
+                inputed_test_collection_idx = input("Insert the Test Collection idx: ")
+
+                selected_test_collection = test_collections_df.loc[int(inputed_test_collection_idx), "TestCollection"]
+
+                keys_df = pd.DataFrame.from_dict(EKMannanger.list_keys())
+
+                print(f"-[{selected_test_collection}]-")
+
+                filtred_keys_df = keys_df[keys_df["TestCollection"] == selected_test_collection]
+
+                print("\nID              CreateAt        TestCollection         Key\n")
+
+                for i in filtred_keys_df.index:
+                    
+                    print(f"{i:<3} - {format_timestamp(float(filtred_keys_df.loc[i, 'DateTime'])):<15} - {str(filtred_keys_df.loc[i, 'TestCollection'])} - {str(filtred_keys_df.loc[i, 'EventKey'])}")
 
                 print("\n")
 
@@ -275,8 +451,24 @@ def main ():
 
             case 3:
 
-                inputed_key = input("\nPlease insert a key\n")
-                EKMannanger.remove_unique_key(inputed_key)
+                test_collections_df = pd.DataFrame.from_dict(Test_Groups_Mannanger().list_tests_collections())
+
+                print("Please select one of above:")
+                print("\nID    TestCollection\n")
+
+                for i in test_collections_df.index:
+                    
+                    print(f"{i:<3} - {str(test_collections_df.loc[i, 'TestCollection']):<15}")
+
+                print("\n")
+
+                inputed_test_collection_idx = input("Insert the Test Collection idx: ")
+
+                selected_test_collection = test_collections_df.loc[int(inputed_test_collection_idx), "TestCollection"]
+
+                print(f"\nTest collection: {selected_test_collection} selected!")
+                inputed_key = input("Now please insert a key\n")
+                EKMannanger.remove_unique_key(inputed_key, test_collection=selected_test_collection)
 
                 continue
 
