@@ -52,37 +52,39 @@ class ParityId: # -> ParityId to sinc
             else:
                 pass
         return True
-
 class Interface_Unique_ID_Generator:
-
     def __init__(self, length:int, registred_ids:list):
-        self.length = length        # length of BufferId
+        self.length = length
         self.registred_ids = registred_ids
+        self.ids_memory = set()  # maintain a set of currently generated and used IDs
 
-    def Update_Registred_Ids (self, registred_ids:list):
+    def Update_Registred_Ids(self, registred_ids:list):
         self.registred_ids = registred_ids
         return
 
-    def Gen (self) -> int: # Gera um id para alocação dos dados no buffer de dados
+    def Gen(self) -> int:
         GenBufferId = lambda: random.randint(0, self.length)
         while True:
             BufferId = GenBufferId()
             if (self.Validate(BufferId)):
+                self.ids_memory.add(BufferId)  # update memory cache with new ID
                 break
-            else:
-                pass
         return BufferId
 
-    def Validate (self, BufferId:int) -> bool:  # Valida o id gerado e verifica se já existe, caso exista um id novoé gerado até que seja valido
+    def Validate(self, BufferId:int) -> bool:
+        # First check the memory cache
+        if BufferId in self.ids_memory:
+            return False
+        # Then check the registered IDs
         DataList = [i[0] for i in self.registred_ids]
-        # DataList = self.dtr.list_schedule.iloc[:, ['Id']].to_list()
         for i in DataList:
-            if BufferId == i :
+            if BufferId == i:
                 return False
-            else:
-                pass
         return True
 
+    def release_id(self, BufferId:int):
+        # remove the ID from memory cache when it's no longer needed
+        self.ids_memory.remove(BufferId)
 
 class SQLiteConnectionPool:
     def __init__(self, max_connections:int, database_path:str):
@@ -143,7 +145,6 @@ class Test_Groups_Mannanger:
         
         return dict_df
 
-
     def registry_new_test_collection (self, collection_name:str):
 
         cur = self.connection.cursor()
@@ -173,19 +174,12 @@ class Test_Groups_Mannanger:
 
         cur = self.connection.cursor()
 
-        keys_dict_df = pd.DataFrame.from_dict(self.list_keys())
-
         tests_collections_df = pd.DataFrame.from_dict(self.list_tests_collections())
 
-        filtred_tests_collections_df = tests_collections_df[tests_collections_df["ID"] == collection_id]
+        test_collection_id = tests_collections_df.loc[collection_id, "ID"]
 
-        if not filtred_tests_collections_df.empty():
-            return 
-        else:
-            pass
-        
         sqlite_delet_with_param = """DELETE FROM TestCollections WHERE ID = ?"""
-        cur.execute(sqlite_delet_with_param, (collection_id, ))
+        cur.execute(sqlite_delet_with_param, (int(test_collection_id), ))
         self.connection.commit()
 
         print ("Test Colection successfully deleted!\n")
@@ -266,7 +260,6 @@ class Events_Keys_Mannanger:
             continue
         
         self.AutoId.Update_Registred_Ids(registred_ids = self.list_keys())
-
         ID = self.AutoId.Gen()
 
         ts = time.time()
@@ -309,8 +302,6 @@ class Events_Keys_Mannanger:
 def format_timestamp(timestamp):
     dt = datetime.fromtimestamp(timestamp)
     return dt.strftime('%d//%m/%Y - %H::%M:%S')
-
-
 
 def mannange_test_collections ():
 
@@ -356,7 +347,31 @@ def mannange_test_collections ():
 
             case 2:
 
+                test_collections_df = pd.DataFrame.from_dict(Test_Groups_Mannanger().list_tests_collections())
+
+                print("\nID    TestCollection\n")
+
+                for i in test_collections_df.index:
+                    
+                    print(f"{i:<3} - {str(test_collections_df.loc[i, 'TestCollection']):<15}")
+
+                print("\n")
+
                 inputed_id = input("\nPlease insert the test collection id to remove:\n")
+
+                selected_test_collection = test_collections_df.loc[i, 'TestCollection']
+
+                EKMannanger = Events_Keys_Mannanger()
+
+                keys_df = pd.DataFrame.from_dict(EKMannanger.list_keys())
+
+                print(f"-[{selected_test_collection}]-")
+
+                filtred_keys_df = keys_df[keys_df["TestCollection"] == selected_test_collection]
+
+                for i in filtred_keys_df.index:
+                    EKMannanger.remove_unique_key(filtred_keys_df.loc[i, "EventKey"], test_collection=selected_test_collection)
+
                 Test_Groups_Mannanger().delete_test_collection(int(inputed_id))
 
                 continue
