@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns
+from myscelium import MysceliumClient, ClientPatterns, CallbackCollector
 import os
 import time
 import signal
@@ -191,21 +191,7 @@ class MyClient:
 
         mys_client.set_client_uid(client_uid="some_client_id")
 
-        callbacks = [
-
-            client_patterns.callback_pattern(
-                callback=my_handlers.add_client_handler, 
-            ),
-
-            client_patterns.callback_pattern(
-                callback=my_handlers.update_client_handler, 
-            ),
-
-            client_patterns.callback_pattern(
-                callback=my_handlers.remove_client_handler, 
-            ),
-
-        ]
+        callbacks = CallbackCollector([Receivers, ]).get_callbacks()
         
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)

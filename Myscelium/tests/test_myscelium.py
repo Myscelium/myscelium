@@ -25,8 +25,23 @@ from .Logs.test_logs_mananger import Events_Mananger, System_Status
 Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
 Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
+import argparse
 
-DEBUG_LEVEL = "DEBUG"
+# # Argument parsing setup
+# parser = argparse.ArgumentParser(description="Set the debug level for the script.")
+# parser.add_argument("--debug-level", default="DEBUG", choices=["DEBUG", "INFO", "WARN"],
+#                     help="Set the debug level. Options are: DEBUG, INFO, WARN")
+
+# args = parser.parse_args()
+
+# DEBUG_LEVEL = args.debug_level
+
+
+import os
+
+DEBUG_LEVEL = os.environ.get('DEBUG_LEVEL', 'DEBUG') # Default to 'DEBUG' if not set
+
+# DEBUG_LEVEL = "DEBUG"
 # DEBUG_LEVEL = "INFO"
 # DEBUG_LEVEL = "WARN"
 
