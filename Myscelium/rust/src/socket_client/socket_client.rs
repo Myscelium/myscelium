@@ -419,8 +419,8 @@ fn handle_response(received: Response) -> Option<DownCommand> {
             return Some(down_command);
         },
 
-        CommandType::Error(e) => {
-            let down_command = DownCommand::from_command(command_received.clone());
+        CommandType::Error(_) => {
+            let _ = DownCommand::from_command(command_received.clone());
 
             enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
 

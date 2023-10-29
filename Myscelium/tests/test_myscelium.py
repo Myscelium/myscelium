@@ -18,6 +18,10 @@ from .test_redirect.client_2_module import MyClient as MyClient2ToTestRedirect
 from .test_mannangement.host_module import MyHost as MyHostToTestMannangement
 from .test_mannangement.client_1_module import MyClient as MyClient1ToTestMannangement
 
+#> Test messages
+from .test_messages.host_module import MyHost as MyHostToTestMessages
+from .test_messages.client_1_module import MyClient as MyClient1ToTestMessages
+
 #> Events mananger
 from multiprocessing import Process
 from .Logs.test_logs_mananger import Events_Mananger, System_Status
@@ -44,6 +48,8 @@ DEBUG_LEVEL = os.environ.get('DEBUG_LEVEL', 'DEBUG') # Default to 'DEBUG' if not
 # DEBUG_LEVEL = "DEBUG"
 # DEBUG_LEVEL = "INFO"
 # DEBUG_LEVEL = "WARN"
+
+THIS_DIR = os.path.dirname(__file__)
 
 from .History.history_controler import History_Mannanger
 
@@ -81,6 +87,10 @@ def test_communication():
     # The event_key 'main_event' will be used to identify this event
 
     test_start_time = time.time()
+
+    Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Mananger(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
     System_Status(path="Logs").create_unit("Client1")
     System_Status(path="Logs").create_unit("Host")
@@ -258,6 +268,10 @@ def test_redirect ():
     time.sleep(5)
 
     test_start_time = time.time()
+
+    Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Mananger(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
     System_Status(path="Logs").create_unit("Client1")
     System_Status(path="Logs").create_unit("Client2")
@@ -453,6 +467,10 @@ def test_mannangement ():
 
     test_start_time = time.time()
 
+    Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Mananger(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
+
     System_Status(path="Logs").create_unit("Client1")
     System_Status(path="Logs").create_unit("Host")
 
@@ -595,25 +613,146 @@ def test_mannangement ():
     assert update_client_callback, "Host don't receive update client!"
     assert remove_client_callback, "Host don't receive remove client!"
 
+
+#> ------------------------------------------------------------------------------------------------------------------------------------
+#> Messages Test:
+
+def host_thread_to_test_messages (event_host_received):
     
+    print("Starting host thread...")
+    host_instance = MyHostToTestMessages(DEBUG_LEVEL).run(event=event_host_received)
+    print("Host thread finished.")
 
-# def test_communication_resistance():
-#     success_count = 0
-#     total_attempts = 100
+def client_1_thread_to_test_messages (event_client_received):
 
-#     for _ in range(total_attempts):
-#         try:
-#             test_communication()
-#             success_count += 1
-#         except Exception as e:
-#             print(f"Failed on attempt {_ + 1} with error: {e}")
+    print("Waiting for host to be ready...")
+    time.sleep(5)
+    print("Starting client 1 thread...")
+    
+    client_instance = MyClient1ToTestMessages(DEBUG_LEVEL)
+    client_instance.run() 
+    
+    print("Client1 thread finished.")
 
-#     success_porcentage = (success_count/total_attempts)*100
-#     print(f"\n\nTest succeeded {success_count} out of {total_attempts} attempts. Test have {success_porcentage}% of success")
-#     assert success_count == total_attempts, "Not all attempts were successful!"
+def test_messages ():
+
+    time.sleep(5)
+
+    Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Mananger(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
+
+    test_start_time = time.time()
+
+    System_Status(path="Logs").create_unit("Client1")
+    System_Status(path="Logs").create_unit("Host")
+
+    System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+
+    if os.path.exists("Temp/Client1Data/"):
+        shutil.rmtree("Temp/Client1Data/")
+
+    if os.path.exists("Temp/Data/"):
+        shutil.rmtree("Temp/Data/")
+
+    t1 = Process(target=host_thread_to_test_messages, args=('main_event',)) # Passing event_key
+    t2 = Process(target=client_1_thread_to_test_messages, args=('main_event',)) # Passing event_key
+
+    t1.start()
+    t2.start()
+
+    t2.join()
+
+    host_events = Events_Mananger(Unit="Host", path="Logs").List_Events()
+    host_events_df = pd.DataFrame.from_dict(host_events)
+
+    client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_1_events_df = pd.DataFrame.from_dict(client_1_events)
+
+    #>----------------------------------------------------------------------------------------------------
+    #> Tests Controler
+
+    #> Host events:
+
+    # TODO >>> Continue to implement the tests to avaliate if the test inner mannangement is working!
+
+    callback_for_correct_data   = False
+    callback_for_incorrect_data = False
+
+    #> Client 1 events:
+
+    send_correct_data_for_host = False
+    send_incorrect_data_for_host = False
+
+    #>----------------------------------------------------------------------------------------------------
+
+    # -> Host Tests
+    for i in host_events_df.index:
+        event = host_events_df.loc[i, 'StepCompleted']
+
+        if "Active Basic Callback For Correct Data" in event:
+            callback_for_correct_data       = True
+
+        if "Active Basic Callback For Incorrect Data" in event:
+            callback_for_incorrect_data     = True
+
+    # -> Client 1 Tests
+    for i in client_1_events_df.index:
+        event = client_1_events_df.loc[i, 'StepCompleted']
+
+        # > Senders
+
+        if "Correct Data Sended" in event:
+            send_correct_data_for_host      = True
+
+        if "Incorrect Data Sended" in event:
+            send_incorrect_data_for_host    = True
 
 
+    unified_events = host_events_df.merge(client_1_events_df, how='outer')
 
+    tracking = {}
+    deltas = []
+
+    for i in unified_events.index:
+
+        event_type = host_events_df.loc[i, "EventType"]
+        event_key  = host_events_df.loc[i, "EventKey"]
+        event_time = host_events_df.loc[i, "Time"]
+
+        if event_type == "Send":
+            tracking[event_key] = event_time
+        
+        elif event_type == "Receive":
+        
+            if event_key in tracking:
+                start_ts = tracking[event_key]
+                deltas.append(event_time - start_ts)
+            else:
+                pass
+        
+        else:
+            pass
+    
+    test_end_time = time.time()
+    average_com_delta = (sum(deltas) / len(deltas)) 
+    test_run_time = test_end_time - test_start_time 
+
+    if (callback_for_correct_data and callback_for_incorrect_data) and (send_correct_data_for_host and send_incorrect_data_for_host):
+        History_Mannanger().store_history_point("test_mannangement", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+    else:
+        History_Mannanger().store_history_point("test_mannangement", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+
+    # -> Client 1
+
+    assert send_correct_data_for_host, "Can't send correct command to host!"
+    assert send_incorrect_data_for_host, "Can't send incorrect command to host!"
+
+    # -> Host
+
+    assert callback_for_correct_data, "Correct callback handler not trigered"
+    assert callback_for_incorrect_data, "Incorrect callback handler not trigered"
 
 if __name__ == '__main__':
     pytest.main()

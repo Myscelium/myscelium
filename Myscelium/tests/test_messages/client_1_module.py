@@ -20,13 +20,13 @@ class Senders:
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")
-        command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
+        command = client_patterns.command_pattern("python_function", args={"age": 20, "birth": 8, "name": "cristian"})
         result = mys_client.send(command, priority=10)
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Data Sended", 
+            "Correct Data Sended", 
             event_type="Send", 
-            event_key=""
+            event_key="95mO7n9g7H4N2eE9"
         )
 
         print(result)
@@ -38,17 +38,16 @@ class Senders:
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.runing = True
         mys_client.set_client_uid(client_uid="some_client_id")
-        command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
+        command = client_patterns.command_pattern("python_function", args={"age": 5, "birth": 5, "name": "potato"})
         result = mys_client.send(command, priority=10)
 
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
-            "Data Sended", 
+            "Incorrect Data Sended", 
             event_type="Send", 
-            event_key=""
+            event_key="3ATy5d761kn1Y8A9"
         )
 
         print(result)
-
 
 class Receivers:
 
@@ -61,7 +60,7 @@ class Receivers:
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test callback handler", 
             event_type="Receive", 
-            event_key=""
+            event_key="A07u4a4sad1UX172"
         )
 
         if "status" in data:
@@ -86,7 +85,7 @@ class Receivers:
         Events_Mananger(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Redirect Test callback handler", 
             event_type="Receive", 
-            event_key=""
+            event_key="J0Wr7s116bM3sT15"
         )
 
         if "status" in data:
@@ -148,22 +147,28 @@ class MyClient:
                 continue
 
         return
+    
+    def start_data_sending_routine (self):
+
+        senders = Senders()
+
+        time.sleep(5)
+        senders.send_some_data()
+        time.sleep(10)
+        senders.send_some_incorrect_data()
 
     def run(self):
 
         t1 = Process(target=self.initializer, args=())
-
-        senders = Senders()
-
-        # t2 = Process(target=senders.send_some_data, args=())
+        t2 = Process(target=self.start_data_sending_routine, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
         time.sleep(5)
-        # t2.start()
+        t2.start()
         t3.start()
 
-        # t2.join()
+        t2.join()
         t3.join()  
 
         time.sleep(5)

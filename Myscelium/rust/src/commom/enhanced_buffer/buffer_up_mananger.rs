@@ -303,14 +303,14 @@ pub fn buffer_up_schedule(command: UpCommand) {
     });
 }
 
-pub fn check_if_parity_id_is_registred(parity_id: String) -> bool {
+pub fn check_if_parity_id_is_registred(parity_id: String, client_id: String) -> bool {
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let mut ids: Vec<Result<String, _>> = Vec::new();
 
         {
-            let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend").unwrap();
+            let mut smtp = conn.prepare("SELECT * FROM ClientCommandsTosend WHERE ClientID = ?").unwrap();
             let commands_iter = smtp
-                .query_map(params![], |row| {
+                .query_map(params![client_id], |row| {
                     let id: String = row.get(2).unwrap();
                     Ok(id)
                 })

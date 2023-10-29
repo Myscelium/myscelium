@@ -204,7 +204,7 @@ fn process(py: Python, down_command: DownCommand) {
 
     logger.debug(format!("Initializing prossesing!"));
 
-    let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
+    let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone(), down_command.client_id.clone());
     let command_id: u32 = down_command.command_id.clone().unwrap();
 
     if !command_is_not_registry {
@@ -365,16 +365,16 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
 
     let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
 
-    schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
-
-    // logger.debug(format!("Schedule to process:\n{:?}\n", schedule));
-
     if !(schedule.len() > 0) {
         // logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
         thread::sleep(Duration::from_millis(100));
         return;
     }
+
+    schedule.sort_by(|a, b| b.priority.cmp(&a.priority)); // put the schedule in crescent order
+
+    // logger.debug(format!("Schedule to process:\n{:?}\n", schedule));
 
     logger.info(format!("Data found in schedule!"));
 

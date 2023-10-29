@@ -425,7 +425,6 @@ fn handle_commom_function(command: Command) -> Command {
     // > Schedule to process
 
     let json_command = serde_json::to_string(&command.command).unwrap();
-
     let down_command = DownCommand::new(command.client_id.clone(), command.parity_id.clone(), command.priority, json_command);
 
     enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command);
@@ -584,7 +583,7 @@ fn handle_connection(mut stream: TcpStream) {
 
                         logger.debug("Command is in command patterns!".to_string());
 
-                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone());
+                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone(), command.client_id.clone());
 
                         let response: Command;
 

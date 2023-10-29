@@ -210,7 +210,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     logger.info(format!("Initializing prossesing!"));
 
     // Check if the command has already been registered in the up buffer
-    let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone());
+    let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone(), down_command.client_id.clone());
     let command_id: u32 = down_command.command_id.unwrap().clone();
 
     if !command_is_not_registry {

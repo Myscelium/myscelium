@@ -18,82 +18,101 @@ class Handlers:
 
     @staticmethod   
     def python_function(age:int, birth:str, name:str):
+        
         print("Access python function")
         print(birth)
         print(name)
         print(age)
 
-        host_patterns = HostPatterns()
-        response = host_patterns.response_pattern(
-            response_mode='to_origin',
-            response_activation_function="test_handler",
-            response={"data": 'hello!'}
-        )
+        birth = int(birth)
 
-        match age:
+        print(f"age: {birth + 25}")
+        print(f"age is a type: {type(birth)}")
 
-            case 8:
-                
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(
-                    step="Active Basic Callback", 
-                    event_type="Receive", 
-                    event_key=""
-                )
+        if birth == int(8): # -> Correct response
 
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(
-                    step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
-                )
+            print("Case 8 activated")
 
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(
-                    step="Return Basic Callback Response", 
-                    event_type="Send", 
-                    event_key=""
-                )
-        
-            case 9:
-
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(
-                    step="Active Basic Callback", 
-                    event_type="Receive"
-                )
-
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(
-                    step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
-                )
-
-                Events_Mananger(Unit="Host", path="Logs").Set_Event(
-                    step="Return Basic Callback Response",
-                    event_type="Send", 
-                    event_key=""
-                )
-
-        #                                                            (callback name) - Receive Data: [Data received list for comparison]
-
-        return response
-
-    @staticmethod
-    def test_redirect_messages (client_id:str, data:int):
-        if isinstance(client_id, str):
-            print(f"Redirecting data: {data} to client: {client_id}")
-            host_patterns = HostPatterns()
-
-            response_data = {'data':data}
-
-            response = host_patterns.response_pattern(
-                response=response_data,
-                response_mode='redirect',
-                redirect_to_client_id=client_id,
-                response_activation_function="test_redirect_handler"
+            response = HostPatterns().response_pattern(
+                response_mode='to_origin',
+                response_activation_function="message_test_handler",
+                response={"data": 'hello!'},
+                message="Success"
+            )
+            
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                step="Active Basic Callback For Correct Data", 
+                event_type="Receive", 
+                event_key="95mO7n9g7H4N2eE9"
             )
 
-            print(f"Response Before send to engine: {response}")
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
+            )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Host Redirect Callback") # This doesn't have a event_key because it is on the destine
-            
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                step="Return Basic Callback Success Response", 
+                event_type="Send", 
+                event_key="A07u4a4sad1UX172"
+            )
+
             return response
-        else:
-            print("Client id isn't a string, failed to redirect data!")
-            return None
+        
+        if birth == 5: # -> Incorrect response
+
+            print("Case 5 activated")
+
+            response = HostPatterns().error_response_pattern( # For now this is only to origin
+                error_message="incorrect_birth",
+                expected_remote_error_handler='error_test_handler',
+            )
+
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                step="Active Basic Callback For Incorrect Data", 
+                event_type="Receive", 
+                event_key="3ATy5d761kn1Y8A9"
+            )
+
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
+            )
+
+            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+                step="Return Basic Callback Error Response",
+                event_type="Send", 
+                event_key="J0Wr7s116bM3sT15"
+            )
+
+            return response
+
+
+        # (callback name) - Receive Data: [Data received list for comparison]
+
+        return None
+    
+    # @staticmethod
+    # def test_redirect_messages (client_id:str, data:int):
+    #     if isinstance(client_id, str):
+    #         print(f"Redirecting data: {data} to client: {client_id}")
+    #         host_patterns = HostPatterns()
+
+    #         response_data = {'data':data}
+
+    #         response = host_patterns.response_pattern(
+    #             response=response_data,
+    #             response_mode='redirect',
+    #             redirect_to_client_id=client_id,
+    #             response_activation_function="test_redirect_handler"
+    #         )
+
+    #         print(f"Response Before send to engine: {response}")
+
+    #         Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Host Redirect Callback") # This doesn't have a event_key because it is on the destine
+            
+    #         return response
+    #     else:
+    #         print("Client id isn't a string, failed to redirect data!")
+    #         return None
 
 class MyHost:
 
@@ -150,6 +169,7 @@ class MyHost:
         callbacks = CallbackCollector([Handlers]).get_callbacks()
 
         allowed_clients = [
+            
             self.host_patterns.client_pattern(
                 client_name="TestClient1", 
                 client_type="Interface", 
@@ -158,6 +178,7 @@ class MyHost:
                 client_is_super_user=True, 
                 max_sub_channels=5
             ),
+
             self.host_patterns.client_pattern(
                 client_name="TestClient2", 
                 client_type="Interface", 
@@ -166,6 +187,7 @@ class MyHost:
                 client_is_super_user=True, 
                 max_sub_channels=5
             ),
+
         ]
 
         print(allowed_clients)
