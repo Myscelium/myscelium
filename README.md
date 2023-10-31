@@ -27,4 +27,4 @@ then:
 ## To see tests results 
 cd \Myscelium\tests\History
 then:
--> run: `streamlit run .\history_visualizer.py`
+-> run: `streamlit run .\interface.py`
