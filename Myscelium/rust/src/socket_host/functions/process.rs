@@ -125,8 +125,6 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
     let up_command = UpCommand::new(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), response);
     enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
 
-    *client_id = redirect_to.to_string(); // > Update the client id that it will send to
-
     logger.debug(format!("Converted redirect command: {:?}", converted_m));
 
     if !converted_m.contains_key("kwargs") {
@@ -143,7 +141,11 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
     to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
     to_send.insert("function".to_string(), ResultType::Str(function.to_string()));
     to_send.insert("kwargs".to_string(), m.get("kwargs").unwrap().clone());
+    to_send.insert("origin".to_string(), ResultType::Str(client_id.clone())); // -> This will be an indentifier, to know the origin of the retransmited command
+
     // to_send.insert("message".to_string(), ResultType::Str($error_msg.to_string()));
+
+    *client_id = redirect_to.to_string(); // > Update the client id that it will send to
 
     // {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
     // {"response": Map({"data": Str("hello!")}), "response_activation_function": Str("test_handler"), "response_mode": Str("to_origin")}
@@ -262,6 +264,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 to_send.insert("message".to_string(), ResultType::Str(format!("Sussefuly add a client: {}!", client_key).to_string()));
                 to_send.insert("response_activation_function".to_string(), ResultType::Str("add_client_handler".to_string()));
                 to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
+                to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a indentifier to know from where the command is
 
                 logger.info(format!("Sussefuly add a client: {}!", client_key));
 
@@ -374,6 +377,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                         resp_kwargs.insert("actual_client_key".to_string(), ResultType::Str(client_key.to_string()));
 
                         to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
+                        to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a indentifier to know from where the command is
 
                         logger.info(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key));
 
@@ -441,6 +445,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                         resp_kwargs.insert("actual_client_key".to_string(), ResultType::Str(client_key.to_string()));
 
                         to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
+                        to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a indentifier to know from where the command is
 
                         logger.info(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key));
 
@@ -461,6 +466,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
             to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
             to_send.insert("message".to_string(), ResultType::Str(format!("Response Activation Function: {} doesn't exists!!", activation_function).to_string()));
             to_send.insert("response_activation_function".to_string(), ResultType::Str("response_activation_function".to_string()));
+            to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a indentifier to know from where the command is
 
             logger.warn(format!("Response Activation Function: {} doesn't exists!!", activation_function));
 

@@ -704,6 +704,45 @@ class HostPatterns:
         - Dictionary representing the response pattern.
         """
 
+        # > The idea of this pattern is to create a response to send back to a client or to retransmit
+        
+        # -> Case 1 (Simple send to origin)
+        # >   
+        # > (Client 1)       [Host]
+        # >    |                |
+        # >    |--------------> |
+        # >    |               (|) (schedule to send response back)
+        # >    |<-------------- |
+        # >    |                |         
+        # > (Client 1)     (Client 2)   
+        # >         
+        # > (|) This is this pattern
+        # > 
+        # -> ---------------------------------------------------------------------------------------------------------------
+        # ->
+        # -> Case 2 (retransmit to)
+        # >   
+        # > (Client 1)     (Client 2)   [Host]
+        # >    |                |         |
+        # >    |--------------- | ------> |
+        # >    |                |        (|) (retransmit the command from client 1 to client 2 via retransmiters)
+        # >    |                | <------ |
+        # >    |               [|]        |
+        # >    |                | ------> |
+        # >    |                |        (|) (retransmit the response of client 2 to client 1)
+        # >    |<-------------- | ------- |
+        # >    |                |         |
+        # > (Client 1)     (Client 2)   [Host]
+        # >         
+        # > (|) This is this pattern
+        # > [|] This is a client process
+        # >
+
+        #* When retransmit is used, the response will use the redirect_to var, that is a client_id of the target 
+        #* That you want to send the command, now the response_activation_function in this case is the function that need to be
+        #* Trigered in the target, the engine will get the response and redirect to the other client by this id, if client exists.
+        #* Else this will return a error saying that client doesn't exists
+
         if response_activation_function == "" or response_activation_function == None:
             return self.error_response_pattern("Missing response_activation_function!", response_activation_function)
 
@@ -724,9 +763,12 @@ class HostPatterns:
                 "redirect_to":redirect_to_client_id
             }
 
+            # -> here the origin indentifier is added when the command is reforged 
+            # -> inside the myscelium engine to redirect to the other client so because of that doens't need the origin here
+
             return response
 
-        elif response_mode == 'to_origin':
+        elif response_mode == 'to_origin': # > this is returned directly to the client
 
             print("Response mode set to origin")
 
@@ -737,6 +779,7 @@ class HostPatterns:
                 "response_activation_function":response_activation_function,
                 "message":message, 
                 "kwargs":response,
+                "origin":"host" # -> Since this is a return from host to client does't make sense to add a marker here 
             }
 
             return response
@@ -785,10 +828,23 @@ class HostPatterns:
             "activation_function":expected_remote_error_handler,
             "message":error_message, 
             "kwargs":kwargs,
+            "origin":"host"
         }
 
-        return response
+        # -> This pattern is used to manipulate host configs remotely
+        # >   
+        # > (Client 1)       [Host]
+        # >    |                |
+        # >    |--------------> |  (receive command)
+        # >    |               (|) (do something that results in a error and return this pattern error)
+        # >    |<-------------- |  (return exception)
+        # >    |                |         
+        # > (Client 1)        [host]   
+        # >         
+        # > (|) This is this pattern
+        # > 
 
+        return response
 
     def update_host_configs (self, activation_function:str, **kwargs): # TODO >>> Need rust backend implementation!
 
@@ -831,6 +887,22 @@ class HostPatterns:
                 ```
 
         """
+
+        # -> This pattern is used to manipulate host configs remotely
+        # >   
+        # > (Client 1)       [Host]
+        # >    |                |
+        # >    |--------------> |  (receive command)
+        # >    |               (|) (update some config)
+        # >    |<-------------- |  (return confirmation or exception)
+        # >    |                |         
+        # > (Client 1)        [host]  
+        # >         
+        # > (|) This is this pattern
+        # > 
+        # > The usage of this pattern is siple, you create a enpoint, then in the return 
+        # > you create a response with this pattern and send back to the engine, remember, every response of 
+        # > the endpoints will be sended to the engine again, if you don't want to send nothin just return None
 
         if activation_function == "add_client":
 
@@ -943,6 +1015,19 @@ class HostPatterns:
             Returns:
             - Dictionary representing the callback pattern.
             """ 
+
+            # -> This is used to create a endpoint in the host that is visible to every client that has permission to see it
+            # >   
+            # > (Client 1)       [Host]
+            # >    |                |
+            # >    |-------------> (|) 
+            # >    |                | 
+            # >    |<-------------- | 
+            # >    |                |         
+            # > (Client 1)        [host]  
+            # >         
+            # > (|) This is this pattern
+            # > 
 
             sig = inspect.signature(callback)
             params = sig.parameters
@@ -1318,6 +1403,24 @@ class ClientPatterns:
         # This router will be responsible to receive a entire command, so he will decide how to process it and what activation function to call
         # Then this will be able to send a response for host redirect if something is worng redirecting the error for the client tha cause it and keep going
 
+        # > The idea of this pattern
+        # >   
+        # > (Client 1)     (Client 2)   [Host]
+        # >    |                |         |
+        # >    |--------------- | ------> |
+        # >    |                |        [|] (retransmit the command from client 1 to client 2 via retransmiters)
+        # >    |                | <------ |
+        # >    | return rd err (|)        |
+        # >    |                | ------> |
+        # >    |                |        [|] (retransmit error - This is an internal thing)
+        # >    |<-------------- | ------- |
+        # >    |                |         |
+        # > (Client 1)     (Client 2)   [Host]
+        # >         
+        # > (|) This is this pattern
+        # > [|] This is a host process
+        # >
+
         if not isinstance(error_message, str):
             print("Error message needs to be a string!")
 
@@ -1330,13 +1433,15 @@ class ClientPatterns:
 
         response = {
             "command_type":"response",
-            "response_mode":"retransmit", 
+            "response_mode":"retransmit", # > Retransmit to the origin client
             "redirect_to":redirect_to,
             "status": "error", 
             "activation_function":expected_remote_error_handler,
             "message":error_message, 
             "kwargs":kwargs,
         }
+        
+        #! Here Doesn't need to add the origin because for cases of redirect this is done inside the host engine
 
         return response
 
@@ -1367,6 +1472,21 @@ class ClientPatterns:
         Returns:
         - Dictionary representing the command pattern.
         """
+
+        # > The idea of this pattern
+        # >   
+        # > (Client 1)        [Host]
+        # >    |                |        
+        # >   (|) ------------> |
+        # >    |               [|]     
+        # >    | <------------- | 
+        # >    |                |   
+        # > (Client 1)        [Host]
+        # >   
+        # > (|) This is this pattern
+        # > [|] This is a host process
+        # >
+        # > basically creates a command to send to host, when the command arrives in host the command will execute something
  
         if args != None:
             return {"command_type":"function", "function":command_function, "kwargs":args}
@@ -1400,7 +1520,7 @@ class ClientPatterns:
             return {"command_type":"response", "response_mode":"retransmit", "kwargs":kwargs, "redirect_to":retransmit_to_client_id}
 
         elif response_mode == 'to_host':
-            
+
             return {"command_type":"response", "response_mode":"to_host", "kwargs":kwargs}
         
         else:
@@ -1420,6 +1540,21 @@ class ClientPatterns:
         Returns:
         - Dictionary representing the callback pattern.
         """
+
+        # > The idea of this pattern
+        # >   
+        # > (Client 1)         [Host]
+        # >    |                 |        
+        # >    | --------------> |
+        # >    |                [|]     
+        # >   (|) <------------- | 
+        # >    |                 |   
+        # > (Client 1)         [Host]
+        # >   
+        # > (|) This is this callback
+        # > [|] This is a host process
+        # >
+        # > Basically this creates a callable, that host can execute remotelly by redirecting some command or sending some command
 
         sig = inspect.signature(callback)
         params = sig.parameters

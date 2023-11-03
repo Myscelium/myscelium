@@ -348,6 +348,9 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
                 if *response_mode == ResultType::Str("to_host".to_string()) {
                     response = serde_json::to_string(&m).unwrap();
+                } else if *response_mode == ResultType::Str("retransmit".to_string()) {
+                    // TODO >>> Check if retransmit is necessary here
+                    response = serde_json::to_string(&m).unwrap();
                 } else {
                     enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
                     return Err(ProcessError::InvalidCallbackResponse(

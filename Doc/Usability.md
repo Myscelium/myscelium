@@ -92,6 +92,7 @@ The `HostPatterns` class provides patterns for the host.
 - `client_pattern(client_type:str, client_id:str) -> dict`: Returns a client pattern.
 - `response_pattern(response:any, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict`: Returns a response pattern.
 - `callback_pattern(callback) -> dict`: Returns a callback pattern.
+- `error_response_pattern(error_message:str, expected_remote_error_handler:str)`: Returns a error response to the client
 
 ---
 

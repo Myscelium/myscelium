@@ -37,7 +37,7 @@ class GetHostClients:
                                                         MaxSubChannels NUMBER,
                                                         OwnedSubChannelsKeys TEXT,
                                                         SubChannelsInUse NUMBER
-                                                        )''')
+        )''')
         
         self.pool.release_connection(connection)
 
@@ -697,6 +697,9 @@ class HostPatterns:
         - response_activation_function: Activation function for the response.
         - redirect_to_client_id: Client ID to redirect to (if response_mode is 'redirect').
 
+        Aditional parameters for to_origin:
+        - message: Allow to send a message to client besides the args, needs to be a string!
+
         Returns:
         - Dictionary representing the response pattern.
         """
@@ -740,7 +743,6 @@ class HostPatterns:
         
         else:
             return self.error_response_pattern("Response mode invalid! Please use one of this: ('redirect', 'to_origin')", response_activation_function)
-
 
     def error_response_pattern (self, error_message:str, expected_remote_error_handler:str):
         
@@ -1129,6 +1131,7 @@ class MysceliumClient:
             raise "Client need to be runing before try to send something"
         else:
             pass
+
         return mys.client_send(command, priority)
         
 
@@ -1290,6 +1293,54 @@ class ClientPatterns:
 
         pass
 
+    def redirect_error_pattern (self, error_message:str, expected_remote_error_handler:str, redirect_to:str):
+
+        # TODO >>> Create a test for this
+        
+        # > A possible impl is something like a data arg and in this arg will have sub kwargs in the dict that will formulate the response\
+        # > So the client response will be something like:
+
+        # "command" {
+        #     "command_type":"response",
+        #     "status": "success"
+        #     "response_activation_function":"",
+        #     "message":"", 
+        #     "kwargs":{"arg1": [], "arg2": "", "arg3": {}}
+        #     "response_mode":"",
+        # }
+
+        # so basically what we will do in this case is to send all the command or remove like the response_activation_function
+        # and keep the other things to alow the client Handler to extract the status, message, kwargs and response from the function
+        # This aay host dont need to keep trac of the client args in the handler, cause if this give a exception will be the client mistake
+        # also if we need to check the status to take some action in case of error it also will be possible, and then if receive a act_fn that doesn't 
+        # we simple can give it a exception.
+        
+        # In a more extreme case we can only require one randler named router in the client side and then if this doesn't exist dont even start client
+        # This router will be responsible to receive a entire command, so he will decide how to process it and what activation function to call
+        # Then this will be able to send a response for host redirect if something is worng redirecting the error for the client tha cause it and keep going
+
+        if not isinstance(error_message, str):
+            print("Error message needs to be a string!")
+
+        if not isinstance(expected_remote_error_handler, str):
+            print("Expected remote error handler needs to be a string!")
+
+        # {"command_type":"response", "response_mode":"retransmit", "kwargs":kwargs, "redirect_to":retransmit_to_client_id}
+
+        kwargs = []
+
+        response = {
+            "command_type":"response",
+            "response_mode":"retransmit", 
+            "redirect_to":redirect_to,
+            "status": "error", 
+            "activation_function":expected_remote_error_handler,
+            "message":error_message, 
+            "kwargs":kwargs,
+        }
+
+        return response
+
     def client_pattern (self, client_type:str, client_id:str) -> dict:
 
         """
@@ -1325,7 +1376,7 @@ class ClientPatterns:
 
         return {"command_type":"function", "function":command_function, "kwargs":""}
 
-    def response_pattern (self, kwargs:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
+    def response_pattern (self, kwargs:any, response_mode:str, retransmit_to_client_id:str=None, message:str="") -> dict:
 
         """
         Create a response pattern.
@@ -1347,11 +1398,25 @@ class ClientPatterns:
                 print ("Invalid redirect! Missing client_id to redirect!")
                 return None
 
-            return {"command_type":"response", "response_mode":"retransmit", "kwargs":kwargs, "redirect_to":retransmit_to_client_id}
+            response = {
+                "command_type":"response", 
+                "response_mode":"retransmit", 
+                "kwargs":kwargs, 
+                "message":message, 
+                "redirect_to":retransmit_to_client_id
+            }
+
+            return response
 
         elif response_mode == 'to_host':
             
-            return {"command_type":"response", "response_mode":"to_host", "kwargs":kwargs}
+            response =  {
+                "command_type":"response", 
+                "response_mode":"to_host", 
+                "kwargs":kwargs
+            }
+
+            return response
         
         else:
             print ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
@@ -1420,5 +1485,3 @@ def get_registred_commands () -> dict:
     print(f"Response to return to rust myscelium engine: {response}")
 
     return response
-
-
