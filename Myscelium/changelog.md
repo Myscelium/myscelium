@@ -18,7 +18,8 @@ Certainly! Here's how you might integrate the additional updates into the existi
    - "Updated the response command structure to include a status, message, and kwargs inside a response."
    - "Updated receivers to receive the entire command, including command type, status, response activation function, message, kwargs, and response mode"
    - "Handled the inner management responses in the receiver for both errors and confirmations"
-   - Added a response error pattern to host responses `error_response_pattern` patterns.
+   - "Added a response error pattern to host responses `error_response_pattern` patterns."
+   
 
 3. **Improvements and Fixes:**
    - "Improve tests capabilities"

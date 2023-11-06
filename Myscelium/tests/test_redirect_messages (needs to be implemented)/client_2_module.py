@@ -118,6 +118,13 @@ class Receivers:
             #     expected_remote_error_handler='error_test_handler',
             # )
 
+            response =  client_patterns.redirect_error_pattern(
+                error_message=,
+                expected_remote_error_handler=,
+                redirect_to=
+            )
+
+
             # TODO >>> Add incorrect data message to send back throught redirect
 
             Events_Mananger(Unit="Host", path="Logs").Set_Event(
