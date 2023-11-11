@@ -53,7 +53,7 @@ use crate::commom::functions::python_functions::extract_arg_types;
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
+pub fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
     let workers_num: u32 = n_workers.extract().unwrap();
 
     set_socket_client_transposer_workers_num(workers_num);
@@ -85,7 +85,7 @@ fn stop_socket_client() {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn initalize_client_buffer_tables(path: &PyString) {
+pub fn initalize_client_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
     initialize_client_logs_databse_dir(buffer_path.clone());
@@ -195,7 +195,7 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
+pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
     let mut client_id;
 
     {
@@ -278,7 +278,7 @@ fn set_client_workers_num() {}
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn set_socket_client_log_level(log_level: &PyString) {
+pub fn set_socket_client_log_level(log_level: &PyString) {
     let log_level: String = log_level.extract().unwrap();
 
     set_client_log_level(log_level);
@@ -319,7 +319,7 @@ fn set_socket_client_log_level(log_level: &PyString) {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
+pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
 
     let mut callbacks_patterns = HashMap::new();
@@ -397,7 +397,7 @@ fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<(
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: String) {
+pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: String) {
     // Create a global Mutex for demonstration
     let mutex1 = Mutex::new(0);
     let mutex2 = Mutex::new(0);
@@ -473,6 +473,6 @@ fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: St
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn set_client_uid(py: Python<'_>, client_uid: String) {
+pub fn set_client_uid(py: Python<'_>, client_uid: String) {
     scheduler::set_client_id(client_uid);
 }

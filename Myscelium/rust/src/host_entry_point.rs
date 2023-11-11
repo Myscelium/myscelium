@@ -101,7 +101,7 @@ macro_rules! process_commands {
 }
 
 #[pyfunction]
-fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
+pub fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
     let workers_num: u32 = n_workers.extract().unwrap();
 
     set_socket_host_transposer_workers_num(workers_num);
@@ -110,7 +110,7 @@ fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
 }
 
 #[pyfunction]
-fn set_socket_host_max_connections(n_max_conns: &PyInt) {
+pub fn set_socket_host_max_connections(n_max_conns: &PyInt) {
     let max_conns: u32 = n_max_conns.extract().unwrap();
 
     set_host_clients_mananger__pool_workers_num(max_conns.clone());
@@ -120,7 +120,7 @@ fn set_socket_host_max_connections(n_max_conns: &PyInt) {
 }
 
 #[pyfunction]
-fn initalize_host_buffer_tables(path: &PyString) {
+pub fn initalize_host_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
     initialize_host_logs_databse_dir(buffer_path.clone());
@@ -131,7 +131,7 @@ fn initalize_host_buffer_tables(path: &PyString) {
 }
 
 #[pyfunction]
-fn set_socket_host_log_level(log_level: &PyString) {
+pub fn set_socket_host_log_level(log_level: &PyString) {
     let log_level: String = log_level.extract().unwrap();
 
     set_host_log_level(log_level);
@@ -170,7 +170,7 @@ fn set_socket_host_log_level(log_level: &PyString) {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
+pub fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
     let mut callback_pattern = HashMap::new();
 
     process_commands!(py, commands, callback_pattern);
@@ -205,7 +205,7 @@ fn stop_socket_host() {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
+pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut command_patterns = HashMap::new();
 
     let mut callbacks_patterns = HashMap::new();
@@ -273,7 +273,7 @@ fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()>
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: String) {
+pub fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: String) {
     // Create a global Mutex for demonstration
     let mutex1 = Mutex::new(0);
     let mutex2 = Mutex::new(0);
@@ -383,7 +383,7 @@ fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject>
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
+pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
     let commands = get_available_commands_registered();
 
     // Convert the HashMap values to PyObjects
@@ -461,7 +461,7 @@ macro_rules! extract_boolean {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()> {
+pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()> {
     for client_allowed in allowed_client_list.iter() {
         let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
 
