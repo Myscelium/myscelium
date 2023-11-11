@@ -1,6 +1,6 @@
 from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector
 from multiprocessing import Process, Event, Manager
-from ..Logs.test_logs_mananger import Events_Mananger, System_Status
+from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
 import signal
 import time
@@ -10,7 +10,7 @@ import time
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
-    Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
+    Events_Manager(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
     pass
 
@@ -32,19 +32,19 @@ class Handlers:
             )
         
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+        Events_Manager(Unit="Host", path="Logs").Set_Event(
             step="Active Test Add Client", 
             event_type="Receive", 
             event_key="94G2zy6cV54GN64O"
         )
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+        Events_Manager(Unit="Host", path="Logs").Set_Event(
             step=f"New Client: [{new_client}]"
         )
 
         response = HostPatterns().update_host_configs(activation_function="add_client", new_client=new_client)
 
-        print(f"Response to send back to rust to inner mannangement: {response}")
+        print(f"Response to send back to rust to inner management: {response}")
 
         return response
     
@@ -64,13 +64,13 @@ class Handlers:
         )	
         
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+        Events_Manager(Unit="Host", path="Logs").Set_Event(
             step="Active Test Update Client", 
             event_type="Receive", 
             event_key="3p7194Y33W6BnYlA"
         )
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+        Events_Manager(Unit="Host", path="Logs").Set_Event(
             step=f"Updated Client: [{updated_client}]"
         )
         
@@ -81,13 +81,13 @@ class Handlers:
 
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+        Events_Manager(Unit="Host", path="Logs").Set_Event(
             step="Active Test Remove Client", 
             event_type="Receive", 
             event_key="30bt28u819A1QDpH"
         )
 
-        Events_Mananger(Unit="Host", path="Logs").Set_Event(
+        Events_Manager(Unit="Host", path="Logs").Set_Event(
             step=f"Client Client: [{client_key}]"
         )
 
@@ -105,9 +105,9 @@ class MyHost:
     #     print("Access heartbeat handler")
     #     print(f"Client: {client_id}, made contact")
 
-    #     Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
+    #     Events_Manager(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
 
-    #     # TODO >>> Save event in the test databse log
+    #     # TODO >>> Save event in the test database log
 
     def monitor_stop_event(self):
 
@@ -120,8 +120,8 @@ class MyHost:
         COUNTER = 12 # Each counter is 5 secs of waiting
 
         mys_host_interface = MysceliumHostInterface("Temp/Data/")
-        mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
-        mys_host_interface.start_client_events_retriver()
+        mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
+        mys_host_interface.start_client_events_retriever()
 
         while True:
 
@@ -130,7 +130,7 @@ class MyHost:
             if (not client_status) or (n >= COUNTER):
                 
                 print("Receive stop host")
-                mys_host_interface.stop_client_events_retriver()
+                mys_host_interface.stop_client_events_retriever()
                 
                 System_Status(path="Logs").change_unit_status(
                     Unit="Host", 

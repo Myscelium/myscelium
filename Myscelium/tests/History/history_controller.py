@@ -1,6 +1,6 @@
 # Controls the tests history logs
 
-# TODO >>> Make a history controler in a db to mark the history of the tests 
+# TODO >>> Make a history controller in a db to mark the history of the tests 
 
 import sqlite3
 import random
@@ -14,22 +14,22 @@ import datetime
 
 class Interface_Unique_ID_Generator:
 
-    # There is a big mistake here, when we are deling with IDs we need to consider multithreading, so ids need to be stored in a global since 
-    # the first sinc with the ids registred in the database, this because we need to ensure that we don't have two identiacal ids at once
+    # There is a big mistake here, when we are dealing with IDs we need to consider multithreading, so ids need to be stored in a global since 
+    # the first sync with the ids registered in the database, this because we need to ensure that we don't have two identical ids at once
     # what could cause an error in the database, and to don't have the possibility to do this basically we need to have a global list with the 
-    # ids sincronized with the ids in the db, and to earchive this the ideal is to have a list that sinc with the db and then every new id
-    # generated can be added to this list, in a way that each new input will have to check the registred ids in a ordenated way, without two 
+    # ids synchronized with the ids in the db, and to archive this the ideal is to have a list that sync with the db and then every new id
+    # generated can be added to this list, in a way that each new input will have to check the registered ids in a ordered way, without two 
     # being able to do this at once.
 
-    def __init__(self, length:int, registred_ids:list):
+    def __init__(self, length:int, registered_ids:list):
         self.length = length        # length of BufferId
-        self.registred_ids = registred_ids
+        self.registered_ids = registered_ids
 
-    def Update_Registred_Ids (self, registred_ids:list):
-        self.registred_ids = registred_ids
+    def Update_registered_ids (self, registered_ids:list):
+        self.registered_ids = registered_ids
         return
 
-    def Gen (self) -> int: # Gera um id para alocação dos dados no buffer de dados
+    def Gen (self) -> int: # Gen a id to allocate data in the buffer.
         GenBufferId = lambda: random.randint(0, self.length)
         while True:
             BufferId = GenBufferId()
@@ -39,8 +39,7 @@ class Interface_Unique_ID_Generator:
                 pass
         return BufferId
 
-    def Validate (self, BufferId:int) -> bool:  # Valida o id gerado e verifica se já existe, caso exista um id novoé gerado até que seja valido
-        DataList = [i[0] for i in self.registred_ids]
+    def Validate (self, BufferId:int) -> bool:  # Validate the id generated and see if it already exists, if so gen other id. 
         # DataList = self.dtr.list_schedule.iloc[:, ['Id']].to_list()
         for i in DataList:
             if BufferId == i :
@@ -86,7 +85,7 @@ else:
 DATABASE = os.path.join(DATABASE_PATH, "History.db")
 
 
-class History_Mannanger:
+class History_Manager:
 
     # > Date Time |        Test          | Communication speed | Test Speed | Test Status   
     #   102392039 |  test communication  |         1s          |     65s    |   PASSED
@@ -97,7 +96,7 @@ class History_Mannanger:
         pool = SQLiteConnectionPool(3, DATABASE)
         self.connection = pool.get_connection()
 
-        self.AutoId = Interface_Unique_ID_Generator(length=9999999999, registred_ids=[])
+        self.AutoId = Interface_Unique_ID_Generator(length=9999999999, registered_ids=[])
 
         cur = self.connection.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS History (ID INT PRIMARY KEY, Time NUMBER, TestName TEXT, CommunicationSpeed NUMBER, TestSpeed NUMBER, TestStatus TEXT, LogLevel TEXT)''')
@@ -137,7 +136,7 @@ class History_Mannanger:
 
         cur = self.connection.cursor()
         
-        self.AutoId.Update_Registred_Ids(registred_ids = self.list_history())
+        self.AutoId.Update_registered_ids(registered_ids = self.list_history())
 
         if not isinstance(test_name, str):
             raise "test_name needs to be a string with the test name!"
@@ -157,8 +156,8 @@ class History_Mannanger:
         if not isinstance(log_level, str):
             raise "log_level needs to be a str!"
         
-        if not (log_level in ['EXEPTION', 'WARN', 'INFO', 'DEBUG']):
-            raise "test_status needs to be a str like: 'EXEPTION', 'WARN', 'INFO' or 'DEBUG'!"
+        if not (log_level in ['EXCEPTION', 'WARN', 'INFO', 'DEBUG']):
+            raise "test_status needs to be a str like: 'EXCEPTION', 'WARN', 'INFO' or 'DEBUG'!"
 
         ID = self.AutoId.Gen() 
         ts = datetime.datetime.now()
@@ -178,7 +177,7 @@ class History_Mannanger:
     #     keys = keys_dict_df["EventKey"].to_list()
 
     #     if not (key in keys):
-    #         print (f"Key {key} alwready not registred!\n")
+    #         print (f"Key {key} already not registered!\n")
 
     #         return
         

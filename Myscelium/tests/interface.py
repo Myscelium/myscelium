@@ -3,7 +3,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 import datetime
-from History.history_controler import History_Mannanger
+from History.history_controller import History_Manager
 
 import pytest
 import xml.etree.ElementTree as ET
@@ -12,7 +12,7 @@ import os
 # Set the page config to use the full width
 st.set_page_config(layout='wide')
 
-pd_dict_df = History_Mannanger().list_history()
+pd_dict_df = History_Manager().list_history()
 df = pd.DataFrame.from_dict(pd_dict_df)
 
 # Convert 'Time' to datetime if it's not
@@ -30,7 +30,7 @@ def test_fn():
 
 if option == 'Test Results Visualization':
 
-    pd_dict_df = History_Mannanger().list_history()
+    pd_dict_df = History_Manager().list_history()
     df = pd.DataFrame.from_dict(pd_dict_df)
 
     # Convert 'Time' to datetime if it's not

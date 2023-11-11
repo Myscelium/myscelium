@@ -1,6 +1,6 @@
 from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector
 from multiprocessing import Process, Event, Manager
-from ..Logs.test_logs_mananger import Events_Mananger, System_Status
+from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
 import signal
 import time
@@ -10,7 +10,7 @@ import time
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
-    Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
+    Events_Manager(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
     pass
 
@@ -40,17 +40,17 @@ class Handlers:
                 message="Success"
             )
             
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step="Active Basic Callback For Correct Data", 
                 event_type="Receive", 
                 event_key="95mO7n9g7H4N2eE9"
             )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
             )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step="Return Basic Callback Success Response", 
                 event_type="Send", 
                 event_key="A07u4a4sad1UX172"
@@ -67,17 +67,17 @@ class Handlers:
                 expected_remote_error_handler='error_test_handler',
             )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step="Active Basic Callback For Incorrect Data", 
                 event_type="Receive", 
                 event_key="3ATy5d761kn1Y8A9"
             )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
             )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step="Return Basic Callback Error Response",
                 event_type="Send", 
                 event_key="J0Wr7s116bM3sT15"
@@ -107,7 +107,7 @@ class Handlers:
 
     #         print(f"Response Before send to engine: {response}")
 
-    #         Events_Mananger(Unit="Host", path="Logs").Set_Event(step="Active Host Redirect Callback") # This doesn't have a event_key because it is on the destine
+    #         Events_Manager(Unit="Host", path="Logs").Set_Event(step="Active Host Redirect Callback") # This doesn't have a event_key because it is on the destine
             
     #         return response
     #     else:
@@ -132,9 +132,9 @@ class MyHost:
         
         mys_host_interface = MysceliumHostInterface("Temp/Data/")
 
-        mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
+        mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
 
-        mys_host_interface.start_client_events_retriver()
+        mys_host_interface.start_client_events_retriever()
 
         time.sleep(30)
 
@@ -146,14 +146,14 @@ class MyHost:
             if (not client_1_status):
                 print("Receive stop host from client 1")
                 System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
-                mys_host_interface.stop_client_events_retriver()
+                mys_host_interface.stop_client_events_retriever()
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
             
             elif (not client_2_status):
                 print("Receive stop host from client 2")
                 System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
-                mys_host_interface.stop_client_events_retriver()
+                mys_host_interface.stop_client_events_retriever()
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
 
@@ -192,7 +192,7 @@ class MyHost:
 
         print(allowed_clients)
 
-        # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
+        # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channels:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(
             callbacks=callbacks, 
@@ -205,7 +205,7 @@ class MyHost:
 
         self.mys_host = mys_host
 
-        # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTecnologie})
+        # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTechnologies})
 
         System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 

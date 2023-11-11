@@ -1,7 +1,7 @@
 from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
-from . import host_logs_retriver
-from . import host_client_events_retriver
-from . import client_logs_retriver
+from . import host_logs_retriever
+from . import host_client_events_retriever
+from . import client_logs_retriever
 
 from multiprocessing import Process
 import pandas as pd
@@ -173,7 +173,7 @@ def split_dataframe(df, num_chunks):
 def transpose(logs_df, buffer_path, log_callback):
     pool = sql_pool.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
     connection = pool.get_connection()
-    logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
+    logs_retriever_access = host_logs_retriever.Logs_Buffer_retriever(connection)
 
     for i in logs_df.index:
         try:
@@ -198,7 +198,7 @@ def check_if_all_logs_was_transposed(pool):
 
     connection = pool.get_connection()
     
-    logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
+    logs_retriever_access = host_logs_retriever.Logs_Buffer_retriever(connection)
     logs_dict_df = logs_retriever_access.List_Logs()
     
     pool.release_connection(connection)
@@ -218,11 +218,11 @@ class MysceliumHostInterface:
         - buffer_path: Path to the buffer for logs retrieval.
         """
 
-        self.client_events_retriver_stats = False
+        self.client_events_retriever_stats = False
 
         self.buffer_path = buffer_path
 
-        self.clients_contact_retriver_callback = ""
+        self.clients_contact_retriever_callback = ""
     
         self.log_callback = ""
 
@@ -245,7 +245,7 @@ class MysceliumHostInterface:
 
         connection = pool.get_connection()
         
-        logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = host_logs_retriever.Logs_Buffer_retriever(connection)
 
         while True:
 
@@ -319,21 +319,21 @@ class MysceliumHostInterface:
 
             time.sleep(2)
 
-            if not self.client_events_retriver_stats:
+            if not self.client_events_retriever_stats:
                 break
             else:
                 pass
 
             connection = pool.get_connection()
 
-            client_events_retriver = host_client_events_retriver.Clients_Retriver(connection)
+            client_events_retriever = host_client_events_retriever.Clients_retriever(connection)
 
-            clients_df = client_events_retriver.get_clients()
+            clients_df = client_events_retriever.get_clients()
             clients_pd_df = pd.DataFrame.from_dict(clients_df)
 
             if clients_pd_df.empty:
                 
-                print("[Event Retriver] - No clients to transpose contact, next checking in 10s")
+                print("[Event retriever] - No clients to transpose contact, next checking in 10s")
 
                 pool.release_connection(connection)
             
@@ -357,7 +357,7 @@ class MysceliumHostInterface:
 
                 if (n[6] != '' and actual_to_compare[6] != '') and (n[6] < actual_to_compare[6]):
 
-                    if not isinstance(self.clients_contact_retriver_callback, str):
+                    if not isinstance(self.clients_contact_retriever_callback, str):
                         pass
                     else:
 
@@ -367,7 +367,7 @@ class MysceliumHostInterface:
 
                         continue
 
-                    self.clients_contact_retriver_callback(actual_to_compare[1], actual_to_compare[2], actual_to_compare[6])
+                    self.clients_contact_retriever_callback(actual_to_compare[1], actual_to_compare[2], actual_to_compare[6])
                 
                 else:
                     pass                
@@ -394,7 +394,7 @@ class MysceliumHostInterface:
 
         return
 
-    def set_client_contact_retriver_callback (self, callback:str):
+    def set_client_contact_retriever_callback (self, callback:str):
 
         """
         Set the callback function for client contacts transposition.
@@ -403,7 +403,7 @@ class MysceliumHostInterface:
         - callback: Callback function to be invoked for each client contact.
         """
 
-        self.clients_contact_retriver_callback = callback
+        self.clients_contact_retriever_callback = callback
 
         pass
 
@@ -420,29 +420,29 @@ class MysceliumHostInterface:
 
         pass
 
-    def start_client_events_retriver (self):
+    def start_client_events_retriever (self):
 
         """
         Start the clients event retriever process.
         """
 
-        self.client_events_retriver_stats = True
+        self.client_events_retriever_stats = True
 
-        self.client_events_retriver_process = Process(target=self.watch_client_contact, args=())
-        self.client_events_retriver_process.start()
+        self.client_events_retriever_process = Process(target=self.watch_client_contact, args=())
+        self.client_events_retriever_process.start()
 
         return 
 
-    def stop_client_events_retriver (self):
+    def stop_client_events_retriever (self):
 
         """
         Stop the clients event retriever process.
         """
 
-        self.client_events_retriver_stats = False
+        self.client_events_retriever_stats = False
 
-        self.client_events_retriver_process.kill()
-        self.client_events_retriver_process.join()
+        self.client_events_retriever_process.kill()
+        self.client_events_retriever_process.join()
 
         return
 
@@ -458,7 +458,7 @@ class MysceliumHostInterface:
         
         return
 
-    def start_logs_retriver (self):
+    def start_logs_retriever (self):
 
         """
         Start the logs retriever process in a separate process.
@@ -614,7 +614,7 @@ class MysceliumHost:
         """
         if hasattr(self, 'host_interface'):
             if self.logging_level != "":
-                self.host_interface.start_logs_retriver()
+                self.host_interface.start_logs_retriever()
             else:
                 pass
         else:
@@ -1253,7 +1253,7 @@ class MysceliumClientInterface:
 
         connection = pool.get_connection()
         
-        logs_retriever_access = client_logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = client_logs_retriever.Logs_Buffer_retriever(connection)
 
         while True:
 
@@ -1354,7 +1354,7 @@ class MysceliumClientInterface:
         
         return
 
-    def start_logs_retriver (self):
+    def start_logs_retriever (self):
 
         """
         Start the logs retriever process in a separate process.

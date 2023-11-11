@@ -6,7 +6,7 @@ import signal
 client_patterns = ClientPatterns()
 
 from multiprocessing import Process, Event, Manager
-from ..Logs.test_logs_mananger import Events_Mananger, System_Status
+from ..Logs.test_logs_manager import Events_Manager, System_Status
 
 class Senders:
 
@@ -15,15 +15,15 @@ class Senders:
 
         time.sleep(10)
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
-        mys_client.runing = True
+        mys_client.running = True
         mys_client.set_client_uid(client_uid="some_client_id")
 
         command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
 
         result = mys_client.send(command, priority=10)
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1")
+        EVManager = Events_Manager(Unit="Client1", path="Logs")
+        EVManager.Set_Event("Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1")
 
         print(result)
 
@@ -32,8 +32,8 @@ class Receivers:
     @staticmethod
     def test_handler(data:dict):
 
-        EVMananger = Events_Mananger(Unit="Client1", path="Logs")
-        EVMananger.Set_Event("Activate Basic Response Test callback handler", event_type="Receive", event_key="74L648VZDI7J1GV5")
+        EVManager = Events_Manager(Unit="Client1", path="Logs")
+        EVManager.Set_Event("Activate Basic Response Test callback handler", event_type="Receive", event_key="74L648VZDI7J1GV5")
 
         if "status" in data:
             pass

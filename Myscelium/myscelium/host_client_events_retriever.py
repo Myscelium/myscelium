@@ -3,7 +3,7 @@ import pandas as pd
 import time
 from . import sql_pool 
 
-class Clients_Retriver:
+class Clients_Retriever:
 
     def __init__(self, connection):
     

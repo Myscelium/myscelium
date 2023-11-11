@@ -26,7 +26,7 @@ class MyClient:
 
         time.sleep(20)
         mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Client2Data/")
-        mys_client.runing = True
+        mys_client.running = True
         mys_client.set_client_uid(client_uid="randomsclientids")
         command = client_patterns.command_pattern("test_redirect", args={"client_id": "some_client_id", "data": 8})
         result = mys_client.send(command, priority=10)
