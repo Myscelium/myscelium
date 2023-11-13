@@ -326,7 +326,7 @@ class MysceliumHostInterface:
 
             connection = pool.get_connection()
 
-            client_events_retriever = host_client_events_retriever.Clients_retriever(connection)
+            client_events_retriever = host_client_events_retriever.Clients_Retriever(connection)
 
             clients_df = client_events_retriever.get_clients()
             clients_pd_df = pd.DataFrame.from_dict(clients_df)
@@ -447,7 +447,7 @@ class MysceliumHostInterface:
         return
 
 
-    def stop_logs_reriver (self):
+    def stop_logs_retriever (self):
 
         """
         Stop the logs retriever process.
@@ -466,7 +466,7 @@ class MysceliumHostInterface:
 
         self.stats = True
 
-        self.process = Process(target=self.retrive_logs, args=())
+        self.process = Process(target=self.retrieve_logs, args=())
         self.process.start()
 
         return
@@ -490,7 +490,7 @@ class MysceliumHost:
         - log_level: Logging level.
 
         Obs:
-        - If you don't se loggin level it will be deactivated by default!
+        - If you don't se logging level it will be deactivated by default!
 
         """ 
 
@@ -505,7 +505,7 @@ class MysceliumHost:
             self.buffer_path = buffer_path
 
             special_functions = [{
-                "function": get_registred_commands,
+                "function": get_registered_commands,
                 "response_type":"same_as_origin",
                 "args": "None",
             }, ]
@@ -520,7 +520,7 @@ class MysceliumHost:
             else:
                 pass
 
-            mys.initalize_host_buffer_tables(buffer_path)
+            mys.initialize_host_buffer_tables(buffer_path)
 
             mys.set_socket_host_log_level(log_level)
 
@@ -574,7 +574,7 @@ class MysceliumHost:
         self.host_interface = MysceliumHostInterface(self.buffer_path)
 
         if self.logging_level == "":
-            raise "To use logging you need to set a loggin level, the current logging status is deactivated!"
+            raise "To use logging you need to set a logging level, the current logging status is deactivated!"
         else:
             pass
 
@@ -587,10 +587,10 @@ class MysceliumHost:
         
         return
     
-    # def set_client_heartbeat_handler (self, callback): #! THIS WILL NOT WORK UNTILL PYTHON POOL IS FINISHED
+    # def set_client_heartbeat_handler (self, callback): #! THIS WILL NOT WORK UNTIL PYTHON POOL IS FINISHED
     #     mys.registry_socket_host_client_heartbeat_contact_callback(callback)
     
-    def get_registred_commands (self) -> dict:
+    def get_registered_commands (self) -> dict:
 
         """
         Retrieve the registered commands.
@@ -599,14 +599,14 @@ class MysceliumHost:
         - Dictionary of registered commands.
         """
 
-        print("Activated the get registred commands")
+        print("Activated the get registered commands")
 
         return mys.get_socket_host_available_commands()
 
     def initialize_host (self, ip:str, port:int):
 
         """
-        Initialize the host with the given IP and port.FResponse patterj 
+        Initialize the host with the given IP and port.FResponse pattern 
 
         Parameters:
         - ip: IP address for the host.
@@ -640,7 +640,7 @@ class MysceliumHost:
 
         if hasattr(self, 'host_interface'):
             if self.logging_level != "":
-                self.host_interface.stop_logs_reriver()
+                self.host_interface.stop_logs_retriever()
             else:
                 pass
         else:
@@ -677,8 +677,8 @@ class HostPatterns:
         - client_type: Client purpose.
         - client_permission_group: Group that client inherit permission.
         - client_is_super_user: If client has root privileges on myscelium.
-        - client_max_sub_channes: Max subchannels of strem that client are allowed to create and gerenciate.
-        - client_owned_sub_channels_keys: Optional parameter to pre inicializate host with client subchanels keys allowed.
+        - client_max_sub_channels: Max sub-channels of stream that client are allowed to create and manage.
+        - client_owned_sub_channels_keys: Optional parameter to pre initialize host with client sub-channels keys allowed.
 
         Returns:
         - Dictionary representing the client pattern.
@@ -697,7 +697,7 @@ class HostPatterns:
         - response_activation_function: Activation function for the response.
         - redirect_to_client_id: Client ID to redirect to (if response_mode is 'redirect').
 
-        Aditional parameters for to_origin:
+        Additional parameters for to_origin:
         - message: Allow to send a message to client besides the args, needs to be a string!
 
         Returns:
@@ -740,7 +740,7 @@ class HostPatterns:
 
         #* When retransmit is used, the response will use the redirect_to var, that is a client_id of the target 
         #* That you want to send the command, now the response_activation_function in this case is the function that need to be
-        #* Trigered in the target, the engine will get the response and redirect to the other client by this id, if client exists.
+        #* Triggered in the target, the engine will get the response and redirect to the other client by this id, if client exists.
         #* Else this will return a error saying that client doesn't exists
 
         if response_activation_function == "" or response_activation_function == None:
@@ -763,8 +763,8 @@ class HostPatterns:
                 "redirect_to":redirect_to_client_id
             }
 
-            # -> here the origin indentifier is added when the command is reforged 
-            # -> inside the myscelium engine to redirect to the other client so because of that doens't need the origin here
+            # -> here the origin identifier is added when the command is reforged 
+            # -> inside the myscelium engine to redirect to the other client so because of that doesn't need the origin here
 
             return response
 
@@ -805,13 +805,13 @@ class HostPatterns:
 
         # so basically what we will do in this case is to send all the command or remove like the response_activation_function
         # and keep the other things to alow the client Handler to extract the status, message, kwargs and response from the function
-        # This aay host dont need to keep trac of the client args in the handler, cause if this give a exception will be the client mistake
+        # This aay host dont need to keep track of the client args in the handler, cause if this give a exception will be the client mistake
         # also if we need to check the status to take some action in case of error it also will be possible, and then if receive a act_fn that doesn't 
         # we simple can give it a exception.
         
-        # In a more extreme case we can only require one randler named router in the client side and then if this doesn't exist dont even start client
+        # In a more extreme case we can only require one handler named router in the client side and then if this doesn't exist dont even start client
         # This router will be responsible to receive a entire command, so he will decide how to process it and what activation function to call
-        # Then this will be able to send a response for host redirect if something is worng redirecting the error for the client tha cause it and keep going
+        # Then this will be able to send a response for host redirect if something is wrong redirecting the error for the client tha cause it and keep going
 
         if not isinstance(error_message, str):
             print("Error message needs to be a string!")
@@ -900,9 +900,9 @@ class HostPatterns:
         # >         
         # > (|) This is this pattern
         # > 
-        # > The usage of this pattern is siple, you create a enpoint, then in the return 
+        # > The usage of this pattern is siple, you create a endpoint, then in the return 
         # > you create a response with this pattern and send back to the engine, remember, every response of 
-        # > the endpoints will be sended to the engine again, if you don't want to send nothin just return None
+        # > the endpoints will be sended to the engine again, if you don't want to send nothing just return None
 
         if activation_function == "add_client":
 
@@ -922,7 +922,7 @@ class HostPatterns:
             kwargs = {'new_client':new_client}
 
             response = {
-                "response_mode":"internal_mannangement", 
+                "response_mode":"internal_management", 
                 "status": "success", 
                 "activation_function":"add_client",
                 "message":"", 
@@ -963,7 +963,7 @@ class HostPatterns:
             kwargs = {'actual_client_key':actual_client_key, 'updated_client':updated_client}
 
             response = {
-                "response_mode":"internal_mannangement", 
+                "response_mode":"internal_management", 
                 "status": "success", 
                 "activation_function":"update_client",
                 "message":"", 
@@ -989,7 +989,7 @@ class HostPatterns:
             kwargs = {'client_key':client_key}
 
             response = {
-                "response_mode":"internal_mannangement", 
+                "response_mode":"internal_management", 
                 "status": "success", 
                 "activation_function":"remove_client",
                 "message":"", 
@@ -999,7 +999,7 @@ class HostPatterns:
             return response
 
         else:
-            return self.error_response_pattern(f"activation_function: {activation_function} doesn't registred in the avalaible host internal mannangement commands!", "remove_client_handler")
+            return self.error_response_pattern(f"activation_function: {activation_function} doesn't registered in the available host internal management commands!", "remove_client_handler")
 
 
     def callback_pattern (self, callback) -> dict:
@@ -1010,7 +1010,7 @@ class HostPatterns:
             Parameters:
             - callback: The callback function.
             
-            args and kwargs: Whill be auto infered by the wrapper, just add the anotations to your functions.
+            args and kwargs: Will be auto inferred by the wrapper, just add the types to your functions.
 
             Returns:
             - Dictionary representing the callback pattern.
@@ -1037,7 +1037,7 @@ class HostPatterns:
             for name, param in params.items():
 
                 if param.annotation is inspect._empty:
-                    print(f"function: {callback.__name__} has args or kwargs without the required anotations!")
+                    print(f"function: {callback.__name__} has args or kwargs without the required types!")
                     return 
                 else:
                     pass
@@ -1076,8 +1076,8 @@ class MysceliumClient:
 
         if not hasattr(self, 'initialized'):
             self.client_uid = client_uid
-            self.runing = False
-            mys.initalize_client_buffer_tables(buffer_path)
+            self.running = False
+            mys.initialize_client_buffer_tables(buffer_path)
 
             time.sleep(5)
 
@@ -1147,7 +1147,7 @@ class MysceliumClient:
         """
 
         special_functions = [{
-            "function": get_registred_commands,
+            "function": get_registered_commands,
             "response_type":"same_as_origin",
             "args": "None",
         }, ]
@@ -1158,7 +1158,7 @@ class MysceliumClient:
 
         return 
 
-    def get_registred_commands (self) -> dict:
+    def get_registered_commands (self) -> dict:
 
         """
         Retrieve the registered commands for the client.
@@ -1167,7 +1167,7 @@ class MysceliumClient:
         - Dictionary of registered commands.
         """
 
-        print("Activated the get registred commands")
+        print("Activated the get registered commands")
 
         return mys.get_socket_client_available_commands()
 
@@ -1181,7 +1181,7 @@ class MysceliumClient:
         - port: Port number for the client connect in host.
         """
 
-        self.runing = True
+        self.running = True
         mys.initialize_socket_client (ip, port, self.client_uid)
 
     def stop_client (self, signal, frame):
@@ -1210,10 +1210,10 @@ class MysceliumClient:
         - Response from the send operation.
         """
 
-        print(self.runing)
+        print(self.running)
 
-        if not self.runing:
-            raise "Client need to be runing before try to send something"
+        if not self.running:
+            raise "Client need to be running before try to send something"
         else:
             pass
         return mys.client_send(command, priority)
@@ -1242,7 +1242,7 @@ class MysceliumClientInterface:
 
         return
 
-    def retrive_logs (self):
+    def retrieve_logs (self):
 
         """
         Retrieve logs and process them. If multiple threads are set, it will split the logs 
@@ -1343,7 +1343,7 @@ class MysceliumClientInterface:
 
         pass
 
-    def stop_logs_reriver (self):
+    def stop_logs_retriever (self):
 
         """
         Stop the logs retriever process.
@@ -1362,7 +1362,7 @@ class MysceliumClientInterface:
 
         self.stats = True
 
-        self.process = Process(target=self.retrive_logs, args=())
+        self.process = Process(target=self.retrieve_logs, args=())
         self.process.start()
 
         return
@@ -1395,13 +1395,13 @@ class ClientPatterns:
 
         # so basically what we will do in this case is to send all the command or remove like the response_activation_function
         # and keep the other things to alow the client Handler to extract the status, message, kwargs and response from the function
-        # This aay host dont need to keep trac of the client args in the handler, cause if this give a exception will be the client mistake
+        # This aay host dont need to keep track of the client args in the handler, cause if this give a exception will be the client mistake
         # also if we need to check the status to take some action in case of error it also will be possible, and then if receive a act_fn that doesn't 
         # we simple can give it a exception.
         
-        # In a more extreme case we can only require one randler named router in the client side and then if this doesn't exist dont even start client
+        # In a more extreme case we can only require one handler named router in the client side and then if this doesn't exist dont even start client
         # This router will be responsible to receive a entire command, so he will decide how to process it and what activation function to call
-        # Then this will be able to send a response for host redirect if something is worng redirecting the error for the client tha cause it and keep going
+        # Then this will be able to send a response for host redirect if something is wrong redirecting the error for the client tha cause it and keep going
 
         # > The idea of this pattern
         # >   
@@ -1535,7 +1535,7 @@ class ClientPatterns:
         Parameters:
         - callback: The callback function.
         
-        args and kwargs: Whill be auto infered by the wrapper, just add the anotations to your functions.
+        args and kwargs: Will be auto inferred by the wrapper, just add the notes to your functions.
 
         Returns:
         - Dictionary representing the callback pattern.
@@ -1554,7 +1554,7 @@ class ClientPatterns:
         # > (|) This is this callback
         # > [|] This is a host process
         # >
-        # > Basically this creates a callable, that host can execute remotelly by redirecting some command or sending some command
+        # > Basically this creates a callable, that host can execute remotely by redirecting some command or sending some command
 
         sig = inspect.signature(callback)
         params = sig.parameters
@@ -1565,7 +1565,7 @@ class ClientPatterns:
 
             if param.annotation is inspect._empty:
                 function_name = callback.__name__
-                raise f"function: {function_name} has args or kwargs without the required anotations!"    
+                raise f"function: {function_name} has args or kwargs without the required notes!"    
             else:
                 pass
 
@@ -1586,7 +1586,7 @@ class ClientPatterns:
 
 host_patterns = HostPatterns()
 
-def get_registred_commands () -> dict:
+def get_registered_commands () -> dict:
 
     """
     Retrieve the registered commands and format the response.
@@ -1595,12 +1595,12 @@ def get_registred_commands () -> dict:
     - Dictionary representing the response to be returned to the engine.
     """
 
-    print("Activated the get registred commands")
+    print("Activated the get registered commands")
     response = mys.get_socket_host_available_commands()
 
-    print(f"\nAvaliable commands:\n{response}\n")
+    print(f"\nAvailable commands:\n{response}\n")
 
-    response = host_patterns.response_pattern(response=response, response_activation_function='update_avaliable_host_commands',  response_mode='to_origin')
+    response = host_patterns.response_pattern(response=response, response_activation_function='update_available_host_commands',  response_mode='to_origin')
 
     print(f"Response to return to rust myscelium engine: {response}")
 

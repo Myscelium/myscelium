@@ -276,7 +276,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     println!("Resolved Activation Key are: {:?}", activation_key);
 
     // Special handling for "update available host commands" command
-    if activation_key == &"update_avaliable_host_commands".to_string() {
+    if activation_key == &"update_available_host_commands".to_string() {
         logger.info(format!("Receive Host Allowed Commands"));
 
         if let Some(Value::Object(response_obj)) = translated_command.command.get("kwargs") {

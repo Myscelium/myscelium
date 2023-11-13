@@ -1,7 +1,7 @@
 from . import myscelium_engine as mys # Maybe change the rust myscelium lib to MysceliumEngine
-from . import host_logs_retriver
-from . import host_client_events_retriver
-from . import client_logs_retriver
+from . import host_logs_retriever
+from . import host_client_events_retriever
+from . import client_logs_retriever
 
 from multiprocessing import Process
 import pandas as pd
@@ -173,7 +173,7 @@ def split_dataframe(df, num_chunks):
 def transpose(logs_df, buffer_path, log_callback):
     pool = sql_pool.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
     connection = pool.get_connection()
-    logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
+    logs_retriever_access = host_logs_retriever.Logs_Buffer_retriever(connection)
 
     for i in logs_df.index:
         try:
@@ -198,7 +198,7 @@ def check_if_all_logs_was_transposed(pool):
 
     connection = pool.get_connection()
     
-    logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
+    logs_retriever_access = host_logs_retriever.Logs_Buffer_retriever(connection)
     logs_dict_df = logs_retriever_access.List_Logs()
     
     pool.release_connection(connection)
@@ -218,11 +218,11 @@ class MysceliumHostInterface:
         - buffer_path: Path to the buffer for logs retrieval.
         """
 
-        self.client_events_retriver_stats = False
+        self.client_events_retriever_stats = False
 
         self.buffer_path = buffer_path
 
-        self.clients_contact_retriver_callback = ""
+        self.clients_contact_retriever_callback = ""
     
         self.log_callback = ""
 
@@ -245,7 +245,7 @@ class MysceliumHostInterface:
 
         connection = pool.get_connection()
         
-        logs_retriever_access = host_logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = host_logs_retriever.Logs_Buffer_retriever(connection)
 
         while True:
 
@@ -319,21 +319,21 @@ class MysceliumHostInterface:
 
             time.sleep(2)
 
-            if not self.client_events_retriver_stats:
+            if not self.client_events_retriever_stats:
                 break
             else:
                 pass
 
             connection = pool.get_connection()
 
-            client_events_retriver = host_client_events_retriver.Clients_Retriver(connection)
+            client_events_retriever = host_client_events_retriever.Clients_retriever(connection)
 
-            clients_df = client_events_retriver.get_clients()
+            clients_df = client_events_retriever.get_clients()
             clients_pd_df = pd.DataFrame.from_dict(clients_df)
 
             if clients_pd_df.empty:
                 
-                print("[Event Retriver] - No clients to transpose contact, next checking in 10s")
+                print("[Event retriever] - No clients to transpose contact, next checking in 10s")
 
                 pool.release_connection(connection)
             
@@ -357,7 +357,7 @@ class MysceliumHostInterface:
 
                 if (n[6] != '' and actual_to_compare[6] != '') and (n[6] < actual_to_compare[6]):
 
-                    if not isinstance(self.clients_contact_retriver_callback, str):
+                    if not isinstance(self.clients_contact_retriever_callback, str):
                         pass
                     else:
 
@@ -367,7 +367,7 @@ class MysceliumHostInterface:
 
                         continue
 
-                    self.clients_contact_retriver_callback(actual_to_compare[1], actual_to_compare[2], actual_to_compare[6])
+                    self.clients_contact_retriever_callback(actual_to_compare[1], actual_to_compare[2], actual_to_compare[6])
                 
                 else:
                     pass                
@@ -394,7 +394,7 @@ class MysceliumHostInterface:
 
         return
 
-    def set_client_contact_retriver_callback (self, callback:str):
+    def set_client_contact_retriever_callback (self, callback:str):
 
         """
         Set the callback function for client contacts transposition.
@@ -403,7 +403,7 @@ class MysceliumHostInterface:
         - callback: Callback function to be invoked for each client contact.
         """
 
-        self.clients_contact_retriver_callback = callback
+        self.clients_contact_retriever_callback = callback
 
         pass
 
@@ -420,29 +420,29 @@ class MysceliumHostInterface:
 
         pass
 
-    def start_client_events_retriver (self):
+    def start_client_events_retriever (self):
 
         """
         Start the clients event retriever process.
         """
 
-        self.client_events_retriver_stats = True
+        self.client_events_retriever_stats = True
 
-        self.client_events_retriver_process = Process(target=self.watch_client_contact, args=())
-        self.client_events_retriver_process.start()
+        self.client_events_retriever_process = Process(target=self.watch_client_contact, args=())
+        self.client_events_retriever_process.start()
 
         return 
 
-    def stop_client_events_retriver (self):
+    def stop_client_events_retriever (self):
 
         """
         Stop the clients event retriever process.
         """
 
-        self.client_events_retriver_stats = False
+        self.client_events_retriever_stats = False
 
-        self.client_events_retriver_process.kill()
-        self.client_events_retriver_process.join()
+        self.client_events_retriever_process.kill()
+        self.client_events_retriever_process.join()
 
         return
 
@@ -458,7 +458,7 @@ class MysceliumHostInterface:
         
         return
 
-    def start_logs_retriver (self):
+    def start_logs_retriever (self):
 
         """
         Start the logs retriever process in a separate process.
@@ -614,7 +614,7 @@ class MysceliumHost:
         """
         if hasattr(self, 'host_interface'):
             if self.logging_level != "":
-                self.host_interface.start_logs_retriver()
+                self.host_interface.start_logs_retriever()
             else:
                 pass
         else:
@@ -704,6 +704,45 @@ class HostPatterns:
         - Dictionary representing the response pattern.
         """
 
+        # > The idea of this pattern is to create a response to send back to a client or to retransmit
+        
+        # -> Case 1 (Simple send to origin)
+        # >   
+        # > (Client 1)       [Host]
+        # >    |                |
+        # >    |--------------> |
+        # >    |               (|) (schedule to send response back)
+        # >    |<-------------- |
+        # >    |                |         
+        # > (Client 1)     (Client 2)   
+        # >         
+        # > (|) This is this pattern
+        # > 
+        # -> ---------------------------------------------------------------------------------------------------------------
+        # ->
+        # -> Case 2 (retransmit to)
+        # >   
+        # > (Client 1)     (Client 2)   [Host]
+        # >    |                |         |
+        # >    |--------------- | ------> |
+        # >    |                |        (|) (retransmit the command from client 1 to client 2 via retransmiters)
+        # >    |                | <------ |
+        # >    |               [|]        |
+        # >    |                | ------> |
+        # >    |                |        (|) (retransmit the response of client 2 to client 1)
+        # >    |<-------------- | ------- |
+        # >    |                |         |
+        # > (Client 1)     (Client 2)   [Host]
+        # >         
+        # > (|) This is this pattern
+        # > [|] This is a client process
+        # >
+
+        #* When retransmit is used, the response will use the redirect_to var, that is a client_id of the target 
+        #* That you want to send the command, now the response_activation_function in this case is the function that need to be
+        #* Trigered in the target, the engine will get the response and redirect to the other client by this id, if client exists.
+        #* Else this will return a error saying that client doesn't exists
+
         if response_activation_function == "" or response_activation_function == None:
             return self.error_response_pattern("Missing response_activation_function!", response_activation_function)
 
@@ -724,9 +763,12 @@ class HostPatterns:
                 "redirect_to":redirect_to_client_id
             }
 
+            # -> here the origin indentifier is added when the command is reforged 
+            # -> inside the myscelium engine to redirect to the other client so because of that doens't need the origin here
+
             return response
 
-        elif response_mode == 'to_origin':
+        elif response_mode == 'to_origin': # > this is returned directly to the client
 
             print("Response mode set to origin")
 
@@ -737,6 +779,7 @@ class HostPatterns:
                 "response_activation_function":response_activation_function,
                 "message":message, 
                 "kwargs":response,
+                "origin":"host" # -> Since this is a return from host to client does't make sense to add a marker here 
             }
 
             return response
@@ -785,10 +828,23 @@ class HostPatterns:
             "activation_function":expected_remote_error_handler,
             "message":error_message, 
             "kwargs":kwargs,
+            "origin":"host"
         }
 
-        return response
+        # -> This pattern is used to manipulate host configs remotely
+        # >   
+        # > (Client 1)       [Host]
+        # >    |                |
+        # >    |--------------> |  (receive command)
+        # >    |               (|) (do something that results in a error and return this pattern error)
+        # >    |<-------------- |  (return exception)
+        # >    |                |         
+        # > (Client 1)        [host]   
+        # >         
+        # > (|) This is this pattern
+        # > 
 
+        return response
 
     def update_host_configs (self, activation_function:str, **kwargs): # TODO >>> Need rust backend implementation!
 
@@ -831,6 +887,22 @@ class HostPatterns:
                 ```
 
         """
+
+        # -> This pattern is used to manipulate host configs remotely
+        # >   
+        # > (Client 1)       [Host]
+        # >    |                |
+        # >    |--------------> |  (receive command)
+        # >    |               (|) (update some config)
+        # >    |<-------------- |  (return confirmation or exception)
+        # >    |                |         
+        # > (Client 1)        [host]  
+        # >         
+        # > (|) This is this pattern
+        # > 
+        # > The usage of this pattern is siple, you create a enpoint, then in the return 
+        # > you create a response with this pattern and send back to the engine, remember, every response of 
+        # > the endpoints will be sended to the engine again, if you don't want to send nothin just return None
 
         if activation_function == "add_client":
 
@@ -943,6 +1015,19 @@ class HostPatterns:
             Returns:
             - Dictionary representing the callback pattern.
             """ 
+
+            # -> This is used to create a endpoint in the host that is visible to every client that has permission to see it
+            # >   
+            # > (Client 1)       [Host]
+            # >    |                |
+            # >    |-------------> (|) 
+            # >    |                | 
+            # >    |<-------------- | 
+            # >    |                |         
+            # > (Client 1)        [host]  
+            # >         
+            # > (|) This is this pattern
+            # > 
 
             sig = inspect.signature(callback)
             params = sig.parameters
@@ -1131,7 +1216,6 @@ class MysceliumClient:
             raise "Client need to be runing before try to send something"
         else:
             pass
-
         return mys.client_send(command, priority)
         
 
@@ -1169,7 +1253,7 @@ class MysceliumClientInterface:
 
         connection = pool.get_connection()
         
-        logs_retriever_access = client_logs_retriver.Logs_Buffer_Retriver(connection)
+        logs_retriever_access = client_logs_retriever.Logs_Buffer_retriever(connection)
 
         while True:
 
@@ -1270,7 +1354,7 @@ class MysceliumClientInterface:
         
         return
 
-    def start_logs_retriver (self):
+    def start_logs_retriever (self):
 
         """
         Start the logs retriever process in a separate process.
@@ -1319,6 +1403,24 @@ class ClientPatterns:
         # This router will be responsible to receive a entire command, so he will decide how to process it and what activation function to call
         # Then this will be able to send a response for host redirect if something is worng redirecting the error for the client tha cause it and keep going
 
+        # > The idea of this pattern
+        # >   
+        # > (Client 1)     (Client 2)   [Host]
+        # >    |                |         |
+        # >    |--------------- | ------> |
+        # >    |                |        [|] (retransmit the command from client 1 to client 2 via retransmiters)
+        # >    |                | <------ |
+        # >    | return rd err (|)        |
+        # >    |                | ------> |
+        # >    |                |        [|] (retransmit error - This is an internal thing)
+        # >    |<-------------- | ------- |
+        # >    |                |         |
+        # > (Client 1)     (Client 2)   [Host]
+        # >         
+        # > (|) This is this pattern
+        # > [|] This is a host process
+        # >
+
         if not isinstance(error_message, str):
             print("Error message needs to be a string!")
 
@@ -1331,13 +1433,15 @@ class ClientPatterns:
 
         response = {
             "command_type":"response",
-            "response_mode":"retransmit", 
+            "response_mode":"retransmit", # > Retransmit to the origin client
             "redirect_to":redirect_to,
             "status": "error", 
             "activation_function":expected_remote_error_handler,
             "message":error_message, 
             "kwargs":kwargs,
         }
+        
+        #! Here Doesn't need to add the origin because for cases of redirect this is done inside the host engine
 
         return response
 
@@ -1368,6 +1472,21 @@ class ClientPatterns:
         Returns:
         - Dictionary representing the command pattern.
         """
+
+        # > The idea of this pattern
+        # >   
+        # > (Client 1)        [Host]
+        # >    |                |        
+        # >   (|) ------------> |
+        # >    |               [|]     
+        # >    | <------------- | 
+        # >    |                |   
+        # > (Client 1)        [Host]
+        # >   
+        # > (|) This is this pattern
+        # > [|] This is a host process
+        # >
+        # > basically creates a command to send to host, when the command arrives in host the command will execute something
  
         if args != None:
             return {"command_type":"function", "function":command_function, "kwargs":args}
@@ -1376,7 +1495,7 @@ class ClientPatterns:
 
         return {"command_type":"function", "function":command_function, "kwargs":""}
 
-    def response_pattern (self, kwargs:any, response_mode:str, retransmit_to_client_id:str=None, message:str="") -> dict:
+    def response_pattern (self, kwargs:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
 
         """
         Create a response pattern.
@@ -1398,25 +1517,11 @@ class ClientPatterns:
                 print ("Invalid redirect! Missing client_id to redirect!")
                 return None
 
-            response = {
-                "command_type":"response", 
-                "response_mode":"retransmit", 
-                "kwargs":kwargs, 
-                "message":message, 
-                "redirect_to":retransmit_to_client_id
-            }
-
-            return response
+            return {"command_type":"response", "response_mode":"retransmit", "kwargs":kwargs, "redirect_to":retransmit_to_client_id}
 
         elif response_mode == 'to_host':
-            
-            response =  {
-                "command_type":"response", 
-                "response_mode":"to_host", 
-                "kwargs":kwargs
-            }
 
-            return response
+            return {"command_type":"response", "response_mode":"to_host", "kwargs":kwargs}
         
         else:
             print ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
@@ -1435,6 +1540,21 @@ class ClientPatterns:
         Returns:
         - Dictionary representing the callback pattern.
         """
+
+        # > The idea of this pattern
+        # >   
+        # > (Client 1)         [Host]
+        # >    |                 |        
+        # >    | --------------> |
+        # >    |                [|]     
+        # >   (|) <------------- | 
+        # >    |                 |   
+        # > (Client 1)         [Host]
+        # >   
+        # > (|) This is this callback
+        # > [|] This is a host process
+        # >
+        # > Basically this creates a callable, that host can execute remotelly by redirecting some command or sending some command
 
         sig = inspect.signature(callback)
         params = sig.parameters
@@ -1485,3 +1605,5 @@ def get_registred_commands () -> dict:
     print(f"Response to return to rust myscelium engine: {response}")
 
     return response
+
+

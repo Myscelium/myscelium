@@ -120,7 +120,7 @@ pub fn set_socket_host_max_connections(n_max_conns: &PyInt) {
 }
 
 #[pyfunction]
-pub fn initalize_host_buffer_tables(path: &PyString) {
+pub fn initialize_host_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
     initialize_host_logs_databse_dir(buffer_path.clone());

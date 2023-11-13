@@ -45,7 +45,7 @@ pub fn set_client_id(client_uid: String) {
 /// registered commands. The constructed request is then scheduled for processing.
 pub fn request_host_avaliable_commands() {
     let mut request_host_commands: HashMap<String, String> = HashMap::new();
-    request_host_commands.insert("function".to_string(), "get_registred_commands".to_string());
+    request_host_commands.insert("function".to_string(), "get_registered_commands".to_string());
     request_host_commands.insert("command_type".to_string(), "function".to_string());
     request_host_commands.insert("kwargs".to_string(), "{}".to_string());
 
