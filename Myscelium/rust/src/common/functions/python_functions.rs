@@ -38,34 +38,38 @@ pub fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
     }
 }
 
-pub fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
-    println!("map to convert to python kwargs: {:?}", dict);
+pub fn json_value_to_py_object(py: Python, value: &Value) -> PyResult<PyObject> {
+    match value {
+        Value::Null => Ok(py.None()),
+        Value::Bool(b) => Ok(b.into_py(py)),
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Ok(i.into_py(py))
+            } else if let Some(f) = n.as_f64() {
+                Ok(f.into_py(py))
+            } else {
+                Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid number type"))
+            }
+        },
+        Value::String(s) => Ok(s.clone().into_py(py)),
+        Value::Array(arr) => {
+            let py_list = PyList::new(py, arr.iter().map(|v| json_value_to_py_object(py, v).unwrap()));
+            Ok(py_list.into())
+        },
+        Value::Object(obj) => {
+            let py_dict = PyDict::new(py);
+            for (k, v) in obj {
+                py_dict.set_item(k, json_value_to_py_object(py, v)?.to_object(py))?;
+            }
+            Ok(py_dict.into())
+        },
+    }
+}
 
+pub fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
     let mut kwargs: HashMap<String, PyObject> = HashMap::new();
     for (key, value) in dict.iter() {
-        let py_value = match value {
-            Value::Object(inner_map) => {
-                let map_as_hashmap: HashMap<String, Value> = inner_map.clone().into_iter().collect();
-                let inner_kwargs = dict_to_kwargs(py, &map_as_hashmap)?;
-                let py_dict = PyDict::new(py);
-                for (k, v) in inner_kwargs.iter() {
-                    py_dict.set_item(k, v)?;
-                }
-                py_dict.into()
-            },
-            Value::String(s) => s.into_py(py),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    i.into_py(py)
-                } else if let Some(f) = n.as_f64() {
-                    f.into_py(py)
-                } else {
-                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
-                }
-            },
-            Value::Bool(b) => b.into_py(py),
-            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
-        };
+        let py_value = json_value_to_py_object(py, value)?;
         kwargs.insert(key.clone(), py_value);
     }
 

@@ -253,7 +253,12 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
             };
         },
         CommandType::Error(e) => {
-            return Err(ProcessError::Error(serde_json::from_value::<String>(e).unwrap()));
+            activation_key = match translated_command.command.get("response_activation_function") {
+                Some(Value::String(activation_key)) => activation_key,
+                _ => {
+                    return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
+                },
+            };
         },
         CommandType::Redirect(_) => {
             return Err(ProcessError::UnknownCommandType);

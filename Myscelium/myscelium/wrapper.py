@@ -825,7 +825,7 @@ class HostPatterns:
             "command_type":"response",
             "response_mode":"to_origin", 
             "status": "error", 
-            "activation_function":expected_remote_error_handler,
+            "response_activation_function":expected_remote_error_handler,
             "message":error_message, 
             "kwargs":kwargs,
             "origin":"host"
