@@ -14,20 +14,20 @@ from .test_redirect.host_module import MyHost as MyHostToTestRedirect
 from .test_redirect.client_1_module import MyClient as MyClient1ToTestRedirect
 from .test_redirect.client_2_module import MyClient as MyClient2ToTestRedirect
 
-#> Test Inner Mannangement
-from .test_mannangement.host_module import MyHost as MyHostToTestMannangement
-from .test_mannangement.client_1_module import MyClient as MyClient1ToTestMannangement
+#> Test Inner Management
+from .test_management.host_module import MyHost as MyHostToTestManagement
+from .test_management.client_1_module import MyClient as MyClient1ToTestManagement
 
 #> Test messages
 from .test_messages.host_module import MyHost as MyHostToTestMessages
 from .test_messages.client_1_module import MyClient as MyClient1ToTestMessages
 
-#> Events mananger
+#> Events manager
 from multiprocessing import Process
-from .Logs.test_logs_mananger import Events_Mananger, System_Status
+from .Logs.test_logs_manager import Events_Manager, System_Status
 
-Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
-Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
+Events_Manager(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+Events_Manager(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
 import argparse
 
@@ -51,7 +51,7 @@ DEBUG_LEVEL = os.environ.get('DEBUG_LEVEL', 'DEBUG') # Default to 'DEBUG' if not
 
 THIS_DIR = os.path.dirname(__file__)
 
-from .History.history_controler import History_Mannanger
+from .History.history_controller import History_Manager
 
 # -> ----------------------------------------------------------------------------------------------------------------------------
 # -> Tests:
@@ -61,7 +61,7 @@ from .History.history_controler import History_Mannanger
 def host_thread_to_test_communication(event_host_received):
     print("Starting host thread...")
     
-    # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
+    # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
 
     host_instance = MyHostToTestCommunication(DEBUG_LEVEL).run(event=event_host_received)
 
@@ -88,9 +88,9 @@ def test_communication():
 
     test_start_time = time.time()
 
-    Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Mananger(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
     System_Status(path="Logs").create_unit("Client1")
     System_Status(path="Logs").create_unit("Host")
@@ -122,11 +122,11 @@ def test_communication():
     #> Host initializes
 
     #> Client1 make contact
-    #> Client1 sync commands avalaible
+    #> Client1 sync commands available
     #> Client1 schedule to send things
     #> Client1 send command
     
-    #> Host received client comamnd
+    #> Host received client command
     #> Host Returned command to client
 
     #> Client1 Receive Host response
@@ -134,10 +134,10 @@ def test_communication():
     #> Finish Client1
     #> Finish Host
 
-    host_events = Events_Mananger(Unit="Host", path="Logs").List_Events()
+    host_events = Events_Manager(Unit="Host", path="Logs").List_Events()
     host_events_df = pd.DataFrame.from_dict(host_events)
 
-    client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_1_events = Events_Manager(Unit="Client1", path="Logs").List_Events() 
     client_1_events_df = pd.DataFrame.from_dict(client_1_events)
 
     # -> Host events:
@@ -201,9 +201,9 @@ def test_communication():
     test_run_time = test_end_time - test_start_time 
 
     if (client_contact and basic_callback) and (send_data and basic_response_handler):
-        History_Mannanger().store_history_point("test_communication", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_communication", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
     else:
-        History_Mannanger().store_history_point("test_communication", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_communication", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
 
     # -> Client1
 
@@ -213,13 +213,13 @@ def test_communication():
     # -> Host
 
     assert client_contact, "Client1 doesn't made any contact"
-    assert basic_callback, "Baisc callback not called"
+    assert basic_callback, "Basic callback not called"
 
     
-    # TODO >>> When add the client tables mecanism re add the client contact test unit
-    # TODO >>> Add a test mecanism to check if the logs are being stored and transposing
+    # TODO >>> When add the client tables mechanism re add the client contact test unit
+    # TODO >>> Add a test mechanism to check if the logs are being stored and transposing
 
-    # TODO >>> Add a mecanism to call permission to realize the tests and give an advice that data in the buffers will be wipped of when do the test
+    # TODO >>> Add a mechanism to call permission to realize the tests and give an advice that data in the buffers will be wiped of when do the test
 
     # event = my_host.get_event('client_contact')
     # assert event.is_set(), "Client1 contact event was not set!"
@@ -237,7 +237,7 @@ def test_communication():
 def host_thread_to_test_redirect(event_host_received):
     print("Starting host thread...")
     
-    # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
+    # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
 
     host_instance = MyHostToTestRedirect(DEBUG_LEVEL).run(event=event_host_received)
 
@@ -269,9 +269,9 @@ def test_redirect ():
 
     test_start_time = time.time()
 
-    Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Mananger(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
     System_Status(path="Logs").create_unit("Client1")
     System_Status(path="Logs").create_unit("Client2")
@@ -302,17 +302,17 @@ def test_redirect ():
     t3.join()
     t1.join()  # Wait for the process to finish
 
-    host_events = Events_Mananger(Unit="Host", path="Logs").List_Events()
+    host_events = Events_Manager(Unit="Host", path="Logs").List_Events()
     host_events_df = pd.DataFrame.from_dict(host_events)
 
-    client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_1_events = Events_Manager(Unit="Client1", path="Logs").List_Events() 
     client_1_events_df = pd.DataFrame.from_dict(client_1_events)
 
-    client_2_events = Events_Mananger(Unit="Client2", path="Logs").List_Events() 
+    client_2_events = Events_Manager(Unit="Client2", path="Logs").List_Events() 
     client_2_events_df = pd.DataFrame.from_dict(client_2_events)
 
     #>----------------------------------------------------------------------------------------------------
-    #> Tests Controler
+    #> Tests Controller
 
     #> Host events:
 
@@ -401,9 +401,9 @@ def test_redirect ():
     test_run_time = test_end_time - test_start_time 
 
     if (client_1_contact and client_2_contact) and (host_redirect_callback and active_callback_remotely) and send_data_to_redirect:
-        History_Mannanger().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
     else:
-        History_Mannanger().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
 
     # -> Client 1
 
@@ -419,12 +419,12 @@ def test_redirect ():
     assert client_1_contact, "Client 1 doesn't make any contact with host!"
     assert client_2_contact, "Client 2 doesn't make any contact with host!"
     # assert client_contact, "Client1 doesn't made any contact"
-    assert host_redirect_callback, "Baisc redirect callback not called!"
+    assert host_redirect_callback, "Basic redirect callback not called!"
 
-    # TODO >>> When add the client tables mecanism re add the client contact test unit
-    # TODO >>> Add a test mecanism to check if the logs are being stored and transposing
+    # TODO >>> When add the client tables mechanism re add the client contact test unit
+    # TODO >>> Add a test mechanism to check if the logs are being stored and transposing
 
-    # TODO >>> Add a mecanism to call permission to realize the tests and give an advice that data in the buffers will be wipped of when do the test
+    # TODO >>> Add a mechanism to call permission to realize the tests and give an advice that data in the buffers will be wiped of when do the test
 
     # event = my_host.get_event('client_contact')
     # assert event.is_set(), "Client1 contact event was not set!"
@@ -440,36 +440,36 @@ def test_redirect ():
 
 
 #> ------------------------------------------------------------------------------------------------------------------------------------
-#> Inner Mannangement Test:
+#> Inner Management Test:
 
-def host_thread_to_test_inner_mannangement (event_host_received):
+def host_thread_to_test_inner_management (event_host_received):
     print("Starting host thread...")
     
-    # TODO >>> Add a mecanism to test every event and then resume both the host and client returning the succssfully done events.
+    # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
 
-    host_instance = MyHostToTestMannangement(DEBUG_LEVEL).run(event=event_host_received)
+    host_instance = MyHostToTestManagement(DEBUG_LEVEL).run(event=event_host_received)
 
     print("Host thread finished.")
 
-def client_1_thread_to_test_inner_mannangement (event_client_received):
+def client_1_thread_to_test_inner_management (event_client_received):
     print("Waiting for host to be ready...")
     time.sleep(5)
     print("Starting client 1 thread...")
     
-    client_instance = MyClient1ToTestMannangement(DEBUG_LEVEL)
+    client_instance = MyClient1ToTestManagement(DEBUG_LEVEL)
     client_instance.run() 
     
     print("Client1 thread finished.")
 
-def test_mannangement ():
+def test_management ():
 
     time.sleep(5)
 
     test_start_time = time.time()
 
-    Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Mananger(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
     System_Status(path="Logs").create_unit("Client1")
     System_Status(path="Logs").create_unit("Host")
@@ -483,26 +483,27 @@ def test_mannangement ():
     if os.path.exists("Temp/Data/"):
         shutil.rmtree("Temp/Data/")
 
-    t1 = Process(target=host_thread_to_test_inner_mannangement, args=('main_event',)) # Passing event_key
-    t2 = Process(target=client_1_thread_to_test_inner_mannangement, args=('main_event',)) # Passing event_key
+    t1 = Process(target=host_thread_to_test_inner_management, args=('main_event',)) # Passing event_key
+    t2 = Process(target=client_1_thread_to_test_inner_management, args=('main_event',)) # Passing event_key
 
     t1.start()
     t2.start()
 
     t2.join()
 
-    host_events = Events_Mananger(Unit="Host", path="Logs").List_Events()
+    host_events = Events_Manager(Unit="Host", path="Logs").List_Events()
     host_events_df = pd.DataFrame.from_dict(host_events)
 
-    client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_1_events = Events_Manager(Unit="Client1", path="Logs").List_Events() 
     client_1_events_df = pd.DataFrame.from_dict(client_1_events)
 
     #>----------------------------------------------------------------------------------------------------
-    #> Tests Controler
+    #> Tests Controller
 
     #> Host events:
 
-    # TODO >>> Continue to implement the tests to avaliate if the test inner mannangement is working!
+    # TODO >>> Continue to implement the tests to assess if the test inner management are working!
+
 
     client_1_contact            = False
     client_contact              = False
@@ -593,9 +594,9 @@ def test_mannangement ():
     test_run_time = test_end_time - test_start_time 
 
     if (add_client_callback and update_client_callback) and (remove_client_callback and send_add_client) and (send_update_client and send_remove_client) and (receive_add_client_conf and receive_update_client_conf) and receive_remove_client_conf:
-        History_Mannanger().store_history_point("test_mannangement", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_management", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
     else:
-        History_Mannanger().store_history_point("test_mannangement", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_management", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
 
     # -> Client 1
 
@@ -638,9 +639,9 @@ def test_messages ():
 
     time.sleep(5)
 
-    Events_Mananger(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Mananger(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Mananger(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
+    Events_Manager(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
     test_start_time = time.time()
 
@@ -664,18 +665,18 @@ def test_messages ():
 
     t2.join()
 
-    host_events = Events_Mananger(Unit="Host", path="Logs").List_Events()
+    host_events = Events_Manager(Unit="Host", path="Logs").List_Events()
     host_events_df = pd.DataFrame.from_dict(host_events)
 
-    client_1_events = Events_Mananger(Unit="Client1", path="Logs").List_Events() 
+    client_1_events = Events_Manager(Unit="Client1", path="Logs").List_Events() 
     client_1_events_df = pd.DataFrame.from_dict(client_1_events)
 
     #>----------------------------------------------------------------------------------------------------
-    #> Tests Controler
+    #> Tests Controller
 
     #> Host events:
 
-    # TODO >>> Continue to implement the tests to avaliate if the test inner mannangement is working!
+    # TODO >>> Continue to implement the tests to assess if the test inner management are working!
 
     callback_for_correct_data   = False
     callback_for_incorrect_data = False
@@ -740,9 +741,9 @@ def test_messages ():
     test_run_time = test_end_time - test_start_time 
 
     if (callback_for_correct_data and callback_for_incorrect_data) and (send_correct_data_for_host and send_incorrect_data_for_host):
-        History_Mannanger().store_history_point("test_mannangement", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_management", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
     else:
-        History_Mannanger().store_history_point("test_mannangement", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_management", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
 
     # -> Client 1
 
@@ -751,8 +752,10 @@ def test_messages ():
 
     # -> Host
 
-    assert callback_for_correct_data, "Correct callback handler not trigered"
-    assert callback_for_incorrect_data, "Incorrect callback handler not trigered"
+    assert callback_for_correct_data, "Correct callback handler not triggered"
+    assert callback_for_incorrect_data, "Incorrect callback handler not triggered"
+
+    # TODO >>> Implement the callback checking in the client side too
 
 if __name__ == '__main__':
     pytest.main()

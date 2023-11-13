@@ -13,15 +13,15 @@ from datetime import datetime
 
 class Interface_Unique_ID_Generator:
 
-    def __init__(self, length:int, registred_ids:list):
+    def __init__(self, length:int, registered:list):
         self.length = length        # length of BufferId
-        self.registred_ids = registred_ids
+        self.registered_ids = registered
 
-    def Update_Registred_Ids (self, registred_ids:list):
-        self.registred_ids = registred_ids
+    def Update_registered (self, registered:list):
+        self.registered = registered
         return
 
-    def Gen (self) -> int: # Gera um id para alocação dos dados no buffer de dados
+    def Gen (self) -> int: # Gen a id for data allocation in buffer 
         GenBufferId = lambda: random.randint(0, self.length)
         while True:
             BufferId = GenBufferId()
@@ -31,8 +31,8 @@ class Interface_Unique_ID_Generator:
                 pass
         return BufferId
 
-    def Validate (self, BufferId:int) -> bool:  # Valida o id gerado e verifica se já existe, caso exista um id novoé gerado até que seja valido
-        DataList = [i[0] for i in self.registred_ids]
+    def Validate (self, BufferId:int) -> bool:  # Validate the id generated and verify if the case already exists, if exists then generate again
+        DataList = [i[0] for i in self.registered]
         # DataList = self.dtr.list_schedule.iloc[:, ['Id']].to_list()
         for i in DataList:
             if BufferId == i :
@@ -69,7 +69,7 @@ class SQLiteConnectionPool:
             connection = self.connections.get()
             connection.close()
 
-class Events_Mananger:
+class Events_Manager:
 
     def __init__(self, Unit:str, path:str):
 
@@ -78,7 +78,7 @@ class Events_Mananger:
 
         self.Unit = Unit
 
-        self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
+        self.AutoId = Interface_Unique_ID_Generator(length=9999, registered=[])
 
         cur = self.connection.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS Events (ID INT PRIMARY KEY,
@@ -132,7 +132,7 @@ class Events_Mananger:
         
         if event_type is Send and Receive it needs a predefined `event_key:str` kwarg,
         the event key is a str and need to contain at least 16 digits that need to be random,
-        to generate a valid key pair and have 100% sure that this isn't registred you can use the 
+        to generate a valid key pair and have 100% sure that this isn't registered you can use the 
         helper `gen_valid_event_key.py` at Myscelium/tests/Logs/gen_valid_event_key.py
 
         """
@@ -147,7 +147,7 @@ class Events_Mananger:
 
         cur = self.connection.cursor()
 
-        self.AutoId.Update_Registred_Ids(registred_ids = self.List_Events())
+        self.AutoId.Update_registered(registered = self.List_Events())
 
         ID = self.AutoId.Gen()
 
@@ -159,7 +159,7 @@ class Events_Mananger:
         if event_type == "Send" or event_type == "Receive":
 
             if not ("event_key" in kwargs):
-                raise "You need to especify a event code to Send an Receive event_types"
+                raise "You need to to specify a event code to Send an Receive event_types"
             else:   
                 pass
 
@@ -182,12 +182,12 @@ class System_Status:
         pool = SQLiteConnectionPool(3, os.path.join(path, "Data.db"))
         self.connection = pool.get_connection()
 
-        self.AutoId = Interface_Unique_ID_Generator(length=9999, registred_ids=[])
+        self.AutoId = Interface_Unique_ID_Generator(length=9999, registered=[])
         
         cur = self.connection.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS SystemStatus (ID INT PRIMARY KEY,
                                                                 Unit TEXT,
-                                                                RuningStatus BOOL)''')
+                                                                RunningStatus BOOL)''')
 
     def list_units (self) -> dict:
         
@@ -198,7 +198,7 @@ class System_Status:
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
-        df = pd.DataFrame(df, columns=['ID', 'Unit', 'RuningStatus'])
+        df = pd.DataFrame(df, columns=['ID', 'Unit', 'RunningStatus'])
         dict_df = df.to_dict()
         
         return dict_df
@@ -209,20 +209,20 @@ class System_Status:
         unit = units[units['Unit'] == Unit]   
 
         if not unit.empty:
-            print("Unit alwready created!")
+            print("Unit already created!")
             return
         else:
             pass
 
         cur = self.connection.cursor()
 
-        self.AutoId.Update_Registred_Ids(registred_ids = self.list_units())
+        self.AutoId.Update_registered(registered = self.list_units())
 
         ID = self.AutoId.Gen()
 
         Data = ((ID, Unit, False))
 
-        sqlite_insert_with_param = """INSERT INTO SystemStatus (ID, Unit, RuningStatus) VALUES (?, ?, ?);"""
+        sqlite_insert_with_param = """INSERT INTO SystemStatus (ID, Unit, RunningStatus) VALUES (?, ?, ?);"""
         cur.execute(sqlite_insert_with_param, Data)
         self.connection.commit()
 
@@ -238,7 +238,7 @@ class System_Status:
 
         unit = unit.reset_index(drop=True)
 
-        status = unit.loc[0, 'RuningStatus']
+        status = unit.loc[0, 'RunningStatus']
 
         return status
 
@@ -248,7 +248,7 @@ class System_Status:
 
         Data = (Status, Unit)
 
-        sql_update_query = f"""UPDATE SystemStatus SET RuningStatus = ? WHERE Unit = ?"""
+        sql_update_query = f"""UPDATE SystemStatus SET RunningStatus = ? WHERE Unit = ?"""
       
         cur.execute(sql_update_query, Data)
         self.connection.commit()

@@ -1,16 +1,16 @@
 from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
 from multiprocessing import Process, Event, Manager
-from ..Logs.test_logs_mananger import Events_Mananger, System_Status
+from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
 import signal
 import time
 
 import time
 
-# ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
+# actual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
-    Events_Mananger(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
+    Events_Manager(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
     pass
 
@@ -31,7 +31,7 @@ class Handlers:
             response={"data": 'hello!'}
         )
 
-        Events_Mananger(
+        Events_Manager(
             Unit="Host", 
             path="Logs"
         ).Set_Event(
@@ -40,7 +40,7 @@ class Handlers:
             event_key="088p72pbv9Ozj7T1"
         )
         
-        Events_Mananger(
+        Events_Manager(
             Unit="Host", 
             path="Logs"
         ).Set_Event(
@@ -49,7 +49,7 @@ class Handlers:
             event_key="74L648VZDI7J1GV5"
         )
         
-        Events_Mananger(
+        Events_Manager(
             Unit="Host", 
             path="Logs"
         ).Set_Event(
@@ -79,9 +79,9 @@ class MyHost:
 
         mys_host_interface = MysceliumHostInterface("Temp/Data/")
 
-        mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
+        mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
 
-        mys_host_interface.start_client_events_retriver()
+        mys_host_interface.start_client_events_retriever()
 
         while True:
 
@@ -89,7 +89,7 @@ class MyHost:
 
             if (not client_status) or (n >= COUNTER):
                 print("Receive stop host")
-                mys_host_interface.stop_client_events_retriver()
+                mys_host_interface.stop_client_events_retriever()
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
 
@@ -153,7 +153,7 @@ class MyHost:
 
         # mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
 
-        # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTecnologie})
+        # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTechnologies})
 
         System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 

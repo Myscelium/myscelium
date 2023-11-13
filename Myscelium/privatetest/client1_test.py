@@ -32,7 +32,7 @@ class MyClient:
 
         time.sleep(10)
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Client1Data/")
-        mys_client.runing = True
+        mys_client.running = True
         mys_client.set_client_uid(client_uid="some_client_id")
         command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
         result = mys_client.send(command, priority=10)

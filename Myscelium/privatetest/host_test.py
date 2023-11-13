@@ -64,7 +64,7 @@ class MyHost:
 
     #     Events_Mananger(Unit="Host", path="Logs").Set_Event(f"Contact received from Client: {client_id}")
 
-    #     # TODO >>> Save event in the test databse log
+    #     # TODO >>> Save event in the test database log
 
     def monitor_stop_event(self):
 
@@ -77,9 +77,9 @@ class MyHost:
         
         mys_host_interface = MysceliumHostInterface("Data/")
 
-        mys_host_interface.set_client_contact_retriver_callback(client_contact_event_handler)
+        mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
 
-        mys_host_interface.start_client_events_retriver()
+        mys_host_interface.start_client_events_retriever()
 
         time.sleep(30)
 
@@ -87,7 +87,7 @@ class MyHost:
 
             pass
 
-        mys_host_interface.stop_client_events_retriver()
+        mys_host_interface.stop_client_events_retriever()
 
         return
 
@@ -119,7 +119,7 @@ class MyHost:
 
         # mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
 
-        # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTecnologie})
+        # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTechnologies})
 
         mys_host.initialize_host(ip=ip, port=port)
 

@@ -6,12 +6,12 @@ import signal
 client_patterns = ClientPatterns()
 
 from multiprocessing import Process, Event, Manager
-from ..Logs.test_logs_mananger import Events_Mananger, System_Status
+from ..Logs.test_logs_manager import Events_Manager, System_Status
 
 class Receivers:
 
     @staticmethod
-    def add_client_handler (data:any): # -> Need to be implemeneted
+    def add_client_handler (data:any): # -> Need to be implemented
         
         # "data" {
         #     "command_type":"response",
@@ -33,16 +33,16 @@ class Receivers:
             return None
 
 
-        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Add Client"
         )
 
         print("Received data: ", data)
 
     @staticmethod
-    def update_client_handler (data:any): # -> Need to be implemeneted
+    def update_client_handler (data:any): # -> Need to be implemented
 
-        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Update Client"
         )
 
@@ -63,7 +63,7 @@ class Receivers:
     @staticmethod
     def remove_client_handler (data:any): # TODO >>> test_remove_client
 
-        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Remove Client"
         )
         
@@ -100,7 +100,7 @@ class Senders:
     def test_add_client (): 
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
-        mys_client.runing = True
+        mys_client.running = True
         mys_client.set_client_uid(client_uid="some_client_id")
         
         command = client_patterns.command_pattern(
@@ -118,7 +118,7 @@ class Senders:
 
         result = mys_client.send(command, priority=9)
 
-        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test add a client", 
             event_type = "Send", 
             event_key = "94G2zy6cV54GN64O"
@@ -129,7 +129,7 @@ class Senders:
     def test_update_client (): 
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
-        mys_client.runing = True
+        mys_client.running = True
         mys_client.set_client_uid(client_uid="some_client_id")
         
         command = client_patterns.command_pattern(
@@ -148,7 +148,7 @@ class Senders:
         
         result = mys_client.send(command, priority=8)
 
-        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test update a client", 
             event_type="Send", 
             event_key="3p7194Y33W6BnYlA"
@@ -158,7 +158,7 @@ class Senders:
     def test_remove_client (): 
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
-        mys_client.runing = True
+        mys_client.running = True
         mys_client.set_client_uid(client_uid="some_client_id")
         
         command = client_patterns.command_pattern(
@@ -170,7 +170,7 @@ class Senders:
         
         result = mys_client.send(command, priority=7)
 
-        Events_Mananger(Unit="Client1", path="Logs").Set_Event(
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test remove a client", 
             event_type="Send", 
             event_key="30bt28u819A1QDpH"

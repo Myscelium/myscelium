@@ -6,7 +6,7 @@ import signal
 client_patterns = ClientPatterns()
 
 from multiprocessing import Process, Event, Manager
-from ..Logs.test_logs_mananger import Events_Mananger, System_Status
+from ..Logs.test_logs_manager import Events_Manager, System_Status
 
 class Senders:
 
@@ -81,7 +81,7 @@ class Receivers:
             #     message="Success"
             # )
 
-            # TODO >>> Implement the new mecanism to allow extract the origin of the command 
+            # TODO >>> Implement the new mechanism to allow extract the origin of the command 
 
             response = client_patterns.response_pattern(
                 kwargs={}, 
@@ -89,19 +89,19 @@ class Receivers:
                 retransmit_to_client_id=,
             )
 
-            # TODO >>> Add incorrect data message to send back throught redirect
+            # TODO >>> Add incorrect data message to send back through redirect
             
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step="Active Basic Callback For Correct Data", 
                 event_type="Receive", 
                 event_key="95mO7n9g7H4N2eE9"
             )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
             )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step="Return Basic Callback Success Response", 
                 event_type="Send", 
                 event_key="A07u4a4sad1UX172"
@@ -125,19 +125,19 @@ class Receivers:
             )
 
 
-            # TODO >>> Add incorrect data message to send back throught redirect
+            # TODO >>> Add incorrect data message to send back through redirect
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step="Active Basic Callback For Incorrect Data", 
                 event_type="Receive", 
                 event_key="3ATy5d761kn1Y8A9"
             )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
             )
 
-            Events_Mananger(Unit="Host", path="Logs").Set_Event(
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
                 step="Return Basic Callback Error Response",
                 event_type="Send", 
                 event_key="J0Wr7s116bM3sT15"
