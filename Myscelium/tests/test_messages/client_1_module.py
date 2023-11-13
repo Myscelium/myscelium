@@ -58,7 +58,7 @@ class Receivers:
     def message_test_handler(data:str):
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
-            "Activate Basic Response Test callback handler", 
+            "Activate Basic Success Response Test callback handler", 
             event_type="Receive", 
             event_key="A07u4a4sad1UX172"
         )
@@ -83,7 +83,7 @@ class Receivers:
     def error_test_handler(data:dict):
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
-            "Activate Basic Redirect Test callback handler", 
+            "Activate Basic Error Redirect Test callback handler", 
             event_type="Receive", 
             event_key="J0Wr7s116bM3sT15"
         )
