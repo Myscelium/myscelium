@@ -354,23 +354,23 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             logger.info(format!("[Socket Client] - Received a function!:\n {:?}", f));
 
-            match serde_json::from_value::<String>(f) {
-                Ok(function) => {
-                    if function == "Error" {
-                        // TODO >>> See if this is necessary to maintain since the errors now are pretended to be redirected
-                        let val = Value::String("Unknown error".to_string());
-                        let error_msg = command_received.command.get("Error").unwrap_or(&val);
-                        logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
-                        enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                        return None;
-                    } // Optionally handle other string cases here...
-                },
-                Err(_) => {
-                    // This block will execute if the JSON is not a string.
-                    // Just continue, without doing anything.
-                },
-            }
+            // match serde_json::from_value::<String>(f) {
+            //     Ok(function) => {
+            //         if function == "Error" {
+            //             // TODO >>> See if this is necessary to maintain since the errors now are pretended to be redirected
+            //             let val = Value::String("Unknown error".to_string());
+            //             let error_msg = command_received.command.get("Error").unwrap_or(&val);
+            //             logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
+            //             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            //             CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+            //             return None;
+            //         } // Optionally handle other string cases here...
+            //     },
+            //     Err(_) => {
+            //         // This block will execute if the JSON is not a string.
+            //         // Just continue, without doing anything.
+            //     },
+            // }
 
             let down_command = DownCommand::from_command(command_received.clone());
 
@@ -403,14 +403,14 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             let status = serde_json::from_value::<String>(r.get("status").unwrap().clone()).unwrap();
 
-            if status == "error".to_string() {
-                let val = Value::String("Unknown error".to_string());
-                let error_msg = command_received.command.get("message").unwrap_or(&val);
-                logger.exception(format!("\nAn error occurred in host, the error was: {}\n", serde_json::from_value::<String>(error_msg.clone()).unwrap()));
-                enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                return None;
-            }
+            // if status == "error".to_string() {
+            //     let val = Value::String("Unknown error".to_string());
+            //     let error_msg = command_received.command.get("message").unwrap_or(&val);
+            //     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", serde_json::from_value::<String>(error_msg.clone()).unwrap()));
+            //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            //     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+            //     return None;
+            // }
 
             let down_command = DownCommand::from_command(command_received.clone());
 
@@ -420,14 +420,16 @@ fn handle_response(received: Response) -> Option<DownCommand> {
         },
 
         CommandType::Error(_) => {
-            let _ = DownCommand::from_command(command_received.clone());
+            logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("message").unwrap()));
+            // CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+
+            // return None;
+
+            let down_command = DownCommand::from_command(command_received.clone());
 
             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
 
-            logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("message").unwrap()));
-            CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-
-            return None;
+            return Some(down_command);
         },
 
         CommandType::Redirect(_) => {
