@@ -678,13 +678,16 @@ def test_messages ():
 
     # TODO >>> Continue to implement the tests to assess if the test inner management are working!
 
-    callback_for_correct_data   = False
-    callback_for_incorrect_data = False
+    callback_for_correct_data        = False
+    callback_for_incorrect_data      = False
 
     #> Client 1 events:
 
-    send_correct_data_for_host = False
-    send_incorrect_data_for_host = False
+    send_correct_data_for_host       = False
+    send_incorrect_data_for_host     = False
+
+    receive_success_response_handler =  False
+    receive_error_response_handler   =  False
 
     #>----------------------------------------------------------------------------------------------------
 
@@ -705,11 +708,16 @@ def test_messages ():
         # > Senders
 
         if "Correct Data Sended" in event:
-            send_correct_data_for_host      = True
+            send_correct_data_for_host       = True
 
         if "Incorrect Data Sended" in event:
-            send_incorrect_data_for_host    = True
+            send_incorrect_data_for_host     = True
+        
+        if "Activate Basic Success Response Test callback handler" in event:
+            receive_success_response_handler = True
 
+        if "Activate Basic Error Redirect Test callback handler" in event:
+            receive_error_response_handler   = True
 
     unified_events = host_events_df.merge(client_1_events_df, how='outer')
 
@@ -745,7 +753,7 @@ def test_messages ():
     else:
         History_Manager().store_history_point("test_management", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
 
-    # -> Client 1
+    # -> Client 1 Senders
 
     assert send_correct_data_for_host, "Can't send correct command to host!"
     assert send_incorrect_data_for_host, "Can't send incorrect command to host!"
@@ -754,6 +762,13 @@ def test_messages ():
 
     assert callback_for_correct_data, "Correct callback handler not triggered"
     assert callback_for_incorrect_data, "Incorrect callback handler not triggered"
+
+    # -> Client 1 Receivers
+
+    assert receive_success_response_handler, "don't receive the success response!"
+    assert receive_error_response_handler, "don't receive the error response!"
+
+
 
     # TODO >>> Implement the callback checking in the client side too
 
