@@ -41,12 +41,13 @@ class Interface_Unique_ID_Generator:
 
     def Validate (self, BufferId:int) -> bool:  # Validate the id generated and see if it already exists, if so gen other id. 
         # DataList = self.dtr.list_schedule.iloc[:, ['Id']].to_list()
-        for i in DataList:
+        for i in self.registered_ids:
             if BufferId == i :
                 return False
             else:
                 pass
         return True
+
 class SQLiteConnectionPool:
     def __init__(self, max_connections:int, database_path:str):
         self.data_base = database_path

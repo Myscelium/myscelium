@@ -16,7 +16,7 @@ from .test_redirect.client_2_module import MyClient as MyClient2ToTestRedirect
 
 #> Test Inner Management
 from .test_management.host_module import MyHost as MyHostToTestManagement
-from .test_management.client_1_module import MyClient as MyHostToTestManagement
+from .test_management.client_1_module import MyClient as MyClient1ToTestManagement
 
 #> Test messages
 from .test_messages.host_module import MyHost as MyHostToTestMessages
@@ -456,7 +456,7 @@ def client_1_thread_to_test_inner_management (event_client_received):
     time.sleep(5)
     print("Starting client 1 thread...")
     
-    client_instance = MyHostToTestManagement(DEBUG_LEVEL)
+    client_instance = MyClient1ToTestManagement(DEBUG_LEVEL)
     client_instance.run() 
     
     print("Client1 thread finished.")
