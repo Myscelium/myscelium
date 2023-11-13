@@ -85,7 +85,7 @@ fn stop_socket_client() {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn initalize_client_buffer_tables(path: &PyString) {
+pub fn initialize_client_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
     initialize_client_logs_databse_dir(buffer_path.clone());

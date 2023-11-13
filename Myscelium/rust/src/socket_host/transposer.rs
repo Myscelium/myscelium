@@ -305,7 +305,7 @@ fn process(py: Python, down_command: DownCommand) {
                     //      "kwargs":Map(response),
                     //      "redirect_to":String(redirect_to_client_id)
                     //  })
-                } else if *response_mode == ResultType::Str("internal_mannangement".to_string()) {
+                } else if *response_mode == ResultType::Str("internal_management".to_string()) {
                     let resp = handle_internal_mannangment(m, &mut client_id);
                     let converted_to_value = convert_to_value_map(&resp);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());

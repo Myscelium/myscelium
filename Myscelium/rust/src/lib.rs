@@ -77,7 +77,7 @@ lazy_static! {
 ///
 /// # Host Functions:
 ///
-/// - `initalize_host_buffer_tables`: Initializes the buffer tables for the host.
+/// - `initialize_host_buffer_tables`: Initializes the buffer tables for the host.
 /// - `registry_socket_host_callbacks`: Registers callback functions for the socket host.
 /// - `initialize_socket_host`: Initializes and starts the socket host.
 /// - `get_socket_host_available_commands`: Fetches the list of available commands that the socket host can recognize.
@@ -90,7 +90,7 @@ lazy_static! {
 ///
 /// # Client Functions:
 ///
-/// - `initalize_client_buffer_tables`: Initializes the buffer tables for the client.
+/// - `initialize_client_buffer_tables`: Initializes the buffer tables for the client.
 /// - `registry_socket_client_callbacks`: Registers callback functions for the socket client.
 /// - `initialize_socket_client`: Initializes and starts the socket client.
 /// - `set_socket_client_transposer_num_of_workers`: Sets the number of workers for the socket client transposer.
@@ -102,7 +102,7 @@ lazy_static! {
 #[pymodule]
 fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // -> Host
-    m.add_function(wrap_pyfunction!(initalize_host_buffer_tables, m)?)?;
+    m.add_function(wrap_pyfunction!(initialize_host_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
     m.add_function(wrap_pyfunction!(get_socket_host_available_commands, m)?)?;
@@ -115,7 +115,7 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(registry_new_allowed_clients, m)?)?;
 
     // -> Client
-    m.add_function(wrap_pyfunction!(initalize_client_buffer_tables, m)?)?;
+    m.add_function(wrap_pyfunction!(initialize_client_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_client_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_client, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_client_transposer_num_of_workers, m)?)?;
