@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use crate::commom::enhanced_buffer;
-use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
-use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
-use crate::commom::enhanced_buffer::utilities::Command;
-use crate::commom::functions::converters::convert_to_value_map;
-use crate::commom::functions::python_functions::{call_callback, extract_pyobject};
-use crate::commom::structs::results_structs::ResultType;
+use crate::common::enhanced_buffer;
+use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
+use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
+use crate::common::enhanced_buffer::utilities::Command;
+use crate::common::functions::converters::convert_to_value_map;
+use crate::common::functions::python_functions::{call_callback, extract_pyobject};
+use crate::common::structs::results_structs::ResultType;
 
 use pyo3::types::PyFunction;
 use pyo3::Py;
@@ -92,13 +92,13 @@ lazy_static! {
 /// ```
 ///
 pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
-    host_logger::register::register_mananger::set_workers_num(n_workers.clone() * 7); // 7 * n because we need 7 for each
+    host_logger::register::register_manager::set_workers_num(n_workers.clone() * 7); // 7 * n because we need 7 for each
     let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
 
     *default_num_of_workers = n_workers;
 
-    enhanced_buffer::buffer_down_mananger::set_workers_num(n_workers);
-    enhanced_buffer::buffer_up_mananger::set_workers_num(n_workers);
+    enhanced_buffer::buffer_down_manager::set_workers_num(n_workers);
+    enhanced_buffer::buffer_up_manager::set_workers_num(n_workers);
 }
 
 /// Sets the command patterns and callback patterns for the socket host transposer.
@@ -149,7 +149,7 @@ macro_rules! error_response {
     }};
 }
 
-use crate::socket_host::functions::process::{handle_internal_mannangment, handle_redirect};
+use crate::socket_host::functions::process::{handle_internal_management, handle_redirect};
 
 /// Processes a given `DownCommand`, executing the corresponding logic and handling redirection.
 ///
@@ -157,7 +157,7 @@ use crate::socket_host::functions::process::{handle_internal_mannangment, handle
 /// contents, it can:
 /// - Execute callbacks
 /// - Translate commands
-/// - Handle redirections
+/// - Handle redirects
 /// - Schedule `UpCommand`s for execution
 ///
 /// # Parameters
@@ -173,7 +173,7 @@ use crate::socket_host::functions::process::{handle_internal_mannangment, handle
 /// 4. Executes the callback associated with the function.
 /// 5. Processes the response from the callback. This can involve:
 ///    - Handling direct responses
-///    - Handling redirections
+///    - Handling redirects
 ///    - Handling internal management commands
 /// 6. Based on the processed response, schedules an `UpCommand` for execution.
 ///
@@ -202,20 +202,20 @@ use crate::socket_host::functions::process::{handle_internal_mannangment, handle
 fn process(py: Python, down_command: DownCommand) {
     let logger = acquire_logger!("Transposer - Process");
 
-    logger.debug(format!("Initializing prossesing!"));
+    logger.debug(format!("Initializing processing!"));
 
-    let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone(), down_command.client_id.clone());
+    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_id.clone());
     let command_id: u32 = down_command.command_id.clone().unwrap();
 
     if !command_is_not_registry {
-        logger.debug(format!("Command {}, alwready have a response!", down_command.parity_id.clone()));
-        enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
+        logger.debug(format!("Command {}, already have a response!", down_command.parity_id.clone()));
+        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id);
         return;
     }
 
     // TODO >>> Use the command.command or create a require type field to redirect the command to another client
 
-    // -> One idea is to create a obrigatory key in the command.command and instead of only function create a type kwarg field
+    // -> One idea is to create a mandatory key in the command.command and instead of only function create a type kwarg field
     // > Type can be:
     // >    - same as origin
     // >    - redirect
@@ -223,8 +223,8 @@ fn process(py: Python, down_command: DownCommand) {
     // > if it is redirect one extra kwarg is necessary that have the client_id to redirect
     // * This will create a need to have a local database in the host to store the clients
     // * and to store when is the last contact of some client, if it is some threshold value
-    // * more it will remove the registred client, if it have a contact recent, this will redirect the message
-    // * however if the message is becames too old before the client the message is redirected catches it
+    // * more it will remove the registered client, if it have a contact recent, this will redirect the message
+    // * however if the message is becomes too old before the client the message is redirected catches it
     // * The system have to remove this old message from the buffer too.
 
     let translated_command: Command = Command::from_down_command(down_command.clone());
@@ -244,8 +244,8 @@ fn process(py: Python, down_command: DownCommand) {
 
     // -> Remove command from schedule if it isn't on the patterns
     if !patterns.contains_key(function) {
-        logger.warn(format!("Command isn't registred in the patterns"));
-        enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
+        logger.warn(format!("Command isn't registered in the patterns"));
+        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
         logger.warn(format!("command skipped and removed from schedule"));
         return;
     }
@@ -306,7 +306,7 @@ fn process(py: Python, down_command: DownCommand) {
                     //      "redirect_to":String(redirect_to_client_id)
                     //  })
                 } else if *response_mode == ResultType::Str("internal_management".to_string()) {
-                    let resp = handle_internal_mannangment(m, &mut client_id);
+                    let resp = handle_internal_management(m, &mut client_id);
                     let converted_to_value = convert_to_value_map(&resp);
                     response = Ok(serde_json::to_string(&converted_to_value).unwrap());
                 } else {
@@ -348,22 +348,22 @@ fn process(py: Python, down_command: DownCommand) {
     logger.debug(format!("Function returned: {:?}", response));
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
-    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
+    enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
     let up_command = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
 
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
+    enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 }
 
 fn clear_old_data() {
-    enhanced_buffer::buffer_down_mananger::buffer_down_clear_old_commands();
-    enhanced_buffer::buffer_up_mananger::buffer_up_clear_old_commands();
+    enhanced_buffer::buffer_down_manager::buffer_down_clear_old_commands();
+    enhanced_buffer::buffer_up_manager::buffer_up_clear_old_commands();
 }
 
 pub fn initialize_socket_host_transposer(py: Python<'_>) {
     let logger = acquire_logger!("Transposer");
 
-    let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
+    let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_manager::buffer_down_list_schedule();
 
     if !(schedule.len() > 0) {
         // logger.debug(format!("Nothing in the schedule, skipping >>>"));
@@ -381,7 +381,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
     for dow_command in schedule {
         let logger = acquire_logger!("Transposer");
 
-        logger.info(format!("get a pool worker in tranposer!"));
+        logger.info(format!("get a pool worker in transposer!"));
 
         let py;
 

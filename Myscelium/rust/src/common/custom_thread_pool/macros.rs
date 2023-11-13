@@ -4,7 +4,7 @@ macro_rules! init_thread_pool {
         use std::sync::{mpsc, Arc, Mutex};
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
-            let pool = Arc::new(Mutex::new(crate::commom::custom_thread_pool::thread_pool::UnifiedThreadPool::new($size)));
+            let pool = Arc::new(Mutex::new(crate::common::custom_thread_pool::thread_pool::UnifiedThreadPool::new($size)));
             if let Err(err) = tx.send(pool) {
                 println!("Error initializing thread pool: {:?}", err);
             }

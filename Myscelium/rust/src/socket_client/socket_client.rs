@@ -1,7 +1,7 @@
-use crate::commom::enhanced_buffer;
-use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
+use crate::common::enhanced_buffer;
+use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 
-use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandType};
 
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
@@ -9,13 +9,13 @@ use std::collections::HashMap;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
-use crate::commom::functions::converters::value_to_resulttype;
+use crate::common::functions::converters::value_to_resulttype;
 
 use std::sync::atomic::Ordering;
 
 use std::time::Duration;
 
-use crate::CLIENT_IS_RUNING;
+use crate::CLIENT_IS_RUNNING;
 
 use std::net::TcpStream;
 
@@ -118,20 +118,20 @@ pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, 
 /// - If not already initialized, the function will create and initialize the buffer database
 ///   at the specified location.
 pub fn initialize_client_buffer(buffer_location: String) {
-    println!("inicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location);
+    println!("initializing the buffer database into: {}buffer.db, if not initialized!", buffer_location);
 
-    enhanced_buffer::buffer_down_mananger::buffer_down_initialize_table(buffer_location.clone());
+    enhanced_buffer::buffer_down_manager::buffer_down_initialize_table(buffer_location.clone());
 
-    enhanced_buffer::buffer_up_mananger::buffer_up_initialize_table(buffer_location.clone());
+    enhanced_buffer::buffer_up_manager::buffer_up_initialize_table(buffer_location.clone());
 
-    println!("All buffer initialized succefully!");
+    println!("All buffer initialized successfully!");
 
     return;
 }
 
-// Keep the thread alive until HOST_IS_RUNING is set to false
-// if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
-//     print!("runing is set to false, skipping");
+// Keep the thread alive until HOST_IS_RUNNING is set to false
+// if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
+//     print!("running is set to false, skipping");
 //     break;
 // }
 
@@ -293,7 +293,7 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
 /// # Behavior
 /// - If the `CLIENT_IS_RUNNING` global flag is set to false, the function will immediately return `None`.
 pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
-    if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+    if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
         return None;
     }
 
@@ -350,19 +350,19 @@ fn handle_response(received: Response) -> Option<DownCommand> {
     match command_received.command_type() {
         CommandType::Function(f) => {
             // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
-            // > Also we can use a similar sistem to sinc multiple hosts
+            // > Also we can use a similar system to sync multiple hosts
 
             logger.info(format!("[Socket Client] - Received a function!:\n {:?}", f));
 
             match serde_json::from_value::<String>(f) {
                 Ok(function) => {
                     if function == "Error" {
-                        // TODO >>> See if this is necessary to maintein since the errors now are pretended to be redirected
+                        // TODO >>> See if this is necessary to maintain since the errors now are pretended to be redirected
                         let val = Value::String("Unknown error".to_string());
                         let error_msg = command_received.command.get("Error").unwrap_or(&val);
                         logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
-                        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                        CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+                        enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                         return None;
                     } // Optionally handle other string cases here...
                 },
@@ -382,13 +382,13 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             if command_received.parity_id != "itisaspecialcase" {
                 if function == "C210".to_string() {
-                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
                     logger.info(format!("Received Confirmation!"));
                     return None;
                 } else if function == "Error".to_string() {
                     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
-                    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                    CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                    CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                     return None;
                 }
             }
@@ -407,14 +407,14 @@ fn handle_response(received: Response) -> Option<DownCommand> {
                 let val = Value::String("Unknown error".to_string());
                 let error_msg = command_received.command.get("message").unwrap_or(&val);
                 logger.exception(format!("\nAn error occurred in host, the error was: {}\n", serde_json::from_value::<String>(error_msg.clone()).unwrap()));
-                enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
-                CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+                enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                 return None;
             }
 
             let down_command = DownCommand::from_command(command_received.clone());
 
-            enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
 
             return Some(down_command);
         },
@@ -422,10 +422,10 @@ fn handle_response(received: Response) -> Option<DownCommand> {
         CommandType::Error(_) => {
             let _ = DownCommand::from_command(command_received.clone());
 
-            enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
 
             logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("message").unwrap()));
-            CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+            CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
 
             return None;
         },
@@ -503,16 +503,16 @@ pub fn initialize_client(address: String, client_id: String) {
     thread::sleep(Duration::from_millis(200));
 
     loop {
-        if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+        if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
             logger.info(format!("running is set to false, shutdown socket client main process!"));
             break;
         }
 
-        let up_schedule = enhanced_buffer::buffer_up_mananger::buffer_up_list_schedule();
+        let up_schedule = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule();
 
         if !(up_schedule.len() > 0) {
             if let Some(down_command) = send_ping(&mut stream) {
-                enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
+                enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
             }
             // println!("[Socket] - Nothing in schedule, skipping..");
             thread::sleep(Duration::from_millis(100));
@@ -527,7 +527,7 @@ pub fn initialize_client(address: String, client_id: String) {
 
                 if let Some(down_command) = handle_response(received) {
                     println!("[Socket Client] - Receives Data.. : {:?}", down_command);
-                    enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command.clone());
+                    enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
                     break;
                 }
 

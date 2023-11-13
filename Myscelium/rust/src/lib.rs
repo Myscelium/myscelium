@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 #[allow(unused_extern_crates)]
-mod commom;
+mod common;
 
 mod socket_client;
 mod socket_host;
@@ -11,14 +11,12 @@ use host_entry_point::*;
 mod client_entry_point;
 use client_entry_point::*;
 
-use pyo3::exceptions;
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 use pyo3::wrap_pyfunction;
 
 use lazy_static::lazy_static;
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -26,7 +24,7 @@ use parking_lot::Mutex;
 lazy_static! {
 
     // CLIENT
-    pub static ref CLIENT_IS_RUNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+    pub static ref CLIENT_IS_RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref CLIENT_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));

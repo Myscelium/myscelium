@@ -1,33 +1,19 @@
 use lazy_static::lazy_static;
 
-#[macro_use]
-use crate::{with_connection, set_new_path_to_buffer_db};
-use crate::commom::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator, UniqueParityIdGenerator};
+use crate::common::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator, UniqueParityIdGenerator};
+use crate::{set_new_path_to_buffer_db, with_connection};
 
 use rusqlite::params;
 
-use serde::{Deserialize, Serialize};
-
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
-
-use std::clone;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
 
 use serde_json::{from_str, Value};
-use std::collections::HashMap;
-
-use chrono::Utc;
-
-use crate::commom::enhanced_buffer::utilities::Command;
-
-use std::sync::RwLock;
 
 use rusqlite::{Connection, Result};
 
-use crate::socket_host::client_mananger::mananger::{Client, ClientError};
+use crate::socket_host::client_manager::manager::{Client, ClientError};
 
 use rusqlite::Row;
 use rusqlite::Statement;
@@ -101,10 +87,10 @@ pub fn groups_mananger_initialize_table(buffer_path: String) {
 
         match result {
             Ok(_) => {
-                println!("Successfully initialize ClientCommandsTosend table!");
+                println!("Successfully initialize ClientCommandsToSend table!");
             },
             Err(e) => {
-                eprintln!("An error occurred while scheduling the command in the ClientCommandsTosend table: {}", e);
+                eprintln!("An error occurred while scheduling the command in the ClientCommandsToSend table: {}", e);
             },
         };
     });
@@ -161,7 +147,7 @@ pub fn groups_mananger_initialize_table(buffer_path: String) {
 #[derive(Debug, Clone)]
 pub enum GroupError {
     GroupDoesNotExist(String),
-    GroupAlwreadyExist(String),
+    GroupAlreadyExist(String),
 }
 
 #[derive(Debug, Clone)]
@@ -242,7 +228,7 @@ impl PermissionGroup {
         allow_transfer_to: Vec<String>,
     ) -> Result<PermissionGroup, GroupError> {
         if check_if_permission_group_name_exists(group_name.clone()) {
-            return Err(GroupError::GroupAlwreadyExist(group_name));
+            return Err(GroupError::GroupAlreadyExist(group_name));
         }
 
         let registered_ids = get_registred_ids();

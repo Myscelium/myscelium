@@ -2,28 +2,13 @@ use lazy_static::lazy_static;
 
 #[macro_use]
 use crate::{with_connection, set_new_path_to_buffer_db};
-use crate::commom::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator, UniqueParityIdGenerator};
+use crate::common::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator, UniqueParityIdGenerator};
 
 use rusqlite::params;
 
-use serde::{Deserialize, Serialize};
-
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
-
-use std::clone;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-
-use serde_json::{from_str, Value};
-use std::collections::HashMap;
-
-use chrono::Utc;
-
-use crate::commom::enhanced_buffer::utilities::Command;
-
-use std::sync::RwLock;
 
 use rusqlite::{Connection, Result};
 
@@ -43,7 +28,7 @@ macro_rules! handle_client_error {
             Ok(c) => c, // Return the unwrapped client directly
             Err(e) => {
                 match e {
-                    ClientError::ClientAlwreadyExist(c) => {
+                    ClientError::ClientAlreadyExist(c) => {
                         println!("Error client: {} already exist", c);
                     },
                     ClientError::ClientDoesNotExist(c) => {
@@ -69,13 +54,13 @@ lazy_static! {
     static ref SQL_POOL: Mutex<SQLiteConnectionPool> = Mutex::new(SQLiteConnectionPool::empty());
 }
 
-pub fn set_host_clients_mananger__pool_workers_num(n_workers: u32) {
+pub fn set_host_clients_manager__pool_workers_num(n_workers: u32) {
     let mut default_num_of_workers = NUM_WORKERS.lock();
 
     *default_num_of_workers = n_workers;
 }
 
-pub fn clients_mananger_initialize_table(sql_path: String) {
+pub fn clients_manager_initialize_table(sql_path: String) {
     // Create a global Mutex for demonstration
     let mutex1 = Mutex::new(0);
     let mutex2 = Mutex::new(0);
@@ -122,7 +107,7 @@ pub fn clients_mananger_initialize_table(sql_path: String) {
 #[derive(Debug, Clone)]
 pub enum ClientError {
     ClientDoesNotExist(String),
-    ClientAlwreadyExist(String),
+    ClientAlreadyExist(String),
     UnexpectedError(String),
 }
 
@@ -153,7 +138,7 @@ impl Client {
         let mut client_id;
 
         {
-            let registered_ids = get_registred_ids();
+            let registered_ids = get_registered_ids();
 
             let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
 
@@ -213,7 +198,7 @@ impl Client {
     }
 
     pub fn update_to(&self, new_client: &Client) -> Result<Self, ClientError> {
-        let serialzied_owned_sub_channels_keys = serde_json::to_string(&new_client.owned_sub_channels_keys).expect("Failed to serialize to JSON");
+        let serialized_owned_sub_channels_keys = serde_json::to_string(&new_client.owned_sub_channels_keys).expect("Failed to serialize to JSON");
 
         with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
             // let now = Utc::now();
@@ -229,7 +214,7 @@ impl Client {
                     new_client.is_super_user,
                     new_client.last_contact,
                     new_client.max_sub_channels,
-                    serialzied_owned_sub_channels_keys,
+                    serialized_owned_sub_channels_keys,
                     new_client.sub_channels_in_use,
                     self.client_id,
                 ],
@@ -455,7 +440,7 @@ impl Client {
 }
 
 pub fn check_if_client_key_exists(client_key: String) -> bool {
-    let client_keys: Vec<String> = get_clients_keys_registred();
+    let client_keys: Vec<String> = get_clients_keys_registered();
 
     if client_keys.contains(&client_key) {
         return true;
@@ -464,7 +449,7 @@ pub fn check_if_client_key_exists(client_key: String) -> bool {
     }
 }
 
-fn get_clients_keys_registred() -> Vec<String> {
+fn get_clients_keys_registered() -> Vec<String> {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         let mut keys: Vec<String> = Vec::new();
 
@@ -488,7 +473,7 @@ fn get_clients_keys_registred() -> Vec<String> {
     })
 }
 
-fn get_registred_ids() -> Vec<u32> {
+fn get_registered_ids() -> Vec<u32> {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         let mut ids: Vec<u32> = Vec::new();
 
@@ -533,11 +518,11 @@ pub fn edit_client(client: Client) {
         match result {
             Ok(rows) => {
                 if rows > 0 {
-                    println!("Successfully update client: {} in databse", client.client_name);
+                    println!("Successfully update client: {} in database", client.client_name);
                 }
             },
             Err(e) => {
-                eprintln!("Error while update client: {} in the databse, the error is: {}", client.client_name, e);
+                eprintln!("Error while update client: {} in the database, the error is: {}", client.client_name, e);
             },
         }
     });

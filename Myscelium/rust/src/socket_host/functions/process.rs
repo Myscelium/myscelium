@@ -1,27 +1,22 @@
-use lazy_static::lazy_static;
-use serde_json::{from_str, Value};
+use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
 
-use serde::{Deserialize, Serialize};
+use crate::socket_host::client_manager::manager::check_if_client_key_exists;
 
-use crate::socket_host::client_mananger::mananger::check_if_client_key_exists;
+use crate::common::enhanced_buffer;
+use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
+use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 
-use crate::commom::enhanced_buffer;
-use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
-use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
-use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
-use crate::commom::functions::converters::{convert_to_resulttype_map, convert_to_value_map};
-use crate::commom::functions::python_functions::{call_callback, dict_to_kwargs, extract_pyobject};
-use crate::commom::structs::results_structs::ResultType;
+use crate::common::functions::converters::convert_to_value_map;
 
-use crate::socket_host::client_mananger::mananger::{Client, ClientError};
+use crate::common::structs::results_structs::ResultType;
+
+use crate::socket_host::client_manager::manager::{Client, ClientError};
 
 #[macro_use]
 use crate::handle_client_error;
 
-use crate::commom::structs::results_structs::ExpectationError;
+use crate::common::structs::results_structs::ExpectationError;
 
 macro_rules! create_error_response_and_return {
     ($error_msg:expr, $converted_m:expr, $to_send:expr) => {{
@@ -123,7 +118,7 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
     let response = serde_json::to_string(&command_map).unwrap();
 
     let up_command = UpCommand::new(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), response);
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
+    enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 
     logger.debug(format!("Converted redirect command: {:?}", converted_m));
 
@@ -141,7 +136,7 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
     to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
     to_send.insert("function".to_string(), ResultType::Str(function.to_string()));
     to_send.insert("kwargs".to_string(), m.get("kwargs").unwrap().clone());
-    to_send.insert("origin".to_string(), ResultType::Str(client_id.clone())); // -> This will be an indentifier, to know the origin of the retransmited command
+    to_send.insert("origin".to_string(), ResultType::Str(client_id.clone())); // -> This will be an identifier, to know the origin of the retransmited command
 
     // to_send.insert("message".to_string(), ResultType::Str($error_msg.to_string()));
 
@@ -154,10 +149,10 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
 }
 
 // > --------------------------------------------------------------------------------------------------------------------------------------------
-// > Internal Mannangement Handler
+// > Internal Management Handler
 
-pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &mut String) -> HashMap<String, ResultType> {
-    let logger = acquire_logger!("[Process][Internal Manangement]");
+pub fn handle_internal_management(m: HashMap<String, ResultType>, client_id: &mut String) -> HashMap<String, ResultType> {
+    let logger = acquire_logger!("[Process][Internal Management]");
 
     let mut to_send = HashMap::new();
 
@@ -183,7 +178,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
     match activation_function.as_str() {
         "add_client" => {
             // > edit client
-            // {'response_mode':'InternalMannangement', 'activation_function':'add_client', 'kwargs':response, 'response_activation_function':'function_name'}
+            // {'response_mode':'InternalManagement', 'activation_function':'add_client', 'kwargs':response, 'response_activation_function':'function_name'}
             // 'kwargs':{'new_client':clientpattern}
 
             if let ResultType::Map(inner_map) = &kwargs {
@@ -250,7 +245,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                 logger.debug(format!("New client: {:?}", new_client));
 
-                new_client.save_into_db(); //> It Alwready create the new client
+                new_client.save_into_db(); //> It Already create the new client
 
                 logger.debug("New client saved into the database!".to_string());
 
@@ -261,14 +256,14 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
                 to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
                 to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-                to_send.insert("message".to_string(), ResultType::Str(format!("Sussefuly add a client: {}!", client_key).to_string()));
+                to_send.insert("message".to_string(), ResultType::Str(format!("Successfully add a client: {}!", client_key).to_string()));
                 to_send.insert("response_activation_function".to_string(), ResultType::Str("add_client_handler".to_string()));
                 to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
-                to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a indentifier to know from where the command is
+                to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a identifier to know from where the command is
 
-                logger.info(format!("Sussefuly add a client: {}!", client_key));
+                logger.info(format!("Successfully add a client: {}!", client_key));
 
-                // TODO >>> Implement a mecanism to send back the confirmation or a error message originated from the operation
+                // TODO >>> Implement a mechanism to send back the confirmation or a error message originated from the operation
 
                 return to_send;
             } else {
@@ -279,7 +274,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
         "update_client" => {
             // > update client
-            // {'response_mode':'InternalMannangement', 'activation_function':'update_client', 'kwargs':response, 'response_activation_function':'function_name'}
+            // {'response_mode':'InternalManagement', 'activation_function':'update_client', 'kwargs':response, 'response_activation_function':'function_name'}
             // 'kwargs':{'actual_client_key':String, 'updated_client':client} // Client have to have the same client key
             // 'client': {"client_name":str, "client_key":str, "client_type":str, "permission_group":str, "is_super_user":bool, "max_sub_channels":int, "owned_sub_channels_keys":list}
 
@@ -357,9 +352,9 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
                 let old_client = handle_client_error!(Client::get_by_key(&actual_client_key));
 
-                let result = old_client.update_to(&new_client); //> It alwready saves into the database
+                let result = old_client.update_to(&new_client); //> It already saves into the database
 
-                // TODO >>> Maybe implement a fast resultype to client if needed
+                // TODO >>> Maybe implement a fast result-ype to client if needed
 
                 match result {
                     Ok(c) => {
@@ -368,7 +363,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                         to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
                         to_send.insert(
                             "message".to_string(),
-                            ResultType::Str(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key).to_string()),
+                            ResultType::Str(format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key).to_string()),
                         );
                         to_send.insert("response_activation_function".to_string(), ResultType::Str("update_client_handler".to_string()));
 
@@ -377,9 +372,9 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                         resp_kwargs.insert("actual_client_key".to_string(), ResultType::Str(client_key.to_string()));
 
                         to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
-                        to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a indentifier to know from where the command is
+                        to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a identifier to know from where the command is
 
-                        logger.info(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key));
+                        logger.info(format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key));
 
                         return to_send;
                     },
@@ -396,7 +391,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                     },
                 }
 
-                // TODO >>> Implement a mecanism to send back the confirmation or a error message originated from the operation
+                // TODO >>> Implement a mechanism to send back the confirmation or a error message originated from the operation
             } else {
                 logger.warn("Error! Callback response kwargs isn't a Map!".to_string());
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
@@ -405,7 +400,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
 
         "remove_client" => {
             // > remove client
-            // {'response_mode':'InternalMannangement', 'activation_function':'remove_client', 'kwargs':response, 'response_activation_function':'function_name'}
+            // {'response_mode':'InternalManagement', 'activation_function':'remove_client', 'kwargs':response, 'response_activation_function':'function_name'}
             // 'kwargs':{'client_key':String}
 
             if let ResultType::Map(inner_map) = &kwargs {
@@ -436,7 +431,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                         to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
                         to_send.insert(
                             "message".to_string(),
-                            ResultType::Str(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key).to_string()),
+                            ResultType::Str(format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key).to_string()),
                         );
                         to_send.insert("response_activation_function".to_string(), ResultType::Str("remove_client_handler".to_string()));
 
@@ -445,9 +440,9 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                         resp_kwargs.insert("actual_client_key".to_string(), ResultType::Str(client_key.to_string()));
 
                         to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
-                        to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a indentifier to know from where the command is
+                        to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a identifier to know from where the command is
 
-                        logger.info(format!("Sussefuly executed the function: {} and remove client: {}!", activation_function, client_key));
+                        logger.info(format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key));
 
                         return to_send;
                     },
@@ -457,7 +452,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
                 return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
             }
 
-            // TODO >>> Implement a mecanism to send back the confirmation or a error message originated from the operation
+            // TODO >>> Implement a mechanism to send back the confirmation or a error message originated from the operation
         },
 
         _ => {
@@ -466,7 +461,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
             to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
             to_send.insert("message".to_string(), ResultType::Str(format!("Response Activation Function: {} doesn't exists!!", activation_function).to_string()));
             to_send.insert("response_activation_function".to_string(), ResultType::Str("response_activation_function".to_string()));
-            to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a indentifier to know from where the command is
+            to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a identifier to know from where the command is
 
             logger.warn(format!("Response Activation Function: {} doesn't exists!!", activation_function));
 
@@ -474,7 +469,7 @@ pub fn handle_internal_mannangment(m: HashMap<String, ResultType>, client_id: &m
         },
     }
 
-    // TODO >>> Add the cases to handle the following internal mannangement things:
+    // TODO >>> Add the cases to handle the following internal management things:
 
     //* Need to implement the 'response_activation_function' in the wrapper
 }
