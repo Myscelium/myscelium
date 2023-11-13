@@ -2,42 +2,34 @@
 
 use std::collections::HashMap;
 
-use crate::socket_client::client_logger::log_handler::{initialize_client_logs_databse_dir, set_client_log_level};
+use crate::socket_client::client_logger::log_handler::{initialize_client_logs_database_dir, set_client_log_level};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
-use pyo3::wrap_pyfunction;
 
 use pyo3::exceptions;
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
-use ctrlc::set_handler;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use parking_lot::Mutex;
-use serde_json::Value as JsonValue;
 
 use std::thread;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::CLIENT_ID;
-use crate::CLIENT_IS_RUNING;
-use crate::CLIENT_LOG_LEVEL;
-use crate::CLIENT_NODE_NAME;
+use crate::CLIENT_IS_RUNNING;
 
-use lazy_static::lazy_static;
-
-// -> Socket Client mainpoints:
+// -> Socket Client main-points:
 
 use crate::socket_client::scheduler::{self, schedule};
 use crate::socket_client::socket_client::{get_socket_client_available_commands_registered, set_socket_client_callbacks_patterns};
 use crate::socket_client::socket_client::{initialize_client, initialize_client_buffer};
 use crate::socket_client::transposer::{initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num};
 
-use crate::commom::functions::python_functions::extract_arg_types;
+use crate::common::functions::python_functions::extract_arg_types;
 
 /// Sets the number of worker threads for the socket client transposer.
 ///
@@ -65,10 +57,10 @@ pub fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
 ///
 /// # Behavior
 ///
-/// Sets the global `CLIENT_IS_RUNING` atomic flag to `false`.
+/// Sets the global `CLIENT_IS_RUNNING` atomic flag to `false`.
 ///
 fn stop_socket_client() {
-    CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+    CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
 }
 
 /// Initializes the buffer tables for the client.
@@ -88,7 +80,7 @@ fn stop_socket_client() {
 pub fn initialize_client_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
-    initialize_client_logs_databse_dir(buffer_path.clone());
+    initialize_client_logs_database_dir(buffer_path.clone());
     initialize_client_buffer(buffer_path.clone());
 
     return;
@@ -196,19 +188,13 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
-    let mut client_id;
-
-    {
-        client_id = CLIENT_ID.lock().clone();
-    }
-
-    if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
-        println!("Error, client isn't runing, pls run the client before try to send something!");
+    if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
+        println!("Error, client isn't running, pls run the client before try to send something!");
         return Err(PyErr::new::<exceptions::PyValueError, _>("Client isn't running! Please start client before try to send something."));
     }
 
     let extracted_priority = priority.extract::<u8>();
-    let mut priority: u8 = 0;
+    let priority: u8;
 
     match extracted_priority {
         Ok(p) => priority = p,
@@ -422,7 +408,7 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id
         }
     });
 
-    CLIENT_IS_RUNING.store(true, Ordering::SeqCst);
+    CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
 
     {
         let mut client_id_global = CLIENT_ID.lock();
@@ -433,8 +419,8 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id
 
     thread::spawn(|| {
         ctrlc::set_handler(move || {
-            if CLIENT_IS_RUNING.load(Ordering::SeqCst) {
-                CLIENT_IS_RUNING.store(false, Ordering::SeqCst);
+            if CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
+                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                 println!("\nreceived Ctrl+C!\n");
                 stop_socket_client();
             }
@@ -442,21 +428,21 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id
         .expect("Error setting Ctrl-C handler");
 
         initialize_client(address, client_id);
-        println!("Socket host exited ssucefully!");
+        println!("Socket host exited successfully!");
     });
 
-    scheduler::request_host_avaliable_commands();
+    scheduler::request_host_available_commands();
 
     loop {
         initialize_socket_client_transposer();
 
-        if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+        if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
             break;
         }
     }
 
-    println!("Socket transposer exited ssucefully!");
+    println!("Socket transposer exited successfully!");
 }
 
 /// Sets the unique identifier (UID) for the client.

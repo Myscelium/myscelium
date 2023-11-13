@@ -2,35 +2,18 @@ use lazy_static::lazy_static;
 
 #[macro_use]
 use crate::{with_connection, set_new_path_to_buffer_db};
-use crate::commom::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator, UniqueParityIdGenerator};
+use crate::common::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator, UniqueParityIdGenerator};
 
 use rusqlite::params;
 
-use serde::{Deserialize, Serialize};
-
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
-
-use std::clone;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-
-use serde_json::{from_str, Value};
-use std::collections::HashMap;
-
-use chrono::Utc;
-
-use crate::commom::enhanced_buffer::utilities::Command;
-
-use std::sync::RwLock;
 
 use rusqlite::{Connection, Result};
 
 use std::thread;
 use std::time::Duration;
-
-use std::time::Instant;
 
 use rusqlite::Row;
 use rusqlite::Statement;
@@ -197,7 +180,7 @@ impl Channel {
 }
 
 pub fn check_if_channel_key_exists(client_key: String) -> bool {
-    let client_keys: Vec<String> = get_channels_keys_registred();
+    let client_keys: Vec<String> = get_channels_keys_registered();
 
     if client_keys.contains(&client_key) {
         return true;
@@ -206,7 +189,7 @@ pub fn check_if_channel_key_exists(client_key: String) -> bool {
     }
 }
 
-fn get_channels_keys_registred() -> Vec<String> {
+fn get_channels_keys_registered() -> Vec<String> {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         let mut keys: Vec<String> = Vec::new();
 
@@ -228,7 +211,7 @@ fn get_channels_keys_registred() -> Vec<String> {
     })
 }
 
-fn get_registred_ids() -> Vec<u32> {
+fn get_registered_ids() -> Vec<u32> {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         let mut ids: Vec<u32> = Vec::new();
 
@@ -255,7 +238,7 @@ pub fn registry_client(channel_id: u32, owner_key: String, channel_name: String,
         // let now = Utc::now();
         // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
-        let registered_ids = get_registred_ids();
+        let registered_ids = get_registered_ids();
 
         let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
 
@@ -373,11 +356,11 @@ pub fn registry_client(channel_id: u32, owner_key: String, channel_name: String,
 //         match result {
 //             Ok(rows) => {
 //                 if rows > 0 {
-//                     println!("Successfully update client: {} in databse", client.client_name);
+//                     println!("Successfully update client: {} in database", client.client_name);
 //                 }
 //             },
 //             Err(e) => {
-//                 eprintln!("Error while update client: {} in the databse, the error is: {}", client.client_name, e);
+//                 eprintln!("Error while update client: {} in the database, the error is: {}", client.client_name, e);
 //             },
 //         }
 //     });

@@ -1,12 +1,8 @@
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
-use std::thread;
 
 use std::sync::{mpsc, Arc, Mutex};
-use std::time::SystemTime;
-
-use serde::{Deserialize, Serialize};
 
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
@@ -16,25 +12,22 @@ use serde_json::json;
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
-use pyo3::wrap_pyfunction;
 
-use crate::commom::enhanced_buffer;
-use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
-use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
-use crate::commom::enhanced_buffer::utilities::Command;
+use crate::common::enhanced_buffer;
+use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
+use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
+use crate::common::enhanced_buffer::utilities::Command;
 
 #[macro_use]
 use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
-use crate::commom::custom_thread_pool::thread_pool::UnifiedThreadPool;
-use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, Client, ClientError};
-use std::time::Duration;
+use crate::common::custom_thread_pool::thread_pool::UnifiedThreadPool;
+use crate::socket_host::client_manager::manager::{check_if_client_key_exists, Client, ClientError};
 
 // > Global Vars Core
 
 use crate::HOST_IS_RUNNING;
 use std::sync::atomic::Ordering;
 
-use pyo3::exceptions::PyException;
 use pyo3::types::PyFunction;
 
 use super::host_logger;
@@ -73,7 +66,7 @@ lazy_static! {
         Arc::new(Mutex::new(command_patterns))
     };
     static ref CONNECTION_HANDLER_POOL: Arc<Mutex<UnifiedThreadPool>> = {
-        let mut max_connections;
+        let max_connections;
         {
             let max_conns = MAX_CONS.lock().unwrap();
             max_connections = *max_conns;
@@ -143,7 +136,7 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
     }
 }
 
-// pub fn is_client_registred(client_id: &String) -> bool {
+// pub fn is_client_registered(client_id: &String) -> bool {
 //     let clients;
 
 //     {
@@ -157,7 +150,7 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
 
 //     Client
 
-// if !is_client_registred(&client_id) {
+// if !is_client_registered(&client_id) {
 //     let mut clients = CLIENTS_ALLOWED.lock().unwrap();
 
 //     clients.insert(
@@ -188,8 +181,8 @@ pub fn update_last_contact(client_key: String) {
             _ = c.update_last_contact();
         },
         Err(e) => match e {
-            ClientError::ClientAlwreadyExist(e) => {
-                logger.exception(format!("Error client: {} alwready exist", e));
+            ClientError::ClientAlreadyExist(e) => {
+                logger.exception(format!("Error client: {} already exist", e));
             },
             ClientError::ClientDoesNotExist(e) => {
                 logger.exception(format!("Error client: {} does't exist", e));
@@ -201,7 +194,7 @@ pub fn update_last_contact(client_key: String) {
     }
 }
 
-// > Commands Manangemement & Checking:
+// > Commands Management & Checking:
 
 // fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
 //     let function_name = match command.command.get("function") {
@@ -256,7 +249,7 @@ pub fn update_last_contact(client_key: String) {
 /// # Parameters
 /// - `n_max_conns`: The desired maximum number of connections.
 pub fn set_max_conns(n_max_conns: u32) {
-    host_logger::register::register_mananger::set_workers_num(n_max_conns.clone() * 7); // 7 * n because we need 7 for each
+    host_logger::register::register_manager::set_workers_num(n_max_conns.clone() * 7); // 7 * n because we need 7 for each
 
     let mut default_max_conns = MAX_CONS.lock().unwrap();
 
@@ -284,13 +277,13 @@ pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
 pub fn initialize_host_buffer(buffer_location: String) {
     let logger = acquire_logger!("[Socket][Initialize Host Buffer]");
 
-    logger.info(format!("inicializing the buffer database into: {}buffer.db, if not inicialized!", buffer_location));
+    logger.info(format!("initializing the buffer database into: {}buffer.db, if not initialized!", buffer_location));
 
-    enhanced_buffer::buffer_down_mananger::buffer_down_initialize_table(buffer_location.clone());
+    enhanced_buffer::buffer_down_manager::buffer_down_initialize_table(buffer_location.clone());
 
-    enhanced_buffer::buffer_up_mananger::buffer_up_initialize_table(buffer_location.clone());
+    enhanced_buffer::buffer_up_manager::buffer_up_initialize_table(buffer_location.clone());
 
-    logger.info(format!("All buffer initialized succefully!"));
+    logger.info(format!("All buffer initialized successfully!"));
 
     return;
 }
@@ -383,7 +376,7 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
     } else if function == "C206" {
         // -> Ping request
 
-        let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_list_schedule_fo_client_id(client_id.clone());
+        let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule_fo_client_id(client_id.clone());
 
         if !(up_schedule.len() > 0) {
             return create_special_command!(client_id, "C207"); // If don't have any response to send send C207 that is a ping confirmation
@@ -393,7 +386,7 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
 
         let response_command = Command::from_up_command(command_response.clone());
 
-        enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(client_id.clone(), response_command.parity_id.clone());
+        enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(client_id.clone(), response_command.parity_id.clone());
 
         return response_command;
     } else {
@@ -406,14 +399,14 @@ fn handle_special_functions(client_id: String, function: String) -> Command {
 
 /// Handles common commands that don't fall under special functions.
 ///
-/// This function schedules the command for processing using the `buffer_down_mananger`. After scheduling, it sends a "C210" special command as a receive confirmation.
+/// This function schedules the command for processing using the `buffer_down_manager`. After scheduling, it sends a "C210" special command as a receive confirmation.
 ///
 /// # Parameters
 /// - `command`: The `Command` object that needs to be handled.
 ///
 /// # Returns
 /// - A `Command` object representing the response for the common command.
-fn handle_commom_function(command: Command) -> Command {
+fn handle_common_function(command: Command) -> Command {
     // let actual_client_id = CLIENT_ID.lock().unwrap();
 
     // let mut command_map = HashMap::new();
@@ -427,7 +420,7 @@ fn handle_commom_function(command: Command) -> Command {
     let json_command = serde_json::to_string(&command.command).unwrap();
     let down_command = DownCommand::new(command.client_id.clone(), command.parity_id.clone(), command.priority, json_command);
 
-    enhanced_buffer::buffer_down_mananger::buffer_down_schedule(down_command);
+    enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command);
 
     // >----------
     // > Send receive conf
@@ -469,13 +462,13 @@ enum Response {
 /// - `Response::None`: If no scheduled response is found for the provided command.
 ///
 /// # Logic Flow
-/// 1. The function queries the `buffer_up_mananger` to fetch any scheduled responses that match the provided command's client ID and parity ID.
+/// 1. The function queries the `buffer_up_manager` to fetch any scheduled responses that match the provided command's client ID and parity ID.
 /// 2. If no scheduled response is found, the function returns a `Response::None`.
 /// 3. If a scheduled response is found, it is converted into a `Command` object.
 /// 4. The original scheduled response is then removed from the buffer to avoid any future retrievals.
 /// 5. The transformed command is returned as `Response::Command(response_command)`.
 fn get_response(command: Command) -> Response {
-    let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_mananger::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
+    let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_manager::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
 
     if !(up_schedule.len() > 0) {
         return Response::None;
@@ -487,7 +480,7 @@ fn get_response(command: Command) -> Response {
 
     let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response_command);
 
-    enhanced_buffer::buffer_up_mananger::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
+    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
 
     return Response::Command(response_command);
 }
@@ -544,20 +537,20 @@ fn handle_connection(mut stream: TcpStream) {
         let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
         if !check_if_client_key_exists(command.client_id.clone()) {
-            // -> In case client isn't registred in the clients allowed
+            // -> In case client isn't registered in the clients allowed
 
-            let response = create_command_error!(command.client_id, command.parity_id, "Your client isn't registred in the whitelist!");
+            let response = create_command_error!(command.client_id, command.parity_id, "Your client isn't registered in the whitelist!");
 
             let command_response_json = json!(response).to_string();
 
-            logger.exception(format!("WARNING: Client isn't registred, sending back: {:?}", command_response_json));
+            logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", command_response_json));
 
             stream.write_all(command_response_json.as_bytes()).unwrap();
 
             return;
         }
 
-        // ! WE CAN'T USE THIS PY AQUIRE UNTILL THE PYTHON POOL IS FINISHED !
+        // ! WE CAN'T USE THIS PY AQUIRE UNTIL THE PYTHON POOL IS FINISHED !
 
         update_last_contact(command.client_id.clone());
 
@@ -566,7 +559,7 @@ fn handle_connection(mut stream: TcpStream) {
 
             match command.command.get("function") {
                 Some(Value::String(function)) => {
-                    logger.debug(format!("Comand function: {}", function));
+                    logger.debug(format!("Command function: {}", function));
 
                     if special_functions.contains(&function) {
                         // -> Special Function Handler
@@ -579,16 +572,16 @@ fn handle_connection(mut stream: TcpStream) {
 
                         stream.write_all(command_response_json.as_bytes()).unwrap();
                     } else if command_patterns.contains_key(function) {
-                        // -> Commom Function Handler
+                        // -> Common Function Handler
 
                         logger.debug("Command is in command patterns!".to_string());
 
-                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(command.parity_id.clone(), command.client_id.clone());
+                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(command.parity_id.clone(), command.client_id.clone());
 
                         let response: Command;
 
                         if !command_is_not_registry {
-                            logger.warn(format!("Command {}, alwready have a response!", command.parity_id.clone()));
+                            logger.warn(format!("Command {}, already have a response!", command.parity_id.clone()));
 
                             match get_response(command.clone()) {
                                 Response::Command(c) => {
@@ -605,7 +598,7 @@ fn handle_connection(mut stream: TcpStream) {
                                 },
                             }
                         } else {
-                            response = handle_commom_function(command);
+                            response = handle_common_function(command);
                         }
 
                         let command_json = json!(response).to_string();

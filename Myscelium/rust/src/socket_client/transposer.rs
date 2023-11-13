@@ -1,9 +1,9 @@
-use crate::commom::enhanced_buffer;
-use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
-use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
-use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
-use crate::commom::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
-use crate::commom::structs::results_structs::ResultType;
+use crate::common::enhanced_buffer;
+use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
+use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
+use crate::common::enhanced_buffer::utilities::{Command, CommandType};
+use crate::common::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
+use crate::common::structs::results_structs::ResultType;
 
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
@@ -24,21 +24,11 @@ use std::sync::{
 use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 use pyo3::{PyErr, PyObject, PyResult, Python};
 
-use pyo3::IntoPy;
-
-use pyo3::exceptions::PyException;
 use pyo3::Py;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use std::error::Error;
-
-use pyo3::ToPyObject;
-
-use crate::CLIENT_IS_RUNING;
-
-use rand::distributions::Alphanumeric;
-use rand::Rng;
+use crate::CLIENT_IS_RUNNING;
 
 use super::client_logger::log_handler::Logger;
 use crate::CLIENT_LOG_LEVEL;
@@ -120,8 +110,8 @@ pub fn set_socket_client_transposer_workers_num(n_workers: u32) {
 
     *default_num_of_workers = n_workers;
 
-    enhanced_buffer::buffer_down_mananger::set_workers_num(n_workers);
-    enhanced_buffer::buffer_up_mananger::set_workers_num(n_workers);
+    enhanced_buffer::buffer_down_manager::set_workers_num(n_workers);
+    enhanced_buffer::buffer_up_manager::set_workers_num(n_workers);
 }
 
 /// Sets the command patterns and callback patterns for the socket client transposer.
@@ -149,13 +139,13 @@ pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String,
 /// that can arise when the transposer attempts to process a command.
 enum ProcessError {
     /// Indicates that the command has already been processed.
-    CommandAlwreadyProcessed(String),
+    CommandAlreadyProcessed(String),
 
     /// Indicates that the command is missing a required "function" attribute.
     MissingCommandFunction(String),
 
     /// Indicates that the command is not recognized because it's not registered in the command patterns.
-    CommandNotRegistred(String),
+    CommandNotRegistered(String),
 
     /// Indicates that the callback response for a command is invalid.
     InvalidCallbackResponse(String, String),
@@ -173,7 +163,7 @@ enum ProcessError {
     MissingKwargsKey(String),
 }
 
-// -> One idea is to create a obrigatory key in the command.command and instead of only function create a type kwarg field
+// -> One idea is to create a obligatory key in the command.command and instead of only function create a type kwarg field
 // > Type can be:
 // >    - same as origin
 // >    - redirect
@@ -181,8 +171,8 @@ enum ProcessError {
 // > if it is redirect one extra kwarg is necessary that have the client_id to redirect
 // * This will create a need to have a local database in the host to store the clients
 // * and to store when is the last contact of some client, if it is some threshold value
-// * more it will remove the registred client, if it have a contact recent, this will redirect the message
-// * however if the message is becames too old before the client the message is redirected catches it
+// * more it will remove the registered client, if it have a contact recent, this will redirect the message
+// * however if the message is becomes too old before the client the message is redirected catches it
 // * The system have to remove this old message from the buffer too.
 
 /// Processes a down command using the specified Python environment and returns the result.
@@ -207,16 +197,16 @@ enum ProcessError {
 fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     let logger = acquire_logger!("Transposer - Process");
 
-    logger.info(format!("Initializing prossesing!"));
+    logger.info(format!("Initializing processing!"));
 
     // Check if the command has already been registered in the up buffer
-    let command_is_not_registry: bool = enhanced_buffer::buffer_up_mananger::check_if_parity_id_is_registred(down_command.parity_id.clone(), down_command.client_id.clone());
+    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_id.clone());
     let command_id: u32 = down_command.command_id.unwrap().clone();
 
     if !command_is_not_registry {
         // If command is already registered, remove it from the down buffer schedule
-        enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id);
-        return Err(ProcessError::CommandAlwreadyProcessed(down_command.parity_id.clone()));
+        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id);
+        return Err(ProcessError::CommandAlreadyProcessed(down_command.parity_id.clone()));
     }
 
     // TODO >>> Use the command.command or create a require type field to redirect the command to another client
@@ -290,9 +280,9 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
                 *actual_patterns = response_map;
             }
 
-            logger.info(format!("Succesfuly actualize the host avalaible commands!"));
+            logger.info(format!("Successfully actualize the host available commands!"));
 
-            enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
             return Ok(());
         } else {
@@ -309,10 +299,10 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     if !patterns.contains_key(activation_key) {
         // If the command is not in the patterns, remove it from the schedule and return an error
-        logger.warn(format!("Command isn't registred in the patterns"));
-        enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
-        logger.info(format!("command skipped and remvoed from schedule"));
-        return Err(ProcessError::CommandNotRegistred(activation_key.clone()));
+        logger.warn(format!("Command isn't registered in the patterns"));
+        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+        logger.info(format!("command skipped and removed from schedule"));
+        return Err(ProcessError::CommandNotRegistered(activation_key.clone()));
     }
 
     logger.info(format!("Command function: {} is a valid function!", activation_key));
@@ -352,14 +342,14 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
                     // TODO >>> Check if retransmit is necessary here
                     response = serde_json::to_string(&m).unwrap();
                 } else {
-                    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
+                    enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
                     return Err(ProcessError::InvalidCallbackResponse(
                         activation_key.clone(),
                         "Response mode doesn't match any known mode. Please use one of: ('to_host', 'retransmit')!".to_string(),
                     ));
                 }
             } else {
-                enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
+                enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
                 return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Callback doesn't implement response mode!".to_string()));
             }
         },
@@ -377,12 +367,12 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
         ResultType::List(_) => {
             // eprintln!("Error! Received a list, but expected a map!");
-            enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
             return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Received a list, but expected a map!".to_string()));
         },
         ResultType::Empty => {
             logger.info(format!("Response is None!"));
-            enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
             return Ok(());
         },
         ResultType::Error(e) => {
@@ -394,27 +384,27 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
     }
 
-    // TODO >>> Remake the command, in a way that it accept Values instead of only string, to we be able to use Value map isntead of a json str
-    //> This will allow to easily mannage commands, reducing the times that it needs to be parsed from strs and allowing convert from value directly.
+    // TODO >>> Remake the command, in a way that it accept Values instead of only string, to we be able to use Value map instead of a json str
+    //> This will allow to easily manage commands, reducing the times that it needs to be parsed from str and allowing convert from value directly.
 
     logger.debug(format!("Function returned: {:?}", response));
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
     // Schedule the resulting up command for transmission
     let up_command: UpCommand = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response);
-    enhanced_buffer::buffer_down_mananger::buffer_down_remove_schedule_by_id(command_id.clone());
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(up_command);
+    enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+    enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 
     return Ok(());
 }
 
 /// Clears old data from the buffer.
 ///
-/// This function invokes methods from `buffer_down_mananger` and `buffer_up_mananger`
+/// This function invokes methods from `buffer_down_manager` and `buffer_up_manager`
 /// to clear old commands from both up and down buffers.
 fn clear_old_data() {
-    enhanced_buffer::buffer_down_mananger::buffer_down_clear_old_commands();
-    enhanced_buffer::buffer_up_mananger::buffer_up_clear_old_commands();
+    enhanced_buffer::buffer_down_manager::buffer_down_clear_old_commands();
+    enhanced_buffer::buffer_up_manager::buffer_up_clear_old_commands();
 }
 
 /// Initializes the socket client transposer.
@@ -433,7 +423,7 @@ pub fn initialize_socket_client_transposer() {
     thread::sleep(Duration::from_millis(200));
 
     // Retrieve scheduled commands
-    let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_mananger::buffer_down_list_schedule();
+    let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_manager::buffer_down_list_schedule();
 
     // Sort commands by priority in ascending order
     schedule.sort_by(|a, b| b.priority.cmp(&a.priority));
@@ -441,7 +431,7 @@ pub fn initialize_socket_client_transposer() {
     logger.debug(format!("\nSchedule to process:\n{:?}\n", schedule));
 
     // If client is not running, shut down the transposer
-    if !CLIENT_IS_RUNING.load(Ordering::SeqCst) {
+    if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
         logger.info(format!("Running is set to false, shutting down transposer!"));
         return;
     }
@@ -472,10 +462,10 @@ pub fn initialize_socket_client_transposer() {
 
             // Process the command and handle potential errors
             let result = process(py, dow_command).map_err(|e| match e {
-                ProcessError::CommandAlwreadyProcessed(m) => {
+                ProcessError::CommandAlreadyProcessed(m) => {
                     format!("Command: {:?} already processed! So skipping", m)
                 },
-                ProcessError::CommandNotRegistred(m) => {
+                ProcessError::CommandNotRegistered(m) => {
                     format!("Command function {:?} not registered in the callbacks! So skipping", m)
                 },
                 ProcessError::MissingResponseKey(m) => {

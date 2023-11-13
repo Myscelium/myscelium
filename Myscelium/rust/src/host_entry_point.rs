@@ -6,30 +6,28 @@ use crate::socket_host::socket_host::{get_available_commands_registered, initial
 use crate::socket_host::socket_host::{initialize_host_buffer, set_heartbeat_callback, set_max_conns};
 use crate::socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
 
-use crate::socket_client::client_logger::log_handler::{initialize_client_logs_databse_dir, set_client_log_level};
-use crate::socket_host::host_logger::log_handler::{initialize_host_logs_databse_dir, set_host_log_level};
+use crate::socket_host::host_logger::log_handler::{initialize_host_logs_database_dir, set_host_log_level};
 
-use pyo3::exceptions;
+use crate::socket_host::client_manager::manager::{check_if_client_key_exists, clients_manager_initialize_table, set_host_clients_manager__pool_workers_num};
+use crate::socket_host::client_manager::manager::{Client, ClientError};
+
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use parking_lot::Mutex;
 
 use serde_json::Value as JsonValue;
 use std::thread;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use crate::commom::functions::python_functions::extract_arg_types;
+use crate::common::functions::python_functions::extract_arg_types;
 
 use crate::HOST_IS_RUNNING;
-use crate::HOST_LOG_LEVEL;
-use crate::HOST_NODE_NAME;
 
 // #[pyfunction]
 // fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
@@ -113,7 +111,7 @@ pub fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
 pub fn set_socket_host_max_connections(n_max_conns: &PyInt) {
     let max_conns: u32 = n_max_conns.extract().unwrap();
 
-    set_host_clients_mananger__pool_workers_num(max_conns.clone());
+    set_host_clients_manager__pool_workers_num(max_conns.clone());
     set_max_conns(max_conns);
 
     return;
@@ -123,9 +121,9 @@ pub fn set_socket_host_max_connections(n_max_conns: &PyInt) {
 pub fn initialize_host_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
 
-    initialize_host_logs_databse_dir(buffer_path.clone());
+    initialize_host_logs_database_dir(buffer_path.clone());
     initialize_host_buffer(buffer_path.clone());
-    clients_mananger_initialize_table(buffer_path.clone());
+    clients_manager_initialize_table(buffer_path.clone());
 
     return;
 }
@@ -310,7 +308,7 @@ pub fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: 
         .expect("Error setting Ctrl-C handler");
 
         initialize_host(address, client_id);
-        println!("Socket host exited ssucefully!");
+        println!("Socket host exited successfully!");
     });
 
     loop {
@@ -323,7 +321,7 @@ pub fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: 
         }
     }
 
-    println!("Socket transposer exited ssucefully!");
+    println!("Socket transposer exited successfully!");
 }
 
 /// Converts a JSON value to its corresponding Python object.
@@ -397,15 +395,9 @@ pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> 
 }
 
 // > --------------------------------------------------------------------------------------------------------
-// > Client Manangement
+// > Client Management
 
-use crate::socket_host::client_mananger::mananger::{check_if_client_key_exists, clients_mananger_initialize_table, set_host_clients_mananger__pool_workers_num};
-use crate::socket_host::client_mananger::mananger::{Client, ClientError};
-
-#[macro_use]
 use crate::handle_client_error;
-
-use crate::socket_host::permissions_mananger::mananger::{GroupError, PermissionGroup};
 
 macro_rules! extract_string {
     ($value:expr, $err_msg:expr) => {

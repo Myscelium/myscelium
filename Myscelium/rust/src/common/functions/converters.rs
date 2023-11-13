@@ -1,5 +1,5 @@
-use crate::commom::enhanced_buffer::utilities::Command;
-use crate::commom::structs::results_structs::ResultType;
+use crate::common::enhanced_buffer::utilities::Command;
+use crate::common::structs::results_structs::ResultType;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::MutexGuard;

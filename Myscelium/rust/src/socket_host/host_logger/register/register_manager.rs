@@ -14,9 +14,7 @@ use pyo3::buffer;
 
 #[macro_use]
 use crate::{with_connection, set_new_path_to_buffer_db};
-use crate::commom::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator, UniqueParityIdGenerator};
-
-use chrono::Utc;
+use crate::common::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator, UniqueParityIdGenerator};
 
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -32,12 +30,12 @@ use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
-// TODO >>> Add a mecanism toa utomatically save the ClientLogs intoa  database and the client
-//*         Add a system to store ClientLogs from host
+// TODO >>> Add a mechanism toa automatically save the HostLogs into a  database and the client
+//*         Add a system to store HostLogs from host
 //*         Add a system to store clients last contact
 
-//>     	Then make a interface in the python side to retirve the ClientLogs from the database
-//>         And a system to retrive the client last contact from the databse
+//>     	Then make a interface in the python side to retrieve the HostLogs from the database
+//>         And a system to retrieve the client last contact from the database
 
 // -> DONE
 lazy_static! {
@@ -58,7 +56,7 @@ pub fn set_workers_num(n_workers: u32) {
    However, the rusqlite library in Rust automatically starts a new
    transaction before each command and commits it after the command
    is executed, unless you explicitly start a transaction. This is
-   known as "autocommit mode".
+   known as "auto-commit mode".
 
 */
 
@@ -86,12 +84,12 @@ impl IntoPy<PyObject> for Log {
 }
 
 // -> DONE
-fn get_registred_ids() -> Vec<u32> {
+fn get_registered_ids() -> Vec<u32> {
     with_connection!(LOGS_REGISTERS_POOL, |conn: &rusqlite::Connection| {
         let mut ids: Vec<u32> = Vec::new();
 
         {
-            let mut smtp = conn.prepare("SELECT * FROM ClientLogs").unwrap();
+            let mut smtp = conn.prepare("SELECT * FROM HostLogs").unwrap();
             let commands_iter = smtp
                 .query_map(params![], |row| {
                     let id: u32 = row.get(0)?;
@@ -109,7 +107,7 @@ fn get_registred_ids() -> Vec<u32> {
 }
 
 // -> DONE
-pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
+pub fn logs_register_initialize_table(logs_storage_path: String) {
     // Create a global Mutex for demonstration
     let mutex1 = Mutex::new(0);
     let mutex2 = Mutex::new(0);
@@ -134,20 +132,20 @@ pub fn logs_registrer_initialize_table(loggs_storage_path: String) {
         }
     });
 
-    set_new_path_to_buffer_db!(LOGS_REGISTERS_POOL, NUM_WORKERS, loggs_storage_path, BUFFER_NAME);
+    set_new_path_to_buffer_db!(LOGS_REGISTERS_POOL, NUM_WORKERS, logs_storage_path, BUFFER_NAME);
 
     with_connection!(LOGS_REGISTERS_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute("CREATE TABLE IF NOT EXISTS ClientLogs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)", params![]);
+        let result = conn.execute("CREATE TABLE IF NOT EXISTS HostLogs (ID INT PRIMARY KEY, NodeName TEXT, LogTime NUMBER, LogName TEXT, LogLevel TEXT, LogMsg TEXT)", params![]);
 
         match result {
             Ok(_) => {
-                println!("Successfully initialize ClientLogs table!");
+                println!("Successfully initialize HostLogs table!");
             },
             Err(e) => {
-                eprintln!("An error occurred while scheduling the command in the ClientLogs table: {}", e);
+                eprintln!("An error occurred while scheduling the command in the HostLogs table: {}", e);
             },
-        }
-    });
+        };
+    })
 }
 
 // -> DONE
@@ -156,25 +154,25 @@ pub fn registry_log(node_name: String, log_time: f64, log_name: String, log_leve
         // let now = Utc::now();
         // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
-        let registered_ids = get_registred_ids();
+        let registered_ids = get_registered_ids();
 
         let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
 
         let result = conn.execute(
-            "INSERT INTO ClientLogs (ID, NodeName, LogTime, LogName, LogLevel, LogMsg) VALUES (?, ?, ?, ?, ?, ?);",
+            "INSERT INTO HostLogs (ID, NodeName, LogTime, LogName, LogLevel, LogMsg) VALUES (?, ?, ?, ?, ?, ?);",
             params![id_generator.gen(), node_name, log_time, log_name, log_level, log_msg],
         );
 
         match result {
             Ok(rows) => {
                 if rows > 0 {
-                    // println!("Successfully inserted Log in the table ClientLogs. {} row(s) were affected.", rows);
+                    // println!("Successfully inserted Log in the table HostLogs. {} row(s) were affected.", rows);
                 } else {
                     // println!("No rows were affected.");
                 }
             },
             Err(e) => {
-                eprintln!("An error occurred while inserting the Log in the table ClientLogs: {}", e);
+                eprintln!("An error occurred while inserting the Log in the table HostLogs: {}", e);
             },
         };
     })
@@ -186,7 +184,7 @@ pub fn list_logs() -> Vec<Log> {
         let mut registred_logs: Vec<Log> = Vec::new();
 
         {
-            let mut smtp = conn.prepare("SELECT * FROM ClientLogs").unwrap();
+            let mut smtp = conn.prepare("SELECT * FROM HostLogs").unwrap();
 
             let logs_iter = smtp
                 .query_map(params![], |row| {
@@ -208,7 +206,7 @@ pub fn list_logs() -> Vec<Log> {
                     },
 
                     Err(e) => {
-                        println!("An error occurred while getting the ClientLogs vec in list_logs, the error was: {}", e);
+                        println!("An error occurred while getting the HostLogs vec in list_logs, the error was: {}", e);
                     },
                 }
             }
@@ -219,15 +217,15 @@ pub fn list_logs() -> Vec<Log> {
 
 pub fn remove_log_by_id(log_id: u32) {
     with_connection!(LOGS_REGISTERS_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute("DELETE from ClientLogs where ID = ?", params![log_id]);
+        let result = conn.execute("DELETE from HostLogs where ID = ?", params![log_id]);
 
         match result {
             Ok(rows) => {
                 println!("Successfully deleted Log of ID: {}. {} rows were affected.", log_id, rows);
             },
             Err(e) => {
-                eprintln!("An error occurred while deleting the Log: {} from ClientLogs table: {}", log_id, e);
+                eprintln!("An error occurred while deleting the Log: {} from HostLogs table: {}", log_id, e);
             },
         };
-    });
+    })
 }

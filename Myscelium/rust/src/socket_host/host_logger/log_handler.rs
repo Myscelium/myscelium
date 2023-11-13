@@ -5,7 +5,6 @@ use std::sync::{mpsc, Arc, Mutex};
 
 use serde_json::{from_str, Value};
 
-use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::PyFunction;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
@@ -13,14 +12,13 @@ use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 
 use crate::HOST_LOG_LEVEL;
 use crate::HOST_NODE_NAME;
 
-use crate::socket_host::host_logger::register::register_mananger;
+use crate::socket_host::host_logger::register::register_manager;
 
-// TODO >>> REMOVE CALLBACK SET AND CALLBACKS SYSTEM FOR LOG FOR NOW BECAUSE WE WILL USE CUSTOM REGISTRER
+// TODO >>> REMOVE CALLBACK SET AND CALLBACKS SYSTEM FOR LOG FOR NOW BECAUSE WE WILL USE CUSTOM REGISTER
 
 lazy_static! {
     static ref CALLBACK_SET: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -30,18 +28,18 @@ lazy_static! {
     };
 }
 
-// TODO >>> Add a mecanism to set the node host name, to be able to indentify in the logs
+// TODO >>> Add a mechanism to set the node host name, to be able to identify in the logs
 
 pub fn set_host_log_level(log_level: String) {
     {
         let mut current_log_level = HOST_LOG_LEVEL.lock();
         *current_log_level = log_level.clone();
-        println!("Host log levels seted to: {:?}", log_level);
+        println!("Host log levels defined to: {:?}", log_level);
     }
 }
 
-pub fn initialize_host_logs_databse_dir(path: String) {
-    register_mananger::logs_registrer_initialize_table(path);
+pub fn initialize_host_logs_database_dir(path: String) {
+    register_manager::logs_register_initialize_table(path);
 }
 
 // pub fn set_host_logs_handler_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>) {
@@ -68,7 +66,7 @@ fn log_event(node_name: String, log_time: f64, log_name: String, log_level: Stri
 
     println!("[Host][{:?}][{:?}] - {:?}", log_name, log_level, log_msg);
 
-    register_mananger::registry_log(node_name, log_time, log_name, log_level, log_msg);
+    register_manager::registry_log(node_name, log_time, log_name, log_level, log_msg);
 
     // let function = match callback_patterns.get(function_name) {
     //     Some(function) => function.clone(),

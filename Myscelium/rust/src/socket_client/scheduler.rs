@@ -1,7 +1,7 @@
-use crate::commom::enhanced_buffer;
-use crate::commom::enhanced_buffer::buffer_down_mananger::DownCommand;
-use crate::commom::enhanced_buffer::buffer_up_mananger::UpCommand;
-use crate::commom::enhanced_buffer::utilities::{Command, CommandType};
+use crate::common::enhanced_buffer;
+use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
+use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
+use crate::common::enhanced_buffer::utilities::{Command, CommandType};
 
 use lazy_static::lazy_static;
 
@@ -43,7 +43,7 @@ pub fn set_client_id(client_uid: String) {
 ///
 /// This function prepares a command request for the host to retrieve the list of
 /// registered commands. The constructed request is then scheduled for processing.
-pub fn request_host_avaliable_commands() {
+pub fn request_host_available_commands() {
     let mut request_host_commands: HashMap<String, String> = HashMap::new();
     request_host_commands.insert("function".to_string(), "get_registered_commands".to_string());
     request_host_commands.insert("command_type".to_string(), "function".to_string());
@@ -87,11 +87,11 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
         },
     }
 
-    let parity_id = enhanced_buffer::buffer_up_mananger::buffer_up_gen_valid_parity_id(client_id.clone());
+    let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_id.clone());
 
     let command_to_schedule = UpCommand::new(client_id, parity_id, priority, unwraped_command);
 
-    enhanced_buffer::buffer_up_mananger::buffer_up_schedule(command_to_schedule.clone());
+    enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
 
     logger.info(format!("Command: {:?} scheduled!", command_to_schedule));
 }
