@@ -56,7 +56,7 @@ class Handlers:
                 Events_Manager(Unit="Host", path="Logs").Set_Event(
                     step="Return Basic Callback Response", 
                     event_type="Send", 
-                    event_key="r99F3i89D20Oj1lq"
+                    event_key="r99F3i89D20Oj1lq" 
                 )
         
             case 9:
@@ -73,7 +73,7 @@ class Handlers:
                 Events_Manager(Unit="Host", path="Logs").Set_Event(
                     step="Return Basic Callback Response",
                     event_type="Send", 
-                    event_key=""
+                    event_key="" # TODO >>> Add event key
                 )
 
         #                                                            (callback name) - Receive Data: [Data received list for comparison]

@@ -119,7 +119,7 @@ class Receivers:
             # )
 
             response =  client_patterns.redirect_error_pattern(
-                error_message=,
+                error_message="incorrect_birth",
                 expected_remote_error_handler=,
                 redirect_to=
             )
