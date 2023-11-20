@@ -473,6 +473,26 @@ impl Client {
         Ok(new_client)
     }
 
+    pub fn update_handlers(&self, new_handlers: Vec<HashMap<String, Value>>) -> Result<Self, ClientError> {
+        let new_client = Self {
+            client_id: self.client_id.clone(),
+            client_name: self.client_name.clone(),
+            client_key: self.client_key.clone(),
+            client_type: self.client_type.clone(),
+            permission_group: self.permission_group.clone(),
+            is_super_user: self.is_super_user.clone(),
+            last_contact: self.last_contact.clone(),
+            max_sub_channels: self.max_sub_channels.clone(),
+            owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
+            sub_channels_in_use: self.sub_channels_in_use.clone(),
+            client_handlers: new_handlers,
+        };
+
+        edit_client(new_client.clone());
+
+        Ok(new_client)
+    }
+
     pub fn change_key_to(&self, new_client_key: String) -> Result<Self, ClientError> {
         if !check_if_client_key_exists(self.client_key.clone()) {
             return Err(ClientError::ClientDoesNotExist(self.client_key.clone()));
@@ -586,8 +606,10 @@ pub fn edit_client(client: Client) {
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         let serialized_owned_sub_channels_keys = serde_json::to_string(&client.owned_sub_channels_keys).expect("Failed to serialize to JSON");
 
+        let client_handlers = to_string_pretty(&client.client_handlers).expect("Failed to serialize"); // Try to convert Vec<HashMap<String, Value>> to string
+
         let result = conn.execute(
-            "UPDATE Clients SET ClientName = ?, ClientKey = ?, ClientType = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, OwnedSubChannelsKeys = ?, SubChannelsInUse = ? WHERE ID = ?;",
+            "UPDATE Clients SET ClientName = ?, ClientKey = ?, ClientType = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, OwnedSubChannelsKeys = ?, SubChannelsInUse = ?, Handlers = ? WHERE ID = ?;",
             params![
                 client.client_name,
                 client.client_key,
@@ -599,6 +621,7 @@ pub fn edit_client(client: Client) {
                 serialized_owned_sub_channels_keys,
                 client.sub_channels_in_use,
                 client.client_id,
+                client_handlers
             ],
         );
 
