@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use serde_json::to_string;
 
 #[macro_use]
 use crate::{with_connection, set_new_path_to_buffer_db};
@@ -201,21 +202,21 @@ impl Client {
             // r# means raw string
             let json_str = r#"[
                 {
-                    "function": get_avaliable_handlers,
+                    "function": "get_avaliable_handlers",
                     "kwargs": {
                         "arg1": "int",
                         "arg2": "str"
                     }
                 },
                 {
-                    "function": update_avaliable_commands,
+                    "function": "update_avaliable_commands",
                     "kwargs": {
-                        "commands": "dict",
+                        "commands": "dict"
                     }
-                },
+                }
             ]"#;
 
-            client_handlers = from_str(json_str).unwrap();
+            client_handlers = serde_json::from_str::<Vec<HashMap<String, Value>>>(json_str).unwrap();
         }
 
         Ok(Self {
@@ -240,10 +241,17 @@ impl Client {
             // let now = Utc::now();
             // let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
-            let client_handlers = to_string_pretty(&self.client_handlers).expect("Failed to serialize"); // Try to convert Vec<HashMap<String, Value>> to string
+            let client_handlers;
+
+            if self.client_handlers.is_empty() {
+                client_handlers = "".to_string();
+            } else {
+                // Try to convert Vec<HashMap<String, Value>> to string
+                client_handlers = to_string_pretty(&self.client_handlers).expect("Failed to serialize");
+            }
 
             let result = conn.execute(
-                "INSERT INTO Clients (ID, ClientName, ClientKey, ClientType, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse, Handlers) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                "INSERT INTO Clients (ID, ClientName, ClientKey, ClientType, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse, Handlers) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                 params![
                     self.client_id,
                     self.client_name,
@@ -262,13 +270,11 @@ impl Client {
             match result {
                 Ok(rows) => {
                     if rows > 0 {
-                        println!("Successfully inserted Log in the table Clients. {} row(s) were affected.", rows);
-                    } else {
-                        println!("No rows were affected.");
+                        println!("Successfully inserted Client in the table Clients. {} row(s) were affected.", rows);
                     }
                 },
                 Err(e) => {
-                    eprintln!("An error occurred while inserting the Log in the table Clients: {}", e);
+                    eprintln!("An error occurred while inserting the Client in the table Clients: {}", e);
                 },
             };
         });
