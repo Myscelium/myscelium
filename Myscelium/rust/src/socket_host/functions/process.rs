@@ -233,6 +233,8 @@ pub fn handle_internal_management(m: HashMap<String, ResultType>, client_id: &mu
 
                 let client_key = updated_client_unwraped.get("client_key").unwrap().to_str().unwrap();
 
+                let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
+
                 let new_client = handle_client_error!(Client::new(
                     updated_client_unwraped.get("client_name").unwrap().to_str().unwrap(),
                     client_key.clone(),
@@ -241,6 +243,7 @@ pub fn handle_internal_management(m: HashMap<String, ResultType>, client_id: &mu
                     updated_client_unwraped.get("is_super_user").unwrap().to_bool().unwrap(),
                     updated_client_unwraped.get("max_sub_channels").unwrap().to_int().unwrap() as u32,
                     owned_sub_channels_keys,
+                    client_handlers,
                 ));
 
                 logger.debug(format!("New client: {:?}", new_client));
@@ -340,6 +343,8 @@ pub fn handle_internal_management(m: HashMap<String, ResultType>, client_id: &mu
 
                 logger.debug(format!("Updated client: {:?}", new_client));
 
+                let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
+
                 let new_client = handle_client_error!(Client::new(
                     updated_client_unwraped.get("client_name").unwrap().to_str().unwrap(),
                     client_key.clone(),
@@ -348,6 +353,7 @@ pub fn handle_internal_management(m: HashMap<String, ResultType>, client_id: &mu
                     updated_client_unwraped.get("is_super_user").unwrap().to_bool().unwrap(),
                     updated_client_unwraped.get("max_sub_channels").unwrap().to_int().unwrap() as u32,
                     owned_sub_channels_keys,
+                    client_handlers,
                 ));
 
                 let old_client = handle_client_error!(Client::get_by_key(&actual_client_key));

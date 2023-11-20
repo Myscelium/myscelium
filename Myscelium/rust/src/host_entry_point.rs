@@ -474,6 +474,8 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
         //     )
         // }
 
+        let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
+
         if !check_if_client_key_exists(client_key.clone()) {
             let client = handle_client_error!(Client::new(
                 client_name.clone(),
@@ -483,6 +485,7 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
                 client_is_super_user,
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
+                client_handlers,
             ));
 
             client.save_into_db();
@@ -523,6 +526,8 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
         let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
         let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
 
+        let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
+
         if !check_if_client_key_exists(client_key.clone()) {
             let client = handle_client_error!(Client::new(
                 client_name.clone(),
@@ -532,6 +537,7 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
                 client_is_super_user,
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
+                client_handlers,
             ));
 
             client.save_into_db()

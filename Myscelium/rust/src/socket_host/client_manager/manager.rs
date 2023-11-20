@@ -137,6 +137,44 @@ pub struct Client {
 // > delet client
 
 impl Client {
+    /// Constructs a new `Client` instance.
+    ///
+    /// This method creates a new client with specified attributes. If `client_handlers` is not provided
+    /// or is empty, it initializes `client_handlers` with a default set of handler mappings.
+    ///
+    /// # Arguments
+    /// * `client_name` - A `String` representing the unique name of the client.
+    /// * `client_key` - A `String` used for client verification.
+    /// * `client_type` - A `String` indicating the type of client.
+    /// * `permission_group` - A `String` representing the permission group the client belongs to.
+    /// * `is_super_user` - A boolean indicating whether the client has superuser privileges.
+    /// * `max_sub_channels` - A `u32` representing the maximum number of subchannels a client can own.
+    /// * `owned_sub_channels_keys` - A `Vec<String>` containing keys to the subchannels owned by the client.
+    /// * `client_handlers` - A `Vec<HashMap<String, Value>>` containing the client's handlers.
+    ///   If empty, a predefined set of handlers is loaded as a default.
+    ///
+    /// # Returns
+    /// A `Result` which is:
+    /// * `Ok` containing the new `Client` instance.
+    /// * `Err` containing a `ClientError` if the client could not be created.
+    ///
+    /// # Examples
+    /// ```
+    /// let client = Client::new(
+    ///     "client_name".to_string(),
+    ///     "client_key".to_string(),
+    ///     "client_type".to_string(),
+    ///     "permission_group".to_string(),
+    ///     true,
+    ///     10,
+    ///     vec!["key1".to_string(), "key2".to_string()],
+    ///     vec![],
+    /// ).unwrap();
+    /// ```
+    ///
+    /// # Errors
+    /// This method will return an `Err` if the `client_id` cannot be generated or if any other part of
+    /// the client creation process fails.
     pub fn new(
         client_name: String,
         client_key: String,
@@ -145,9 +183,9 @@ impl Client {
         is_super_user: bool,
         max_sub_channels: u32,
         owned_sub_channels_keys: Vec<String>,
-        client_handlers: Vec<HashMap<String, Value>>,
+        mut client_handlers: Vec<HashMap<String, Value>>,
     ) -> Result<Self, ClientError> {
-        let mut client_id;
+        let client_id;
 
         {
             let registered_ids = get_registered_ids();
@@ -159,25 +197,26 @@ impl Client {
 
         // -> Store the default handlers
 
-        // r# means raw string
+        if client_handlers.is_empty() {
+            // r# means raw string
+            let json_str = r#"[
+                {
+                    "function": get_avaliable_handlers,
+                    "kwargs": {
+                        "arg1": "int",
+                        "arg2": "str"
+                    }
+                },
+                {
+                    "function": update_avaliable_commands,
+                    "kwargs": {
+                        "commands": "dict",
+                    }
+                },
+            ]"#;
 
-        // let json_str = r#"[
-        //     {
-        //         "function": get_avaliable_handlers,
-        //         "kwargs": {
-        //             "arg1": "int",
-        //             "arg2": "str"
-        //         }
-        //     },
-        //     {
-        //         "function": update_avaliable_commands,
-        //         "kwargs": {
-        //             "commands": "dict",
-        //         }
-        //     },
-        // ]"#;
-
-        // let client_handlers: Vec<HashMap<String, Value>> = from_str(json_str).unwrap();
+            client_handlers = from_str(json_str).unwrap();
+        }
 
         Ok(Self {
             client_id,
@@ -186,7 +225,7 @@ impl Client {
             client_type,
             permission_group,
             is_super_user,
-            last_contact: -1.0,
+            last_contact: -1.0, // This means that client didn't make any contact
             max_sub_channels,
             owned_sub_channels_keys,
             sub_channels_in_use: 0u32,
