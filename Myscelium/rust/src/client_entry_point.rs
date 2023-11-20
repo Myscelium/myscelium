@@ -306,6 +306,15 @@ pub fn set_socket_client_log_level(log_level: &PyString) {
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
+    // For this given data
+    //
+    // special_functions = [{
+    //     "function": get_registered_commands,
+    //     "response_type":"same_as_origin",
+    //     "args": "None",
+    // }, ]
+    //
+
     let mut command_patterns = HashMap::new();
 
     let mut callbacks_patterns = HashMap::new();
@@ -345,10 +354,30 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         // Store the function name and argument types in the command patterns
         command_patterns.insert(function_name.to_string(), args_types_value.clone());
 
+        // Here command_patterns is a list of:
+        //
+        // {
+        //     "function1": {
+        //         "arg1": "int",
+        //         "arg2": "str"
+        //     },
+        //     "function2": "None"
+        // }
+
         let function = function.downcast::<PyFunction>()?.clone();
 
         let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
         callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
+
+        // Callback patterns is a list of:
+        //
+        // {
+        //     "function1": (PyFunctionObject1, {
+        //         "arg1": "int",
+        //         "arg2": "str"
+        //     }),
+        //     "function2": (PyFunctionObject2, "None")
+        // }
     }
 
     // Now you can use the command_patterns

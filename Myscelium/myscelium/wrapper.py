@@ -707,6 +707,7 @@ class HostPatterns:
         # > The idea of this pattern is to create a response to send back to a client or to retransmit
         
         # -> Case 1 (Simple send to origin)
+        
         # >   
         # > (Client 1)       [Host]
         # >    |                |
@@ -718,9 +719,11 @@ class HostPatterns:
         # >         
         # > (|) This is this pattern
         # > 
+
         # -> ---------------------------------------------------------------------------------------------------------------
         # ->
         # -> Case 2 (retransmit to)
+        
         # >   
         # > (Client 1)     (Client 2)   [Host]
         # >    |                |         |
@@ -763,7 +766,7 @@ class HostPatterns:
                 "redirect_to":redirect_to_client_id
             }
 
-            # -> here the origin identifier is added when the command is reforged 
+            # -> here the origin identifier is added when the command is reforged inside engine
             # -> inside the myscelium engine to redirect to the other client so because of that doesn't need the origin here
 
             return response
