@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.3.0 - ReliseCandidate (18/08/2023)
+## v1.3.0 - ReleaseCandidate (18/08/2023)
 
 Certainly! Here's how you might integrate the additional updates into the existing ones:
 
@@ -75,7 +75,7 @@ Certainly! Here's how you might integrate the additional updates into the existi
 - Solve issues in tests of connection
 
 
-## v1.2.0 - ReliseCandidate (18/08/2023)
+## v1.2.0 - ReleaseCandidate (18/08/2023)
 
 ### Updates
 - Add logs buffer
@@ -120,7 +120,7 @@ Certainly! Here's how you might integrate the additional updates into the existi
 - Fix redirect serialization, desserialization and reincoding to redirect
 
 
-## v1.1.0 - ReliseCandidate (08/08/2023)
+## v1.1.0 - ReleaseCandidate (08/08/2023)
 
 ### Updates
 - Add a automatic pytest to test all the lib making connections from client to host and testisng remote function callbacks activationa and client response handlers
