@@ -5,6 +5,8 @@ use crate::common::enhanced_buffer::utilities::{Command, CommandType};
 use crate::common::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
 use crate::common::structs::results_structs::ResultType;
 
+use crate::socket_client::functions::direct_functions::handle_direct_function;
+
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
@@ -44,7 +46,7 @@ macro_rules! acquire_logger {
 }
 
 lazy_static! {
-    static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
+    pub static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
             "get_symbols_data": {
                 "symbols_data": {
@@ -67,7 +69,7 @@ lazy_static! {
         let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
         Arc::new(Mutex::new(command_patterns))
     };
-    static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
+    pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
             "get_symbols_data": {
                 "symbols_data": {
@@ -137,7 +139,7 @@ pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String,
 ///
 /// This enumeration is used to categorize and communicate specific error conditions
 /// that can arise when the transposer attempts to process a command.
-enum ProcessError {
+pub enum ProcessError {
     /// Indicates that the command has already been processed.
     CommandAlreadyProcessed(String),
 
@@ -252,7 +254,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
                 },
             };
         },
-        CommandType::Error(e) => {
+        CommandType::Error(_) => {
             activation_key = match translated_command.command.get("response_activation_function") {
                 Some(Value::String(activation_key)) => activation_key,
                 _ => {
@@ -270,29 +272,12 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     println!("Resolved Activation Key are: {:?}", activation_key);
 
-    // Special handling for "update available host commands" command
-    if activation_key == &"update_available_host_commands".to_string() {
-        logger.info(format!("Receive Host Allowed Commands"));
+    // let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
 
-        if let Some(Value::Object(response_obj)) = translated_command.command.get("kwargs") {
-            // Clone the object to get a HashMap<String, Value>
-            let response_map: HashMap<String, Value> = response_obj.clone().into_iter().collect();
+    let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
 
-            // Lock the COMMAND_PATTERNS and insert the new map
-
-            {
-                let mut actual_patterns = HOST_ALLOWED_COMMANDS.lock().unwrap();
-                *actual_patterns = response_map;
-            }
-
-            logger.info(format!("Successfully actualize the host available commands!"));
-
-            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-
-            return Ok(());
-        } else {
-            return Err(ProcessError::MissingKwargsKey(format!("{:?}", translated_command.clone())));
-        }
+    if direct_functions.contains(activation_key) {
+        return handle_direct_function(activation_key, translated_command.clone(), command_id);
     }
 
     // Validate the command against known command patterns

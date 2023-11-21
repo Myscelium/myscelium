@@ -1164,7 +1164,7 @@ class MysceliumClient:
     def get_registered_commands (self) -> dict:
 
         """
-        Retrieve the registered commands for the client.
+        Retrieve the registered commands.
 
         Returns:
         - Dictionary of registered commands.
@@ -1172,7 +1172,7 @@ class MysceliumClient:
 
         print("Activated the get registered commands")
 
-        return mys.get_socket_client_available_commands()
+        return mys.get_socket_client_available_handlers()
 
     def initialize_client (self, ip:str, port:int):
 
@@ -1618,3 +1618,15 @@ def get_registered_commands () -> dict:
     return response
 
 
+# def get_registered_commands (self) -> dict:
+
+#         """
+#         Retrieve the registered commands.
+
+#         Returns:
+#         - Dictionary of registered commands.
+#         """
+
+#         print("Activated the get registered commands")
+
+#         return mys.get_socket_client_available_handlers()

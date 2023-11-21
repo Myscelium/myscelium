@@ -148,7 +148,7 @@ pub fn initialize_client_buffer(buffer_location: String) {
 ///
 /// # Returns
 /// - A `HashMap` containing the available command patterns.
-pub fn get_socket_client_available_commands_registered() -> HashMap<String, Value> {
+pub fn get_available_handlers_registered() -> HashMap<String, Value> {
     let command_patterns = COMMAND_PATTERNS.lock();
     return command_patterns.clone();
 }

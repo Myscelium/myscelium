@@ -14,13 +14,14 @@ use crate::socket_host::client_manager::manager::{Client, ClientError};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 
+use crate::common::functions::python_functions::translate_value_to_py;
+
 use serde_json::Value;
 
 use std::sync::atomic::Ordering;
 
 use parking_lot::Mutex;
 
-use serde_json::Value as JsonValue;
 use std::thread;
 
 use std::time::Duration;
@@ -322,46 +323,6 @@ pub fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: 
     }
 
     println!("Socket transposer exited successfully!");
-}
-
-/// Converts a JSON value to its corresponding Python object.
-///
-/// This helper function takes in a JSON value and recursively converts it to the corresponding Python object.
-/// This can be useful for translating between Rust and Python data structures.
-///
-/// # Parameters
-///
-/// - `py`: The Python interpreter.
-/// - `value`: The JSON value to convert.
-///
-/// # Returns
-///
-/// Returns the converted Python object.
-fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject> {
-    // Convert the JSON value to the appropriate Python object
-    match value {
-        JsonValue::Null => Ok(py.None()),
-        JsonValue::Bool(b) => Ok(b.into_py(py)),
-        JsonValue::Number(num) => Ok(num.as_f64().unwrap().into_py(py)),
-        JsonValue::String(s) => Ok(s.into_py(py)),
-        JsonValue::Array(arr) => {
-            let py_list = PyList::empty(py);
-            for item in arr {
-                let py_item = translate_value_to_py(py, item)?;
-                py_list.append(py_item)?;
-            }
-            Ok(py_list.into())
-        },
-        JsonValue::Object(obj) => {
-            let py_dict: &PyDict = PyDict::new(py);
-            for (k, v) in obj {
-                let py_key = k.into_py(py);
-                let py_value = translate_value_to_py(py, v)?;
-                py_dict.set_item(py_key, py_value)?;
-            }
-            Ok(py_dict.into())
-        },
-    }
 }
 
 /// Fetches the list of available commands that the socket host can recognize.

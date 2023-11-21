@@ -25,11 +25,13 @@ use crate::CLIENT_IS_RUNNING;
 // -> Socket Client main-points:
 
 use crate::socket_client::scheduler::{self, schedule};
-use crate::socket_client::socket_client::{get_socket_client_available_commands_registered, set_socket_client_callbacks_patterns};
+use crate::socket_client::socket_client::{get_available_handlers_registered, set_socket_client_callbacks_patterns};
 use crate::socket_client::socket_client::{initialize_client, initialize_client_buffer};
 use crate::socket_client::transposer::{initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num};
 
 use crate::common::functions::python_functions::extract_arg_types;
+
+use crate::common::functions::python_functions::translate_value_to_py;
 
 /// Sets the number of worker threads for the socket client transposer.
 ///
@@ -270,6 +272,20 @@ pub fn set_socket_client_log_level(log_level: &PyString) {
     set_client_log_level(log_level);
 
     return;
+}
+
+#[pyfunction]
+pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject> {
+    let commands = get_available_handlers_registered();
+
+    // Convert the HashMap values to PyObjects
+    let py_dict: &PyDict = PyDict::new(py);
+    for (key, value) in commands {
+        let py_value = translate_value_to_py(py, value)?;
+        py_dict.set_item(key, py_value)?;
+    }
+
+    Ok(py_dict.into())
 }
 
 // #[pyfunction]

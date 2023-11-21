@@ -19,7 +19,9 @@ class Clients_Retriever:
                                                            LastContact NUMBER, 
                                                            MaxSubChannels NUMBER, 
                                                            OwnedSubChannelsKeys TEXT, 
-                                                           SubChannelsInUse NUMBER)''')
+                                                           SubChannelsInUse NUMBER,
+                                                           Handlers TEXT,
+                                                            )''')
 
     def get_clients(self) -> dict:
         
