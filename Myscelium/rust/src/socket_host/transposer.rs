@@ -129,7 +129,8 @@ macro_rules! error_response {
     }};
 }
 
-use crate::socket_host::functions::process::{handle_internal_management, handle_redirect};
+use crate::socket_host::transposer_functions::handle_internal_management::handle_internal_management;
+use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
 
 /// Processes a given `DownCommand`, executing the corresponding logic and handling redirection.
 ///
