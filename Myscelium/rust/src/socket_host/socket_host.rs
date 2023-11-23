@@ -504,7 +504,7 @@ fn handle_connection(mut stream: TcpStream) {
                 // No data was read, break the loop
                 continue;
             },
-            Ok(bytes_read) => {
+            Ok(_) => {
                 logger.debug("Data received!".to_string());
             },
             Err(e) => {

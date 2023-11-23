@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Command {
@@ -132,13 +132,68 @@ impl CommandPatterns {
         all_clients_commands
     }
 
+    // Function to get all commands except for those of a specified client, formatted as a HashMap<String, Value>
+    fn get_all_commands_except_for_client(&self, excluded_client: &str) -> HashMap<String, Value> {
+        let mut filtered_commands = HashMap::new();
+
+        for (client_name, client_commands) in &self.patterns {
+            if client_name != excluded_client {
+                let mut client_commands_map = Map::new();
+
+                // Iterate over each command for the client
+                for (command_name, command) in client_commands {
+                    let params_value = command.parameters.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect::<Map<_, _>>();
+
+                    client_commands_map.insert(command_name.clone(), Value::Object(params_value));
+                }
+
+                filtered_commands.insert(client_name.clone(), Value::Object(client_commands_map));
+            }
+        }
+
+        filtered_commands
+    }
+
     pub fn remove_command(&mut self, owner: &str, command_name: &str) {
         if let Some(commands) = self.patterns.get_mut(owner) {
             commands.remove(command_name);
         }
     }
 
-    // Additional methods for managing command status, updating parameters, etc.
+    // Function to create a new CommandPatterns struct from a HashMap<String, Value>
+    pub fn create_command_patterns_from_map(commands_map: HashMap<String, Value>) -> Self {
+        let mut command_patterns = Self::new();
+
+        // Iterate over the outer map, where each key is a client name
+        for (client_name, client_commands_value) in commands_map {
+            if let Value::Object(client_commands_map) = client_commands_value {
+                // Iterate over each command for the client
+                for (command_name, params_value) in client_commands_map {
+                    if let Value::Object(params_map) = params_value {
+                        let command_params = params_map
+                            .into_iter()
+                            .filter_map(|(k, v)| {
+                                if let Value::String(value_str) = v {
+                                    Some((k, value_str))
+                                } else {
+                                    None // Filter out non-string values
+                                }
+                            })
+                            .collect::<HashMap<String, String>>();
+
+                        let command = Command {
+                            parameters: command_params,
+                            status: CommandStatus::Active, // Default status, can be adjusted as needed
+                        };
+
+                        command_patterns.add_command(client_name.clone(), command_name, command);
+                    }
+                }
+            }
+        }
+
+        command_patterns
+    }
 }
 
 /*
