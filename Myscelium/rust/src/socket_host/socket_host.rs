@@ -34,30 +34,10 @@ use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
 
-lazy_static! {
-    static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
-        let json_str = r#"{
-            "get_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            },
-            "get_other_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            }
-        }"#;
+use crate::common::structs::avaliable_commands::CommandPatterns;
 
-        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
-        Arc::new(Mutex::new(command_patterns))
-    };
+lazy_static! {
+    static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
     // static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
@@ -263,8 +243,12 @@ pub fn set_max_conns(n_max_conns: u32) {
 /// # Parameters
 /// - `callbacks_patterns`: A `HashMap` containing the new callback patterns to be set.
 pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    *command_patterns = callbacks_patterns;
+    println!("Set Socket Host Callbacks: {:?}", callbacks_patterns);
+
+    let mut global_command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    global_command_patterns.add_commands_from_map("host", callbacks_patterns);
+
+    println!("Seted Socket Host Callbacks: {:?}", global_command_patterns.extract_all_commands());
 }
 
 /// Initializes the host buffer databases.
@@ -350,8 +334,9 @@ pub fn initialize_host(address: String, client_id: String) {
 /// # Returns
 /// - A `HashMap<String, Value>` representing the cloned command patterns.
 pub fn get_available_commands_registered() -> HashMap<String, Value> {
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    return command_patterns.clone();
+    let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+
+    return global_command_patterns.extract_all_commands();
 }
 
 // > Socket main structure:
@@ -571,7 +556,9 @@ fn handle_connection(mut stream: TcpStream) {
                         logger.debug(format!("Sending back: {:?}", command_response_json));
 
                         stream.write_all(command_response_json.as_bytes()).unwrap();
-                    } else if command_patterns.contains_key(function) {
+                    } else if command_patterns.command_exists("host", function) {
+                        // TODO >>> Add the target in the clien commands to allow see if the function exist for the defined target
+
                         // -> Common Function Handler
 
                         logger.debug("Command is in command patterns!".to_string());

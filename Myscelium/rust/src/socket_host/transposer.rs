@@ -12,6 +12,8 @@ use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, extract_pyobject};
 use crate::common::structs::results_structs::ResultType;
 
+use crate::common::structs::avaliable_commands::CommandPatterns;
+
 use pyo3::types::PyFunction;
 use pyo3::Py;
 use pyo3::Python;
@@ -33,29 +35,7 @@ macro_rules! acquire_logger {
 }
 
 lazy_static! {
-    static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
-        let json_str = r#"{
-            "get_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            },
-            "get_other_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            }
-        }"#;
-
-        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
-        Arc::new(Mutex::new(command_patterns))
-    };
+    static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -131,8 +111,8 @@ pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
 /// ```
 ///
 pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    *command_patterns = commands_patterns;
+    let mut global_command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    global_command_patterns.add_commands_from_map("host", commands_patterns);
 
     let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     *callback_patterns = callbacks_patterns;
@@ -239,11 +219,12 @@ fn process(py: Python, down_command: DownCommand) {
         },
     };
 
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-    let patterns = command_patterns;
+    let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
 
     // -> Remove command from schedule if it isn't on the patterns
-    if !patterns.contains_key(function) {
+    if !global_command_patterns.command_exists("host", &function) {
+        // TODO >>> Add a mecanism to check if the command exist for the target client
+        // TODO >>> Also adda mecanism to commands have a target by default, and if target is host then target is host
         logger.warn(format!("Command isn't registered in the patterns"));
         enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
         logger.warn(format!("command skipped and removed from schedule"));
