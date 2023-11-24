@@ -11,13 +11,6 @@ use crate::common::functions::converters::convert_to_value_map;
 
 use crate::common::structs::results_structs::ResultType;
 
-use crate::socket_host::client_manager::manager::{Client, ClientError};
-
-#[macro_use]
-use crate::handle_client_error;
-
-use crate::common::structs::results_structs::ExpectationError;
-
 macro_rules! create_error_response_and_return {
     ($error_msg:expr, $converted_m:expr, $to_send:expr) => {{
         $to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));

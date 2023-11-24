@@ -27,6 +27,8 @@ use serde_json::json;
 use super::client_logger::log_handler::Logger;
 use crate::CLIENT_LOG_LEVEL;
 
+use crate::CLIENT_NODE_NAME;
+
 use parking_lot::Mutex;
 
 macro_rules! acquire_logger {
@@ -39,30 +41,10 @@ macro_rules! acquire_logger {
     }};
 }
 
-lazy_static! {
-    static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
-        let json_str = r#"{
-            "get_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            },
-            "get_other_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            }
-        }"#;
+use crate::common::structs::avaliable_commands::CommandPatterns;
 
-        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
-        Arc::new(Mutex::new(command_patterns))
-    };
+lazy_static! {
+    pub static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
     static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
             "get_symbols_data": {
@@ -101,8 +83,10 @@ lazy_static! {
 /// # Arguments
 /// - `callbacks_patterns`: A `HashMap` containing the desired command patterns.
 pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
-    let mut command_patterns = COMMAND_PATTERNS.lock();
-    *command_patterns = callbacks_patterns;
+    let client_name = CLIENT_NODE_NAME.lock().clone();
+
+    let mut global_command_patterns = COMMAND_PATTERNS.lock();
+    global_command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
 }
 
 /// Initializes the client buffer by setting up the necessary tables.

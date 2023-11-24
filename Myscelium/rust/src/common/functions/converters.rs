@@ -4,6 +4,10 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::MutexGuard;
 
+pub enum ConversionError {
+    UnsuportedValueVariant(String),
+}
+
 /// Converts a `HashMap<String, ResultType>` into another `HashMap<String, ResultType>`
 /// with specific transformations.
 ///
@@ -58,7 +62,7 @@ pub fn convert_to_resulttype_map(m: &HashMap<String, ResultType>) -> HashMap<Str
 /// let result_type = value_to_resulttype(&value);
 /// assert!(matches!(result_type, Ok(ResultType::Str(_))));
 /// ```
-pub fn value_to_resulttype(value: &Value) -> Result<ResultType, String> {
+pub fn value_to_resulttype(value: &Value) -> Result<ResultType, ConversionError> {
     match value {
         Value::String(s) => Ok(ResultType::Str(s.clone())),
         Value::Number(n) => {
@@ -67,7 +71,7 @@ pub fn value_to_resulttype(value: &Value) -> Result<ResultType, String> {
             } else if n.is_f64() {
                 Ok(ResultType::Float(n.as_f64().unwrap()))
             } else {
-                Err("Number is neither i64 nor f64".to_string())
+                Err(ConversionError::UnsuportedValueVariant("Number is neither i64 nor f64".to_string()))
             }
         },
         Value::Bool(b) => Ok(ResultType::Bool(*b)),
@@ -84,7 +88,7 @@ pub fn value_to_resulttype(value: &Value) -> Result<ResultType, String> {
         },
         Value::Null => Ok(ResultType::Empty),
         // Handling of other Value variants if needed
-        _ => Err("Unsupported Value variant".to_string()),
+        _ => Err(ConversionError::UnsuportedValueVariant("".to_string())),
     }
 }
 
@@ -139,6 +143,30 @@ pub fn resulttype_to_value(result: &ResultType) -> Value {
 /// * A `HashMap<String, Value>` with values converted into their `serde_json::Value` representations.
 pub fn convert_to_value_map(dict: &HashMap<String, ResultType>) -> HashMap<String, Value> {
     dict.iter().map(|(k, v)| (k.clone(), resulttype_to_value(v))).collect()
+}
+
+/// Converts a `HashMap<String, ResultType>` into a `HashMap<String, Value>`.
+///
+/// This function is a utility to transform a map of `ResultType` values into their
+/// corresponding JSON representations.
+///
+/// # Arguments
+///
+/// * `dict` - The input map to be converted.
+///
+/// # Returns
+///
+/// * A `HashMap<String, Value>` with values converted into their `serde_json::Value` representations.
+pub fn convert_value_map_to_resulttype_map(map: &HashMap<String, Value>) -> Result<ResultType, ConversionError> {
+    let result_map: HashMap<String, ResultType> = map
+        .iter()
+        .map(|(k, v)| match value_to_resulttype(v) {
+            Ok(result_type) => Ok((k.clone(), result_type)),
+            Err(e) => Err(e),
+        })
+        .collect::<Result<_, _>>()?;
+
+    Ok(ResultType::Map(result_map))
 }
 
 /// Recursively deserializes a JSON string into a `Command` structure.

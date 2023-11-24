@@ -234,6 +234,10 @@ impl Client {
         })
     }
 
+    pub fn get_client_name(&self) -> String {
+        self.client_name.clone()
+    }
+
     pub fn save_into_db(&self) {
         let serialzied_owned_sub_channels_keys = serde_json::to_string(&self.owned_sub_channels_keys).expect("Failed to serialize to JSON");
 

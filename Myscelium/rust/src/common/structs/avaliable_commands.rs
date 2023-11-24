@@ -133,7 +133,7 @@ impl CommandPatterns {
     }
 
     // Function to get all commands except for those of a specified client, formatted as a HashMap<String, Value>
-    fn get_all_commands_except_for_client(&self, excluded_client: &str) -> HashMap<String, Value> {
+    pub fn get_all_commands_except_for_client(&self, excluded_client: &str) -> HashMap<String, Value> {
         let mut filtered_commands = HashMap::new();
 
         for (client_name, client_commands) in &self.patterns {

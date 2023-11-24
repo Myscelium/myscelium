@@ -35,7 +35,7 @@ macro_rules! acquire_logger {
 }
 
 lazy_static! {
-    static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
+    pub static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -129,6 +129,7 @@ macro_rules! error_response {
     }};
 }
 
+use crate::socket_host::transposer_functions::handle_direct_function::handle_direct_function;
 use crate::socket_host::transposer_functions::handle_internal_management::handle_internal_management;
 use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
 
@@ -232,22 +233,32 @@ fn process(py: Python, down_command: DownCommand) {
         return;
     }
 
-    let response;
+    let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
 
-    {
-        let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
-        response = call_callback(py, translated_command.clone(), callback_patterns);
+    let result;
+
+    if direct_functions.contains(&function) {
+        // -> Default Rust direct function
+        result = handle_direct_function(&translated_command.client_id, function, command_id);
+    } else {
+        // -> Default Python function
+        let response;
+
+        {
+            let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
+            response = call_callback(py, translated_command.clone(), callback_patterns);
+        }
+
+        result = match response {
+            Ok(r) => extract_pyobject(py, r),
+            Err(e) => {
+                // Handle the error or log it
+                logger.exception(format!("Python error: {:?}", e));
+                // You can return a default value or propagate the error further
+                ResultType::Error(format!("{:?}", e))
+            },
+        };
     }
-
-    let result = match response {
-        Ok(r) => extract_pyobject(py, r),
-        Err(e) => {
-            // Handle the error or log it
-            logger.exception(format!("Python error: {:?}", e));
-            // You can return a default value or propagate the error further
-            ResultType::Error(format!("{:?}", e))
-        },
-    };
 
     logger.debug(format!("Callback call response converted to rust: {:?}", result));
 
