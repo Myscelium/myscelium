@@ -278,7 +278,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     } else if direct_functions.contains(activation_key) {
         logger.info(format!("Command function: {} is a valid function!", activation_key));
 
-        if let Some(value) = handle_direct_function(activation_key, translated_command.clone(), command_id) {
+        if let Some(value) = handle_direct_function(client_id.clone(), activation_key, translated_command.clone(), command_id) {
             result = value
         } else {
             return Ok(());
