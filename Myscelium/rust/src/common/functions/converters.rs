@@ -1,9 +1,8 @@
 use crate::common::enhanced_buffer::utilities::Command;
 use crate::common::structs::results_structs::ResultType;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::sync::MutexGuard;
-
 pub enum ConversionError {
     UnsuportedValueVariant(String),
 }
@@ -192,4 +191,38 @@ pub fn recursive_deserialize_command(json_str: &str) -> Command {
     }
 
     command
+}
+
+/// Converts a reference to a `serde_json::Map<String, Value>` into a `HashMap<String, Value>`.
+///
+/// This function takes a reference to a map from the `serde_json` crate and
+/// clones each key-value pair into a new `HashMap` from the standard library.
+/// This is useful when you need to work with standard `HashMap` functionality
+/// not specifically tied to JSON processing.
+///
+/// # Arguments
+///
+/// * `json_map` - A reference to a `serde_json::Map<String, Value>` that needs to be converted.
+///
+/// # Returns
+///
+/// Returns a `HashMap<String, Value>` containing all the keys and values from the input `serde_json::Map`.
+///
+/// # Examples
+///
+/// ```
+/// use serde_json::{Map, Value};
+/// use std::collections::HashMap;
+///
+/// let json_map: Map<String, Value> = serde_json::from_str(r#"{"key1": "value1", "key2": "value2"}"#).unwrap();
+/// let hash_map: HashMap<String, Value> = convert_json_map_to_hash_map(&json_map);
+///
+/// assert_eq!(hash_map.get("key1"), Some(&Value::String("value1".to_string())));
+/// assert_eq!(hash_map.get("key2"), Some(&Value::String("value2".to_string())));
+/// ```
+///
+/// Note: This function clones the data from the `serde_json::Map`, so changes to the returned `HashMap`
+/// will not affect the original `serde_json::Map`.
+pub fn convert_json_map_to_hash_map(json_map: &Map<String, Value>) -> HashMap<String, Value> {
+    json_map.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
 }

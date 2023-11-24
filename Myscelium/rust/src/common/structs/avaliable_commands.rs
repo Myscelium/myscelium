@@ -70,6 +70,8 @@ impl CommandPatterns {
 
     // Function to integrate a HashMap<String, Value> as commands for a client
     pub fn add_commands_from_map(&mut self, client: &str, commands_map: HashMap<String, Value>) {
+        let client_commands = self.patterns.entry(client.to_string()).or_insert_with(HashMap::new);
+
         for (command_name, params) in commands_map {
             let mut command_params = HashMap::new();
 
@@ -90,7 +92,21 @@ impl CommandPatterns {
                 status: CommandStatus::Active, // Assuming default status as Active
             };
 
-            self.add_command(client.to_string(), command_name, command);
+            // Add or update the command
+            client_commands.insert(command_name, command);
+        }
+    }
+
+    // Function to add or update commands for a client
+    pub fn add_or_update_if_exists(&mut self, client: &str, commands_map: HashMap<String, Value>) {
+        if self.patterns.contains_key(client) {
+            // If the client already exists, update its commands
+            // You might need additional logic here to properly merge or update the commands
+            self.add_commands_from_map(client, commands_map);
+        } else {
+            // If the client does not exist, add it
+            self.patterns.insert(client.to_string(), HashMap::new());
+            self.add_commands_from_map(client, commands_map);
         }
     }
 
@@ -193,6 +209,39 @@ impl CommandPatterns {
         }
 
         command_patterns
+    }
+
+    // Function to create a new CommandPatterns struct from a HashMap<String, Value>
+    pub fn add_from_map(&mut self, commands_map: HashMap<String, Value>) -> Self {
+        // Iterate over the outer map, where each key is a client name
+        for (client_name, client_commands_value) in commands_map {
+            if let Value::Object(client_commands_map) = client_commands_value {
+                // Iterate over each command for the client
+                for (command_name, params_value) in client_commands_map {
+                    if let Value::Object(params_map) = params_value {
+                        let command_params = params_map
+                            .into_iter()
+                            .filter_map(|(k, v)| {
+                                if let Value::String(value_str) = v {
+                                    Some((k, value_str))
+                                } else {
+                                    None // Filter out non-string values
+                                }
+                            })
+                            .collect::<HashMap<String, String>>();
+
+                        let command = Command {
+                            parameters: command_params,
+                            status: CommandStatus::Active, // Default status, can be adjusted as needed
+                        };
+
+                        &self.add_command(client_name.clone(), command_name, command);
+                    }
+                }
+            }
+        }
+
+        self.clone()
     }
 }
 

@@ -45,53 +45,12 @@ macro_rules! acquire_logger {
     }};
 }
 
+use crate::common::structs::avaliable_commands::CommandPatterns;
+use crate::CLIENT_NODE_NAME;
+
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
-        let json_str = r#"{
-            "get_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            },
-            "get_other_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            }
-        }"#;
-
-        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
-        Arc::new(Mutex::new(command_patterns))
-    };
-    pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
-        let json_str = r#"{
-            "get_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            },
-            "get_other_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            }
-        }"#;
-
-        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
-        Arc::new(Mutex::new(command_patterns))
-    };
+    pub static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
+    pub static ref HOST_ALLOWED_COMMANDS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -126,8 +85,10 @@ pub fn set_socket_client_transposer_workers_num(n_workers: u32) {
 /// - `commands_patterns`: A map of recognized command patterns.
 /// - `callbacks_patterns`: A map of associated Python functions and arguments for each recognized command.
 pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    *command_patterns = commands_patterns;
+    let client_name = CLIENT_NODE_NAME.lock().clone();
+
+    let mut global_command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    global_command_patterns.add_commands_from_map(client_name.as_str(), commands_patterns);
 
     let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     *callback_patterns = callbacks_patterns;
@@ -272,54 +233,63 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     println!("Resolved Activation Key are: {:?}", activation_key);
 
-    // let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
+    // Validate the command against known command patterns
+    let command_patterns;
+    {
+        command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+    }
+
+    let client_name;
+
+    {
+        client_name = CLIENT_NODE_NAME.lock().clone();
+    }
+
+    logger.info(format!("Command function: {} is a valid function!", activation_key));
+
+    let client_id = down_command.client_id.clone();
+
+    let response: String;
 
     let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
 
-    if direct_functions.contains(activation_key) {
-        return handle_direct_function(activation_key, translated_command.clone(), command_id);
-    }
+    let result;
 
-    // Validate the command against known command patterns
-    let patterns;
-    {
-        let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-        patterns = command_patterns;
-    }
+    if command_patterns.command_exists(client_name.as_str(), activation_key) {
+        logger.info(format!("Command function: {} is a valid function!", activation_key));
+        logger.debug(format!("Calling the callback!\n"));
+        // Execute the associated Python callback for the command
+        let response;
+        {
+            let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
+            response = client_call_callback(py, translated_command.clone(), callback_patterns);
+        }
 
-    if !patterns.contains_key(activation_key) {
+        // Process the Python callback's return value
+        result = match response {
+            Ok(r) => extract_pyobject(py, r),
+            Err(e) => {
+                // Handle the error or log it
+                eprintln!("Python error: {:?}", e);
+                // You can return a default value or propagate the error further
+                ResultType::Error(format!("{:?}", e))
+            },
+        };
+    } else if direct_functions.contains(activation_key) {
+        logger.info(format!("Command function: {} is a valid function!", activation_key));
+
+        if let Some(value) = handle_direct_function(activation_key, translated_command.clone(), command_id) {
+            result = value
+        } else {
+            return Ok(());
+        }
+    } else {
         // If the command is not in the patterns, remove it from the schedule and return an error
         logger.warn(format!("Command isn't registered in the patterns"));
         enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
         logger.info(format!("command skipped and removed from schedule"));
         return Err(ProcessError::CommandNotRegistered(activation_key.clone()));
     }
-
-    logger.info(format!("Command function: {} is a valid function!", activation_key));
-    logger.debug(format!("Calling the callback!\n"));
-    logger.debug(format!("Acquired the GIL"));
-
-    // Execute the associated Python callback for the command
-    let response;
-    {
-        let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
-        response = client_call_callback(py, translated_command.clone(), callback_patterns);
-    }
-
-    // Process the Python callback's return value
-    let result = match response {
-        Ok(r) => extract_pyobject(py, r),
-        Err(e) => {
-            // Handle the error or log it
-            eprintln!("Python error: {:?}", e);
-            // You can return a default value or propagate the error further
-            ResultType::Error(format!("{:?}", e))
-        },
-    };
-
-    let client_id = down_command.client_id.clone();
-
-    let response: String;
 
     match result {
         ResultType::Map(m) => {

@@ -1,3 +1,6 @@
+use crate::common::structs::avaliable_commands::CommandPatterns;
+use crate::common::structs::results_structs::ResultType;
+use crate::socket_client::socket_client::COMMAND_PATTERNS;
 use crate::socket_client::transposer::ProcessError;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -21,7 +24,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-pub fn handle_direct_function(activation_key: &String, translated_command: Command, command_id: u32) -> Result<(), ProcessError> {
+pub fn handle_direct_function(activation_key: &String, translated_command: Command, command_id: u32) -> Option<ResultType> {
     let logger = acquire_logger!("Transposer - Process");
 
     logger.info(format!("Initializing processing!"));
@@ -36,18 +39,21 @@ pub fn handle_direct_function(activation_key: &String, translated_command: Comma
 
             // Lock the COMMAND_PATTERNS and insert the new map
 
+            let mut new_patterns = CommandPatterns::new();
+            new_patterns.add_from_map(response_map);
+
             {
                 let mut actual_patterns = HOST_ALLOWED_COMMANDS.lock().unwrap();
-                *actual_patterns = response_map;
+                *actual_patterns = new_patterns;
             }
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
-            return Ok(());
+            return None;
         } else {
-            return Err(ProcessError::MissingKwargsKey(format!("{:?}", translated_command.clone())));
+            return Some(ResultType::Error(format!("missing kwargs key {:?}", translated_command.clone())));
         }
     }
 
@@ -61,20 +67,21 @@ pub fn handle_direct_function(activation_key: &String, translated_command: Comma
 
             // Lock the COMMAND_PATTERNS and insert the new map
 
+            let actual_patterns;
+
             {
-                let mut actual_patterns = HOST_ALLOWED_COMMANDS.lock().unwrap();
-                *actual_patterns = response_map;
+                actual_patterns = COMMAND_PATTERNS.lock().clone();
             }
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
-            return Ok(());
+            return None;
         } else {
-            return Err(ProcessError::MissingKwargsKey(format!("{:?}", translated_command.clone())));
+            return Some(ResultType::Error(format!("missing kwargs key {:?}", translated_command.clone())));
         }
     }
 
-    return Err(ProcessError::CommandNotRegistered(format!("{:?}", translated_command.clone())));
+    return Some(ResultType::Error(format!("Command: {:?} not found!", translated_command.clone())));
 }

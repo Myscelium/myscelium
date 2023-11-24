@@ -13,7 +13,7 @@ use crate::HOST_LOG_LEVEL;
 
 use crate::socket_host::client_manager::manager::{check_if_client_key_exists, Client, ClientError};
 
-use crate::common::functions::converters::{convert_value_map_to_resulttype_map, ConversionError};
+use crate::common::functions::converters::{convert_json_map_to_hash_map, convert_value_map_to_resulttype_map, ConversionError};
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
@@ -25,7 +25,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-pub fn handle_direct_function(client_key: &String, activation_key: &String, command_id: u32) -> ResultType {
+pub fn handle_direct_function(client_key: &String, activation_key: &String, command: HashMap<String, Value>, command_id: u32) -> ResultType {
     let logger = acquire_logger!("Transposer - Process - Handle Direct Functions");
 
     let mut to_send = HashMap::new();
@@ -87,6 +87,42 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
 
         return ResultType::Map(to_send);
+    } else if activation_key == &"update_client_commands_ref".to_string() {
+        logger.info(format!("Receive update_client_commands_ref in host!"));
+
+        // -> get the client by the client key
+        let client = match Client::get_by_key(client_key) {
+            Ok(c) => c,
+            Err(e) => match e {
+                ClientError::ClientDoesNotExist(_) => {
+                    return ResultType::Error(format!("unknow client_key: {:?}", client_key));
+                },
+                _ => {
+                    return ResultType::Error(format!("Get a error {:?}, obtaining client: {:?}", e, client_key));
+                },
+            },
+        };
+
+        let client_handlers;
+
+        // Check if 'kwargs' exists and is an object
+        if let Some(Value::Object(kwargs_map)) = command.get("kwargs") {
+            // Check if 'client_handlers' exists within 'kwargs'
+            if let Some(Value::Object(handlers)) = kwargs_map.get("client_handlers") {
+                client_handlers = handlers;
+            } else {
+                return ResultType::Error(format!("update_client_commands_ref give the followign error: The 'client_handlers' key does not exist within 'kwargs'."));
+            }
+        } else {
+            return ResultType::Error(format!("update_client_commands_ref command doesn't have kwargs in it!"));
+        }
+
+        let client_name: String = client.get_client_name();
+
+        {
+            let mut actual_patterns = COMMAND_PATTERNS.lock().unwrap();
+            actual_patterns.add_or_update_if_exists(client_name.as_str(), convert_json_map_to_hash_map(client_handlers))
+        }
     }
 
     return ResultType::Error(format!("unknow direct function"));

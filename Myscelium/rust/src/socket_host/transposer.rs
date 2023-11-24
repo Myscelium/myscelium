@@ -213,13 +213,17 @@ fn process(py: Python, down_command: DownCommand) {
 
     logger.debug(format!("Translated command: {:?}", translated_command));
 
-    let function = match translated_command.command.get("function") {
-        Some(Value::String(function)) => function,
-        _ => {
-            logger.warn(format!("The function name is not found or not a string."));
-            return;
-        },
-    };
+    let function;
+
+    {
+        function = match translated_command.command.get("function") {
+            Some(Value::String(function)) => function,
+            _ => {
+                logger.warn(format!("The function name is not found or not a string."));
+                return;
+            },
+        };
+    }
 
     let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
 
@@ -233,13 +237,13 @@ fn process(py: Python, down_command: DownCommand) {
         return;
     }
 
-    let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
+    let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
 
     let result;
 
     if direct_functions.contains(&function) {
         // -> Default Rust direct function
-        result = handle_direct_function(&translated_command.client_id, function, command_id);
+        result = handle_direct_function(&translated_command.client_id, function, translated_command.command.clone(), command_id);
     } else {
         // -> Default Python function
         let response;
