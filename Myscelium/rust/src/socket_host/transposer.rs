@@ -354,10 +354,11 @@ fn process(py: Python, down_command: DownCommand) {
                             let up_command = UpCommand::new(client_to_send_back, down_command.parity_id.clone(), down_command.priority.clone(), processed_resp.unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         } else {
-                            // TODO >>> Add a mechanism to generate new 20 char parity ids for the other resps besides the firs one
+                            // -> Gen 20 digits parity id based on client
+                            let special_parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_special_parity_id(&client_id);
 
                             let (processed_resp, client_to_send_back) = process_map_result(m, &client_id, &down_command);
-                            let up_command = UpCommand::new(client_to_send_back, down_command.parity_id.clone(), down_command.priority.clone(), processed_resp.unwrap());
+                            let up_command = UpCommand::new(client_to_send_back, special_parity_id, down_command.priority.clone(), processed_resp.unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         }
 
@@ -371,6 +372,7 @@ fn process(py: Python, down_command: DownCommand) {
                     },
                 }
             }
+            // -> Remove the buffer down command that generated these responses since he is alwready processed
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
             return;
         },

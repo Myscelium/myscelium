@@ -206,6 +206,16 @@ fn get_registered_parity_ids(client_id: String) -> Vec<String> {
     })
 }
 
+pub fn buffer_up_gen_valid_special_parity_id(client_id: &String) -> String {
+    let registred_ids: Vec<String> = get_registered_parity_ids(client_id.clone());
+
+    let mut unique_parity_id_generator = UniqueParityIdGenerator::new(20, registred_ids);
+
+    let valid_parity_id: String = unique_parity_id_generator.gen();
+
+    return valid_parity_id;
+}
+
 pub fn buffer_up_gen_valid_parity_id(client_id: String) -> String {
     let registred_ids: Vec<String> = get_registered_parity_ids(client_id);
 
