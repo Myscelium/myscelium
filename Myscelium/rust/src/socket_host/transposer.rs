@@ -14,6 +14,8 @@ use crate::common::structs::results_structs::ResultType;
 
 use crate::common::structs::avaliable_commands::CommandPatterns;
 
+use serde_json::Error;
+
 use pyo3::types::PyFunction;
 use pyo3::Py;
 use pyo3::Python;
@@ -268,52 +270,67 @@ fn process(py: Python, down_command: DownCommand) {
 
     let mut client_id = down_command.client_id.clone();
 
-    let response;
+    let response: Result<String, Error>;
+
+    fn process_map_result(m: HashMap<String, ResultType>, client_id: &String, down_command: &DownCommand) -> (Result<String, Error>, String) {
+        let logger = acquire_logger!("Transposer - Process");
+
+        let response: Result<String, Error>;
+
+        let mut client_to_send: String = client_id.clone();
+
+        if m.contains_key("response_mode") {
+            let response_mode = m.get("response_mode").unwrap();
+
+            if *response_mode == ResultType::Str("to_origin".to_string()) {
+                let converted_to_value = convert_to_value_map(&m);
+                logger.debug(format!("Converted to Value: {:?}", &converted_to_value));
+                response = Ok(serde_json::to_string(&converted_to_value).unwrap());
+                // Response at this point is like this: Map({
+                //      "command_type":String("function"),
+                //      "response_mode":String("to_origin"),
+                //      "status": String("success"),
+                //      "response_activation_function":String(response_activation_function),
+                //      "message":String(_),
+                //      "kwargs":Map(response)
+                // })
+            } else if *response_mode == ResultType::Str("redirect".to_string()) {
+                logger.debug(format!("Response: {:?}", m));
+
+                let resp = handle_redirect(m, &mut client_to_send, down_command.clone());
+                let converted_to_value = convert_to_value_map(&resp);
+                response = Ok(serde_json::to_string(&converted_to_value).unwrap());
+                // Response at this point is like this: Map({
+                //      "command_type":String("function"),
+                //      "response_mode":String("redirect"),
+                //      "status": String("success"),
+                //      "response_activation_function":String(response_activation_function),
+                //      "message":String(_),
+                //      "kwargs":Map(response),
+                //      "redirect_to":String(redirect_to_client_id)
+                //  })
+            } else if *response_mode == ResultType::Str("internal_management".to_string()) {
+                let resp = handle_internal_management(m, &mut client_to_send);
+                let converted_to_value = convert_to_value_map(&resp);
+                response = Ok(serde_json::to_string(&converted_to_value).unwrap());
+            } else {
+                logger.warn("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!".to_string());
+                response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
+            }
+        } else {
+            logger.warn("Error! Callback doesn't implement response mode!".to_string());
+            response = error_response!("Error! Callback doesn't implement response mode!");
+        }
+
+        return (response, client_to_send);
+    }
+
+    let mut client_to_send_back: String;
 
     match result {
         // TODO >>> Implement change of response here
         ResultType::Map(m) => {
-            if m.contains_key("response_mode") {
-                let response_mode = m.get("response_mode").unwrap();
-
-                if *response_mode == ResultType::Str("to_origin".to_string()) {
-                    let converted_to_value = convert_to_value_map(&m);
-                    logger.debug(format!("Converted to Value: {:?}", &converted_to_value));
-                    response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-                    // Response at this point is like this: Map({
-                    //      "command_type":String("function"),
-                    //      "response_mode":String("to_origin"),
-                    //      "status": String("success"),
-                    //      "response_activation_function":String(response_activation_function),
-                    //      "message":String(_),
-                    //      "kwargs":Map(response)
-                    // })
-                } else if *response_mode == ResultType::Str("redirect".to_string()) {
-                    logger.debug(format!("Response: {:?}", m));
-                    let resp = handle_redirect(m, &mut client_id, down_command.clone());
-                    let converted_to_value = convert_to_value_map(&resp);
-                    response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-                    // Response at this point is like this: Map({
-                    //      "command_type":String("function"),
-                    //      "response_mode":String("redirect"),
-                    //      "status": String("success"),
-                    //      "response_activation_function":String(response_activation_function),
-                    //      "message":String(_),
-                    //      "kwargs":Map(response),
-                    //      "redirect_to":String(redirect_to_client_id)
-                    //  })
-                } else if *response_mode == ResultType::Str("internal_management".to_string()) {
-                    let resp = handle_internal_management(m, &mut client_id);
-                    let converted_to_value = convert_to_value_map(&resp);
-                    response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-                } else {
-                    logger.warn("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!".to_string());
-                    response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
-                }
-            } else {
-                logger.warn("Error! Callback doesn't implement response mode!".to_string());
-                response = error_response!("Error! Callback doesn't implement response mode!");
-            }
+            (response, client_to_send_back) = process_map_result(m, &client_id, &down_command);
         },
         ResultType::Str(s) => {
             response = Ok(s.clone());
@@ -327,8 +344,37 @@ fn process(py: Python, down_command: DownCommand) {
         ResultType::Bool(b) => {
             response = Ok(b.to_string());
         },
-        ResultType::List(_) => {
-            response = error_response!("Error! Received a list, but expected a map!");
+        ResultType::List(l) => {
+            let mut counter: u64 = 0;
+            for res in l {
+                match res {
+                    ResultType::Map(m) => {
+                        if counter == 0 {
+                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_id, &down_command);
+                            let up_command = UpCommand::new(client_to_send_back, down_command.parity_id.clone(), down_command.priority.clone(), processed_resp.unwrap());
+                            enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+                        } else {
+                            // -> Gen 20 digits parity id based on client
+                            let special_parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_special_parity_id(&client_id);
+
+                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_id, &down_command);
+                            let up_command = UpCommand::new(client_to_send_back, special_parity_id, down_command.priority.clone(), processed_resp.unwrap());
+                            enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+                        }
+
+                        counter += 1;
+                    },
+                    _ => {
+                        response = error_response!("Error! Received a list, but expected a map!");
+                        let up_command = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
+                        enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+                        break;
+                    },
+                }
+            }
+            // -> Remove the buffer down command that generated these responses since he is alwready processed
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+            return;
         },
         ResultType::Empty => {
             let mut command_map = HashMap::new();
