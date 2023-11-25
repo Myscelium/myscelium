@@ -330,7 +330,7 @@ fn process(py: Python, down_command: DownCommand) {
     match result {
         // TODO >>> Implement change of response here
         ResultType::Map(m) => {
-            (response, client_to_send_back) = process_map_result(m, &client_id, &down_command);
+            (response, client_id) = process_map_result(m, &client_id, &down_command);
         },
         ResultType::Str(s) => {
             response = Ok(s.clone());
