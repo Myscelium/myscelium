@@ -8,6 +8,8 @@ use crate::socket_client::transposer::ProcessError;
 
 use crate::socket_host::transposer::COMMAND_PATTERNS;
 
+use crate::socket_host::client_manager::manager::get_all_clients;
+
 use crate::socket_host::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
 
@@ -27,8 +29,6 @@ macro_rules! acquire_logger {
 
 pub fn handle_direct_function(client_key: &String, activation_key: &String, command: HashMap<String, Value>, command_id: u32) -> ResultType {
     let logger = acquire_logger!("Transposer - Process - Handle Direct Functions");
-
-    let mut to_send = HashMap::new();
 
     logger.info(format!("Initializing processing!"));
 
@@ -79,12 +79,14 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         let function: String = "update_available_host_commands".to_string();
 
+        let mut to_send = HashMap::new();
+
         to_send.insert("command_type".to_string(), ResultType::Str("function".to_string()));
         to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string())); // TODO See if need it
         to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
         to_send.insert("function".to_string(), ResultType::Str(function.to_string())); // TODO maybe change to response_act_function
         to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
-        to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
+        to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
 
         return ResultType::Map(to_send);
     } else if activation_key == &"update_client_commands_ref".to_string() {
@@ -127,14 +129,107 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         // TODO >>> Add a mecanism to schedule a update to all clients except to the one that send this command
         // This need to be done using the ResultType::List mechanism
 
-        let response: Vec<ResultType> = Vec::new();
+        let mut response: Vec<ResultType> = Vec::new();
 
-        // TODO >>> Insert in this map:
-        // > The response for the client that send the command that trigger this
-        // >--> Create one command for each client to trigger `update_available_host_commands` in the client with the host commands
+        // -> Send the commands for the first client:
 
-        // > The update of the commands avalaible for the other clients
-        // >--> Create one command for each client to trigger `update_available_host_commands` in the clients
+        {
+            let filtered_commands;
+
+            {
+                let actual_patterns = COMMAND_PATTERNS.lock().unwrap();
+                filtered_commands = actual_patterns.get_all_commands_except_for_client(client_name.as_str());
+            }
+
+            let filtered_resulttype_commands_map = match convert_value_map_to_resulttype_map(&filtered_commands) {
+                Ok(c) => c,
+                Err(e) => match e {
+                    ConversionError::UnsuportedValueVariant(s) => {
+                        logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
+                        return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
+                    },
+                },
+            };
+
+            let mut to_send = HashMap::new();
+
+            to_send.insert("command_type".to_string(), ResultType::Str("direct-function".to_string()));
+            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+            to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+            to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
+            to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
+            to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
+
+            response.push(ResultType::Map(to_send));
+        }
+
+        // -> Try to get the clients registred in the database
+        let mut clients = match get_all_clients() {
+            Ok(c) => c,
+            Err(e) => match e {
+                _ => {
+                    let empty_map = HashMap::new();
+
+                    let mut to_send = HashMap::new();
+
+                    to_send.insert("command_type".to_string(), ResultType::Str("direct-function".to_string()));
+                    to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+                    to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
+                    to_send.insert("message".to_string(), ResultType::Str("unexpect error getting clients to redirect the update commands".to_string()));
+                    to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
+                    to_send.insert("kwargs".to_string(), ResultType::Map(empty_map));
+                    to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
+
+                    return ResultType::Map(to_send);
+                },
+            },
+        };
+
+        // -> Filter the actual client from the list cause it alwready was handled
+        for (index, client) in clients.iter().enumerate() {
+            if client.client_key == client_key.clone() {
+                clients.remove(index);
+                break;
+            }
+        }
+
+        // -> Send the updated info for all the clients
+        for client in clients {
+            let filtered_commands;
+
+            //* Any mechanism that will see the client permissions to each command may be placed here
+
+            {
+                let actual_patterns = COMMAND_PATTERNS.lock().unwrap();
+                filtered_commands = actual_patterns.get_all_commands_except_for_client(client_name.as_str());
+            }
+
+            let filtered_resulttype_commands_map = match convert_value_map_to_resulttype_map(&filtered_commands) {
+                Ok(c) => c,
+                Err(e) => match e {
+                    ConversionError::UnsuportedValueVariant(s) => {
+                        logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
+                        return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
+                    },
+                },
+            };
+
+            let mut to_send = HashMap::new();
+
+            // > Schedule a redirect to the other clients
+
+            let client_key_to_redirect: String = client.client_key.clone();
+
+            to_send.insert("command_type".to_string(), ResultType::Str("direct-function".to_string()));
+            to_send.insert("response_mode".to_string(), ResultType::Str("redirect".to_string()));
+            to_send.insert("redirect_to".to_string(), ResultType::Str(client_key_to_redirect.to_string()));
+            to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+            to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
+            to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
+            to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
+
+            response.push(ResultType::Map(to_send));
+        }
 
         return ResultType::List(response);
     }

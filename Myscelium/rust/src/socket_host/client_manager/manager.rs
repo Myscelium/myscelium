@@ -118,7 +118,7 @@ pub enum ClientError {
 pub struct Client {
     pub client_id: u32,
     client_name: String,
-    client_key: String,
+    pub client_key: String,
     client_type: String,
     permission_group: String,
     is_super_user: bool,
@@ -587,6 +587,45 @@ fn get_clients_keys_registered() -> Vec<String> {
         // println!("Client Keys registred: {:?}", keys.clone());
 
         keys
+    })
+}
+
+pub fn get_all_clients() -> Result<Vec<Client>, ClientError> {
+    let mut clients: Vec<Client> = Vec::new();
+
+    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+        let mut keys: Vec<String> = Vec::new();
+
+        {
+            let mut smtp: Statement<'_> = conn.prepare("SELECT * FROM Clients").unwrap();
+            let clients_iter = smtp
+                .query_map(params![], |row: &Row<'_>| {
+                    Ok(Client::from(
+                        row.get(0).unwrap(),
+                        row.get(1).unwrap(),
+                        row.get(2).unwrap(),
+                        row.get(3).unwrap(),
+                        row.get(4).unwrap(),
+                        row.get(5).unwrap(),
+                        row.get(6).unwrap(),
+                        row.get(7).unwrap(),
+                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(8)?.as_str()).unwrap(),
+                        row.get(9).unwrap(),
+                        serde_json::from_str::<Vec<HashMap<String, Value>>>(row.get::<_, String>(10)?.as_str()).unwrap(),
+                    ))
+                })
+                .unwrap();
+
+            for client in clients_iter {
+                clients.push(client.unwrap()?);
+            }
+
+            if clients.len() == 0 {
+                return Err(ClientError::UnexpectedError("Any clients registred!".to_string()));
+            } else {
+                return Ok(clients.clone());
+            }
+        }
     })
 }
 
