@@ -125,6 +125,18 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         }
 
         // TODO >>> Add a mecanism to schedule a update to all clients except to the one that send this command
+        // This need to be done using the ResultType::List mechanism
+
+        let response: Vec<ResultType> = Vec::new();
+
+        // TODO >>> Insert in this map:
+        // > The response for the client that send the command that trigger this
+        // >--> Create one command for each client to trigger `update_available_host_commands` in the client with the host commands
+
+        // > The update of the commands avalaible for the other clients
+        // >--> Create one command for each client to trigger `update_available_host_commands` in the clients
+
+        return ResultType::List(response);
     }
 
     return ResultType::Error(format!("unknow direct function"));
