@@ -250,7 +250,7 @@ pub fn handle_internal_management(m: HashMap<String, ResultType>, client_id: &mu
                 // TODO >>> Maybe implement a fast result-ype to client if needed
 
                 match result {
-                    Ok(c) => {
+                    Ok(_) => {
                         to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
                         to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
                         to_send.insert("status".to_string(), ResultType::Str("success".to_string()));

@@ -18,6 +18,8 @@ use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::Command;
 
+use crate::socket_host::scheduler::request_client_available_commands;
+
 #[macro_use]
 use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
 use crate::common::custom_thread_pool::thread_pool::UnifiedThreadPool;
@@ -496,6 +498,10 @@ fn handle_connection(mut stream: TcpStream) {
     // Aquire logger to section Handle Conn
     let logger = acquire_logger!("Core");
 
+    // -> Before join in the loop, schedule a request of the client commands
+
+    request_client_available_commands(client_key);
+
     loop {
         let mut buffer = [0; 4096];
 
@@ -611,4 +617,7 @@ fn handle_connection(mut stream: TcpStream) {
             }
         }
     }
+
+    // TODO change the client to offline
+    // TODO change the client syncronity state to false, this will request the client available ahandlers again
 }
