@@ -514,6 +514,27 @@ impl Client {
         Ok(new_client)
     }
 
+    pub fn change_sync_to(&self, sync: bool) -> Result<Self, ClientError> {
+        let new_client = Self {
+            client_id: self.client_id.clone(),
+            client_name: self.client_name.clone(),
+            client_key: self.client_key.clone(),
+            client_type: self.client_type.clone(),
+            permission_group: self.permission_group.clone(),
+            is_super_user: self.is_super_user.clone(),
+            last_contact: self.last_contact.clone(),
+            max_sub_channels: self.max_sub_channels.clone(),
+            owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
+            sub_channels_in_use: self.sub_channels_in_use.clone(),
+            client_handlers: self.client_handlers.clone(),
+            syncronized: sync,
+        };
+
+        edit_client(new_client.clone());
+
+        Ok(new_client)
+    }
+
     pub fn change_key_to(&self, new_client_key: String) -> Result<Self, ClientError> {
         if !check_if_client_key_exists(self.client_key.clone()) {
             return Err(ClientError::ClientDoesNotExist(self.client_key.clone()));
