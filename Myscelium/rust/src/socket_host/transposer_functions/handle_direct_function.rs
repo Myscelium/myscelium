@@ -128,8 +128,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         let status = client.change_sync_to(true);
 
-        // TODO >>> Add a mecanism to schedule a update to all clients except to the one that send this command
-        // This need to be done using the ResultType::List mechanism
+        // TODO >>> Create a mechanims to dont send anything to the other clients in case of the new client doesn't bring anything new as handlers
 
         let mut response: Vec<ResultType> = Vec::new();
 
