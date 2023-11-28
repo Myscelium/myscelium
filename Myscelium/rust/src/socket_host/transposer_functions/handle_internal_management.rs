@@ -131,6 +131,7 @@ pub fn handle_internal_management(m: HashMap<String, ResultType>, client_id: &mu
                     updated_client_unwraped.get("max_sub_channels").unwrap().to_int().unwrap() as u32,
                     owned_sub_channels_keys,
                     client_handlers,
+                    false
                 ));
 
                 logger.debug(format!("New client: {:?}", new_client));
@@ -241,6 +242,7 @@ pub fn handle_internal_management(m: HashMap<String, ResultType>, client_id: &mu
                     updated_client_unwraped.get("max_sub_channels").unwrap().to_int().unwrap() as u32,
                     owned_sub_channels_keys,
                     client_handlers,
+                    false
                 ));
 
                 let old_client = handle_client_error!(Client::get_by_key(&actual_client_key));
