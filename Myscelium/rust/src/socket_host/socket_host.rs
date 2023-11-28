@@ -59,12 +59,12 @@ lazy_static! {
 }
 
 macro_rules! create_command_error {
-    ($client_id:expr, $parity_id:expr, $error:expr) => {{
+    ($client_key:expr, $parity_id:expr, $error:expr) => {{
         let mut command_map = HashMap::new();
         command_map.insert("error".to_string(), Value::String($error.to_string()));
 
         let command = Command {
-            client_id: $client_id.to_string(),
+            client_key: $client_key.to_string(),
             parity_id: $parity_id.to_string(),
             priority: 11,
             command: command_map,
@@ -84,13 +84,13 @@ macro_rules! acquire_logger {
 }
 
 macro_rules! create_special_command {
-    ($client_id:expr, $response:expr) => {{
+    ($client_key:expr, $response:expr) => {{
         let mut command_map = HashMap::new();
         command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
         command_map.insert("function".to_string(), Value::String($response.to_string()));
 
         let command = Command {
-            client_id: $client_id.to_string(),
+            client_key: $client_key.to_string(),
             parity_id: "itisaspecialcase".to_string(),
             priority: 11,
             command: command_map,
@@ -100,9 +100,9 @@ macro_rules! create_special_command {
 }
 
 macro_rules! create_response_command {
-    ($client_id:expr, $parity_id:expr, $priority:expr, $response:expr) => {{
+    ($client_key:expr, $parity_id:expr, $priority:expr, $response:expr) => {{
         let command = Command {
-            client_id: $client_id.to_string(),
+            client_key: $client_key.to_string(),
             parity_id: $parity_id.to_string(),
             priority: $priority,
             command: $response,
@@ -118,27 +118,27 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
     }
 }
 
-// pub fn is_client_registered(client_id: &String) -> bool {
+// pub fn is_client_registered(client_key: &String) -> bool {
 //     let clients;
 
 //     {
 //         clients = CLIENTS_ALLOWED.lock().unwrap().clone();
 //     }
 
-//     clients.contains_key(client_id)
+//     clients.contains_key(client_key)
 // }
 
-// pub fn register_client(client_id: String, client_type: String) {
+// pub fn register_client(client_key: String, client_type: String) {
 
 //     Client
 
-// if !is_client_registered(&client_id) {
+// if !is_client_registered(&client_key) {
 //     let mut clients = CLIENTS_ALLOWED.lock().unwrap();
 
 //     clients.insert(
-//         client_id.clone(),
+//         client_key.clone(),
 //         Client {
-//             client_id,
+//             client_key,
 //             last_contact: SystemTime::now(),
 //             client_type,
 //         },
@@ -281,13 +281,13 @@ pub fn initialize_host_buffer(buffer_location: String) {
 ///
 /// # Parameters
 /// - `address`: The IP address and port on which the host should listen, in the format `ip:port`.
-/// - `client_id`: The client ID for the host.
-pub fn initialize_host(address: String, client_id: String) {
+/// - `client_key`: The client ID for the host.
+pub fn initialize_host(address: String, client_key: String) {
     let logger = acquire_logger!("Core");
 
     {
         let mut actual_client_id = CLIENT_ID.lock().unwrap();
-        *actual_client_id = client_id;
+        *actual_client_id = client_key;
     }
 
     let listener = TcpListener::bind(&address).unwrap();
@@ -349,36 +349,36 @@ pub fn get_available_commands_registered() -> HashMap<String, Value> {
 /// Special cases currently supported are "C202" (Connection conf request) and "C206" (Ping request).
 ///
 /// # Parameters
-/// - `client_id`: The client ID associated with the request.
+/// - `client_key`: The client ID associated with the request.
 /// - `function`: The string representation of the special function to be handled.
 ///
 /// # Returns
 /// - A `Command` object representing the response for the special function.
-fn handle_special_functions(client_id: String, function: String) -> Command {
+fn handle_special_functions(client_key: String, function: String) -> Command {
     let command;
 
     if function == "C202" {
         // -> Connection conf request
-        command = create_special_command!(client_id, "C200");
+        command = create_special_command!(client_key, "C200");
     } else if function == "C206" {
         // -> Ping request
 
-        let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule_fo_client_id(client_id.clone());
+        let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule_fo_client_id(client_key.clone());
 
         if !(up_schedule.len() > 0) {
-            return create_special_command!(client_id, "C207"); // If don't have any response to send send C207 that is a ping confirmation
+            return create_special_command!(client_key, "C207"); // If don't have any response to send send C207 that is a ping confirmation
         }
 
         let command_response = &up_schedule[0];
 
         let response_command = Command::from_up_command(command_response.clone());
 
-        enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(client_id.clone(), response_command.parity_id.clone());
+        enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(client_key.clone(), response_command.parity_id.clone());
 
         return response_command;
     } else {
         // -> Receive conf
-        command = create_special_command!(client_id, "C210");
+        command = create_special_command!(client_key, "C210");
     }
 
     return command;
@@ -399,13 +399,13 @@ fn handle_common_function(command: Command) -> Command {
     // let mut command_map = HashMap::new();
     // command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-    // let response_command = Command::new(command.client_id.clone(), "itisaspecialcase".to_string(), 11, command_map);
+    // let response_command = Command::new(command.client_key.clone(), "itisaspecialcase".to_string(), 11, command_map);
 
     // >----------
     // > Schedule to process
 
     let json_command = serde_json::to_string(&command.command).unwrap();
-    let down_command = DownCommand::new(command.client_id.clone(), command.parity_id.clone(), command.priority, json_command);
+    let down_command = DownCommand::new(command.client_key.clone(), command.parity_id.clone(), command.priority, json_command);
 
     enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command);
 
@@ -417,7 +417,7 @@ fn handle_common_function(command: Command) -> Command {
     command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
     let conf_command = Command {
-        client_id: command.client_id.to_string().clone(),
+        client_key: command.client_key.to_string().clone(),
         parity_id: command.parity_id.to_string().clone(),
         priority: 11,
         command: command_map,
@@ -455,7 +455,7 @@ enum Response {
 /// 4. The original scheduled response is then removed from the buffer to avoid any future retrievals.
 /// 5. The transformed command is returned as `Response::Command(response_command)`.
 fn get_response(command: Command) -> Response {
-    let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_manager::buffer_up_get_scheduled_by_parity_id(command.client_id.clone(), command.parity_id.clone());
+    let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_manager::buffer_up_get_scheduled_by_parity_id(command.client_key.clone(), command.parity_id.clone());
 
     if !(up_schedule.len() > 0) {
         return Response::None;
@@ -465,9 +465,9 @@ fn get_response(command: Command) -> Response {
 
     let command_response_command = serde_json::from_str(command_response.command.as_str()).unwrap();
 
-    let response_command = create_response_command!(command_response.client_id, command_response.parity_id, command_response.priority, command_response_command);
+    let response_command = create_response_command!(command_response.client_key, command_response.parity_id, command_response.priority, command_response_command);
 
-    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command.client_id.clone(), response_command.parity_id.clone());
+    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command.client_key.clone(), response_command.parity_id.clone());
 
     return Response::Command(response_command);
 }
@@ -500,8 +500,6 @@ fn handle_connection(mut stream: TcpStream) {
 
     // -> Before join in the loop, schedule a request of the client commands
 
-    request_client_available_commands(client_key);
-
     loop {
         let mut buffer = [0; 4096];
 
@@ -527,10 +525,10 @@ fn handle_connection(mut stream: TcpStream) {
 
         let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
-        if !check_if_client_key_exists(command.client_id.clone()) {
+        if check_if_client_key_exists(command.client_key.clone()) {
             // -> In case client isn't registered in the clients allowed
 
-            let response = create_command_error!(command.client_id, command.parity_id, "Your client isn't registered in the whitelist!");
+            let response = create_command_error!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
 
             let command_response_json = json!(response).to_string();
 
@@ -538,12 +536,14 @@ fn handle_connection(mut stream: TcpStream) {
 
             stream.write_all(command_response_json.as_bytes()).unwrap();
 
-            return;
+            break;
         }
+
+        request_client_available_commands(command.client_key.clone());
 
         // ! WE CAN'T USE THIS PY AQUIRE UNTIL THE PYTHON POOL IS FINISHED !
 
-        update_last_contact(command.client_id.clone());
+        update_last_contact(command.client_key.clone());
 
         {
             let command_patterns = COMMAND_PATTERNS.lock().unwrap();
@@ -555,7 +555,7 @@ fn handle_connection(mut stream: TcpStream) {
                     if special_functions.contains(&function) {
                         // -> Special Function Handler
 
-                        let response = handle_special_functions(command.client_id, function.clone());
+                        let response = handle_special_functions(command.client_key, function.clone());
 
                         let command_response_json = json!(response).to_string();
 
@@ -569,7 +569,7 @@ fn handle_connection(mut stream: TcpStream) {
 
                         logger.debug("Command is in command patterns!".to_string());
 
-                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(command.parity_id.clone(), command.client_id.clone());
+                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(command.parity_id.clone(), command.client_key.clone());
 
                         let response: Command;
 
@@ -578,16 +578,16 @@ fn handle_connection(mut stream: TcpStream) {
 
                             match get_response(command.clone()) {
                                 Response::Command(c) => {
-                                    if c.client_id == command.client_id {
+                                    if c.client_key == command.client_key {
                                         response = c;
                                     } else {
                                         logger.info("Response is None!".to_string());
-                                        response = create_special_command!(command.client_id, "C210");
+                                        response = create_special_command!(command.client_key, "C210");
                                     }
                                 },
                                 Response::None => {
                                     logger.info("Response is None!".to_string());
-                                    response = create_special_command!(command.client_id, "C210");
+                                    response = create_special_command!(command.client_key, "C210");
                                 },
                             }
                         } else {
@@ -602,7 +602,7 @@ fn handle_connection(mut stream: TcpStream) {
                     } else {
                         // -> None of above
 
-                        let command = create_command_error!(command.client_id, command.parity_id, format!("Function: {}, Doesn't exist!", function));
+                        let command = create_command_error!(command.client_key, command.parity_id, format!("Function: {}, Doesn't exist!", function));
 
                         let command_json = json!(command).to_string();
 

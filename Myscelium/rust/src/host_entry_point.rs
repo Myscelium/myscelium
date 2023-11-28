@@ -447,6 +447,7 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
                 client_handlers,
+                false
             ));
 
             client.save_into_db();
@@ -499,6 +500,7 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
                 client_handlers,
+                false
             ));
 
             client.save_into_db()
