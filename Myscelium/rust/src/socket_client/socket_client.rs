@@ -168,7 +168,7 @@ macro_rules! create_special_command {
         command_map.insert("function".to_string(), Value::String($code.to_string()));
 
         Command {
-            client_id: "some_client_id".to_string(),
+            client_key: "some_client_id".to_string(),
             parity_id: "itisaspecialcase".to_string(),
             priority: 11,
             command: command_map,
@@ -345,7 +345,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
             //             let val = Value::String("Unknown error".to_string());
             //             let error_msg = command_received.command.get("Error").unwrap_or(&val);
             //             logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
-            //             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            //             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
             //             CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
             //             return None;
             //         } // Optionally handle other string cases here...
@@ -366,12 +366,12 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             if command_received.parity_id != "itisaspecialcase" {
                 if function == "C210".to_string() {
-                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
                     logger.info(format!("Received Confirmation!"));
                     return None;
                 } else if function == "Error".to_string() {
                     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
-                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
                     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                     return None;
                 }
@@ -391,14 +391,14 @@ fn handle_response(received: Response) -> Option<DownCommand> {
             //     let val = Value::String("Unknown error".to_string());
             //     let error_msg = command_received.command.get("message").unwrap_or(&val);
             //     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", serde_json::from_value::<String>(error_msg.clone()).unwrap()));
-            //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
             //     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
             //     return None;
             // }
 
             let down_command = DownCommand::from_command(command_received.clone());
 
-            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
 
             return Some(down_command);
         },
@@ -411,7 +411,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             let down_command = DownCommand::from_command(command_received.clone());
 
-            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_id, command_received.parity_id);
+            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
 
             return Some(down_command);
         },

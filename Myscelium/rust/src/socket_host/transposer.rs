@@ -188,7 +188,7 @@ fn process(py: Python, down_command: DownCommand) {
 
     logger.debug(format!("Initializing processing!"));
 
-    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_id.clone());
+    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_key.clone());
     let command_id: u32 = down_command.command_id.clone().unwrap();
 
     if !command_is_not_registry {
@@ -204,7 +204,7 @@ fn process(py: Python, down_command: DownCommand) {
     // >    - same as origin
     // >    - redirect
 
-    // > if it is redirect one extra kwarg is necessary that have the client_id to redirect
+    // > if it is redirect one extra kwarg is necessary that have the client_key to redirect
     // * This will create a need to have a local database in the host to store the clients
     // * and to store when is the last contact of some client, if it is some threshold value
     // * more it will remove the registered client, if it have a contact recent, this will redirect the message
@@ -245,7 +245,7 @@ fn process(py: Python, down_command: DownCommand) {
 
     if direct_functions.contains(&function) {
         // -> Default Rust direct function
-        result = handle_direct_function(&translated_command.client_id, function, translated_command.command.clone(), command_id);
+        result = handle_direct_function(&translated_command.client_key, function, translated_command.command.clone(), command_id);
     } else {
         // -> Default Python function
         let response;
@@ -268,16 +268,16 @@ fn process(py: Python, down_command: DownCommand) {
 
     logger.debug(format!("Callback call response converted to rust: {:?}", result));
 
-    let mut client_id = down_command.client_id.clone();
+    let mut client_key = down_command.client_key.clone();
 
     let response: Result<String, Error>;
 
-    fn process_map_result(m: HashMap<String, ResultType>, client_id: &String, down_command: &DownCommand) -> (Result<String, Error>, String) {
+    fn process_map_result(m: HashMap<String, ResultType>, client_key: &String, down_command: &DownCommand) -> (Result<String, Error>, String) {
         let logger = acquire_logger!("Transposer - Process");
 
         let response: Result<String, Error>;
 
-        let mut client_to_send: String = client_id.clone();
+        let mut client_to_send: String = client_key.clone();
 
         if m.contains_key("response_mode") {
             let response_mode = m.get("response_mode").unwrap();
@@ -330,7 +330,7 @@ fn process(py: Python, down_command: DownCommand) {
     match result {
         // TODO >>> Implement change of response here
         ResultType::Map(m) => {
-            (response, client_id) = process_map_result(m, &client_id, &down_command);
+            (response, client_key) = process_map_result(m, &client_key, &down_command);
         },
         ResultType::Str(s) => {
             response = Ok(s.clone());
@@ -350,14 +350,14 @@ fn process(py: Python, down_command: DownCommand) {
                 match res {
                     ResultType::Map(m) => {
                         if counter == 0 {
-                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_id, &down_command);
+                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, &down_command);
                             let up_command = UpCommand::new(client_to_send_back, down_command.parity_id.clone(), down_command.priority.clone(), processed_resp.unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         } else {
                             // -> Gen 20 digits parity id based on client
-                            let special_parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_special_parity_id(&client_id);
+                            let special_parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_special_parity_id(&client_key);
 
-                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_id, &down_command);
+                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, &down_command);
                             let up_command = UpCommand::new(client_to_send_back, special_parity_id, down_command.priority.clone(), processed_resp.unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         }
@@ -366,7 +366,7 @@ fn process(py: Python, down_command: DownCommand) {
                     },
                     _ => {
                         response = error_response!("Error! Received a list, but expected a map!");
-                        let up_command = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
+                        let up_command = UpCommand::new(client_key, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
                         enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         break;
                     },
@@ -393,7 +393,7 @@ fn process(py: Python, down_command: DownCommand) {
 
     enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
-    let up_command = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
+    let up_command = UpCommand::new(client_key, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
 
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 }

@@ -131,7 +131,7 @@ pub enum ProcessError {
 // >    - same as origin
 // >    - redirect
 
-// > if it is redirect one extra kwarg is necessary that have the client_id to redirect
+// > if it is redirect one extra kwarg is necessary that have the client_key to redirect
 // * This will create a need to have a local database in the host to store the clients
 // * and to store when is the last contact of some client, if it is some threshold value
 // * more it will remove the registered client, if it have a contact recent, this will redirect the message
@@ -163,7 +163,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     logger.info(format!("Initializing processing!"));
 
     // Check if the command has already been registered in the up buffer
-    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_id.clone());
+    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_key.clone());
     let command_id: u32 = down_command.command_id.unwrap().clone();
 
     if !command_is_not_registry {
@@ -247,7 +247,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     logger.info(format!("Command function: {} is a valid function!", activation_key));
 
-    let client_id = down_command.client_id.clone();
+    let client_key = down_command.client_key.clone();
 
     let response: String;
 
@@ -278,7 +278,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     } else if direct_functions.contains(activation_key) {
         logger.info(format!("Command function: {} is a valid function!", activation_key));
 
-        if let Some(value) = handle_direct_function(client_id.clone(), activation_key, translated_command.clone(), command_id) {
+        if let Some(value) = handle_direct_function(client_key.clone(), activation_key, translated_command.clone(), command_id) {
             result = value
         } else {
             return Ok(());
@@ -351,7 +351,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
     // Schedule the resulting up command for transmission
-    let up_command: UpCommand = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response);
+    let up_command: UpCommand = UpCommand::new(client_key, down_command.parity_id.clone(), down_command.priority.clone(), response);
     enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 
