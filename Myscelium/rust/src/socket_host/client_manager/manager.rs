@@ -514,6 +514,10 @@ impl Client {
         Ok(new_client)
     }
 
+    pub fn is_sync(&self) -> bool {
+        self.syncronized
+    }
+
     pub fn change_sync_to(&self, sync: bool) -> Result<Self, ClientError> {
         let new_client = Self {
             client_id: self.client_id.clone(),
