@@ -500,6 +500,8 @@ fn handle_connection(mut stream: TcpStream) {
 
     // -> Before join in the loop, schedule a request of the client commands
 
+    let mut client: Option<Client> = None;
+
     loop {
         let mut buffer = [0; 4096];
 
@@ -539,7 +541,40 @@ fn handle_connection(mut stream: TcpStream) {
             break;
         }
 
-        request_client_available_commands(command.client_key.clone());
+        client = Some(match Client::get_by_key(&command.client_key) {
+            Ok(c) => c,
+            Err(e) => match e {
+                ClientError::ClientDoesNotExist(_) => {
+                    let response = create_command_error!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
+
+                    let command_response_json = json!(response).to_string();
+
+                    logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", command_response_json));
+
+                    stream.write_all(command_response_json.as_bytes()).unwrap();
+
+                    break;
+                },
+                _ => {
+                    let response = create_command_error!(command.client_key, command.parity_id, "Unexpected error getting your client");
+
+                    let command_response_json = json!(response).to_string();
+
+                    logger.exception(format!("WARNING: Unexpected error getting client: {:?}", command.client_key));
+
+                    stream.write_all(command_response_json.as_bytes()).unwrap();
+
+                    break;
+                },
+            },
+        });
+
+        // -> Verify if client is inicialized and check if is sync, if not send a request of sync
+        if let Some(cli) = client.clone() {
+            if !cli.is_sync() {
+                request_client_available_commands(command.client_key.clone());
+            }
+        }
 
         // ! WE CAN'T USE THIS PY AQUIRE UNTIL THE PYTHON POOL IS FINISHED !
 
@@ -618,6 +653,8 @@ fn handle_connection(mut stream: TcpStream) {
         }
     }
 
-    // TODO change the client to offline
-    // TODO change the client syncronity state to false, this will request the client available ahandlers again
+    // -> Change client sync status to not sync
+    if let Some(cli) = client {
+        let _ = cli.change_sync_to(false);
+    }
 }
