@@ -186,7 +186,6 @@ impl Client {
         max_sub_channels: u32,
         owned_sub_channels_keys: Vec<String>,
         mut client_handlers: Vec<HashMap<String, Value>>,
-        syncronized: bool,
     ) -> Result<Self, ClientError> {
         let client_id;
 
@@ -235,7 +234,7 @@ impl Client {
             owned_sub_channels_keys,
             sub_channels_in_use: 0u32,
             client_handlers,
-            syncronized,
+            syncronized: 0,
         })
     }
 
@@ -260,7 +259,7 @@ impl Client {
             }
 
             let result = conn.execute(
-                "INSERT INTO Clients (ID, ClientName, ClientKey, ClientType, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse, Handlers) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                "INSERT INTO Clients (ID, ClientName, ClientKey, ClientType, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse, Handlers, Syncronized) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                 params![
                     self.client_id,
                     self.client_name,
@@ -273,6 +272,7 @@ impl Client {
                     serialzied_owned_sub_channels_keys,
                     self.sub_channels_in_use,
                     client_handlers,
+                    self.syncronized
                 ],
             );
 
