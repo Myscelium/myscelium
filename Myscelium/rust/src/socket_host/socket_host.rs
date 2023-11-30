@@ -527,7 +527,7 @@ fn handle_connection(mut stream: TcpStream) {
 
         let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
 
-        if check_if_client_key_exists(command.client_key.clone()) {
+        if !check_if_client_key_exists(command.client_key.clone()) {
             // -> In case client isn't registered in the clients allowed
 
             let response = create_command_error!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
