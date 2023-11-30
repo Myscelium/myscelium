@@ -234,7 +234,7 @@ impl Client {
             owned_sub_channels_keys,
             sub_channels_in_use: 0u32,
             client_handlers,
-            syncronized: 0,
+            syncronized: false,
         })
     }
 
