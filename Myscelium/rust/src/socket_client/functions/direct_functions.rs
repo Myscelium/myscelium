@@ -62,49 +62,46 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
     if activation_key == &"get_socket_client_available_handlers".to_string() {
         logger.info(format!("Receive Available Handlers Request"));
 
-        if let Some(Value::Object(_)) = translated_command.command.get("kwargs") {
-            // Lock the COMMAND_PATTERNS and insert the new map
+        // Lock the COMMAND_PATTERNS and insert the new map
 
-            let actual_patterns;
+        let actual_patterns;
 
-            {
-                actual_patterns = COMMAND_PATTERNS.lock().clone();
-            }
-
-            logger.info(format!("Successfully actualize the host available commands!"));
-
-            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-
-            let act_patterns = actual_patterns.extract_all_commands();
-
-            let handlers = match convert_value_map_to_resulttype_map(&act_patterns) {
-                Ok(c) => c,
-                Err(e) => match e {
-                    ConversionError::UnsuportedValueVariant(s) => {
-                        logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                        return Some(ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s)));
-                    },
-                },
-            };
-
-            let mut filtered_resulttype_commands_map = HashMap::new();
-
-            filtered_resulttype_commands_map.insert("client_handlers".to_string(), handlers);
-
-            let function: String = "update_client_commands_ref".to_string();
-
-            let mut to_send = HashMap::new();
-
-            to_send.insert("command_type".to_string(), ResultType::Str("direct_function_response".to_string()));
-            to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-            to_send.insert("function".to_string(), ResultType::Str(function.to_string())); // -> Function that it will act in host
-            to_send.insert("kwargs".to_string(), ResultType::Map(filtered_resulttype_commands_map));
-            to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
-
-            return Some(ResultType::Map(to_send));
-        } else {
-            return Some(ResultType::Error(format!("missing kwargs key {:?}", translated_command.clone())));
+        {
+            actual_patterns = COMMAND_PATTERNS.lock().clone();
         }
+
+        logger.info(format!("Successfully actualize the host available commands!"));
+
+        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+
+        let act_patterns = actual_patterns.extract_all_commands();
+
+        let handlers = match convert_value_map_to_resulttype_map(&act_patterns) {
+            Ok(c) => c,
+            Err(e) => match e {
+                ConversionError::UnsuportedValueVariant(s) => {
+                    logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
+                    return Some(ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s)));
+                },
+            },
+        };
+
+        let mut filtered_resulttype_commands_map = HashMap::new();
+
+        filtered_resulttype_commands_map.insert("client_handlers".to_string(), handlers);
+
+        let function: String = "update_client_commands_ref".to_string();
+
+        let mut to_send = HashMap::new();
+
+        to_send.insert("command_type".to_string(), ResultType::Str("direct_function_response".to_string()));
+        to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+        to_send.insert("function".to_string(), ResultType::Str(function.to_string())); // -> Function that it will act in host
+        to_send.insert("kwargs".to_string(), ResultType::Map(filtered_resulttype_commands_map));
+        to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
+        to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host
+
+        return Some(ResultType::Map(to_send));
     }
 
     return Some(ResultType::Error(format!("Command: {:?} not found!", translated_command.clone())));

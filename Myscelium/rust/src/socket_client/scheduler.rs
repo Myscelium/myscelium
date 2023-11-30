@@ -43,14 +43,14 @@ pub fn set_client_id(client_uid: String) {
 ///
 /// This function prepares a command request for the host to retrieve the list of
 /// registered commands. The constructed request is then scheduled for processing.
-pub fn request_host_available_commands() {
-    let mut request_host_commands: HashMap<String, String> = HashMap::new();
-    request_host_commands.insert("function".to_string(), "get_registered_commands".to_string());
-    request_host_commands.insert("command_type".to_string(), "function".to_string());
-    request_host_commands.insert("kwargs".to_string(), "{}".to_string());
+// pub fn request_host_available_commands() {
+//     let mut request_host_commands: HashMap<String, String> = HashMap::new();
+//     request_host_commands.insert("function".to_string(), "get_registered_commands".to_string());
+//     request_host_commands.insert("command_type".to_string(), "function".to_string());
+//     request_host_commands.insert("kwargs".to_string(), "{}".to_string());
 
-    schedule(request_host_commands, 11)
-}
+//     schedule(request_host_commands, 11)
+// }
 
 /// Schedules a command for processing.
 ///
