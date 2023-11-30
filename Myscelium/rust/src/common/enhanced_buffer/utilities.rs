@@ -9,6 +9,7 @@ use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 #[derive(Debug)]
 pub enum CommandType {
     SpecialFunction(Value),
+    DirectFunction(Value),
     Function(Value),
     Response(HashMap<String, Value>),
     Redirect(HashMap<String, Value>),
@@ -104,6 +105,10 @@ impl Command {
                 "function" => {
                     println!("Self: {:?} have function: {:?}", self.command, self.command.get("function"));
                     CommandType::Function(self.command.get("function").unwrap().clone())
+                },
+                "direct_function" => {
+                    println!("Self: {:?} have direct function: {:?}", self.command, self.command.get("function"));
+                    CommandType::DirectFunction(self.command.get("function").unwrap().clone())
                 },
                 "special_function" => {
                     println!("Self: {:?} have special function: {:?}", self.command, self.command.get("function"));

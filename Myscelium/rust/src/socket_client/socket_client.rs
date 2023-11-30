@@ -361,6 +361,35 @@ fn handle_response(received: Response) -> Option<DownCommand> {
             return Some(down_command);
         },
 
+        CommandType::DirectFunction(df) => {
+            // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
+            // > Also we can use a similar system to sync multiple hosts
+
+            logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", df));
+
+            // match serde_json::from_value::<String>(f) {
+            //     Ok(function) => {
+            //         if function == "Error" {
+            //             // TODO >>> See if this is necessary to maintain since the errors now are pretended to be redirected
+            //             let val = Value::String("Unknown error".to_string());
+            //             let error_msg = command_received.command.get("Error").unwrap_or(&val);
+            //             logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
+            //             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
+            //             CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+            //             return None;
+            //         } // Optionally handle other string cases here...
+            //     },
+            //     Err(_) => {
+            //         // This block will execute if the JSON is not a string.
+            //         // Just continue, without doing anything.
+            //     },
+            // }
+
+            let down_command = DownCommand::from_command(command_received.clone());
+
+            return Some(down_command);
+        },
+
         CommandType::SpecialFunction(f) => {
             let function: String = serde_json::from_value(f.clone()).unwrap();
 

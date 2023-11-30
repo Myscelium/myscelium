@@ -227,18 +227,6 @@ fn process(py: Python, down_command: DownCommand) {
         };
     }
 
-    let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-
-    // -> Remove command from schedule if it isn't on the patterns
-    if !global_command_patterns.command_exists("host", &function) {
-        // TODO >>> Add a mecanism to check if the command exist for the target client
-        // TODO >>> Also adda mecanism to commands have a target by default, and if target is host then target is host
-        logger.warn(format!("Command isn't registered in the patterns"));
-        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-        logger.warn(format!("command skipped and removed from schedule"));
-        return;
-    }
-
     let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
 
     let result;
@@ -247,6 +235,20 @@ fn process(py: Python, down_command: DownCommand) {
         // -> Default Rust direct function
         result = handle_direct_function(&translated_command.client_key, function, translated_command.command.clone(), command_id);
     } else {
+        {
+            let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+
+            // -> Remove command from schedule if it isn't on the patterns
+            if !global_command_patterns.command_exists("host", &function) {
+                // TODO >>> Add a mecanism to check if the command exist for the target client
+                // TODO >>> Also adda mecanism to commands have a target by default, and if target is host then target is host
+                logger.warn(format!("Command isn't registered in the patterns"));
+                enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+                logger.warn(format!("command skipped and removed from schedule"));
+                return;
+            }
+        }
+
         // -> Default Python function
         let response;
 

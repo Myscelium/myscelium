@@ -207,6 +207,16 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
             };
         },
 
+        CommandType::DirectFunction(_) => {
+            activation_key = match translated_command.command.get("function") {
+                // Replace "desired_inner_key" with the key you want to access
+                Some(Value::String(activation_key)) => activation_key,
+                _ => {
+                    return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
+                },
+            };
+        },
+
         CommandType::Response(_) => {
             activation_key = match translated_command.command.get("response_activation_function") {
                 Some(Value::String(activation_key)) => activation_key,
@@ -245,7 +255,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         client_name = CLIENT_NODE_NAME.lock().clone();
     }
 
-    logger.info(format!("Command function: {} is a valid function!", activation_key));
+    // logger.info(format!("Command function: {} is a valid function!", activation_key));
 
     let client_key = down_command.client_key.clone();
 

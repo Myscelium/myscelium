@@ -154,7 +154,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
             let mut to_send = HashMap::new();
 
-            to_send.insert("command_type".to_string(), ResultType::Str("direct-function".to_string()));
+            to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
             to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
             to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
             to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
@@ -173,7 +173,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
                     let mut to_send = HashMap::new();
 
-                    to_send.insert("command_type".to_string(), ResultType::Str("direct-function".to_string()));
+                    to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
                     to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
                     to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
                     to_send.insert("message".to_string(), ResultType::Str("unexpect error getting clients to redirect the update commands".to_string()));
@@ -221,7 +221,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
             let client_key_to_redirect: String = client.client_key.clone();
 
-            to_send.insert("command_type".to_string(), ResultType::Str("direct-function".to_string()));
+            to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
             to_send.insert("response_mode".to_string(), ResultType::Str("redirect".to_string()));
             to_send.insert("redirect_to".to_string(), ResultType::Str(client_key_to_redirect.to_string()));
             to_send.insert("status".to_string(), ResultType::Str("success".to_string()));

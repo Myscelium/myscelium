@@ -45,7 +45,7 @@ macro_rules! acquire_logger {
 /// registered commands. The constructed request is then scheduled for processing.
 pub fn request_client_available_commands(client_key: String) {
     let mut request_host_commands: HashMap<String, String> = HashMap::new();
-    request_host_commands.insert("command_type".to_string(), "direct-function".to_string());
+    request_host_commands.insert("command_type".to_string(), "direct_function".to_string());
     request_host_commands.insert("response_mode".to_string(), "to_origin".to_string());
     request_host_commands.insert("status".to_string(), "success".to_string());
     request_host_commands.insert("function".to_string(), "get_socket_client_available_handlers".to_string());
@@ -54,7 +54,7 @@ pub fn request_client_available_commands(client_key: String) {
 
     // let mut to_send = HashMap::new();
 
-    // to_send.insert("command_type".to_string(), ResultType::Str("direct-function".to_string()));
+    // to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
     // to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
     // to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
     // to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
