@@ -513,6 +513,9 @@ pub fn initialize_client(address: String, client_id: String) {
 
     let mut stream = TcpStream::connect(address.clone()).unwrap();
 
+    // Here need to send the new handlers to host
+    // then receive the host handlers
+
     logger.info(format!("Connected to {:?}!", address.clone()).to_string());
 
     thread::sleep(Duration::from_millis(200));

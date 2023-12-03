@@ -21,6 +21,9 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+extern crate chrono;
+use crate::chrono::TimeZone;
+
 lazy_static! {
 
     // CLIENT

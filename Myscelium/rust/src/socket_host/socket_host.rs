@@ -38,7 +38,10 @@ use crate::HOST_LOG_LEVEL;
 
 use crate::common::structs::avaliable_commands::CommandPatterns;
 
+use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
+
 lazy_static! {
+    static ref CLIENTS_SYNC_CONTROLLER: Arc<Mutex<Clients>> = Arc::new(Mutex::new(Clients::new()));
     static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
@@ -569,9 +572,12 @@ fn handle_connection(mut stream: TcpStream) {
             },
         });
 
-        // -> Verify if client is inicialized and check if is sync, if not send a request of sync
+        // Todo, change sync method to the new method
+
+        // -> Verify if client is initialized and check if is sync, if not send a request of sync
         if let Some(cli) = client.clone() {
             if !cli.is_sync() {
+                // todo create a mechanism to check if the request of sync was already sended to the client
                 request_client_available_commands(command.client_key.clone());
             }
         }
@@ -598,7 +604,7 @@ fn handle_connection(mut stream: TcpStream) {
 
                         stream.write_all(command_response_json.as_bytes()).unwrap();
                     } else if command_patterns.command_exists("host", function) {
-                        // TODO >>> Add the target in the clien commands to allow see if the function exist for the defined target
+                        // TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
 
                         // -> Common Function Handler
 

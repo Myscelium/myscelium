@@ -26,6 +26,8 @@ use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
 
+use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
+
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let host_log_level;
