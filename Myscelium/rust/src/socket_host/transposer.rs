@@ -169,7 +169,7 @@ use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
 /// let (response, client_key) = process_map_result(result_map, &client_key, &down_command);
 /// // Handle the response and client_key as needed
 /// ```
-fn process_map_result(m: HashMap<String, ResultType>, client_key: &String, down_command: &DownCommand) -> (Result<String, Error>, String) {
+pub fn process_map_result(m: HashMap<String, ResultType>, client_key: &String, parity_id: String, priority: u8) -> (Result<String, Error>, String) {
     let logger = acquire_logger!("Transposer - Process");
 
     let response: Result<String, Error>;
@@ -194,7 +194,7 @@ fn process_map_result(m: HashMap<String, ResultType>, client_key: &String, down_
         } else if *response_mode == ResultType::Str("redirect".to_string()) {
             logger.debug(format!("Response: {:?}", m));
 
-            let resp = handle_redirect(m, &mut client_to_send, down_command.clone());
+            let resp = handle_redirect(m, &mut client_to_send, parity_id.clone(), priority.clone());
             let converted_to_value = convert_to_value_map(&resp);
             response = Ok(serde_json::to_string(&converted_to_value).unwrap());
             // Response at this point is like this: Map({
@@ -260,7 +260,7 @@ fn process_and_schedule(resulttype_command: ResultType, mut client_key: String, 
     match resulttype_command {
         // TODO >>> Implement change of response here
         ResultType::Map(m) => {
-            (response, client_key) = process_map_result(m, &client_key, &down_command);
+            (response, client_key) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
         },
         ResultType::Str(s) => {
             response = Ok(s.clone());
@@ -280,14 +280,14 @@ fn process_and_schedule(resulttype_command: ResultType, mut client_key: String, 
                 match res {
                     ResultType::Map(m) => {
                         if counter == 0 {
-                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, &down_command);
+                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
                             let up_command = UpCommand::new(client_to_send_back, down_command.parity_id.clone(), down_command.priority.clone(), processed_resp.unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         } else {
                             // -> Gen 20 digits parity id based on client
                             let special_parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_special_parity_id(&client_key);
 
-                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, &down_command);
+                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
                             let up_command = UpCommand::new(client_to_send_back, special_parity_id, down_command.priority.clone(), processed_resp.unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         }
@@ -317,6 +317,8 @@ fn process_and_schedule(resulttype_command: ResultType, mut client_key: String, 
             response = error_response!(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
         },
     }
+
+    // TODO >>> Made a better handler to the response errors
 
     logger.debug(format!("Function returned: {:?}", response));
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));

@@ -14,7 +14,10 @@ use std::collections::HashMap;
 use crate::socket_host::transposer::COMMAND_PATTERNS;
 use crate::CLIENT_ID;
 
+use serde_json::Error;
+
 use super::host_logger::log_handler::Logger;
+use crate::socket_host::transposer::process_map_result;
 use crate::HOST_LOG_LEVEL;
 
 macro_rules! acquire_logger {
@@ -128,7 +131,17 @@ pub fn send_network_available_commands(client_key: String) {
     to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
     to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
 
-    schedule(to_send, 11, client_key);
+    let response: Result<String, Error>;
+    let parity_id = "itisaspecialcase".to_string();
+    let priority: u8 = 11;
+
+    let new_client_key;
+
+    (response, new_client_key) = process_map_result(to_send, &client_key, parity_id.clone(), priority);
+
+    let command_to_schedule = UpCommand::new(new_client_key, parity_id, priority, response.unwrap());
+
+    enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
 }
 
 /// Schedules a command for processing.

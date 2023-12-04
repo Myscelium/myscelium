@@ -83,7 +83,7 @@ macro_rules! acquire_logger {
 /// let response = handle_redirect(m, &mut client_id, down_command);
 /// ```
 ///
-pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, down_command: DownCommand) -> HashMap<String, ResultType> {
+pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, parity_id: String, priority: u8) -> HashMap<String, ResultType> {
     let logger = acquire_logger!("[Process][Handle Redirect]");
 
     let mut to_send = HashMap::new();
@@ -110,7 +110,7 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
     command_map.insert("function".to_string(), Value::String("C210".to_string()));
     let response = serde_json::to_string(&command_map).unwrap();
 
-    let up_command = UpCommand::new(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), response);
+    let up_command = UpCommand::new(client_id.clone(), parity_id.clone(), priority.clone(), response);
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 
     logger.debug(format!("Converted redirect command: {:?}", converted_m));
