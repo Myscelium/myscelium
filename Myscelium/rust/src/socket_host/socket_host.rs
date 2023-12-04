@@ -25,6 +25,11 @@ use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threa
 use crate::common::custom_thread_pool::thread_pool::UnifiedThreadPool;
 use crate::socket_host::client_manager::manager::{check_if_client_key_exists, Client, ClientError};
 
+extern crate chrono;
+use chrono::prelude::Utc;
+use chrono::DateTime;
+use chrono::Duration;
+
 // > Global Vars Core
 
 use crate::HOST_IS_RUNNING;
@@ -35,6 +40,8 @@ use pyo3::types::PyFunction;
 use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
+
+use crate::common::functions::advanced_lockers::smart_lock;
 
 use crate::common::structs::avaliable_commands::CommandPatterns;
 
@@ -575,11 +582,75 @@ fn handle_connection(mut stream: TcpStream) {
         // Todo, change sync method to the new method
 
         // -> Verify if client is initialized and check if is sync, if not send a request of sync
-        if let Some(cli) = client.clone() {
-            if !cli.is_sync() {
-                // todo create a mechanism to check if the request of sync was already sended to the client
-                request_client_available_commands(command.client_key.clone());
+
+        let mut client_sync_status: Option<bool> = Some(false);
+        let mut client_last_sync: Option<DateTime<Utc>> = None;
+
+        let controller = &CLIENTS_SYNC_CONTROLLER;
+        smart_lock(&*controller, |clients: &mut Clients| {
+            client_sync_status = match clients.get_sync_status(&command.client_key.clone()) {
+                Ok(s) => Some(s),
+                Err(e) => match e {
+                    ClientStatusPoolError::ClientDoesNotExist(c) => {
+                        logger.warn(format!("WARNING: Client: {:?} does not exist so can't sync!", c));
+                        None
+                    },
+                    ClientStatusPoolError::ClientAlreadySync(c) => {
+                        logger.warn(format!("WARNING: Client: {:?} is already sync!", c));
+                        Some(true)
+                    },
+
+                    ClientStatusPoolError::MaxSyncAttemptsReached(c) => {
+                        logger.warn(format!("WARNING: Max attempts trying to sync with Client: {:?} reached!", c));
+                        None
+                    },
+                    _ => {
+                        logger.warn(format!("WARNING: Unexpected error trying to sync with client: {:?}!", &command.client_key));
+                        None
+                    },
+                },
+            };
+            client_last_sync = match clients.get_last_sync(&command.client_key.clone()) {
+                Ok(last_sync) => Some(last_sync),
+                Err(e) => match e {
+                    ClientStatusPoolError::ClientDoesNotExist(c) => {
+                        logger.warn(format!("WARNING: Client: {:?} does not exist so can't sync!", c));
+                        None
+                    },
+                    ClientStatusPoolError::ClientAlreadySync(c) => {
+                        logger.warn(format!("WARNING: Client: {:?} is already sync!", c));
+                        None
+                    },
+
+                    ClientStatusPoolError::MaxSyncAttemptsReached(c) => {
+                        logger.warn(format!("WARNING: Max attempts trying to sync with Client: {:?} reached!", c));
+                        None
+                    },
+                    _ => {
+                        logger.warn(format!("WARNING: Unexpected error trying to sync with client: {:?}!", &command.client_key));
+                        None
+                    },
+                },
             }
+        });
+
+        if let Some(sync) = client_sync_status {
+            if !sync {
+                if let Some(last_sync) = client_last_sync {
+                    let current_time = Utc::now();
+                    if current_time - last_sync > Duration::seconds(5) {
+                        request_client_available_commands(command.client_key.clone());
+                    } else {
+                        logger.warn(format!("WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!", &command.client_key, (current_time - last_sync).num_seconds()));
+                    }
+                } else {
+                    // -> case of be the first sync attempt
+                    // TODO >>> Change the method, instead of sending a request of the available handlers, send the host av commands and the return should be the client av handlers when the update_client_av handlers be triggered change the status to sync
+                    request_client_available_commands(command.client_key.clone());
+                }
+            }
+        } else {
+            break;
         }
 
         // ! WE CAN'T USE THIS PY AQUIRE UNTIL THE PYTHON POOL IS FINISHED !

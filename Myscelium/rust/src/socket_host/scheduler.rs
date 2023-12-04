@@ -86,7 +86,7 @@ pub fn schedule(command: HashMap<String, String>, priority: u8, client_key: Stri
 
     let unwraped_command;
 
-    // TODO >>> Add mecanisms to check the structure of the command that we are trying to registry
+    // TODO >>> Add mechanisms to check the structure of the command that we are trying to registry
 
     match command {
         Ok(c) => {
