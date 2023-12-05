@@ -49,8 +49,8 @@ use crate::common::structs::avaliable_commands::CommandPatterns;
 use crate::CLIENT_NODE_NAME;
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
-    pub static ref HOST_ALLOWED_COMMANDS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
+    pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
+    pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))

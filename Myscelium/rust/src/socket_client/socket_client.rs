@@ -30,6 +30,9 @@ use crate::CLIENT_LOG_LEVEL;
 use crate::CLIENT_NODE_NAME;
 
 use parking_lot::Mutex;
+use std::sync;
+
+use crate::common::functions::advanced_lockers::smart_lock;
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
@@ -44,14 +47,14 @@ macro_rules! acquire_logger {
 use crate::common::structs::avaliable_commands::CommandPatterns;
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
+    pub static ref COMMAND_PATTERNS: Arc<sync::Mutex<CommandPatterns>> = Arc::new(sync::Mutex::new(CommandPatterns::new()));
     static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
             "get_symbols_data": {
                 "symbols_data": {
                     "data-type": "str",
                     "symbols": "str",
-                    "start-ts": "float",
+                    "start-ts": "float",W
                     "end-ts": "float"
                 }
             },
@@ -85,8 +88,10 @@ lazy_static! {
 pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
     let client_name = CLIENT_NODE_NAME.lock().clone();
 
-    let mut global_command_patterns = COMMAND_PATTERNS.lock();
-    global_command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
+    let command_patterns = &COMMAND_PATTERNS;
+    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
+        patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
+    });
 }
 
 /// Initializes the client buffer by setting up the necessary tables.
@@ -133,8 +138,12 @@ pub fn initialize_client_buffer(buffer_location: String) {
 /// # Returns
 /// - A `HashMap` containing the available command patterns.
 pub fn get_available_handlers_registered() -> HashMap<String, Value> {
-    let global_command_patterns = COMMAND_PATTERNS.lock().clone();
-    return global_command_patterns.extract_all_commands();
+    let mut global_command_patterns: HashMap<String, Value> = HashMap::new();
+    let command_patterns = &COMMAND_PATTERNS;
+    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
+        global_command_patterns = patterns.extract_all_commands();
+    });
+    return global_command_patterns;
 }
 
 // > --------------------------------------------------------------------------------------------------------------------------------------
