@@ -51,13 +51,13 @@ macro_rules! acquire_logger {
 /// This function prepares a command request for the host to retrieve the list of
 /// registered commands. The constructed request is then scheduled for processing.
 pub fn request_client_available_commands(client_key: String) {
-    let mut request_host_commands: HashMap<String, String> = HashMap::new();
-    request_host_commands.insert("command_type".to_string(), "direct_function".to_string());
-    request_host_commands.insert("response_mode".to_string(), "to_origin".to_string());
-    request_host_commands.insert("status".to_string(), "success".to_string());
-    request_host_commands.insert("function".to_string(), "get_socket_client_available_handlers".to_string());
-    request_host_commands.insert("origin".to_string(), "".to_string());
-    request_host_commands.insert("kwargs".to_string(), "{}".to_string());
+    let mut request_host_commands: HashMap<String, ResultType> = HashMap::new();
+    request_host_commands.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
+    request_host_commands.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+    request_host_commands.insert("status".to_string(), ResultType::Str("success".to_string()));
+    request_host_commands.insert("function".to_string(), ResultType::Str("get_socket_client_available_handlers".to_string()));
+    request_host_commands.insert("origin".to_string(), ResultType::Str("host".to_string()));
+    request_host_commands.insert("kwargs".to_string(), ResultType::Map(HashMap::new()));
 
     // let mut to_send = HashMap::new();
 
@@ -70,7 +70,7 @@ pub fn request_client_available_commands(client_key: String) {
 
     // response.push(ResultType::Map(to_send));
 
-    schedule(request_host_commands, 11, client_key)
+    schedule(request_host_commands, 11, client_key, "itisaspecialcase".to_string())
 }
 
 pub fn send_network_available_commands(client_key: String) {
@@ -135,13 +135,7 @@ pub fn send_network_available_commands(client_key: String) {
     let parity_id = "itisaspecialcase".to_string();
     let priority: u8 = 11;
 
-    let new_client_key;
-
-    (response, new_client_key) = process_map_result(to_send, &client_key, parity_id.clone(), priority);
-
-    let command_to_schedule = UpCommand::new(new_client_key, parity_id, priority, response.unwrap());
-
-    enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
+    schedule(to_send, priority, client_key, parity_id)
 }
 
 /// Schedules a command for processing.
@@ -154,36 +148,21 @@ pub fn send_network_available_commands(client_key: String) {
 /// - `command`: A map representing the command to be scheduled.
 /// - `priority`: The priority level of the command. Commands with higher priority values
 ///               are processed before those with lower priority values.
-pub fn schedule(command: HashMap<String, String>, priority: u8, client_key: String) {
+pub fn schedule(command: HashMap<String, ResultType>, priority: u8, client_key: String, parity_id: String) {
+    let response: Result<String, Error>;
+    let new_client_key: String;
+
+    (response, new_client_key) = process_map_result(command, &client_key, parity_id.clone(), priority);
+
     let logger = acquire_logger!("Core - Scheduler");
 
     logger.debug("Enter Scheduler".to_string());
 
-    logger.debug(format!("Client id is: {:?}", client_key));
-    let command = serde_json::to_string(&command);
-
-    let unwraped_command;
-
-    // TODO >>> Add mechanisms to check the structure of the command that we are trying to registry
-
-    match command {
-        Ok(c) => {
-            unwraped_command = c;
-        },
-
-        Err(e) => {
-            logger.exception(format!("An error occured while trying to stringfy the command when sending it to schedule! The error was: {}", e));
-            return;
-        },
-    }
-
     let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
 
-    let command_to_schedule = UpCommand::new(client_key, parity_id, priority, unwraped_command);
+    let command_to_schedule = UpCommand::new(new_client_key, parity_id, priority, response.unwrap());
 
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
 
     logger.info(format!("Command: {:?} scheduled!", command_to_schedule));
 }
-
-// {"command_type":"function", "function":command_function, "kwargs":args}
