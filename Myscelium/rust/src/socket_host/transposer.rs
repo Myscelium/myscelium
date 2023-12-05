@@ -39,7 +39,7 @@ macro_rules! acquire_logger {
 }
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
+    pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -115,6 +115,7 @@ pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
 /// ```
 ///
 pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
+    //TODO >>> Add the smart lock mechanism
     let mut global_command_patterns = COMMAND_PATTERNS.lock().unwrap();
     global_command_patterns.add_commands_from_map("host", commands_patterns);
 

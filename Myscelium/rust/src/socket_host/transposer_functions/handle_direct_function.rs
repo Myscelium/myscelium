@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::utilities::Command;
+use crate::common::structs::avaliable_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
 use crate::socket_client::transposer::ProcessError;
 
@@ -16,6 +17,11 @@ use crate::HOST_LOG_LEVEL;
 use crate::socket_host::client_manager::manager::{check_if_client_key_exists, Client, ClientError};
 
 use crate::common::functions::converters::{convert_json_map_to_hash_map, convert_value_map_to_resulttype_map, ConversionError};
+
+use crate::common::functions::advanced_lockers::smart_lock;
+use crate::socket_host::socket_host::CLIENTS_SYNC_CONTROLLER;
+
+use crate::socket_host::sync_controller::controller::Clients;
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
@@ -121,14 +127,16 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         let client_name: String = client.get_client_name();
 
-        {
-            let mut actual_patterns = COMMAND_PATTERNS.lock().unwrap();
-            actual_patterns.add_or_update_if_exists(client_name.as_str(), convert_json_map_to_hash_map(client_handlers))
-        }
+        let actual_patterns = &COMMAND_PATTERNS;
+        smart_lock(&*actual_patterns, |patterns: &mut CommandPatterns| {
+            patterns.add_or_update_if_exists(client_name.as_str(), convert_json_map_to_hash_map(client_handlers))
+        });
 
-        let status = client.change_sync_to(true);
-
-        // TODO >>> Create a mechanims to dont send anything to the other clients in case of the new client doesn't bring anything new as handlers
+        let controller = &CLIENTS_SYNC_CONTROLLER;
+        smart_lock(&*controller, |clients: &mut Clients| {
+            let status = clients.update_client_sync_status(client_key, true);
+            // TODO >>> Add a mechanism to set all the other clients state to sync = false
+        });
 
         let mut response: Vec<ResultType> = Vec::new();
 
