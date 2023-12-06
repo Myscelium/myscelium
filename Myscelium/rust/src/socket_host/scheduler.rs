@@ -16,6 +16,9 @@ use crate::CLIENT_ID;
 
 use serde_json::Error;
 
+use crate::common::functions::advanced_lockers::smart_lock;
+use crate::common::structs::avaliable_commands::CommandPatterns;
+
 use super::host_logger::log_handler::Logger;
 use crate::socket_host::transposer::process_map_result;
 use crate::HOST_LOG_LEVEL;
@@ -80,11 +83,9 @@ pub fn send_network_available_commands(client_key: String) {
 
     // Lock the COMMAND_PATTERNS and insert the new map
 
-    let actual_patterns;
-
-    {
-        actual_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-    }
+    let mut actual_patterns: CommandPatterns = CommandPatterns::new();
+    let command_patterns = &COMMAND_PATTERNS;
+    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| actual_patterns = patterns.clone());
 
     // -> get the client by the client key
     let client = match Client::get_by_key(&client_key) {
