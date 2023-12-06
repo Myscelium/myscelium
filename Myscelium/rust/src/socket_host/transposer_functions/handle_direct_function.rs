@@ -204,14 +204,14 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         // -> Send the updated info for all the clients
         for client in clients {
-            let filtered_commands;
+            let mut filtered_commands: HashMap<String, Value> = HashMap::new();
 
             //* Any mechanism that will see the client permissions to each command may be placed here
 
-            {
-                let actual_patterns = COMMAND_PATTERNS.lock().unwrap();
-                filtered_commands = actual_patterns.get_all_commands_except_for_client(client_name.as_str());
-            }
+            let actual_patterns = &COMMAND_PATTERNS;
+            smart_lock(&*actual_patterns, |patterns: &mut CommandPatterns| {
+                filtered_commands = patterns.get_all_commands_except_for_client(client_name.as_str());
+            });
 
             let filtered_resulttype_commands_map = match convert_value_map_to_resulttype_map(&filtered_commands) {
                 Ok(c) => c,
