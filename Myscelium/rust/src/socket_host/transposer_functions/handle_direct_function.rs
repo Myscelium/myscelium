@@ -55,7 +55,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             Ok(c) => c,
             Err(e) => match e {
                 ClientError::ClientDoesNotExist(_) => {
-                    return ResultType::Error(format!("unknow client_key: {:?}", client_key));
+                    return ResultType::Error(format!("Unknow client_key: {:?}", client_key));
                 },
                 _ => {
                     return ResultType::Error(format!("Get a error {:?}, obtaining client: {:?}", e, client_key));
@@ -103,7 +103,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             Ok(c) => c,
             Err(e) => match e {
                 ClientError::ClientDoesNotExist(_) => {
-                    return ResultType::Error(format!("unknow client_key: {:?}", client_key));
+                    return ResultType::Error(format!("Unknow client_key: {:?}", client_key));
                 },
                 _ => {
                     return ResultType::Error(format!("Get a error {:?}, obtaining client: {:?}", e, client_key));
