@@ -639,6 +639,7 @@ fn handle_connection(mut stream: TcpStream) {
                 if let Some(last_sync) = client_last_sync {
                     let current_time = Utc::now();
                     if current_time - last_sync > Duration::seconds(5) {
+                        // TODO >>> Implement the sync logic here!
                         request_client_available_commands(command.client_key.clone());
                     } else {
                         logger.warn(format!("WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!", &command.client_key, (current_time - last_sync).num_seconds()));
