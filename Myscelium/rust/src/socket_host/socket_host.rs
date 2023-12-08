@@ -18,7 +18,7 @@ use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::Command;
 
-use crate::socket_host::scheduler::request_client_available_commands;
+use crate::socket_host::scheduler::{request_client_available_commands, send_network_available_commands};
 
 #[macro_use]
 use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
@@ -47,8 +47,9 @@ use crate::common::structs::avaliable_commands::CommandPatterns;
 
 use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
 
+use crate::CLIENTS_SYNC_CONTROLLER;
+
 lazy_static! {
-    pub static ref CLIENTS_SYNC_CONTROLLER: Arc<Mutex<Clients>> = Arc::new(Mutex::new(Clients::new()));
     static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
@@ -81,6 +82,26 @@ macro_rules! create_command_error {
         };
         command
     }};
+}
+
+#[macro_export]
+macro_rules! handle_client_controler_error {
+    ($error:expr, $client_key:expr, $logger:expr) => {
+        match $error {
+            ClientStatusPoolError::ClientDoesNotExist(c) => {
+                $logger.warn(format!("WARNING: Client: {:?} does not exist so can't sync!", c));
+            },
+            ClientStatusPoolError::ClientAlreadySync(c) => {
+                $logger.warn(format!("WARNING: Client: {:?} is already sync!", c));
+            },
+            ClientStatusPoolError::MaxSyncAttemptsReached(c) => {
+                $logger.warn(format!("WARNING: Max attempts trying to sync with Client: {:?} reached!", c));
+            },
+            _ => {
+                $logger.warn(format!("WARNING: Unexpected error trying to sync with client: {:?}!", $client_key));
+            },
+        }
+    };
 }
 
 macro_rules! acquire_logger {
@@ -588,67 +609,61 @@ fn handle_connection(mut stream: TcpStream) {
 
         let controller = &CLIENTS_SYNC_CONTROLLER;
         smart_lock(&*controller, |clients: &mut Clients| {
+            println!("Clients In Sync Controler: {:?}", clients);
+
             client_sync_status = match clients.get_sync_status(&command.client_key.clone()) {
                 Ok(s) => Some(s),
-                Err(e) => match e {
-                    ClientStatusPoolError::ClientDoesNotExist(c) => {
-                        logger.warn(format!("WARNING: Client: {:?} does not exist so can't sync!", c));
-                        None
-                    },
-                    ClientStatusPoolError::ClientAlreadySync(c) => {
-                        logger.warn(format!("WARNING: Client: {:?} is already sync!", c));
-                        Some(true)
-                    },
-
-                    ClientStatusPoolError::MaxSyncAttemptsReached(c) => {
-                        logger.warn(format!("WARNING: Max attempts trying to sync with Client: {:?} reached!", c));
-                        None
-                    },
-                    _ => {
-                        logger.warn(format!("WARNING: Unexpected error trying to sync with client: {:?}!", &command.client_key));
-                        None
-                    },
+                Err(e) => {
+                    handle_client_controler_error!(e, &command.client_key, logger);
+                    None
                 },
             };
             client_last_sync = match clients.get_last_sync(&command.client_key.clone()) {
                 Ok(last_sync) => Some(last_sync),
-                Err(e) => match e {
-                    ClientStatusPoolError::ClientDoesNotExist(c) => {
-                        logger.warn(format!("WARNING: Client: {:?} does not exist so can't sync!", c));
-                        None
-                    },
-                    ClientStatusPoolError::ClientAlreadySync(c) => {
-                        logger.warn(format!("WARNING: Client: {:?} is already sync!", c));
-                        None
-                    },
-
-                    ClientStatusPoolError::MaxSyncAttemptsReached(c) => {
-                        logger.warn(format!("WARNING: Max attempts trying to sync with Client: {:?} reached!", c));
-                        None
-                    },
-                    _ => {
-                        logger.warn(format!("WARNING: Unexpected error trying to sync with client: {:?}!", &command.client_key));
-                        None
-                    },
+                Err(e) => {
+                    handle_client_controler_error!(e, &command.client_key, logger);
+                    None
                 },
             }
         });
 
         if let Some(sync) = client_sync_status {
             if !sync {
+                println!("\nClient: {:?} isn't sync\n", &command.client_key);
+
                 if let Some(last_sync) = client_last_sync {
                     let current_time = Utc::now();
-                    if current_time - last_sync > Duration::seconds(5) {
-                        // TODO >>> Implement the sync logic here!
-                        request_client_available_commands(command.client_key.clone());
+                    if current_time - last_sync > Duration::seconds(30) {
+                        send_network_available_commands(command.client_key.clone());
+
+                        let controller = &CLIENTS_SYNC_CONTROLLER;
+                        smart_lock(&*controller, |clients: &mut Clients| {
+                            let _ = match clients.update_client_sync_attempt(&command.client_key.clone()) {
+                                Ok(c) => c,
+                                Err(e) => {
+                                    handle_client_controler_error!(e, &command.client_key, logger);
+                                },
+                            };
+                        })
                     } else {
                         logger.warn(format!("WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!", &command.client_key, (current_time - last_sync).num_seconds()));
                     }
                 } else {
                     // -> case of be the first sync attempt
-                    // TODO >>> Change the method, instead of sending a request of the available handlers, send the host av commands and the return should be the client av handlers when the update_client_av handlers be triggered change the status to sync
-                    request_client_available_commands(command.client_key.clone());
+                    send_network_available_commands(command.client_key.clone());
+
+                    let controller = &CLIENTS_SYNC_CONTROLLER;
+                    smart_lock(&*controller, |clients: &mut Clients| {
+                        let _ = match clients.update_client_sync_attempt(&command.client_key.clone()) {
+                            Ok(_) => (),
+                            Err(e) => {
+                                handle_client_controler_error!(e, &command.client_key, logger);
+                            },
+                        };
+                    });
                 }
+            } else {
+                println!("\nClient: {:?} is sync!\n", &command.client_key);
             }
         } else {
             break;

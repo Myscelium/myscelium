@@ -29,6 +29,8 @@ use std::sync::RwLock;
 
 use rusqlite::{Connection, Result};
 
+use std::fmt;
+
 lazy_static! {
     static ref BUFFER_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
@@ -71,6 +73,21 @@ pub struct DownCommand {
     pub priority: u8,
     pub command: String,
     pub created_time: f64,
+}
+
+impl fmt::Display for DownCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "\nUpCommand: 
+            command_id: {:?}\n
+            client_key: {}\n
+            parity_id: {}\n
+            priority: {}\n
+            command: {}\n\n",
+            self.command_id, self.client_key, self.parity_id, self.priority, self.command
+        )
+    }
 }
 
 impl DownCommand {

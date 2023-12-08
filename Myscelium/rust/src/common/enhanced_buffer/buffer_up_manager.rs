@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+use core::fmt;
 use std::clone;
 use std::sync::Arc;
 
@@ -104,6 +105,21 @@ impl UpCommand {
             command,
             created_time: timestamp,
         }
+    }
+}
+
+impl fmt::Display for UpCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "\nUpCommand: 
+            command_id: {:?}\n
+            client_key: {}\n
+            parity_id: {}\n
+            priority: {}\n
+            command: {}\n\n",
+            self.command_id, self.client_key, self.parity_id, self.priority, self.command
+        )
     }
 }
 

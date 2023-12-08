@@ -445,6 +445,9 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
             let _ = clients.add_new_client(client_key.clone().to_string(), 10);
         });
 
+        let controller = &CLIENTS_SYNC_CONTROLLER;
+        smart_lock(&*controller, |clients: &mut Clients| println!("\nSet clients sync controler to:\n{:?}\n", clients));
+
         // {
         //     let mut client_controller_pool: MutexGuard<Clients> = smart_lock(|| CLIENTS_SYNC_CONTROLLER.lock());
         //     let _ = client_controller_pool.add_new_client(client_key.clone(), 10);

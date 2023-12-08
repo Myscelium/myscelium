@@ -19,7 +19,7 @@ use crate::socket_host::client_manager::manager::{check_if_client_key_exists, Cl
 use crate::common::functions::converters::{convert_json_map_to_hash_map, convert_value_map_to_resulttype_map, ConversionError};
 
 use crate::common::functions::advanced_lockers::smart_lock;
-use crate::socket_host::socket_host::CLIENTS_SYNC_CONTROLLER;
+use crate::CLIENTS_SYNC_CONTROLLER;
 
 use crate::socket_host::sync_controller::controller::Clients;
 

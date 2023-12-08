@@ -13,6 +13,7 @@ class Senders:
     def send_some_data():
 
         time.sleep(10)
+
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.running = True
         mys_client.set_client_uid(client_uid="some_client_id")
