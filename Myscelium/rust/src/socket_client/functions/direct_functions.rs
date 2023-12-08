@@ -134,7 +134,7 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
 
         to_send.insert("command_type".to_string(), ResultType::Str("direct_function_response".to_string()));
         to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-        to_send.insert("function".to_string(), ResultType::Str(function.to_string())); // -> Function that it will act in host
+        to_send.insert("function".to_string(), ResultType::Str(function)); // -> Function that it will act in host
         to_send.insert("kwargs".to_string(), ResultType::Map(filtered_resulttype_commands_map));
         to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
         to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host

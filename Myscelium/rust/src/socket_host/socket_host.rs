@@ -646,7 +646,11 @@ fn handle_connection(mut stream: TcpStream) {
                             };
                         })
                     } else {
-                        logger.warn(format!("WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!", &command.client_key, (current_time - last_sync).num_seconds()));
+                        logger.warn(format!(
+                            "WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!",
+                            &command.client_key,
+                            (Duration::seconds(30) - (current_time - last_sync)).num_seconds()
+                        ));
                     }
                 } else {
                     // -> case of be the first sync attempt
@@ -675,6 +679,9 @@ fn handle_connection(mut stream: TcpStream) {
 
         {
             let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+
+            println!("\nCommand.Command: {:?}", command.command);
+            println!("\nCommand.Command.function: {:?}", command.command.get("function"));
 
             match command.command.get("function") {
                 Some(Value::String(function)) => {
