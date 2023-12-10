@@ -90,7 +90,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         to_send.insert("command_type".to_string(), ResultType::Str("function".to_string()));
         to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string())); // TODO See if need it
         to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-        to_send.insert("function".to_string(), ResultType::Str(function.to_string())); // TODO maybe change to response_act_function
+        to_send.insert("function".to_string(), ResultType::Str(function)); // TODO maybe change to response_act_function
         to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
         to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
 

@@ -289,6 +289,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         logger.info(format!("Command function: {} is a valid function!", activation_key));
 
         if let Some(value) = handle_direct_function(client_key.clone(), activation_key, translated_command.clone(), command_id) {
+            println!("Direct Function Result: {:?}", value);
             result = value
         } else {
             return Ok(());
@@ -308,6 +309,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
                 if *response_mode == ResultType::Str("to_host".to_string()) {
                     response = serde_json::to_string(&m).unwrap();
+                    println!("Stringfied Response to send to host: {:?}", response)
                 } else if *response_mode == ResultType::Str("retransmit".to_string()) {
                     // TODO >>> Check if retransmit is necessary here
                     response = serde_json::to_string(&m).unwrap();
