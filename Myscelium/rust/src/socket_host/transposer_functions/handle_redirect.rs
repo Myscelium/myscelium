@@ -124,6 +124,8 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, p
     let response_act_fn_value = converted_m.get("response_activation_function").unwrap().clone();
     let function: String = serde_json::from_value(response_act_fn_value).unwrap();
 
+    // TODO >>> Add a logic here to see when the redirect is to redirect a `update_available_host_commands` command and use this as a function and set response mode to to host
+
     to_send.insert("command_type".to_string(), ResultType::Str("function".to_string()));
     to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
     to_send.insert("status".to_string(), ResultType::Str("success".to_string()));

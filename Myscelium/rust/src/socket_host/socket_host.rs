@@ -687,6 +687,8 @@ fn handle_connection(mut stream: TcpStream) {
                 Some(Value::String(function)) => {
                     logger.debug(format!("Command function: {}", function));
 
+                    let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
+
                     if special_functions.contains(&function) {
                         // -> Special Function Handler
 
@@ -697,7 +699,7 @@ fn handle_connection(mut stream: TcpStream) {
                         logger.debug(format!("Sending back: {:?}", command_response_json));
 
                         stream.write_all(command_response_json.as_bytes()).unwrap();
-                    } else if command_patterns.command_exists("host", function) {
+                    } else if command_patterns.command_exists("host", function) || direct_functions.contains(function) {
                         // TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
 
                         // -> Common Function Handler

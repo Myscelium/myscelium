@@ -2,6 +2,7 @@ use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::{Command, CommandType};
+use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
 use crate::common::structs::results_structs::ResultType;
 
@@ -288,12 +289,10 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     } else if direct_functions.contains(activation_key) {
         logger.info(format!("Command function: {} is a valid function!", activation_key));
 
-        if let Some(value) = handle_direct_function(client_key.clone(), activation_key, translated_command.clone(), command_id) {
-            println!("Direct Function Result: {:?}", value);
-            result = value
-        } else {
-            return Ok(());
-        }
+        let value = handle_direct_function(client_key.clone(), activation_key, translated_command.clone(), command_id);
+        println!("Direct Function Result: {:?}", value);
+
+        result = value;
     } else {
         // If the command is not in the patterns, remove it from the schedule and return an error
         logger.warn(format!("Command isn't registered in the patterns"));
@@ -308,11 +307,15 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
                 let response_mode = m.get("response_mode").unwrap();
 
                 if *response_mode == ResultType::Str("to_host".to_string()) {
-                    response = serde_json::to_string(&m).unwrap();
+                    let converted_to_value = convert_to_value_map(&m);
+                    response = serde_json::to_string(&converted_to_value).unwrap();
+
                     println!("Stringfied Response to send to host: {:?}", response)
                 } else if *response_mode == ResultType::Str("retransmit".to_string()) {
                     // TODO >>> Check if retransmit is necessary here
-                    response = serde_json::to_string(&m).unwrap();
+
+                    let converted_to_value = convert_to_value_map(&m);
+                    response = serde_json::to_string(&converted_to_value).unwrap();
                 } else {
                     enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
                     return Err(ProcessError::InvalidCallbackResponse(

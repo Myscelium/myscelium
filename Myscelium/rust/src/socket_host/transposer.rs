@@ -464,7 +464,7 @@ fn process(py: Python, down_command: DownCommand) {
 
     logger.debug(format!("Callback call response converted to rust: {:?}", result));
 
-    let mut client_key = down_command.client_key.clone();
+    let client_key = down_command.client_key.clone();
 
     process_and_schedule(result, client_key, down_command);
 

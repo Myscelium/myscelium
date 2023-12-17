@@ -26,7 +26,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-pub fn handle_direct_function(client_key: String, activation_key: &String, translated_command: Command, command_id: u32) -> Option<ResultType> {
+pub fn handle_direct_function(client_key: String, activation_key: &String, translated_command: Command, command_id: u32) -> ResultType {
     let logger = acquire_logger!("Transposer - Process");
 
     logger.info(format!("Initializing processing!"));
@@ -71,7 +71,7 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
                 Err(e) => match e {
                     ConversionError::UnsuportedValueVariant(s) => {
                         logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                        return Some(ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s)));
+                        return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
                     },
                 },
             };
@@ -91,9 +91,9 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
             to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
             to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host
 
-            return Some(ResultType::Map(to_send));
+            return ResultType::Map(to_send);
         } else {
-            return Some(ResultType::Error(format!("missing kwargs key {:?}", translated_command.clone())));
+            return ResultType::Error(format!("missing kwargs key {:?}", translated_command.clone()));
         }
     }
 
@@ -119,7 +119,7 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
             Err(e) => match e {
                 ConversionError::UnsuportedValueVariant(s) => {
                     logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                    return Some(ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s)));
+                    return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
                 },
             },
         };
@@ -139,8 +139,8 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
         to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
         to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host
 
-        return Some(ResultType::Map(to_send));
+        return ResultType::Map(to_send);
     }
 
-    return Some(ResultType::Error(format!("Command: {:?} not found!", translated_command.clone())));
+    return ResultType::Error(format!("Command: {:?} not found!", translated_command.clone()));
 }
