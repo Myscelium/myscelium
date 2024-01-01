@@ -633,7 +633,8 @@ fn handle_connection(mut stream: TcpStream) {
 
                 if let Some(last_sync) = client_last_sync {
                     let current_time = Utc::now();
-                    if current_time - last_sync > Duration::seconds(30) {
+                    if current_time - last_sync > Duration::milliseconds(240) {
+                        // The time to try sinc again needs to be the same time that the db refreshs or multiple of that
                         send_network_available_commands(command.client_key.clone());
 
                         let controller = &CLIENTS_SYNC_CONTROLLER;
