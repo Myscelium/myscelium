@@ -137,7 +137,6 @@ Host ->> Client 1: C: 01
 Client 1 ->> Client 1: update available commands
 Client 1 ->> Host: C: 02
 Host ->> Host: Update client handlers
-
 ```
 
 ### indice:
@@ -164,16 +163,19 @@ C: 02 - `update_client_commands_ref`:
 	"response_mode": "to_host",
 ```
 
+---
 
-C: 03 - `update_available_host_commands`:
+<!-- C: 03 - `send_network_available_commands`:
 ```Rust
-	"command_type": "direct_function_response",
+{
+	"command_type": "direct_function",
+	"response_mode": "to_origin",
 	"status": "success",
 	"function": "update_available_host_commands",
-	"kwargs": {<client handlers>}
-	"origin": "<Client_Key>",
-	"response_mode": "to_host",
-```
+	"kwargs": {<netwrok av commands>}
+	"origin": "host",
+}
+``` -->
 
 
 -> `request_client_available_commands`
