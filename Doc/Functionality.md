@@ -136,7 +136,7 @@ Host ->> Host: Client isn't sync
 Host ->> Client 1: C: 01
 Client 1 ->> Client 1: update available commands
 Client 1 ->> Host: C: 02
-
+Host ->> Host: Update client handlers
 
 ```
 
@@ -159,7 +159,18 @@ C: 02 - `update_client_commands_ref`:
 	"command_type": "direct_function_response",
 	"status": "success",
 	"function": "update_client_commands_ref",
-	"kwargs": {<netwrok av commands>}
+	"kwargs": {<client handlers>}
+	"origin": "<Client_Key>",
+	"response_mode": "to_host",
+```
+
+
+C: 03 - `update_available_host_commands`:
+```Rust
+	"command_type": "direct_function_response",
+	"status": "success",
+	"function": "update_available_host_commands",
+	"kwargs": {<client handlers>}
 	"origin": "<Client_Key>",
 	"response_mode": "to_host",
 ```

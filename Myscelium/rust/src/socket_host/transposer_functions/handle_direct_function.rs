@@ -142,35 +142,35 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         // -> Send the commands for the first client:
 
-        {
-            let mut filtered_commands: HashMap<String, Value> = HashMap::new();
+        // {
+        //     let mut filtered_commands: HashMap<String, Value> = HashMap::new();
 
-            let actual_patterns = &COMMAND_PATTERNS;
-            smart_lock(&*actual_patterns, |patterns: &mut CommandPatterns| {
-                filtered_commands = patterns.get_all_commands_except_for_client(client_name.as_str());
-            });
+        //     let actual_patterns = &COMMAND_PATTERNS;
+        //     smart_lock(&*actual_patterns, |patterns: &mut CommandPatterns| {
+        //         filtered_commands = patterns.get_all_commands_except_for_client(client_name.as_str());
+        //     });
 
-            let filtered_resulttype_commands_map = match convert_value_map_to_resulttype_map(&filtered_commands) {
-                Ok(c) => c,
-                Err(e) => match e {
-                    ConversionError::UnsuportedValueVariant(s) => {
-                        logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                        return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                    },
-                },
-            };
+        //     let filtered_resulttype_commands_map = match convert_value_map_to_resulttype_map(&filtered_commands) {
+        //         Ok(c) => c,
+        //         Err(e) => match e {
+        //             ConversionError::UnsuportedValueVariant(s) => {
+        //                 logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
+        //                 return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
+        //             },
+        //         },
+        //     };
 
-            let mut to_send = HashMap::new();
+        //     let mut to_send = HashMap::new();
 
-            to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
-            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-            to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-            to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
-            to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
-            to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
+        //     to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
+        //     to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+        //     to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+        //     to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
+        //     to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
+        //     to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
 
-            response.push(ResultType::Map(to_send));
-        }
+        //     response.push(ResultType::Map(to_send));
+        // }
 
         // -> Try to get the clients registred in the database
         let mut clients = match get_all_clients() {
