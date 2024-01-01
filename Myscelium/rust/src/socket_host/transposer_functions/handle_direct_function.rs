@@ -233,7 +233,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             to_send.insert("response_mode".to_string(), ResultType::Str("redirect".to_string()));
             to_send.insert("redirect_to".to_string(), ResultType::Str(client_key_to_redirect.to_string()));
             to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-            to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
+            to_send.insert("response_activation_function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
             to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
             to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
 

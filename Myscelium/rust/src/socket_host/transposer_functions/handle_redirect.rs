@@ -88,6 +88,8 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, p
 
     let mut to_send = HashMap::new();
 
+    println!("Try to redirect: {:?}", m);
+
     let converted_m = convert_to_value_map(&m);
 
     if !m.contains_key("redirect_to") {
