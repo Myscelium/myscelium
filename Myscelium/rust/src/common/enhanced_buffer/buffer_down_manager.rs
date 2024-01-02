@@ -29,6 +29,8 @@ use std::sync::RwLock;
 
 use rusqlite::{Connection, Result};
 
+use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
+
 use std::fmt;
 
 lazy_static! {
@@ -195,6 +197,8 @@ pub fn buffer_down_initialize_table(buffer_path: String) {
             }
         }
     });
+
+    initialize_buffer_history(&buffer_path);
 
     set_new_path_to_buffer_db!(BUFFER_POOL, NUM_WORKERS, buffer_path, BUFFER_NAME);
 

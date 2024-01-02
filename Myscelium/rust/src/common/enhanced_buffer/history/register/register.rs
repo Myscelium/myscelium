@@ -13,7 +13,7 @@ lazy_static! {
     static ref FILE: Arc<Mutex<Option<File>>> = Arc::new(Mutex::new(None));
 }
 
-pub fn initialize_buffer_history(file_path: &str) {
+pub fn initialize_buffer_history(file_path: &String) {
     // Open the file in append mode at the given file path
     let file = OpenOptions::new().create(true).append(true).open(file_path).unwrap();
 

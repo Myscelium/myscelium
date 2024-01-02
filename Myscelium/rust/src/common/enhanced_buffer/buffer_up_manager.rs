@@ -28,6 +28,8 @@ use std::sync::RwLock;
 
 use rusqlite::{Connection, Result};
 
+use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
+
 lazy_static! {
     static ref BUFFER_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
     static ref BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
@@ -182,6 +184,8 @@ pub fn buffer_up_initialize_table(buffer_path: String) {
             }
         }
     });
+
+    initialize_buffer_history(&buffer_path);
 
     set_new_path_to_buffer_db!(BUFFER_POOL, NUM_WORKERS, buffer_path, BUFFER_NAME);
 

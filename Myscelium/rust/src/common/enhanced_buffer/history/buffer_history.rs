@@ -35,7 +35,7 @@ impl BufferHistory {
         Self { node_name, buffer_type }
     }
 
-    pub fn log_add_data(&self, unique_key: String, operation: String) {
+    pub fn log_add_operation(&self, unique_key: String, operation: String) {
         let ts = Utc::now();
         let ts_stamp = ts.timestamp();
 
@@ -44,7 +44,7 @@ impl BufferHistory {
         write_to_file(to_write);
     }
 
-    pub fn log_remove_data(&self, unique_key: String, operation: String) {
+    pub fn log_remove_operation(&self, unique_key: String, operation: String) {
         let ts = Utc::now();
         let ts_stamp = ts.timestamp();
 
