@@ -26,29 +26,28 @@ use crate::CLIENT_NODE_NAME;
 use crate::common::enhanced_buffer::history::register::register::{initialize_buffer_history, write_to_file};
 
 pub struct BufferHistory {
-    node_name: String,
     buffer_type: String,
 }
 
 impl BufferHistory {
-    pub fn new(node_name: String, buffer_type: String) -> Self {
-        Self { node_name, buffer_type }
+    pub fn new(buffer_type: &str) -> Self {
+        Self { buffer_type: buffer_type.to_string() }
     }
 
-    pub fn log_add_operation(&self, unique_key: String, operation: String) {
+    pub fn log_add_operation(&self, client_key: &String, unique_key: &String, operation: &String) {
         let ts = Utc::now();
         let ts_stamp = ts.timestamp();
 
-        let to_write: String = format!("[{}][{}][{}][{}][ADD] - {}", ts_stamp, self.node_name, self.buffer_type, unique_key, operation);
+        let to_write: String = format!("[{}][{}][{}][{}][ADD] - {}", ts_stamp, self.buffer_type, client_key, unique_key, operation);
 
         write_to_file(to_write);
     }
 
-    pub fn log_remove_operation(&self, unique_key: String, operation: String) {
+    pub fn log_remove_operation(&self, client_key: &String, unique_key: &String, operation: &String) {
         let ts = Utc::now();
         let ts_stamp = ts.timestamp();
 
-        let to_write: String = format!("[{}][{}][{}][{}][REMOVE] - {}", ts_stamp, self.node_name, self.buffer_type, unique_key, operation);
+        let to_write: String = format!("[{}][{}][{}][{}][REMOVE] - {}", ts_stamp, self.buffer_type, client_key, unique_key, operation);
 
         write_to_file(to_write);
     }
