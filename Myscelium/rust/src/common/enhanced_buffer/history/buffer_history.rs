@@ -23,13 +23,7 @@ use crate::CLIENT_NODE_NAME;
 
 // TODO >>> REMOVE CALLBACK SET AND CALLBACKS SYSTEM FOR LOG FOR NOW BECAUSE WE WILL USE CUSTOM REGISTER
 
-lazy_static! {
-    static ref CALLBACK_SET: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-    static ref BUFFER_HISTORY: Arc<Mutex<String>>> = {
-        let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
-        Arc::new(Mutex::new(command_patterns))
-    };
-}
+use crate::common::enhanced_buffer::history::register::register::{initialize_buffer_history, write_to_file};
 
 pub struct BufferHistory {
     node_name: String,
@@ -46,6 +40,8 @@ impl BufferHistory {
         let ts_stamp = ts.timestamp();
 
         let to_write: String = format!("[{}][{}][{}][{}][ADD] - {}", ts_stamp, self.node_name, self.buffer_type, unique_key, operation);
+
+        write_to_file(to_write);
     }
 
     pub fn log_remove_data(&self, unique_key: String, operation: String) {
@@ -53,5 +49,7 @@ impl BufferHistory {
         let ts_stamp = ts.timestamp();
 
         let to_write: String = format!("[{}][{}][{}][{}][REMOVE] - {}", ts_stamp, self.node_name, self.buffer_type, unique_key, operation);
+
+        write_to_file(to_write);
     }
 }
