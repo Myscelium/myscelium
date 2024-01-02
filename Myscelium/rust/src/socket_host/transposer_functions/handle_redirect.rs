@@ -107,13 +107,13 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, p
         // return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
     }
 
-    let mut command_map = HashMap::new();
-    command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-    command_map.insert("function".to_string(), Value::String("C210".to_string()));
-    let response = serde_json::to_string(&command_map).unwrap();
+    // let mut command_map = HashMap::new();
+    // command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+    // command_map.insert("function".to_string(), Value::String("C210".to_string()));
+    // let response = serde_json::to_string(&command_map).unwrap();
 
-    let up_command = UpCommand::new(client_id.clone(), parity_id.clone(), priority.clone(), response);
-    enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+    // let up_command = UpCommand::new(client_id.clone(), parity_id.clone(), priority.clone(), response);
+    // enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 
     logger.debug(format!("Converted redirect command: {:?}", converted_m));
 

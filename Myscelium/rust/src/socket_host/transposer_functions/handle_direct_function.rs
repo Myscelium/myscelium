@@ -202,10 +202,26 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         for (index, client) in clients.iter().enumerate() {
             if client.client_key == client_key.clone() {
                 clients.remove(index);
-                logger.info(format!("Receive client: {} handlers, retransmitting to: {:?}", client_key, clients).to_string());
                 break;
             }
         }
+
+        logger.info(format!("Receive client: {} handlers, retransmitting to: {:?}", client_key, clients).to_string());
+
+        // command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+        // command_map.insert("function".to_string(), Value::String("C210".to_string()));
+        // response = Ok(serde_json::to_string(&command_map).unwrap());
+
+        let mut to_send = HashMap::new();
+
+        to_send.insert("command_type".to_string(), ResultType::Str("special_function".to_string()));
+        to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+        to_send.insert("redirect_to".to_string(), ResultType::Str(client_key.clone()));
+        to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+        to_send.insert("function".to_string(), ResultType::Str("C210".to_string())); // TODO maybe change to response_act_function
+        to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
+
+        response.push(ResultType::Map(to_send));
 
         // -> Send the updated info for all the clients
         for client in clients {
@@ -255,7 +271,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             to_send.insert("response_mode".to_string(), ResultType::Str("redirect".to_string()));
             to_send.insert("redirect_to".to_string(), ResultType::Str(client_key_to_redirect.to_string()));
             to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-            to_send.insert("response_activation_function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
+            to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
             to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
             to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
 

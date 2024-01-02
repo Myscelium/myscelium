@@ -94,6 +94,8 @@ pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, 
     });
 }
 
+use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
+
 /// Initializes the client buffer by setting up the necessary tables.
 ///
 /// This function is responsible for initializing the buffer tables for both
@@ -108,6 +110,8 @@ pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, 
 ///   at the specified location.
 pub fn initialize_client_buffer(buffer_location: String) {
     println!("initializing the buffer database into: {}buffer.db, if not initialized!", buffer_location);
+
+    initialize_buffer_history(&buffer_location);
 
     enhanced_buffer::buffer_down_manager::buffer_down_initialize_table(buffer_location.clone());
 

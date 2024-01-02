@@ -16,7 +16,12 @@ lazy_static! {
 
 pub fn initialize_buffer_history(file_path: &String) -> Result<(), Error> {
     // Attempt to open the file in append mode at the given file path
-    let file_result = OpenOptions::new().create(true).append(true).open(file_path);
+
+    let path = &format!("{}{}", file_path.clone(), "buffer_history.txt");
+
+    println!("initializing buffer history in: {}", path);
+
+    let file_result = OpenOptions::new().create(true).append(true).open(path);
 
     match file_result {
         Ok(file) => {
@@ -28,6 +33,7 @@ pub fn initialize_buffer_history(file_path: &String) -> Result<(), Error> {
         },
         Err(e) => {
             // Handle errors (e.g., file not created, cannot open, etc.)
+            eprintln!("Error occurred initializing the buffer history!");
             Err(e)
         },
     }

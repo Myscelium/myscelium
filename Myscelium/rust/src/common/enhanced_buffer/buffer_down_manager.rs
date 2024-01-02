@@ -30,7 +30,6 @@ use std::sync::RwLock;
 use rusqlite::{Connection, Result};
 
 use crate::common::enhanced_buffer::history::buffer_history::BufferHistory;
-use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
 
 use std::fmt;
 
@@ -199,8 +198,6 @@ pub fn buffer_down_initialize_table(buffer_path: String) {
         }
     });
 
-    initialize_buffer_history(&buffer_path);
-
     set_new_path_to_buffer_db!(BUFFER_POOL, NUM_WORKERS, buffer_path, BUFFER_NAME);
 
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
@@ -297,7 +294,7 @@ pub fn buffer_down_schedule(command: DownCommand) {
         return;
     };
 
-    BufferHistory::new("DOWN").log_add_operation(&command.client_key, &command.parity_id, &command.command);
+    BufferHistory::new("DOWN").log_add_operation(&command.client_key, &command.parity_id, command.command_id.as_ref(), &command.command);
 
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let registered_ids = get_registred_ids(conn);
@@ -392,7 +389,7 @@ pub fn buffer_down_clear_old_commands() {
         let time_difference = (current_timestamp - command_timestamp);
 
         if time_difference >= 240.0 {
-            BufferHistory::new("DOWN").log_add_operation(&down_command.client_key, &down_command.parity_id, &format!("Remove old command: {} ", &down_command.command));
+            BufferHistory::new("DOWN").log_remove_operation(&down_command.client_key, &down_command.parity_id, down_command.command_id.as_ref(), &format!("Remove old command: {} ", &down_command.command));
 
             buffer_down_remove_schedule_by_id(down_command.command_id.unwrap());
             println!(
@@ -404,7 +401,7 @@ pub fn buffer_down_clear_old_commands() {
 }
 
 pub fn buffer_down_remove_schedule_by_id(id: u32) {
-    BufferHistory::new("DOWN").log_add_operation(&"".to_string(), &"".to_string(), &format!("Remove ID: {}", id));
+    BufferHistory::new("DOWN").log_remove_operation(&"".to_string(), &"".to_string(), Some(id).as_ref(), &format!("Remove ID: {}", id));
 
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let result = conn.execute("DELETE from ClientCommandsReceived where ID = ?", params![id]);
@@ -421,7 +418,7 @@ pub fn buffer_down_remove_schedule_by_id(id: u32) {
 }
 
 pub fn buffer_down_remove_schedule_by_parity_id(client_key: String, parity_id: String) {
-    BufferHistory::new("DOWN").log_add_operation(&client_key, &parity_id, &"Remove From Schedule".to_string());
+    BufferHistory::new("DOWN").log_remove_operation(&client_key, &parity_id, None.as_ref(), &"Remove From Schedule".to_string());
 
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let result = conn.execute("DELETE from ClientCommandsReceived where Clientkey = ? AND ParityId = ?", params![client_key, parity_id]);

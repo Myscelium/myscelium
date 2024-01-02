@@ -34,20 +34,32 @@ impl BufferHistory {
         Self { buffer_type: buffer_type.to_string() }
     }
 
-    pub fn log_add_operation(&self, client_key: &String, unique_key: &String, operation: &String) {
+    pub fn log_add_operation(&self, client_key: &String, unique_key: &String, id: Option<&u32>, operation: &String) {
         let ts = Utc::now();
         let ts_stamp = ts.timestamp();
 
-        let to_write: String = format!("[{}][{}][{}][{}][ADD] - {}", ts_stamp, self.buffer_type, client_key, unique_key, operation);
+        let mut to_write: String = "".to_string();
+
+        if let Some(id) = id {
+            to_write = format!("[{}][{}][{}][{}][{}][ADD] - {}", ts_stamp, self.buffer_type, client_key, unique_key, id, operation);
+        } else {
+            to_write = format!("[{}][{}][{}][{}][{}][ADD] - {}", ts_stamp, self.buffer_type, client_key, unique_key, "", operation);
+        }
 
         write_to_file(to_write);
     }
 
-    pub fn log_remove_operation(&self, client_key: &String, unique_key: &String, operation: &String) {
+    pub fn log_remove_operation(&self, client_key: &String, unique_key: &String, id: Option<&u32>, operation: &String) {
         let ts = Utc::now();
         let ts_stamp = ts.timestamp();
 
-        let to_write: String = format!("[{}][{}][{}][{}][REMOVE] - {}", ts_stamp, self.buffer_type, client_key, unique_key, operation);
+        let mut to_write: String = "".to_string();
+
+        if let Some(id) = id {
+            to_write = format!("[{}][{}][{}][{}][{}][REMOVE] - {}", ts_stamp, self.buffer_type, client_key, unique_key, id, operation);
+        } else {
+            to_write = format!("[{}][{}][{}][{}][{}][REMOVE] - {}", ts_stamp, self.buffer_type, client_key, unique_key, "", operation);
+        }
 
         write_to_file(to_write);
     }

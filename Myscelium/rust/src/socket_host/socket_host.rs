@@ -284,6 +284,8 @@ pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
     println!("Seted Socket Host Callbacks: {:?}", global_command_patterns.extract_all_commands());
 }
 
+use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
+
 /// Initializes the host buffer databases.
 ///
 /// This function initializes the buffer databases for both up and down managers.
@@ -295,6 +297,8 @@ pub fn initialize_host_buffer(buffer_location: String) {
     let logger = acquire_logger!("[Socket][Initialize Host Buffer]");
 
     logger.info(format!("initializing the buffer database into: {}buffer.db, if not initialized!", buffer_location));
+
+    initialize_buffer_history(&buffer_location);
 
     enhanced_buffer::buffer_down_manager::buffer_down_initialize_table(buffer_location.clone());
 

@@ -13,8 +13,10 @@ use crate::socket_client::transposer::HOST_ALLOWED_COMMANDS;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::utilities::{Command, CommandType};
 use crate::common::functions::advanced_lockers::smart_lock;
+use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::converters::convert_value_map_to_resulttype_map;
 use crate::common::functions::converters::ConversionError;
+use crate::socket_client::functions::direct_functions::enhanced_buffer::buffer_up_manager::UpCommand;
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
@@ -89,7 +91,14 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
             to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
             to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host
 
-            return ResultType::Map(to_send);
+            let converted_to_value = convert_to_value_map(&to_send);
+            let response = serde_json::to_string(&converted_to_value).unwrap();
+
+            let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
+            let up_command: UpCommand = UpCommand::new(client_key, parity_id, 11u8, response);
+            enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+
+            return ResultType::Empty;
         } else {
             return ResultType::Error(format!("missing kwargs key {:?}", translated_command.clone()));
         }
@@ -137,7 +146,14 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
         to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
         to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host
 
-        return ResultType::Map(to_send);
+        let converted_to_value = convert_to_value_map(&to_send);
+        let response = serde_json::to_string(&converted_to_value).unwrap();
+
+        let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
+        let up_command: UpCommand = UpCommand::new(client_key, parity_id, 11u8, response);
+        enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+
+        return ResultType::Empty;
     }
 
     return ResultType::Error(format!("Command: {:?} not found!", translated_command.clone()));
