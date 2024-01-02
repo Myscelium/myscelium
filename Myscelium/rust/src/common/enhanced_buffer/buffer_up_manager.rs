@@ -430,11 +430,11 @@ pub fn buffer_up_remove_schedule_by_parity_id(client_key: String, parity_id: Str
     BufferHistory::new("UP").log_remove_operation(&client_key, &parity_id, None.as_ref(), &"Remove From Schedule".to_string());
 
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute("DELETE from ClientCommandsTosend where ClientKey = ? AND ParityId = ?", params![client_key, parity_id]);
+        let result = conn.execute("DELETE from ClientCommandsTosend WHERE ClientKey = ? AND ParityId = ?", params![client_key, parity_id]);
 
         match result {
             Ok(_) => {
-                println!("Successfully remove schedule Command in ClientCommandsTosend");
+                println!("Successfully remove schedule Command in ClientCommandsTosend where ClientKey = {} AND ParityID = {}", client_key, parity_id);
             },
             Err(e) => {
                 eprintln!("An error occurred while removing scheduled command of parity_id: {} from client: {} in the ClientCommandsTosend table: {}", client_key, parity_id, e);

@@ -107,6 +107,7 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, p
         // return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
     }
 
+    //> This was remove because in the cases that sends a lot of redirect this makes a spamming into the client that sends the list to retransmit:
     // let mut command_map = HashMap::new();
     // command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
     // command_map.insert("function".to_string(), Value::String("C210".to_string()));

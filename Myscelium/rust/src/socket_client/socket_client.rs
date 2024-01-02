@@ -296,11 +296,27 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
 
     let command_to_request = create_special_command!("C206");
     let received = send(&mut stream, command_to_request.clone());
-    if let Some(down_command) = handle_response(received) {
-        return Some(down_command);
-    } else {
-        return None;
+
+    match handle_response(received) {
+        Received::DownCommand(down_command) => return Some(down_command),
+        Received::Confirmation => {
+            return None;
+        },
+        Received::Error(e) => {
+            //TODO >>> Add the mechanism to stop the client if received a error
+            return None;
+        },
+        Received::Nothing => {
+            return None;
+        },
     }
+}
+
+pub enum Received {
+    DownCommand(DownCommand),
+    Confirmation,
+    Nothing,
+    Error(String),
 }
 
 /// Handles the received response from the server and processes it accordingly.
@@ -328,7 +344,7 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
 /// # Notes
 /// - This function uses the `COMMAND_PATTERNS` global lock to access and modify the command patterns.
 /// - The function also accesses the `CLIENT_IS_RUNNING` global flag to control the client's running state.
-fn handle_response(received: Response) -> Option<DownCommand> {
+fn handle_response(received: Response) -> Received {
     let logger = acquire_logger!("Core");
 
     let command_received;
@@ -336,7 +352,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
     match received {
         Response::None => {
             logger.warn(format!("Received invalid data!"));
-            return None;
+            return Received::Nothing;
         },
         Response::Command(c) => {
             logger.debug(format!("\nReceived command: {:?}", c));
@@ -371,7 +387,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             let down_command = DownCommand::from_command(command_received.clone());
 
-            return Some(down_command);
+            return Received::DownCommand(down_command);
         },
 
         CommandType::DirectFunction(df) => {
@@ -400,7 +416,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             let down_command = DownCommand::from_command(command_received.clone());
 
-            return Some(down_command);
+            return Received::DownCommand(down_command);
         },
 
         CommandType::SpecialFunction(f) => {
@@ -408,19 +424,19 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             if command_received.parity_id != "itisaspecialcase" {
                 if function == "C210".to_string() {
+                    logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", command_received.parity_id, command_received.client_key));
                     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-                    logger.info(format!("Received Confirmation!"));
-                    return None;
+                    return Received::Confirmation;
                 } else if function == "Error".to_string() {
                     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
                     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
                     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                    return None;
+                    return Received::Error("".to_string());
                 }
             }
 
             logger.debug(format!("Receive a special function: {:?}", f));
-            return None;
+            return Received::Nothing;
         },
 
         CommandType::Response(r) => {
@@ -442,7 +458,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
 
-            return Some(down_command);
+            return Received::DownCommand(down_command);
         },
 
         CommandType::Error(_) => {
@@ -455,17 +471,17 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
 
-            return Some(down_command);
+            return Received::DownCommand(down_command);
         },
 
         CommandType::Redirect(_) => {
             logger.warn(format!("Received an Unknown command!"));
-            return None;
+            return Received::Nothing;
         },
 
         CommandType::Unknown => {
             logger.warn(format!("Received an Unknown command!"));
-            return None;
+            return Received::Nothing;
         },
     }
 }
@@ -554,12 +570,23 @@ pub fn initialize_client(address: String, client_id: String) {
             let command_to_request = Command::from_up_command(up_command);
 
             loop {
+                println!("Sending to host: {:?}", command_to_request.clone());
+
                 let received = send(&mut stream, command_to_request.clone());
 
-                if let Some(down_command) = handle_response(received) {
-                    println!("[Socket Client] - Receives Data.. : {:?}", down_command);
-                    enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
-                    break;
+                match handle_response(received) {
+                    Received::DownCommand(down_command) => {
+                        println!("[Socket Client] - Receives Data.. : {:?}", down_command);
+                        enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
+                        break;
+                    },
+                    Received::Confirmation => {
+                        break;
+                    },
+                    Received::Error(e) => {
+                        //TODO >>> Add the mechanism to stop the client if received a error
+                    },
+                    Received::Nothing => {},
                 }
 
                 thread::sleep(Duration::from_millis(200));
