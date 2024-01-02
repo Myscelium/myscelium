@@ -1,2 +1,2 @@
 pub mod log_handler;
-mod register;
+pub mod register;

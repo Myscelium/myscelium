@@ -2,6 +2,7 @@ use rand::Rng;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use std::time::Instant;
 
 /// Attempts to acquire a lock and execute a closure, retrying with a randomized delay if the lock is not immediately available.
 ///
@@ -13,6 +14,8 @@ where
     F: FnOnce(&mut T),
 {
     let mut rng = rand::thread_rng();
+    let start_time = Instant::now();
+    let timeout = Duration::from_secs(10); // Example timeout of 10 seconds
 
     loop {
         match mutex.try_lock() {
@@ -21,6 +24,10 @@ where
                 return;
             },
             Err(_) => {
+                if start_time.elapsed() > timeout {
+                    eprintln!("Failed to acquire lock after {:?}, giving up", timeout);
+                    return;
+                }
                 let sleep_duration = Duration::from_millis(10) + Duration::from_millis(rng.gen_range(0..10));
                 thread::sleep(sleep_duration);
             },

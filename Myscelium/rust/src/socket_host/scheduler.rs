@@ -79,7 +79,7 @@ pub fn request_client_available_commands(client_key: String) {
 pub fn send_network_available_commands(client_key: String) {
     let logger = acquire_logger!("Scheduler");
 
-    logger.info(format!("Send get_registered_commands to client trying to sync!"));
+    logger.info(format!("Send update_available_host_commands to client trying to sync!"));
 
     // Lock the COMMAND_PATTERNS and insert the new map
 

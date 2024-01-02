@@ -347,8 +347,13 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
         ResultType::Empty => {
             logger.info(format!("Response is None!"));
+
+            let mut command_map = HashMap::new();
+            command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+            command_map.insert("function".to_string(), Value::String("C210".to_string()));
+            response = serde_json::to_string(&command_map).unwrap();
+
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-            return Ok(());
         },
         ResultType::Error(e) => {
             // eprintln!();

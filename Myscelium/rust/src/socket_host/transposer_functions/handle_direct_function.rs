@@ -83,7 +83,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         logger.info(format!("Successfully actualize the host available commands!"));
 
-        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+        // enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
         // TODO >>> See what is the correct response in this stage
 
