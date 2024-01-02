@@ -122,7 +122,7 @@ pub struct Client {
     client_type: String,
     permission_group: String,
     is_super_user: bool,
-    last_contact: f64,
+    pub last_contact: f64,
     max_sub_channels: u32,
     owned_sub_channels_keys: Vec<String>,
     sub_channels_in_use: u32,

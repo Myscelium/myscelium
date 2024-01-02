@@ -21,6 +21,10 @@ use crate::common::functions::converters::{convert_json_map_to_hash_map, convert
 use crate::common::functions::advanced_lockers::smart_lock;
 use crate::CLIENTS_SYNC_CONTROLLER;
 
+use crate::chrono::TimeZone;
+use chrono::Duration;
+use chrono::Utc;
+
 use crate::socket_host::sync_controller::controller::Clients;
 
 macro_rules! acquire_logger {
@@ -205,8 +209,25 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         // -> Send the updated info for all the clients
         for client in clients {
+            //> See if client has some alive signal in the last 30s:
+
+            // Split into seconds and nanoseconds
+            let seconds = client.last_contact.trunc() as i64;
+            let nanoseconds = (client.last_contact.fract() * 1e9).round() as u32; // Or *1_000_000_000.0
+
+            // Convert to DateTime<Utc>
+            let last_contact = Utc.timestamp_opt(seconds, nanoseconds).unwrap();
+
+            let current_time = Utc::now();
+            if current_time - last_contact > Duration::seconds(30) {
+                continue;
+            }
+
+            //> Redirect new commands to client if changed:
+
             let mut filtered_commands: HashMap<String, Value> = HashMap::new();
 
+            // TODO >>> Add a mechanism to see what handlers the client will ahve permission to activate
             //* Any mechanism that will see the client permissions to each command may be placed here
 
             let actual_patterns = &COMMAND_PATTERNS;

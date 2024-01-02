@@ -49,8 +49,6 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
                 *actual_patterns = new_patterns;
             });
 
-            logger.info(format!("Successfully actualize the host available commands!"));
-
             let mut actual_patterns: HashMap<String, Value> = HashMap::new();
 
             let command_patterns = &COMMAND_PATTERNS;
