@@ -79,7 +79,7 @@ pub fn request_client_available_commands(client_key: String) {
 pub fn send_network_available_commands(client_key: String) {
     let logger = acquire_logger!("Scheduler");
 
-    logger.info(format!("Receive get_registered_commands in host!"));
+    logger.info(format!("Send get_registered_commands to client trying to sync!"));
 
     // Lock the COMMAND_PATTERNS and insert the new map
 
@@ -117,22 +117,20 @@ pub fn send_network_available_commands(client_key: String) {
         },
     };
 
-    logger.info(format!("Successfully actualize the host available commands!"));
-
-    // TODO >>> See what is the correct response in this stage
+    // logger.info(format!("Successfully actualize the host available commands!"));
 
     let remote_function: String = "update_available_host_commands".to_string();
 
     let mut to_send = HashMap::new();
 
     to_send.insert("command_type".to_string(), ResultType::Str("function".to_string()));
-    to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string())); // TODO See if need it
+    to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
     to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
     to_send.insert("function".to_string(), ResultType::Str(remote_function.to_string())); // TODO maybe change to response_act_function
     to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
     to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
 
-    let response: Result<String, Error>;
+    // let response: Result<String, Error>;
     let parity_id = "itisaspecialcase".to_string();
     let priority: u8 = 11;
 

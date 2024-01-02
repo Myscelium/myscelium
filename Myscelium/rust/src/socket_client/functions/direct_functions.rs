@@ -84,7 +84,7 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
 
             let mut to_send = HashMap::new();
 
-            to_send.insert("command_type".to_string(), ResultType::Str("direct_function_response".to_string()));
+            to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
             to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
             to_send.insert("function".to_string(), ResultType::Str(function)); // -> Function that it will act in host
             to_send.insert("kwargs".to_string(), ResultType::Map(filtered_resulttype_commands_map));
@@ -132,7 +132,7 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
 
         let mut to_send = HashMap::new();
 
-        to_send.insert("command_type".to_string(), ResultType::Str("direct_function_response".to_string()));
+        to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
         to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
         to_send.insert("function".to_string(), ResultType::Str(function)); // -> Function that it will act in host
         to_send.insert("kwargs".to_string(), ResultType::Map(filtered_resulttype_commands_map));

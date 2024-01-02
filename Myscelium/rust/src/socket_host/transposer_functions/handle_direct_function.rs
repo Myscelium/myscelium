@@ -163,7 +163,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         //     let mut to_send = HashMap::new();
 
         //     to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
-        //     to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+        //     to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string()));
         //     to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
         //     to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
         //     to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
@@ -182,7 +182,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
                     let mut to_send = HashMap::new();
 
                     to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
-                    to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+                    to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string()));
                     to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
                     to_send.insert("message".to_string(), ResultType::Str("unexpect error getting clients to redirect the update commands".to_string()));
                     to_send.insert("function".to_string(), ResultType::Str("update_available_host_commands".to_string())); // TODO maybe change to response_act_function
@@ -198,6 +198,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         for (index, client) in clients.iter().enumerate() {
             if client.client_key == client_key.clone() {
                 clients.remove(index);
+                logger.info(format!("Receive client: {} handlers, retransmitting to: {:?}", client_key, clients).to_string());
                 break;
             }
         }
