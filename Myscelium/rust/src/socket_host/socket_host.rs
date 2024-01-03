@@ -18,6 +18,7 @@ use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::Command;
 
+use crate::handle_client_error;
 use crate::socket_host::scheduler::{request_client_available_commands, send_network_available_commands};
 
 #[macro_use]
@@ -191,7 +192,9 @@ pub fn update_last_contact(client_key: String) {
 
     match client {
         Ok(c) => {
-            _ = c.update_last_contact();
+            println!("Receive client contact!");
+            handle_client_error!(c.update_last_contact());
+            println!("Update client contact!");
         },
         Err(e) => match e {
             ClientError::ClientAlreadyExist(e) => {
@@ -631,6 +634,8 @@ fn handle_connection(mut stream: TcpStream) {
             }
         });
 
+        update_last_contact(command.client_key.clone());
+
         if let Some(sync) = client_sync_status {
             if !sync {
                 println!("\nClient: {:?} isn't sync\n", &command.client_key);
@@ -681,8 +686,6 @@ fn handle_connection(mut stream: TcpStream) {
         }
 
         // ! WE CAN'T USE THIS PY AQUIRE UNTIL THE PYTHON POOL IS FINISHED !
-
-        update_last_contact(command.client_key.clone());
 
         {
             let command_patterns = COMMAND_PATTERNS.lock().unwrap();
