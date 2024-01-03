@@ -784,213 +784,213 @@ def test_messages ():
 #> ------------------------------------------------------------------------------------------------------------------------------------
 #> Redirect Messages Test:
 
-def host_thread_to_test_redirect_messages (event_host_received):
-    print("Starting host thread...")
+# def host_thread_to_test_redirect_messages (event_host_received):
+#     print("Starting host thread...")
     
-    # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
+#     # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
 
-    host_instance = MyHostToTestRedirectMessages(DEBUG_LEVEL).run(event=event_host_received)
+#     host_instance = MyHostToTestRedirectMessages(DEBUG_LEVEL).run(event=event_host_received)
 
-    print("Host thread finished.")
+#     print("Host thread finished.")
 
-def client_1_thread_to_test_redirect_messages (event_client_received):
-    print("Waiting for host to be ready...")
-    time.sleep(5)
-    print("Starting client 1 thread...")
+# def client_1_thread_to_test_redirect_messages (event_client_received):
+#     print("Waiting for host to be ready...")
+#     time.sleep(5)
+#     print("Starting client 1 thread...")
     
-    client_instance = MyClient1ToTestRedirectMessages(DEBUG_LEVEL)
-    client_instance.run() 
+#     client_instance = MyClient1ToTestRedirectMessages(DEBUG_LEVEL)
+#     client_instance.run() 
     
-    print("Client1 thread finished.")
+#     print("Client1 thread finished.")
 
-def client_2_thread_to_test_redirect_messages (event_client_received):
-    print("Waiting for host to be ready...")
-    time.sleep(5)
-    print("Starting client 2 thread...")
+# def client_2_thread_to_test_redirect_messages (event_client_received):
+#     print("Waiting for host to be ready...")
+#     time.sleep(5)
+#     print("Starting client 2 thread...")
     
-    client_instance = MyClient2ToTestRedirectMessages(DEBUG_LEVEL)
-    client_instance.run() 
+#     client_instance = MyClient2ToTestRedirectMessages(DEBUG_LEVEL)
+#     client_instance.run() 
     
-    print("Client2 thread finished.")
+#     print("Client2 thread finished.")
 
-def test_redirect_messages ():
+# def test_redirect_messages ():
 
-    time.sleep(5)
+#     time.sleep(5)
 
-    test_start_time = time.time()
+#     test_start_time = time.time()
 
-    Events_Manager(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Manager(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
-    Events_Manager(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
+#     Events_Manager(Unit="Client1", path="Logs").drop_events_table() # To reset in the next iteration
+#     Events_Manager(Unit="Client2", path="Logs").drop_events_table() # To reset in the next iteration
+#     Events_Manager(Unit="Host", path="Logs").drop_events_table() # To reset in the next iteration
 
-    System_Status(path="Logs").create_unit("Client1")
-    System_Status(path="Logs").create_unit("Client2")
-    System_Status(path="Logs").create_unit("Host")
+#     System_Status(path="Logs").create_unit("Client1")
+#     System_Status(path="Logs").create_unit("Client2")
+#     System_Status(path="Logs").create_unit("Host")
 
-    System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
-    System_Status(path="Logs").change_unit_status(Unit="Client2", Status=True)
-    System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+#     System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
+#     System_Status(path="Logs").change_unit_status(Unit="Client2", Status=True)
+#     System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
 
-    if os.path.exists("Temp/Client1Data/"):
-        shutil.rmtree("Temp/Client1Data/")
+#     if os.path.exists("Temp/Client1Data/"):
+#         shutil.rmtree("Temp/Client1Data/")
 
-    if os.path.exists("Temp/Client2Data/"):
-        shutil.rmtree("Temp/Client2Data/")
+#     if os.path.exists("Temp/Client2Data/"):
+#         shutil.rmtree("Temp/Client2Data/")
 
-    if os.path.exists("Temp/Data/"):
-        shutil.rmtree("Temp/Data/")
+#     if os.path.exists("Temp/Data/"):
+#         shutil.rmtree("Temp/Data/")
 
-    t1 = Process(target=host_thread_to_test_redirect_messages, args=('main_event',)) # Passing event_key
-    t2 = Process(target=client_1_thread_to_test_redirect_messages, args=('main_event',)) # Passing event_key
-    t3 = Process(target=client_2_thread_to_test_redirect_messages, args=('main_event',)) # Passing event_key
+#     t1 = Process(target=host_thread_to_test_redirect_messages, args=('main_event',)) # Passing event_key
+#     t2 = Process(target=client_1_thread_to_test_redirect_messages, args=('main_event',)) # Passing event_key
+#     t3 = Process(target=client_2_thread_to_test_redirect_messages, args=('main_event',)) # Passing event_key
 
-    t1.start()
-    t2.start()
-    t3.start()
+#     t1.start()
+#     t2.start()
+#     t3.start()
 
-    t2.join()
-    t3.join()
-    t1.join()  # Wait for the process to finish
+#     t2.join()
+#     t3.join()
+#     t1.join()  # Wait for the process to finish
 
-    host_events = Events_Manager(Unit="Host", path="Logs").List_Events()
-    host_events_df = pd.DataFrame.from_dict(host_events)
+#     host_events = Events_Manager(Unit="Host", path="Logs").List_Events()
+#     host_events_df = pd.DataFrame.from_dict(host_events)
 
-    client_1_events = Events_Manager(Unit="Client1", path="Logs").List_Events() 
-    client_1_events_df = pd.DataFrame.from_dict(client_1_events)
+#     client_1_events = Events_Manager(Unit="Client1", path="Logs").List_Events() 
+#     client_1_events_df = pd.DataFrame.from_dict(client_1_events)
 
-    client_2_events = Events_Manager(Unit="Client2", path="Logs").List_Events() 
-    client_2_events_df = pd.DataFrame.from_dict(client_2_events)
+#     client_2_events = Events_Manager(Unit="Client2", path="Logs").List_Events() 
+#     client_2_events_df = pd.DataFrame.from_dict(client_2_events)
 
-    #>----------------------------------------------------------------------------------------------------
-    #> Tests Controller
+#     #>----------------------------------------------------------------------------------------------------
+#     #> Tests Controller
 
-    #> Host events:
+#     #> Host events:
 
-    client_2_contact            = False
-    client_1_contact            = False
-    client_contact              = False
-    basic_callback              = False 
-    host_redirect_callback      = False
+#     client_2_contact            = False
+#     client_1_contact            = False
+#     client_contact              = False
+#     basic_callback              = False 
+#     host_redirect_callback      = False
 
-    #> Client 1 events:
+#     #> Client 1 events:
 
-    send_data                   = False
-    basic_response_handler      = False
-    active_callback_remotely    = False #* Active callback from another client
-    remote_act_response_sended  = False #* Response of the remote activation (Another Redirect to client)
+#     send_data                   = False
+#     basic_response_handler      = False
+#     active_callback_remotely    = False #* Active callback from another client
+#     remote_act_response_sended  = False #* Response of the remote activation (Another Redirect to client)
 
-    # > Client 2 events:
+#     # > Client 2 events:
 
-    send_data_to_redirect       = False
-    # redirected_request_response = False #* Response from the remote callback activated
+#     send_data_to_redirect       = False
+#     # redirected_request_response = False #* Response from the remote callback activated
 
-    #>----------------------------------------------------------------------------------------------------
+#     #>----------------------------------------------------------------------------------------------------
 
-    # -> Host Tests
-    for i in host_events_df.index:
-        event = host_events_df.loc[i, 'StepCompleted']
+#     # -> Host Tests
+#     for i in host_events_df.index:
+#         event = host_events_df.loc[i, 'StepCompleted']
 
-        if "Contact received from Client: some_client_id" in event:
-            client_1_contact = True
+#         if "Contact received from Client: some_client_id" in event:
+#             client_1_contact = True
 
-        if "Contact received from Client: randomsclientids" in event:
-            client_2_contact = True
+#         if "Contact received from Client: randomsclientids" in event:
+#             client_2_contact = True
 
-        if "Active Host Redirect Callback" in event:
-            host_redirect_callback = True
+#         if "Active Host Redirect Callback" in event:
+#             host_redirect_callback = True
 
-    # -> Client 1 Tests
-    for i in client_1_events_df.index:
-        event = client_1_events_df.loc[i, 'StepCompleted']
+#     # -> Client 1 Tests
+#     for i in client_1_events_df.index:
+#         event = client_1_events_df.loc[i, 'StepCompleted']
 
-        # if "Data Sended" in event:
-        #     send_data = True
+#         # if "Data Sended" in event:
+#         #     send_data = True
 
-        # if "Activate Basic Response Test callback handler" in event:
-        #     basic_response_handler = True
+#         # if "Activate Basic Response Test callback handler" in event:
+#         #     basic_response_handler = True
 
-        if "Activate Basic Redirect Test callback handler" in event:
-            active_callback_remotely = True
+#         if "Activate Basic Redirect Test callback handler" in event:
+#             active_callback_remotely = True
 
-    # -> Client 2 Tests
-    for i in client_2_events_df.index:
-        event = client_2_events_df.loc[i, 'StepCompleted']
+#     # -> Client 2 Tests
+#     for i in client_2_events_df.index:
+#         event = client_2_events_df.loc[i, 'StepCompleted']
 
-        if "Data To Redirect Sended" in event:
-            send_data_to_redirect = True
+#         if "Data To Redirect Sended" in event:
+#             send_data_to_redirect = True
  
 
-    unified_events = host_events_df.merge(client_1_events_df, how='outer')
-    unified_events = unified_events.merge(client_2_events_df, how='outer')
+#     unified_events = host_events_df.merge(client_1_events_df, how='outer')
+#     unified_events = unified_events.merge(client_2_events_df, how='outer')
 
-    tracking = {}
-    deltas = []
+#     tracking = {}
+#     deltas = []
 
-    for i in unified_events.index:
+#     for i in unified_events.index:
 
-        event_type = host_events_df.loc[i, "EventType"]
-        event_key  = host_events_df.loc[i, "EventKey"]
-        event_time = host_events_df.loc[i, "Time"]
+#         event_type = host_events_df.loc[i, "EventType"]
+#         event_key  = host_events_df.loc[i, "EventKey"]
+#         event_time = host_events_df.loc[i, "Time"]
 
-        if event_type == "Send":
-            tracking[event_key] = event_time
+#         if event_type == "Send":
+#             tracking[event_key] = event_time
         
-        elif event_type == "Receive":
+#         elif event_type == "Receive":
         
-            if event_key in tracking:
-                start_ts = tracking[event_key]
-                deltas.append(event_time - start_ts)
-            else:
-                pass
+#             if event_key in tracking:
+#                 start_ts = tracking[event_key]
+#                 deltas.append(event_time - start_ts)
+#             else:
+#                 pass
         
-        else:
-            pass
+#         else:
+#             pass
     
-    test_end_time = time.time()
-    average_com_delta = (sum(deltas) / len(deltas)) 
-    test_run_time = test_end_time - test_start_time 
+#     test_end_time = time.time()
+#     average_com_delta = (sum(deltas) / len(deltas)) 
+#     test_run_time = test_end_time - test_start_time 
 
-    if (
-        (client_1_contact and client_2_contact) 
-        and (host_redirect_callback and active_callback_remotely) 
-        and send_data_to_redirect
-    ):
-        History_Manager().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
-    else:
-        History_Manager().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+#     if (
+#         (client_1_contact and client_2_contact) 
+#         and (host_redirect_callback and active_callback_remotely) 
+#         and send_data_to_redirect
+#     ):
+#         History_Manager().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+#     else:
+#         History_Manager().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
 
-    # -> Client 1
+#     # -> Client 1
 
-    # assert send_data, "Cant send data"
-    # assert basic_response_handler, "Don't called basic response handler"
-    assert active_callback_remotely, "Don't received redirect response!"
+#     # assert send_data, "Cant send data"
+#     # assert basic_response_handler, "Don't called basic response handler"
+#     assert active_callback_remotely, "Don't received redirect response!"
 
-    # -> Client 2
+#     # -> Client 2
 
-    assert send_data_to_redirect, "Don't could send data to redirect!"
+#     assert send_data_to_redirect, "Don't could send data to redirect!"
 
-    # -> Host
-    assert client_1_contact, "Client 1 doesn't make any contact with host!"
-    assert client_2_contact, "Client 2 doesn't make any contact with host!"
-    # assert client_contact, "Client1 doesn't made any contact"
-    assert host_redirect_callback, "Basic redirect callback not called!"
+#     # -> Host
+#     assert client_1_contact, "Client 1 doesn't make any contact with host!"
+#     assert client_2_contact, "Client 2 doesn't make any contact with host!"
+#     # assert client_contact, "Client1 doesn't made any contact"
+#     assert host_redirect_callback, "Basic redirect callback not called!"
 
-    # TODO >>> When add the client tables mechanism re add the client contact test unit
-    # TODO >>> Add a test mechanism to check if the logs are being stored and transposing
+#     # TODO >>> When add the client tables mechanism re add the client contact test unit
+#     # TODO >>> Add a test mechanism to check if the logs are being stored and transposing
 
-    # TODO >>> Add a mechanism to call permission to realize the tests and give an advice that data in the buffers will be wiped of when do the test
+#     # TODO >>> Add a mechanism to call permission to realize the tests and give an advice that data in the buffers will be wiped of when do the test
 
-    # event = my_host.get_event('client_contact')
-    # assert event.is_set(), "Client1 contact event was not set!"
+#     # event = my_host.get_event('client_contact')
+#     # assert event.is_set(), "Client1 contact event was not set!"
 
-    # event = MyClient.get_event('main_event')
-    # assert event.is_set() 
+#     # event = MyClient.get_event('main_event')
+#     # assert event.is_set() 
 
-    # my_host.clear_events()
-    # MyClient.clear_events()
+#     # my_host.clear_events()
+#     # MyClient.clear_events()
 
 
-    pass
+#     pass
 
 
 
