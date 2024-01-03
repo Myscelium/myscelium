@@ -7,18 +7,20 @@ use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum CommandInstructionsType {
+pub enum CommandMode {
     Function,
     Response,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum CommandMode {
+pub enum CommandType {
     SpecialFunction,
     DirectFunction,
     InternalManagement,
     Default,
+    Redirect,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandStatus {
     Success,
@@ -33,25 +35,68 @@ pub enum CommandOrigin {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandInstructions {
+    pub mode: CommandMode,
     #[serde(rename = "type")]
-    command_type: CommandInstructionsType,
-    mode: CommandMode,
-    target: String,
-    stauts: CommandStatus,
-    origin: CommandOrigin,
-    actf: String,
-    kwargs: HashMap<String, serde_json::Value>,
+    pub command_type: CommandType,
+    pub target: String,
+    pub status: CommandStatus,
+    pub origin: CommandOrigin,
+    pub actf: String,
+    pub kwargs: HashMap<String, serde_json::Value>,
+    pub message: String,
 }
 
-#[derive(Debug)]
-pub enum CommandType {
-    SpecialFunction(Value),
-    DirectFunction(Value),
-    Function(Value),
-    Response(HashMap<String, Value>),
-    Redirect(HashMap<String, Value>),
-    Error(Value),
-    Unknown,
+impl CommandInstructions {
+    pub fn from_hashmap(map: HashMap<String, String>) -> Result<Self, String> {
+        let mode = match map.get("type").map(String::as_str) {
+            Some("function") => CommandMode::Function,
+            Some("response") => CommandMode::Response,
+            _ => return Err("Invalid or missing type".to_string()),
+        };
+
+        let command_type = match map.get("mode").map(String::as_str) {
+            Some("special_function") => CommandType::SpecialFunction,
+            Some("direct_function") => CommandType::DirectFunction,
+            Some("internal_management") => CommandType::InternalManagement,
+            Some("default") => CommandType::Default,
+            Some("redirect") => CommandType::Redirect,
+            _ => return Err("Invalid or missing mode".to_string()),
+        };
+
+        let target = map.get("target").cloned().ok_or_else(|| "Missing target".to_string())?;
+        let status = match map.get("status").map(String::as_str) {
+            Some("success") => CommandStatus::Success,
+            Some("failure") => CommandStatus::Failure,
+            _ => return Err("Invalid or missing status".to_string()),
+        };
+
+        let origin = match map.get("origin").map(String::as_str) {
+            Some("host") => CommandOrigin::Host,
+            Some(client_id) => CommandOrigin::ClientId(client_id.to_string()),
+            _ => return Err("Invalid or missing origin".to_string()),
+        };
+
+        let actf = map.get("actf").cloned().ok_or_else(|| "Missing actf".to_string())?;
+        let message = map.get("message").cloned().ok_or_else(|| "Missing message".to_string())?;
+
+        let mut kwargs = HashMap::new();
+        for (key, value) in map {
+            if !["type", "mode", "target", "status", "origin", "actf", "message"].contains(&key.as_str()) {
+                kwargs.insert(key, Value::String(value));
+            }
+        }
+
+        Ok(CommandInstructions {
+            mode,
+            command_type,
+            target,
+            status,
+            origin,
+            actf,
+            kwargs,
+            message,
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -95,6 +140,7 @@ fn transform_value(value: &Value) -> Value {
     }
 }
 
+#[derive(Debug)]
 pub enum CommandError {
     InvalidCommand,
 }
@@ -117,53 +163,22 @@ impl Command {
         Ok(Self { client_key, parity_id, priority, command })
     }
 
-    pub fn from_up_command(up_command: UpCommand) -> Self {
+    pub fn from_up_command(up_command: UpCommand) -> Result<Self, CommandError> {
         let client_key = up_command.client_key.clone();
         let parity_id = up_command.parity_id.clone();
         let priority = up_command.priority.clone();
-        let command: HashMap<String, Value> = serde_json::from_str(&up_command.command).unwrap();
+
+        let command: CommandInstructions = match serde_json::from_str(&up_command.command) {
+            Ok(c) => c,
+            Err(_) => return Err(CommandError::InvalidCommand),
+        };
 
         println!("Client -> Command from UpCommand: {:?}", command);
 
-        Self { client_key, parity_id, priority, command }
+        Ok(Self { client_key, parity_id, priority, command })
     }
 
     pub fn command_type(&self) -> CommandType {
-        if self.command.contains_key("command_type") {
-            let command_type: String = serde_json::from_value(self.command.get("command_type").unwrap().clone()).unwrap();
-
-            println!("Command Type: {:?}", command_type);
-
-            return match command_type.as_str() {
-                "function" => {
-                    println!("Self: {:?} have function: {:?}", self.command, self.command.get("function"));
-                    CommandType::Function(self.command.get("function").unwrap().clone())
-                },
-                "direct_function" => {
-                    println!("Self: {:?} have direct function: {:?}", self.command, self.command.get("function"));
-                    CommandType::DirectFunction(self.command.get("function").unwrap().clone())
-                },
-                "special_function" => {
-                    println!("Self: {:?} have special function: {:?}", self.command, self.command.get("function"));
-                    CommandType::SpecialFunction(self.command.get("function").unwrap().clone())
-                },
-                "response" => {
-                    println!("Self: {:?} have response: {:?}", self.command, self.command.get("kwargs"));
-                    CommandType::Response(self.command.clone())
-                },
-                "redirect" => {
-                    println!("Self: {:?} have redirect: {:?}", self.command, self.command.get("response"));
-                    CommandType::Redirect(self.command.clone())
-                },
-                "error" => {
-                    // TODO >>> Verify if the error command type stil a requirement since client now receives the entire command
-                    println!("Self: {:?} have error: {:?}", self.command, self.command.get("error"));
-                    CommandType::Error(self.command.get("error").unwrap().clone())
-                },
-                _ => CommandType::Unknown,
-            };
-        } else {
-            return CommandType::Unknown;
-        }
+        return self.command.command_type;
     }
 }

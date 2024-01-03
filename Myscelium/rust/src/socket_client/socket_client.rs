@@ -176,7 +176,7 @@ macro_rules! create_special_command {
     ($code:expr) => {{
         use std::collections::HashMap;
 
-        let mut command_map = HashMap::new();
+        let mut command_map = CommandInstructions::new();
         command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
         command_map.insert("function".to_string(), Value::String($code.to_string()));
 
@@ -221,19 +221,13 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
 
     logger.debug(format!("{:?}", command));
 
-    match command.command.get("function") {
-        Some(Value::String(function)) => {
-            if function == "C200" {
-                return true;
-            } else {
-                return false;
-            }
-        },
-        _ => {
-            logger.warn(format!("The function name is not found or not a string."));
-            return false;
-        },
+    if command.command.actf == "C200" {
+        return true;
+    } else {
+        return false;
     }
+
+    // logger.warn(format!("The function name is not found or not a string."));
 }
 
 /// Sends a command to the server and waits for a response.
@@ -360,12 +354,12 @@ fn handle_response(received: Response) -> Received {
         },
     }
 
-    match command_received.command_type() {
-        CommandType::Function(f) => {
+    match command_received.command.command_type {
+        CommandType::Default => {
             // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
             // > Also we can use a similar system to sync multiple hosts
 
-            logger.info(format!("[Socket Client] - Received a function!:\n {:?}", f));
+            logger.info(format!("[Socket Client] - Received a function!:\n {:?}", command_received.command.actf));
 
             // match serde_json::from_value::<String>(f) {
             //     Ok(function) => {
@@ -390,11 +384,11 @@ fn handle_response(received: Response) -> Received {
             return Received::DownCommand(down_command);
         },
 
-        CommandType::DirectFunction(df) => {
+        CommandType::DirectFunction => {
             // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
             // > Also we can use a similar system to sync multiple hosts
 
-            logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", df));
+            logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", command_received.command.actf));
 
             // match serde_json::from_value::<String>(f) {
             //     Ok(function) => {
@@ -417,6 +411,29 @@ fn handle_response(received: Response) -> Received {
             let down_command = DownCommand::from_command(command_received.clone());
 
             return Received::DownCommand(down_command);
+        },
+
+        CommandType::SpecialFunction => {
+            let function: String = command_received.command.actf;
+
+            if command_received.parity_id != "itisaspecialcase" {
+                if function == "C210".to_string() {
+                    logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", command_received.parity_id, command_received.client_key));
+                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
+                    return Received::Confirmation;
+                }
+
+                // TODO >>> Implement the error cases
+                // else if function == "Error".to_string() {
+                //     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
+                //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
+                //     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                //     return Received::Error("".to_string());
+                // }
+            }
+
+            logger.debug(format!("Receive a special function: {:?}", command_received.command.actf));
+            return Received::Nothing;
         },
 
         CommandType::SpecialFunction(f) => {
@@ -567,7 +584,13 @@ pub fn initialize_client(address: String, client_id: String) {
         }
 
         for up_command in up_schedule {
-            let command_to_request = Command::from_up_command(up_command);
+            let command_to_request = match Command::from_up_command(up_command) {
+                Ok(c) => c,
+                Err(e) => {
+                    println!("Command: {:?} gives an exception when converting to command, the error was: \n{:?}", up_command, e);
+                    continue;
+                },
+            };
 
             loop {
                 println!("Sending to host: {:?}", command_to_request.clone());

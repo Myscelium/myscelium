@@ -37,72 +37,70 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
     if activation_key == &"update_available_host_commands".to_string() {
         logger.info(format!("Receive Host Allowed Commands"));
 
-        if let Some(Value::Object(response_obj)) = translated_command.command.get("kwargs") {
-            // Clone the object to get a HashMap<String, Value>
-            let response_map: HashMap<String, Value> = response_obj.clone().into_iter().collect();
+        let response_obj = translated_command.command.kwargs;
 
-            // Lock the COMMAND_PATTERNS and insert the new map
+        // Clone the object to get a HashMap<String, Value>
+        let response_map: HashMap<String, Value> = response_obj.clone().into_iter().collect();
 
-            let mut new_patterns = CommandPatterns::new();
-            new_patterns.add_from_map(response_map);
+        // Lock the COMMAND_PATTERNS and insert the new map
 
-            let host_allowed_commands = &HOST_ALLOWED_COMMANDS;
-            smart_lock(&*host_allowed_commands, |actual_patterns: &mut CommandPatterns| {
-                *actual_patterns = new_patterns;
-            });
+        let mut new_patterns = CommandPatterns::new();
+        new_patterns.add_from_map(response_map);
 
-            let mut actual_patterns: HashMap<String, Value> = HashMap::new();
+        let host_allowed_commands = &HOST_ALLOWED_COMMANDS;
+        smart_lock(&*host_allowed_commands, |actual_patterns: &mut CommandPatterns| {
+            *actual_patterns = new_patterns;
+        });
 
-            let command_patterns = &COMMAND_PATTERNS;
-            smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
-                actual_patterns = patterns.extract_all_commands();
-            });
+        let mut actual_patterns: HashMap<String, Value> = HashMap::new();
 
-            // {
-            //     actual_patterns = COMMAND_PATTERNS.lock().clone();
-            // }
+        let command_patterns = &COMMAND_PATTERNS;
+        smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
+            actual_patterns = patterns.extract_all_commands();
+        });
 
-            logger.info(format!("Successfully actualize the host available commands!"));
+        // {
+        //     actual_patterns = COMMAND_PATTERNS.lock().clone();
+        // }
 
-            // enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+        logger.info(format!("Successfully actualize the host available commands!"));
 
-            let handlers = match convert_value_map_to_resulttype_map(&actual_patterns) {
-                Ok(c) => c,
-                Err(e) => match e {
-                    ConversionError::UnsuportedValueVariant(s) => {
-                        logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                        return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                    },
+        // enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+
+        let handlers = match convert_value_map_to_resulttype_map(&actual_patterns) {
+            Ok(c) => c,
+            Err(e) => match e {
+                ConversionError::UnsuportedValueVariant(s) => {
+                    logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
+                    return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
                 },
-            };
+            },
+        };
 
-            let mut filtered_resulttype_commands_map = HashMap::new();
+        let mut filtered_resulttype_commands_map = HashMap::new();
 
-            filtered_resulttype_commands_map.insert("client_handlers".to_string(), handlers);
+        filtered_resulttype_commands_map.insert("client_handlers".to_string(), handlers);
 
-            let function: String = "update_client_commands_ref".to_string();
+        let function: String = "update_client_commands_ref".to_string();
 
-            let mut to_send = HashMap::new();
+        let mut to_send = HashMap::new();
 
-            to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
-            to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-            to_send.insert("function".to_string(), ResultType::Str(function)); // -> Function that it will act in host
-            to_send.insert("kwargs".to_string(), ResultType::Map(filtered_resulttype_commands_map));
-            to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
-            to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host
+        to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
+        to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
+        to_send.insert("function".to_string(), ResultType::Str(function)); // -> Function that it will act in host
+        to_send.insert("kwargs".to_string(), ResultType::Map(filtered_resulttype_commands_map));
+        to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
+        to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host
 
-            let converted_to_value = convert_to_value_map(&to_send);
-            let response = serde_json::to_string(&converted_to_value).unwrap();
+        let converted_to_value = convert_to_value_map(&to_send);
+        let response = serde_json::to_string(&converted_to_value).unwrap();
 
-            let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
-            let up_command: UpCommand = UpCommand::new(client_key, parity_id, 11u8, response);
-            enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
-            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+        let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
+        let up_command: UpCommand = UpCommand::new(client_key, parity_id, 11u8, response);
+        enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
-            return ResultType::Empty;
-        } else {
-            return ResultType::Error(format!("missing kwargs key {:?}", translated_command.clone()));
-        }
+        return ResultType::Empty;
     }
 
     // Special handling for "update available host commands" command
