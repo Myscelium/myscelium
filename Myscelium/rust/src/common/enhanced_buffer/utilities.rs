@@ -6,6 +6,43 @@ use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CommandInstructionsType {
+    Function,
+    Response,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CommandMode {
+    SpecialFunction,
+    DirectFunction,
+    InternalManagement,
+    Default,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CommandStatus {
+    Success,
+    Failure,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CommandOrigin {
+    Host,
+    ClientId(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandInstructions {
+    #[serde(rename = "type")]
+    command_type: CommandInstructionsType,
+    mode: CommandMode,
+    target: String,
+    stauts: CommandStatus,
+    origin: CommandOrigin,
+    actf: String,
+    kwargs: HashMap<String, serde_json::Value>,
+}
+
 #[derive(Debug)]
 pub enum CommandType {
     SpecialFunction(Value),
@@ -22,7 +59,7 @@ pub struct Command {
     pub client_key: String,
     pub parity_id: String,
     pub priority: u8,
-    pub command: HashMap<String, Value>,
+    pub command: CommandInstructions,
 }
 
 fn transform_value(value: &Value) -> Value {
@@ -58,30 +95,26 @@ fn transform_value(value: &Value) -> Value {
     }
 }
 
+pub enum CommandError {
+    InvalidCommand,
+}
+
 impl Command {
-    pub fn new(client_key: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
+    pub fn new(client_key: String, parity_id: String, priority: u8, command: CommandInstructions) -> Self {
         Self { client_key, parity_id, priority, command }
     }
 
-    pub fn from_down_command(down_command: DownCommand) -> Self {
+    pub fn from_down_command(down_command: DownCommand) -> Result<Self, CommandError> {
         let client_key = down_command.client_key.clone();
         let parity_id = down_command.parity_id.clone();
         let priority = down_command.priority.clone();
 
-        let outer_value: Value = serde_json::from_str(&down_command.command).unwrap();
+        let command: CommandInstructions = match serde_json::from_str(&down_command.command) {
+            Ok(c) => c,
+            Err(_) => return Err(CommandError::InvalidCommand),
+        };
 
-        println!("Value extracted from DownCommand.Command: {:?}", outer_value);
-
-        let mut command: HashMap<String, Value> = HashMap::new();
-
-        // Extract the inner JSON string and deserialize it again
-        if let Value::Object(outer_map) = &outer_value {
-            command = serde_json::from_value::<HashMap<String, Value>>(Value::Object(outer_map.clone())).unwrap();
-        } else {
-            command = HashMap::new();
-            // Handle the case where the outer_value is not an object
-        }
-        Self { client_key, parity_id, priority, command }
+        Ok(Self { client_key, parity_id, priority, command })
     }
 
     pub fn from_up_command(up_command: UpCommand) -> Self {
