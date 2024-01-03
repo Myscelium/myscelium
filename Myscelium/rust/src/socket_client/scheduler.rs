@@ -63,16 +63,16 @@ pub fn set_client_id(client_uid: String) {
 /// - `priority`: The priority level of the command. Commands with higher priority values
 ///               are processed before those with lower priority values.
 pub fn schedule(command: HashMap<String, String>, priority: u8) {
-    let logger = acquire_logger!("Core - Scheduler");
+    let logger: Logger = acquire_logger!("Core - Scheduler");
 
     logger.debug("Enter Scheduler".to_string());
 
-    let client_id = CLIENT_ID.lock().clone();
+    let client_id: String = CLIENT_ID.lock().clone();
 
     logger.debug(format!("Client id is: {:?}", client_id));
-    let command = serde_json::to_string(&command);
+    let command: Result<String, serde_json::Error> = serde_json::to_string(&command);
 
-    let unwraped_command;
+    let unwraped_command: String;
 
     // TODO >>> Add mecanisms to check the structure of the command that we are trying to registry
 
@@ -87,9 +87,9 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
         },
     }
 
-    let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_id.clone());
+    let parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_id.clone());
 
-    let command_to_schedule = UpCommand::new(client_id, parity_id, priority, unwraped_command);
+    let command_to_schedule: UpCommand = UpCommand::new(client_id, parity_id, priority, unwraped_command);
 
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
 
