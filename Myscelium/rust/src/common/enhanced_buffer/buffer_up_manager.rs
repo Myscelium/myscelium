@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+use core::fmt;
 use std::clone;
 use std::sync::Arc;
 
@@ -26,6 +27,8 @@ use crate::common::enhanced_buffer::utilities::Command;
 use std::sync::RwLock;
 
 use rusqlite::{Connection, Result};
+
+use crate::common::enhanced_buffer::history::buffer_history::BufferHistory;
 
 lazy_static! {
     static ref BUFFER_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
@@ -104,6 +107,21 @@ impl UpCommand {
             command,
             created_time: timestamp,
         }
+    }
+}
+
+impl fmt::Display for UpCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "\nUpCommand: 
+            command_id: {:?}\n
+            client_key: {}\n
+            parity_id: {}\n
+            priority: {}\n
+            command: {}\n\n",
+            self.command_id, self.client_key, self.parity_id, self.priority, self.command
+        )
     }
 }
 
@@ -289,6 +307,8 @@ pub fn buffer_up_list_schedule() -> Vec<UpCommand> {
 }
 
 pub fn buffer_up_schedule(command: UpCommand) {
+    BufferHistory::new("UP").log_add_operation(&command.client_key, &command.parity_id, command.command_id.as_ref(), &command.command);
+
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let registered_ids = get_registred_ids(conn);
 
@@ -382,6 +402,7 @@ pub fn buffer_up_clear_old_commands() {
         let time_difference = (current_timestamp - command_timestamp);
 
         if time_difference >= 240.0 {
+            BufferHistory::new("UP").log_remove_operation(&up_command.client_key, &up_command.parity_id, up_command.command_id.as_ref(), &up_command.command);
             buffer_up_remove_schedule_by_id(up_command.command_id.unwrap());
             println!("\nCommand received from host: {} from client: {}, too old, clearing from the buffer up schedule!\n", up_command.parity_id, up_command.client_key);
         }
@@ -389,6 +410,8 @@ pub fn buffer_up_clear_old_commands() {
 }
 
 pub fn buffer_up_remove_schedule_by_id(id: u32) {
+    BufferHistory::new("UP").log_remove_operation(&"".to_string(), &"".to_string(), Some(id).as_ref(), &format!("Remove ID: {}", id));
+
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let result = conn.execute("DELETE from ClientCommandsTosend where ID = ?", params![id]);
 
@@ -404,12 +427,14 @@ pub fn buffer_up_remove_schedule_by_id(id: u32) {
 }
 
 pub fn buffer_up_remove_schedule_by_parity_id(client_key: String, parity_id: String) {
+    BufferHistory::new("UP").log_remove_operation(&client_key, &parity_id, None.as_ref(), &"Remove From Schedule".to_string());
+
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
-        let result = conn.execute("DELETE from ClientCommandsTosend where ClientKey = ? AND ParityId = ?", params![client_key, parity_id]);
+        let result = conn.execute("DELETE from ClientCommandsTosend WHERE ClientKey = ? AND ParityId = ?", params![client_key, parity_id]);
 
         match result {
             Ok(_) => {
-                println!("Successfully remove schedule Command in ClientCommandsTosend");
+                println!("Successfully remove schedule Command in ClientCommandsTosend where ClientKey = {} AND ParityID = {}", client_key, parity_id);
             },
             Err(e) => {
                 eprintln!("An error occurred while removing scheduled command of parity_id: {} from client: {} in the ClientCommandsTosend table: {}", client_key, parity_id, e);

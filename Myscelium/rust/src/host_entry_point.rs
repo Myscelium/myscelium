@@ -28,7 +28,19 @@ use std::time::Duration;
 
 use crate::common::functions::python_functions::extract_arg_types;
 
+use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
 use crate::HOST_IS_RUNNING;
+use std::sync;
+use std::sync::MutexGuard;
+
+use lazy_static::lazy_static;
+use std::sync::Arc;
+
+use crate::common::functions::advanced_lockers::smart_lock;
+
+lazy_static! {
+    pub static ref CLIENTS_SYNC_CONTROLLER: Arc<sync::Mutex<Clients>> = Arc::new(sync::Mutex::new(Clients::new()));
+}
 
 // #[pyfunction]
 // fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
@@ -427,6 +439,19 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
 
         let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
         let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
+
+        let controller = &CLIENTS_SYNC_CONTROLLER;
+        smart_lock(&*controller, |clients: &mut Clients| {
+            let _ = clients.add_new_client(client_key.clone().to_string(), 10);
+        });
+
+        let controller = &CLIENTS_SYNC_CONTROLLER;
+        smart_lock(&*controller, |clients: &mut Clients| println!("\nSet clients sync controler to:\n{:?}\n", clients));
+
+        // {
+        //     let mut client_controller_pool: MutexGuard<Clients> = smart_lock(|| CLIENTS_SYNC_CONTROLLER.lock());
+        //     let _ = client_controller_pool.add_new_client(client_key.clone(), 10);
+        // }
 
         // {
         //     println!(

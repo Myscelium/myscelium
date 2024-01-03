@@ -30,6 +30,9 @@ use crate::CLIENT_LOG_LEVEL;
 use crate::CLIENT_NODE_NAME;
 
 use parking_lot::Mutex;
+use std::sync;
+
+use crate::common::functions::advanced_lockers::smart_lock;
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
@@ -44,14 +47,14 @@ macro_rules! acquire_logger {
 use crate::common::structs::avaliable_commands::CommandPatterns;
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
+    pub static ref COMMAND_PATTERNS: Arc<sync::Mutex<CommandPatterns>> = Arc::new(sync::Mutex::new(CommandPatterns::new()));
     static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
             "get_symbols_data": {
                 "symbols_data": {
                     "data-type": "str",
                     "symbols": "str",
-                    "start-ts": "float",
+                    "start-ts": "float",W
                     "end-ts": "float"
                 }
             },
@@ -85,9 +88,13 @@ lazy_static! {
 pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
     let client_name = CLIENT_NODE_NAME.lock().clone();
 
-    let mut global_command_patterns = COMMAND_PATTERNS.lock();
-    global_command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
+    let command_patterns = &COMMAND_PATTERNS;
+    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
+        patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
+    });
 }
+
+use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
 
 /// Initializes the client buffer by setting up the necessary tables.
 ///
@@ -103,6 +110,8 @@ pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, 
 ///   at the specified location.
 pub fn initialize_client_buffer(buffer_location: String) {
     println!("initializing the buffer database into: {}buffer.db, if not initialized!", buffer_location);
+
+    initialize_buffer_history(&buffer_location);
 
     enhanced_buffer::buffer_down_manager::buffer_down_initialize_table(buffer_location.clone());
 
@@ -133,8 +142,12 @@ pub fn initialize_client_buffer(buffer_location: String) {
 /// # Returns
 /// - A `HashMap` containing the available command patterns.
 pub fn get_available_handlers_registered() -> HashMap<String, Value> {
-    let global_command_patterns = COMMAND_PATTERNS.lock().clone();
-    return global_command_patterns.extract_all_commands();
+    let mut global_command_patterns: HashMap<String, Value> = HashMap::new();
+    let command_patterns = &COMMAND_PATTERNS;
+    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
+        global_command_patterns = patterns.extract_all_commands();
+    });
+    return global_command_patterns;
 }
 
 // > --------------------------------------------------------------------------------------------------------------------------------------
@@ -283,11 +296,27 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
 
     let command_to_request = create_special_command!("C206");
     let received = send(&mut stream, command_to_request.clone());
-    if let Some(down_command) = handle_response(received) {
-        return Some(down_command);
-    } else {
-        return None;
+
+    match handle_response(received) {
+        Received::DownCommand(down_command) => return Some(down_command),
+        Received::Confirmation => {
+            return None;
+        },
+        Received::Error(e) => {
+            //TODO >>> Add the mechanism to stop the client if received a error
+            return None;
+        },
+        Received::Nothing => {
+            return None;
+        },
     }
+}
+
+pub enum Received {
+    DownCommand(DownCommand),
+    Confirmation,
+    Nothing,
+    Error(String),
 }
 
 /// Handles the received response from the server and processes it accordingly.
@@ -315,7 +344,7 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
 /// # Notes
 /// - This function uses the `COMMAND_PATTERNS` global lock to access and modify the command patterns.
 /// - The function also accesses the `CLIENT_IS_RUNNING` global flag to control the client's running state.
-fn handle_response(received: Response) -> Option<DownCommand> {
+fn handle_response(received: Response) -> Received {
     let logger = acquire_logger!("Core");
 
     let command_received;
@@ -323,7 +352,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
     match received {
         Response::None => {
             logger.warn(format!("Received invalid data!"));
-            return None;
+            return Received::Nothing;
         },
         Response::Command(c) => {
             logger.debug(format!("\nReceived command: {:?}", c));
@@ -358,7 +387,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             let down_command = DownCommand::from_command(command_received.clone());
 
-            return Some(down_command);
+            return Received::DownCommand(down_command);
         },
 
         CommandType::DirectFunction(df) => {
@@ -387,7 +416,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             let down_command = DownCommand::from_command(command_received.clone());
 
-            return Some(down_command);
+            return Received::DownCommand(down_command);
         },
 
         CommandType::SpecialFunction(f) => {
@@ -395,19 +424,19 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             if command_received.parity_id != "itisaspecialcase" {
                 if function == "C210".to_string() {
+                    logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", command_received.parity_id, command_received.client_key));
                     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-                    logger.info(format!("Received Confirmation!"));
-                    return None;
+                    return Received::Confirmation;
                 } else if function == "Error".to_string() {
                     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
                     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
                     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                    return None;
+                    return Received::Error("".to_string());
                 }
             }
 
             logger.debug(format!("Receive a special function: {:?}", f));
-            return None;
+            return Received::Nothing;
         },
 
         CommandType::Response(r) => {
@@ -429,7 +458,7 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
 
-            return Some(down_command);
+            return Received::DownCommand(down_command);
         },
 
         CommandType::Error(_) => {
@@ -442,17 +471,17 @@ fn handle_response(received: Response) -> Option<DownCommand> {
 
             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
 
-            return Some(down_command);
+            return Received::DownCommand(down_command);
         },
 
         CommandType::Redirect(_) => {
             logger.warn(format!("Received an Unknown command!"));
-            return None;
+            return Received::Nothing;
         },
 
         CommandType::Unknown => {
             logger.warn(format!("Received an Unknown command!"));
-            return None;
+            return Received::Nothing;
         },
     }
 }
@@ -513,6 +542,9 @@ pub fn initialize_client(address: String, client_id: String) {
 
     let mut stream = TcpStream::connect(address.clone()).unwrap();
 
+    // Here need to send the new handlers to host
+    // then receive the host handlers
+
     logger.info(format!("Connected to {:?}!", address.clone()).to_string());
 
     thread::sleep(Duration::from_millis(200));
@@ -538,12 +570,23 @@ pub fn initialize_client(address: String, client_id: String) {
             let command_to_request = Command::from_up_command(up_command);
 
             loop {
+                println!("Sending to host: {:?}", command_to_request.clone());
+
                 let received = send(&mut stream, command_to_request.clone());
 
-                if let Some(down_command) = handle_response(received) {
-                    println!("[Socket Client] - Receives Data.. : {:?}", down_command);
-                    enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
-                    break;
+                match handle_response(received) {
+                    Received::DownCommand(down_command) => {
+                        println!("[Socket Client] - Receives Data.. : {:?}", down_command);
+                        enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
+                        break;
+                    },
+                    Received::Confirmation => {
+                        break;
+                    },
+                    Received::Error(e) => {
+                        //TODO >>> Add the mechanism to stop the client if received a error
+                    },
+                    Received::Nothing => {},
                 }
 
                 thread::sleep(Duration::from_millis(200));

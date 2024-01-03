@@ -83,10 +83,12 @@ macro_rules! acquire_logger {
 /// let response = handle_redirect(m, &mut client_id, down_command);
 /// ```
 ///
-pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, down_command: DownCommand) -> HashMap<String, ResultType> {
+pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, parity_id: String, priority: u8) -> HashMap<String, ResultType> {
     let logger = acquire_logger!("[Process][Handle Redirect]");
 
     let mut to_send = HashMap::new();
+
+    println!("Try to redirect: {:?}", m);
 
     let converted_m = convert_to_value_map(&m);
 
@@ -105,13 +107,14 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
         // return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
     }
 
-    let mut command_map = HashMap::new();
-    command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-    command_map.insert("function".to_string(), Value::String("C210".to_string()));
-    let response = serde_json::to_string(&command_map).unwrap();
+    //> This was remove because in the cases that sends a lot of redirect this makes a spamming into the client that sends the list to retransmit:
+    // let mut command_map = HashMap::new();
+    // command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+    // command_map.insert("function".to_string(), Value::String("C210".to_string()));
+    // let response = serde_json::to_string(&command_map).unwrap();
 
-    let up_command = UpCommand::new(client_id.clone(), down_command.parity_id.clone(), down_command.priority.clone(), response);
-    enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+    // let up_command = UpCommand::new(client_id.clone(), parity_id.clone(), priority.clone(), response);
+    // enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 
     logger.debug(format!("Converted redirect command: {:?}", converted_m));
 
@@ -123,6 +126,8 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, d
 
     let response_act_fn_value = converted_m.get("response_activation_function").unwrap().clone();
     let function: String = serde_json::from_value(response_act_fn_value).unwrap();
+
+    // TODO >>> Add a logic here to see when the redirect is to redirect a `update_available_host_commands` command and use this as a function and set response mode to to host
 
     to_send.insert("command_type".to_string(), ResultType::Str("function".to_string()));
     to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));

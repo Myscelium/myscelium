@@ -18,12 +18,18 @@ use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::Command;
 
-use crate::socket_host::scheduler::request_client_available_commands;
+use crate::handle_client_error;
+use crate::socket_host::scheduler::{request_client_available_commands, send_network_available_commands};
 
 #[macro_use]
 use crate::{init_thread_pool, terminate_pool, run_in_thread_pool, wait_all_threads};
 use crate::common::custom_thread_pool::thread_pool::UnifiedThreadPool;
 use crate::socket_host::client_manager::manager::{check_if_client_key_exists, Client, ClientError};
+
+extern crate chrono;
+use chrono::prelude::Utc;
+use chrono::DateTime;
+use chrono::Duration;
 
 // > Global Vars Core
 
@@ -36,7 +42,13 @@ use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
 
+use crate::common::functions::advanced_lockers::smart_lock;
+
 use crate::common::structs::avaliable_commands::CommandPatterns;
+
+use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
+
+use crate::CLIENTS_SYNC_CONTROLLER;
 
 lazy_static! {
     static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
@@ -71,6 +83,26 @@ macro_rules! create_command_error {
         };
         command
     }};
+}
+
+#[macro_export]
+macro_rules! handle_client_controler_error {
+    ($error:expr, $client_key:expr, $logger:expr) => {
+        match $error {
+            ClientStatusPoolError::ClientDoesNotExist(c) => {
+                $logger.warn(format!("WARNING: Client: {:?} does not exist so can't sync!", c));
+            },
+            ClientStatusPoolError::ClientAlreadySync(c) => {
+                $logger.warn(format!("WARNING: Client: {:?} is already sync!", c));
+            },
+            ClientStatusPoolError::MaxSyncAttemptsReached(c) => {
+                $logger.warn(format!("WARNING: Max attempts trying to sync with Client: {:?} reached!", c));
+            },
+            _ => {
+                $logger.warn(format!("WARNING: Unexpected error trying to sync with client: {:?}!", $client_key));
+            },
+        }
+    };
 }
 
 macro_rules! acquire_logger {
@@ -160,7 +192,9 @@ pub fn update_last_contact(client_key: String) {
 
     match client {
         Ok(c) => {
-            _ = c.update_last_contact();
+            println!("Receive client contact!");
+            handle_client_error!(c.update_last_contact());
+            println!("Update client contact!");
         },
         Err(e) => match e {
             ClientError::ClientAlreadyExist(e) => {
@@ -253,6 +287,8 @@ pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
     println!("Seted Socket Host Callbacks: {:?}", global_command_patterns.extract_all_commands());
 }
 
+use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
+
 /// Initializes the host buffer databases.
 ///
 /// This function initializes the buffer databases for both up and down managers.
@@ -264,6 +300,8 @@ pub fn initialize_host_buffer(buffer_location: String) {
     let logger = acquire_logger!("[Socket][Initialize Host Buffer]");
 
     logger.info(format!("initializing the buffer database into: {}buffer.db, if not initialized!", buffer_location));
+
+    initialize_buffer_history(&buffer_location);
 
     enhanced_buffer::buffer_down_manager::buffer_down_initialize_table(buffer_location.clone());
 
@@ -569,23 +607,97 @@ fn handle_connection(mut stream: TcpStream) {
             },
         });
 
-        // -> Verify if client is inicialized and check if is sync, if not send a request of sync
-        if let Some(cli) = client.clone() {
-            if !cli.is_sync() {
-                request_client_available_commands(command.client_key.clone());
+        // Todo, change sync method to the new method
+
+        // -> Verify if client is initialized and check if is sync, if not send a request of sync
+
+        let mut client_sync_status: Option<bool> = Some(false);
+        let mut client_last_sync: Option<DateTime<Utc>> = None;
+
+        let controller = &CLIENTS_SYNC_CONTROLLER;
+        smart_lock(&*controller, |clients: &mut Clients| {
+            println!("Clients In Sync Controler: {:?}", clients);
+
+            client_sync_status = match clients.get_sync_status(&command.client_key.clone()) {
+                Ok(s) => Some(s),
+                Err(e) => {
+                    handle_client_controler_error!(e, &command.client_key, logger);
+                    None
+                },
+            };
+            client_last_sync = match clients.get_last_sync(&command.client_key.clone()) {
+                Ok(last_sync) => Some(last_sync),
+                Err(e) => {
+                    handle_client_controler_error!(e, &command.client_key, logger);
+                    None
+                },
             }
+        });
+
+        update_last_contact(command.client_key.clone());
+
+        if let Some(sync) = client_sync_status {
+            if !sync {
+                println!("\nClient: {:?} isn't sync\n", &command.client_key);
+
+                if let Some(last_sync) = client_last_sync {
+                    let current_time = Utc::now();
+                    if current_time - last_sync > Duration::seconds(30) {
+                        // The time to try sinc again needs to be the same time that the db refreshs or multiple of that
+                        send_network_available_commands(command.client_key.clone());
+
+                        let controller = &CLIENTS_SYNC_CONTROLLER;
+                        smart_lock(&*controller, |clients: &mut Clients| {
+                            let _ = match clients.update_client_sync_attempt(&command.client_key.clone()) {
+                                Ok(c) => c,
+                                Err(e) => {
+                                    handle_client_controler_error!(e, &command.client_key, logger);
+                                },
+                            };
+                        })
+                    } else {
+                        logger.warn(format!(
+                            "WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!",
+                            &command.client_key,
+                            (Duration::seconds(30) - (current_time - last_sync)).num_seconds()
+                        ));
+                    }
+                } else {
+                    println!("Try to sync with: {}", command.client_key);
+
+                    // -> case of be the first sync attempt
+                    send_network_available_commands(command.client_key.clone());
+
+                    let controller = &CLIENTS_SYNC_CONTROLLER;
+                    smart_lock(&*controller, |clients: &mut Clients| {
+                        let _ = match clients.update_client_sync_attempt(&command.client_key.clone()) {
+                            Ok(_) => (),
+                            Err(e) => {
+                                handle_client_controler_error!(e, &command.client_key, logger);
+                            },
+                        };
+                    });
+                }
+            } else {
+                println!("\nClient: {:?} is sync!\n", &command.client_key);
+            }
+        } else {
+            break;
         }
 
         // ! WE CAN'T USE THIS PY AQUIRE UNTIL THE PYTHON POOL IS FINISHED !
 
-        update_last_contact(command.client_key.clone());
-
         {
             let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+
+            println!("\nCommand.Command: {:?}", command.command);
+            println!("\nCommand.Command.function: {:?}", command.command.get("function"));
 
             match command.command.get("function") {
                 Some(Value::String(function)) => {
                     logger.debug(format!("Command function: {}", function));
+
+                    let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
 
                     if special_functions.contains(&function) {
                         // -> Special Function Handler
@@ -597,8 +709,8 @@ fn handle_connection(mut stream: TcpStream) {
                         logger.debug(format!("Sending back: {:?}", command_response_json));
 
                         stream.write_all(command_response_json.as_bytes()).unwrap();
-                    } else if command_patterns.command_exists("host", function) {
-                        // TODO >>> Add the target in the clien commands to allow see if the function exist for the defined target
+                    } else if command_patterns.command_exists("host", function) || direct_functions.contains(function) {
+                        // TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
 
                         // -> Common Function Handler
 

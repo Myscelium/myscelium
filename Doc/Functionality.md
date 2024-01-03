@@ -122,3 +122,70 @@ let up_command = UpCommand::new(
 ```
 
 And save into the schedule.
+
+
+---
+
+
+```mermaid
+sequenceDiagram
+
+
+Client 1 ->> Host: Connect
+Host ->> Host: Client isn't sync 
+Host ->> Client 1: C: 01
+Client 1 ->> Client 1: update available commands
+Client 1 ->> Host: C: 02
+Host ->> Host: Update client handlers
+```
+
+### indice:
+
+C: 01 - `send_network_available_commands`:
+```Rust
+{
+	"command_type": "direct_function",
+	"response_mode": "to_origin",
+	"status": "success",
+	"function": "update_available_host_commands",
+	"kwargs": {<netwrok av commands>}
+	"origin": "host",
+}
+```
+
+C: 02 - `update_client_commands_ref`:
+```Rust
+	"command_type": "direct_function_response",
+	"status": "success",
+	"function": "update_client_commands_ref",
+	"kwargs": {<client handlers>}
+	"origin": "<Client_Key>",
+	"response_mode": "to_host",
+```
+
+---
+
+<!-- C: 03 - `send_network_available_commands`:
+```Rust
+{
+	"command_type": "direct_function",
+	"response_mode": "to_origin",
+	"status": "success",
+	"function": "update_available_host_commands",
+	"kwargs": {<netwrok av commands>}
+	"origin": "host",
+}
+``` -->
+
+
+-> `request_client_available_commands`
+```Rust
+{
+	"command_type": "direct_function",
+	"response_mode": "to_origin",
+	"status": "success",
+	"function": "get_socket_client_available_handlers",
+	"origin": "host",
+	"kwargs": {<netwrok av commands>}
+}
+```

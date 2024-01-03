@@ -122,7 +122,7 @@ pub struct Client {
     client_type: String,
     permission_group: String,
     is_super_user: bool,
-    last_contact: f64,
+    pub last_contact: f64,
     max_sub_channels: u32,
     owned_sub_channels_keys: Vec<String>,
     sub_channels_in_use: u32,
@@ -490,6 +490,8 @@ impl Client {
 
         edit_client(new_client.clone());
 
+        println!("Update client contact for client: {}!", self.client_id);
+
         Ok(new_client)
     }
 
@@ -709,8 +711,8 @@ pub fn edit_client(client: Client) {
                 client.max_sub_channels,
                 serialized_owned_sub_channels_keys,
                 client.sub_channels_in_use,
+                client_handlers,
                 client.client_id,
-                client_handlers
             ],
         );
 
