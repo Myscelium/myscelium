@@ -73,13 +73,24 @@ lazy_static! {
 macro_rules! create_command_error {
     ($client_key:expr, $parity_id:expr, $error:expr) => {{
         let mut command_map = HashMap::new();
-        command_map.insert("error".to_string(), Value::String($error.to_string()));
+
+        let kwargs: HashMap<String, Value> = HashMap::new();
+
+        command_map.insert("mode".to_string(), Value::String("function".to_string()));
+        command_map.insert("command_type".to_string(), Value::String("direct_function".to_string()));
+        command_map.insert("target".to_string(), Value::String("origin".to_string()));
+        command_map.insert("status".to_string(), Value::String("failure".to_string()));
+        command_map.insert("actf".to_string(), Value::String("error_handler".to_string()));
+        command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
+        command_map.insert("message".to_string(), Value::String($error.to_string()));
+
+        let command_instructions: CommandInstructions = CommandInstructions::from_hashmap(command_map).unwrap();
 
         let command = Command {
             client_key: $client_key.to_string(),
             parity_id: $parity_id.to_string(),
             priority: 11,
-            command: command_map,
+            command: command_instructions,
         };
         command
     }};
@@ -129,7 +140,7 @@ macro_rules! create_special_command {
         command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
         command_map.insert("message".to_string(), Value::String("".to_string()));
 
-        let command_instructions: CommandInstructions = CommandInstructions::from_hashmap(command_map);
+        let command_instructions: CommandInstructions = CommandInstructions::from_hashmap(command_map).unwrap();
 
         let command = Command {
             client_key: $client_key.to_string(),
@@ -418,7 +429,14 @@ fn handle_special_functions(client_key: String, function: String) -> Command {
 
         let command_response = &up_schedule[0];
 
-        let response_command = Command::from_up_command(command_response.clone());
+        let response_command = match Command::from_up_command(command_response.clone()) {
+            Ok(c) => c,
+            Err(e) => {
+                // TODO >>> Handle the invalid Commands cases
+                println!("Command received during ping: {} is invalid, gives error: {:?}! Returning C207", command_response, e);
+                return create_special_command!(client_key, "C207");
+            },
+        };
 
         enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(client_key.clone(), response_command.parity_id.clone());
 
@@ -459,15 +477,31 @@ fn handle_common_function(command: Command) -> Command {
     // >----------
     // > Send receive conf
 
+    // let mut command_map = HashMap::new();
+    // command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+    // command_map.insert("function".to_string(), Value::String("C210".to_string()));
+
+    let command_map = create_special_command!(command.client_key.to_string().clone(), "C210".to_string());
+
     let mut command_map = HashMap::new();
+
+    let kwargs: HashMap<String, Value> = HashMap::new();
+
+    command_map.insert("mode".to_string(), Value::String("function".to_string()));
     command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-    command_map.insert("function".to_string(), Value::String("C210".to_string()));
+    command_map.insert("target".to_string(), Value::String("origin".to_string()));
+    command_map.insert("status".to_string(), Value::String("success".to_string()));
+    command_map.insert("actf".to_string(), Value::String("C210".to_string()));
+    command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
+    command_map.insert("message".to_string(), Value::String("".to_string()));
+
+    let command_instructions: CommandInstructions = CommandInstructions::from_hashmap(command_map).unwrap();
 
     let conf_command = Command {
         client_key: command.client_key.to_string().clone(),
         parity_id: command.parity_id.to_string().clone(),
         priority: 11,
-        command: command_map,
+        command: command_instructions,
     };
 
     return conf_command;
@@ -700,77 +734,73 @@ fn handle_connection(mut stream: TcpStream) {
             let command_patterns = COMMAND_PATTERNS.lock().unwrap();
 
             println!("\nCommand.Command: {:?}", command.command);
-            println!("\nCommand.Command.function: {:?}", command.command.get("function"));
+            println!("\nCommand.Command.function: {:?}", command.command.actf);
 
-            match command.command.get("function") {
-                Some(Value::String(function)) => {
-                    logger.debug(format!("Command function: {}", function));
+            logger.debug(format!("Command function: {}", command.command.actf));
 
-                    let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
+            let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
 
-                    if special_functions.contains(&function) {
-                        // -> Special Function Handler
+            if special_functions.contains(&command.command.actf) {
+                // -> Special Function Handler
 
-                        let response = handle_special_functions(command.client_key, function.clone());
+                let response = handle_special_functions(command.client_key, command.command.actf.clone());
 
-                        let command_response_json = json!(response).to_string();
+                let command_response_json = json!(response).to_string();
 
-                        logger.debug(format!("Sending back: {:?}", command_response_json));
+                logger.debug(format!("Sending back: {:?}", command_response_json));
 
-                        stream.write_all(command_response_json.as_bytes()).unwrap();
-                    } else if command_patterns.command_exists("host", function) || direct_functions.contains(function) {
-                        // TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
+                stream.write_all(command_response_json.as_bytes()).unwrap();
+            } else if command_patterns.command_exists("host", command.command.actf.as_str()) || direct_functions.contains(&command.command.actf) {
+                // TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
 
-                        // -> Common Function Handler
+                // -> Common Function Handler
 
-                        logger.debug("Command is in command patterns!".to_string());
+                logger.debug("Command is in command patterns!".to_string());
 
-                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(command.parity_id.clone(), command.client_key.clone());
+                let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(command.parity_id.clone(), command.client_key.clone());
 
-                        let response: Command;
+                let response: Command;
 
-                        if !command_is_not_registry {
-                            logger.warn(format!("Command {}, already have a response!", command.parity_id.clone()));
+                if !command_is_not_registry {
+                    logger.warn(format!("Command {}, already have a response!", command.parity_id.clone()));
 
-                            match get_response(command.clone()) {
-                                Response::Command(c) => {
-                                    if c.client_key == command.client_key {
-                                        response = c;
-                                    } else {
-                                        logger.info("Response is None!".to_string());
-                                        response = create_special_command!(command.client_key, "C210");
-                                    }
-                                },
-                                Response::None => {
-                                    logger.info("Response is None!".to_string());
-                                    response = create_special_command!(command.client_key, "C210");
-                                },
+                    match get_response(command.clone()) {
+                        Response::Command(c) => {
+                            if c.client_key == command.client_key {
+                                response = c;
+                            } else {
+                                logger.info("Response is None!".to_string());
+                                response = create_special_command!(command.client_key, "C210");
                             }
-                        } else {
-                            response = handle_common_function(command);
-                        }
-
-                        let command_json = json!(response).to_string();
-
-                        logger.debug(format!("Sending back: {:?}", command_json));
-
-                        stream.write_all(command_json.as_bytes()).unwrap();
-                    } else {
-                        // -> None of above
-
-                        let command = create_command_error!(command.client_key, command.parity_id, format!("Function: {}, Doesn't exist!", function));
-
-                        let command_json = json!(command).to_string();
-
-                        logger.debug(format!("Sending back: {:?}", command_json));
-
-                        stream.write_all(command_json.as_bytes()).unwrap();
+                        },
+                        Response::None => {
+                            logger.info("Response is None!".to_string());
+                            response = create_special_command!(command.client_key, "C210");
+                        },
                     }
-                },
-                _ => {
-                    logger.warn("The function name is not found or not a string.".to_string());
-                },
+                } else {
+                    response = handle_common_function(command);
+                }
+
+                let command_json = json!(response).to_string();
+
+                logger.debug(format!("Sending back: {:?}", command_json));
+
+                stream.write_all(command_json.as_bytes()).unwrap();
+            } else {
+                // -> None of above
+
+                let command = create_command_error!(command.client_key, command.parity_id, format!("Function: {}, Doesn't exist!", command.command.actf));
+
+                let command_json = json!(command).to_string();
+
+                logger.debug(format!("Sending back: {:?}", command_json));
+
+                stream.write_all(command_json.as_bytes()).unwrap();
             }
+            // _ => {
+            //     logger.warn("The function name is not found or not a string.".to_string());
+            // },
         }
     }
 
