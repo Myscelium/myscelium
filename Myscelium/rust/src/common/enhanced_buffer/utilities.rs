@@ -46,8 +46,75 @@ pub struct CommandInstructions {
     pub message: String,
 }
 
+#[derive(Debug)]
+pub enum CommandError {
+    InvalidCommand(String),
+}
+
 impl CommandInstructions {
-    pub fn from_hashmap(map: HashMap<String, String>) -> Result<Self, String> {
+    pub fn new(mode: CommandMode, command_type: CommandType, target: String, status: CommandStatus, origin: CommandOrigin, actf: String, kwargs: HashMap<String, serde_json::Value>, message: String) -> Self {
+        Self {
+            mode,
+            command_type,
+            target,
+            status,
+            origin,
+            actf,
+            kwargs,
+            message,
+        }
+    }
+
+    pub fn from_hashmap(mut map: HashMap<String, Value>) -> Result<Self, CommandError> {
+        let mode = match map.get("type").and_then(Value::as_str) {
+            Some("function") => CommandMode::Function,
+            Some("response") => CommandMode::Response,
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
+        };
+
+        let command_type = match map.get("mode").and_then(Value::as_str) {
+            Some("special_function") => CommandType::SpecialFunction,
+            Some("direct_function") => CommandType::DirectFunction,
+            Some("internal_management") => CommandType::InternalManagement,
+            Some("default") => CommandType::Default,
+            Some("redirect") => CommandType::Redirect,
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing mode".to_string())),
+        };
+
+        let target = map.get("target").and_then(Value::as_str).map(String::from).ok_or_else(|| CommandError::InvalidCommand("Missing target".to_string()))?;
+        let status = match map.get("status").and_then(Value::as_str) {
+            Some("success") => CommandStatus::Success,
+            Some("failure") => CommandStatus::Failure,
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing status".to_string())),
+        };
+
+        let origin = match map.get("origin").and_then(Value::as_str) {
+            Some("host") => CommandOrigin::Host,
+            Some(client_id) => CommandOrigin::ClientId(client_id.to_string()),
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing origin".to_string())),
+        };
+
+        let actf = map.get("actf").and_then(Value::as_str).map(String::from).ok_or_else(|| CommandError::InvalidCommand("Missing actf".to_string()))?;
+        let message = map.get("message").and_then(Value::as_str).map(String::from).ok_or_else(|| CommandError::InvalidCommand("Missing message".to_string()))?;
+
+        // Extract kwargs directly
+        let kwargs = map
+            .remove("kwargs")
+            .map_or_else(|| HashMap::new(), |v| v.as_object().map_or_else(|| HashMap::new(), |map| map.into_iter().map(|(k, v)| (k.clone(), v.clone())).collect()));
+
+        Ok(CommandInstructions {
+            mode,
+            command_type,
+            target,
+            status,
+            origin,
+            actf,
+            kwargs,
+            message,
+        })
+    }
+
+    pub fn from_string_hashmap(mut map: HashMap<String, String>) -> Result<Self, String> {
         let mode = match map.get("type").map(String::as_str) {
             Some("function") => CommandMode::Function,
             Some("response") => CommandMode::Response,
@@ -79,12 +146,12 @@ impl CommandInstructions {
         let actf = map.get("actf").cloned().ok_or_else(|| "Missing actf".to_string())?;
         let message = map.get("message").cloned().ok_or_else(|| "Missing message".to_string())?;
 
-        let mut kwargs = HashMap::new();
-        for (key, value) in map {
-            if !["type", "mode", "target", "status", "origin", "actf", "message"].contains(&key.as_str()) {
-                kwargs.insert(key, Value::String(value));
-            }
-        }
+        // Extract and parse the kwargs field
+        let kwargs = if let Some(kwargs_str) = map.remove("kwargs") {
+            serde_json::from_str::<HashMap<String, Value>>(&kwargs_str).map_err(|e| format!("Failed to parse kwargs: {}", e))?
+        } else {
+            HashMap::new()
+        };
 
         Ok(CommandInstructions {
             mode,
@@ -140,11 +207,6 @@ fn transform_value(value: &Value) -> Value {
     }
 }
 
-#[derive(Debug)]
-pub enum CommandError {
-    InvalidCommand,
-}
-
 impl Command {
     pub fn new(client_key: String, parity_id: String, priority: u8, command: CommandInstructions) -> Self {
         Self { client_key, parity_id, priority, command }
@@ -157,7 +219,7 @@ impl Command {
 
         let command: CommandInstructions = match serde_json::from_str(&down_command.command) {
             Ok(c) => c,
-            Err(_) => return Err(CommandError::InvalidCommand),
+            Err(_) => return Err(CommandError::InvalidCommand("".to_string())),
         };
 
         Ok(Self { client_key, parity_id, priority, command })
@@ -170,7 +232,7 @@ impl Command {
 
         let command: CommandInstructions = match serde_json::from_str(&up_command.command) {
             Ok(c) => c,
-            Err(_) => return Err(CommandError::InvalidCommand),
+            Err(_) => return Err(CommandError::InvalidCommand("".to_string())),
         };
 
         println!("Client -> Command from UpCommand: {:?}", command);

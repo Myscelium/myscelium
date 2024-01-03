@@ -16,7 +16,7 @@ use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
-use crate::common::enhanced_buffer::utilities::Command;
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions};
 
 use crate::handle_client_error;
 use crate::socket_host::scheduler::{request_client_available_commands, send_network_available_commands};
@@ -116,16 +116,26 @@ macro_rules! acquire_logger {
 }
 
 macro_rules! create_special_command {
-    ($client_key:expr, $response:expr) => {{
+    ($client_key:expr, $special_command:expr) => {{
         let mut command_map = HashMap::new();
+
+        let kwargs: HashMap<String, Value> = HashMap::new();
+
+        command_map.insert("mode".to_string(), Value::String("function".to_string()));
         command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-        command_map.insert("function".to_string(), Value::String($response.to_string()));
+        command_map.insert("target".to_string(), Value::String("origin".to_string()));
+        command_map.insert("status".to_string(), Value::String("success".to_string()));
+        command_map.insert("actf".to_string(), Value::String($special_command.to_string()));
+        command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
+        command_map.insert("message".to_string(), Value::String("".to_string()));
+
+        let command_instructions: CommandInstructions = CommandInstructions::from_hashmap(command_map);
 
         let command = Command {
             client_key: $client_key.to_string(),
             parity_id: "itisaspecialcase".to_string(),
             priority: 11,
-            command: command_map,
+            command: command_instructions,
         };
         command
     }};
@@ -194,7 +204,6 @@ pub fn update_last_contact(client_key: String) {
         Ok(c) => {
             println!("Receive client contact!");
             handle_client_error!(c.update_last_contact());
-            println!("Update client contact!");
         },
         Err(e) => match e {
             ClientError::ClientAlreadyExist(e) => {
