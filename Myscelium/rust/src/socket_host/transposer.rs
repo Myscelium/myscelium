@@ -405,35 +405,42 @@ fn process(py: Python, down_command: DownCommand) {
     // * however if the message is becomes too old before the client the message is redirected catches it
     // * The system have to remove this old message from the buffer too.
 
-    let translated_command: Command = Command::from_down_command(down_command.clone());
+    let translated_command: Command = match Command::from_down_command(down_command.clone()) {
+        Ok(c) => c,
+        Err(e) => {
+            // TODO >>> handle this erro case
+            logger.warn(format!("Error converting COMMAND from down_command."));
+            return;
+        },
+    };
 
     logger.debug(format!("Translated command: {:?}", translated_command));
 
-    let function;
+    // let function;
 
-    {
-        function = match translated_command.command.get("function") {
-            Some(Value::String(function)) => function,
-            _ => {
-                logger.warn(format!("The function name is not found or not a string."));
-                return;
-            },
-        };
-    }
+    // {
+    //     function = match translated_command.command.get("function") {
+    //         Some(Value::String(function)) => function,
+    //         _ => {
+    //             logger.warn(format!("The function name is not found or not a string."));
+    //             return;
+    //         },
+    //     };
+    // }
 
     let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
 
     let result;
 
-    if direct_functions.contains(&function) {
+    if direct_functions.contains(&translated_command.command.actf) {
         // -> Default Rust direct function
-        result = handle_direct_function(&translated_command.client_key, function, translated_command.command.clone(), command_id);
+        result = handle_direct_function(&translated_command.client_key, &translated_command.command.actf, translated_command.command.clone(), command_id);
     } else {
         {
             let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
 
             // -> Remove command from schedule if it isn't on the patterns
-            if !global_command_patterns.command_exists("host", &function) {
+            if !global_command_patterns.command_exists("host", &translated_command.command.actf) {
                 // TODO >>> Add a mecanism to check if the command exist for the target client
                 // TODO >>> Also adda mecanism to commands have a target by default, and if target is host then target is host
                 logger.warn(format!("Command isn't registered in the patterns"));
