@@ -92,7 +92,7 @@ pub fn clients_manager_initialize_table(sql_path: String) {
 
     with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
         let result = conn.execute(
-            "CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY, ClientName TEXT, ClientKey TEXT, ClientType TEXT, PermissionGroup TEXT, SuperUser BOOL, LastContact NUMBER, MaxSubChannels NUMBER, OwnedSubChannelsKeys TEXT, SubChannelsInUse NUMBER, Handlers TEXT)",
+            "CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY, ClientName TEXT, ClientKey TEXT, ClientType TEXT, PermissionGroup TEXT, SuperUser BOOL, LastContact NUMBER, MaxSubChannels NUMBER, OwnedSubChannelsKeys TEXT, SubChannelsInUse NUMBER, Handlers TEXT, Syncronized BOOL)",
             params![],
         );
 
@@ -118,15 +118,16 @@ pub enum ClientError {
 pub struct Client {
     pub client_id: u32,
     client_name: String,
-    client_key: String,
+    pub client_key: String,
     client_type: String,
     permission_group: String,
     is_super_user: bool,
-    last_contact: f64,
+    pub last_contact: f64,
     max_sub_channels: u32,
     owned_sub_channels_keys: Vec<String>,
     sub_channels_in_use: u32,
     client_handlers: Vec<HashMap<String, Value>>, // To Store client Handlers
+    syncronized: bool,
 }
 
 // > Get client by key
@@ -198,6 +199,8 @@ impl Client {
 
         // -> Store the default handlers
 
+        // TODO >>> Add the new client handlers mechanism
+
         if client_handlers.is_empty() {
             // r# means raw string
             let json_str = r#"[
@@ -231,7 +234,12 @@ impl Client {
             owned_sub_channels_keys,
             sub_channels_in_use: 0u32,
             client_handlers,
+            syncronized: false,
         })
+    }
+
+    pub fn get_client_name(&self) -> String {
+        self.client_name.clone()
     }
 
     pub fn save_into_db(&self) {
@@ -251,7 +259,7 @@ impl Client {
             }
 
             let result = conn.execute(
-                "INSERT INTO Clients (ID, ClientName, ClientKey, ClientType, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse, Handlers) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                "INSERT INTO Clients (ID, ClientName, ClientKey, ClientType, PermissionGroup, SuperUser, LastContact, MaxSubChannels, OwnedSubChannelsKeys, SubChannelsInUse, Handlers, Syncronized) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                 params![
                     self.client_id,
                     self.client_name,
@@ -264,6 +272,7 @@ impl Client {
                     serialzied_owned_sub_channels_keys,
                     self.sub_channels_in_use,
                     client_handlers,
+                    self.syncronized
                 ],
             );
 
@@ -290,7 +299,7 @@ impl Client {
             let client_handlers = to_string_pretty(&self.client_handlers).expect("Failed to serialize"); // Try to convert Vec<HashMap<String, Value>> to string
 
             let result = conn.execute(
-                "UPDATE Clients SET ClientName = ?, ClientKey = ?, ClientType = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, OwnedSubChannelsKeys = ?, SubChannelsInUse = ?, Handlers = ? WHERE ID = ?",
+                "UPDATE Clients SET ClientName = ?, ClientKey = ?, ClientType = ?, PermissionGroup = ?, SuperUser = ?, LastContact = ?, MaxSubChannels = ?, OwnedSubChannelsKeys = ?, SubChannelsInUse = ?, Handlers = ?, Syncronized = ? WHERE ID = ?",
                 params![
                     new_client.client_name,
                     new_client.client_key,
@@ -303,6 +312,7 @@ impl Client {
                     new_client.sub_channels_in_use,
                     self.client_id,
                     client_handlers,
+                    new_client.syncronized,
                 ],
             );
 
@@ -332,6 +342,7 @@ impl Client {
             owned_sub_channels_keys: new_client.owned_sub_channels_keys.clone(),
             sub_channels_in_use: new_client.sub_channels_in_use,
             client_handlers: new_client.client_handlers.clone(),
+            syncronized: new_client.syncronized,
         })
     }
 
@@ -356,6 +367,7 @@ impl Client {
                             serde_json::from_str::<Vec<String>>(row.get::<_, String>(8)?.as_str()).unwrap(),
                             row.get(9).unwrap(),
                             serde_json::from_str::<Vec<HashMap<String, Value>>>(row.get::<_, String>(10)?.as_str()).unwrap(),
+                            row.get(11).unwrap(),
                         ))
                     })
                     .unwrap();
@@ -394,6 +406,7 @@ impl Client {
                             serde_json::from_str::<Vec<String>>(row.get::<_, String>(8)?.as_str()).unwrap(),
                             row.get(9).unwrap(),
                             serde_json::from_str::<Vec<HashMap<String, Value>>>(row.get::<_, String>(10)?.as_str()).unwrap(),
+                            row.get(11).unwrap(),
                         ))
                     })
                     .unwrap();
@@ -472,9 +485,12 @@ impl Client {
             owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
             sub_channels_in_use: self.sub_channels_in_use.clone(),
             client_handlers: self.client_handlers.clone(),
+            syncronized: self.syncronized.clone(),
         };
 
         edit_client(new_client.clone());
+
+        println!("Update client contact for client: {}!", self.client_id);
 
         Ok(new_client)
     }
@@ -492,6 +508,32 @@ impl Client {
             owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
             sub_channels_in_use: self.sub_channels_in_use.clone(),
             client_handlers: new_handlers,
+            syncronized: self.syncronized.clone(),
+        };
+
+        edit_client(new_client.clone());
+
+        Ok(new_client)
+    }
+
+    pub fn is_sync(&self) -> bool {
+        self.syncronized
+    }
+
+    pub fn change_sync_to(&self, sync: bool) -> Result<Self, ClientError> {
+        let new_client = Self {
+            client_id: self.client_id.clone(),
+            client_name: self.client_name.clone(),
+            client_key: self.client_key.clone(),
+            client_type: self.client_type.clone(),
+            permission_group: self.permission_group.clone(),
+            is_super_user: self.is_super_user.clone(),
+            last_contact: self.last_contact.clone(),
+            max_sub_channels: self.max_sub_channels.clone(),
+            owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
+            sub_channels_in_use: self.sub_channels_in_use.clone(),
+            client_handlers: self.client_handlers.clone(),
+            syncronized: sync,
         };
 
         edit_client(new_client.clone());
@@ -516,6 +558,7 @@ impl Client {
             owned_sub_channels_keys: self.owned_sub_channels_keys.clone(),
             sub_channels_in_use: self.sub_channels_in_use,
             client_handlers: self.client_handlers.clone(),
+            syncronized: self.syncronized.clone(),
         };
 
         edit_client(new_client.clone());
@@ -535,6 +578,7 @@ impl Client {
         owned_sub_channels_keys: Vec<String>,
         sub_channels_in_use: u32,
         client_handlers: Vec<HashMap<String, Value>>,
+        syncronized: bool,
     ) -> Result<Self, ClientError> {
         Ok(Self {
             client_id,
@@ -548,6 +592,7 @@ impl Client {
             owned_sub_channels_keys,
             sub_channels_in_use,
             client_handlers,
+            syncronized,
         })
     }
 }
@@ -583,6 +628,46 @@ fn get_clients_keys_registered() -> Vec<String> {
         // println!("Client Keys registred: {:?}", keys.clone());
 
         keys
+    })
+}
+
+pub fn get_all_clients() -> Result<Vec<Client>, ClientError> {
+    let mut clients: Vec<Client> = Vec::new();
+
+    with_connection!(SQL_POOL, |conn: &rusqlite::Connection| {
+        let mut keys: Vec<String> = Vec::new();
+
+        {
+            let mut smtp: Statement<'_> = conn.prepare("SELECT * FROM Clients").unwrap();
+            let clients_iter = smtp
+                .query_map(params![], |row: &Row<'_>| {
+                    Ok(Client::from(
+                        row.get(0).unwrap(),
+                        row.get(1).unwrap(),
+                        row.get(2).unwrap(),
+                        row.get(3).unwrap(),
+                        row.get(4).unwrap(),
+                        row.get(5).unwrap(),
+                        row.get(6).unwrap(),
+                        row.get(7).unwrap(),
+                        serde_json::from_str::<Vec<String>>(row.get::<_, String>(8)?.as_str()).unwrap(),
+                        row.get(9).unwrap(),
+                        serde_json::from_str::<Vec<HashMap<String, Value>>>(row.get::<_, String>(10)?.as_str()).unwrap(),
+                        row.get(11).unwrap(),
+                    ))
+                })
+                .unwrap();
+
+            for client in clients_iter {
+                clients.push(client.unwrap()?);
+            }
+
+            if clients.len() == 0 {
+                return Err(ClientError::UnexpectedError("Any clients registred!".to_string()));
+            } else {
+                return Ok(clients.clone());
+            }
+        }
     })
 }
 
@@ -626,8 +711,8 @@ pub fn edit_client(client: Client) {
                 client.max_sub_channels,
                 serialized_owned_sub_channels_keys,
                 client.sub_channels_in_use,
+                client_handlers,
                 client.client_id,
-                client_handlers
             ],
         );
 

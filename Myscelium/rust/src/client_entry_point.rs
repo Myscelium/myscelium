@@ -476,7 +476,7 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id
         println!("Socket host exited successfully!");
     });
 
-    scheduler::request_host_available_commands();
+    // scheduler::request_host_available_commands();
 
     loop {
         initialize_socket_client_transposer();

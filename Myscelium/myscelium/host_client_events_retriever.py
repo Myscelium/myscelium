@@ -32,7 +32,7 @@ class Clients_Retriever:
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
-        df = pd.DataFrame(df, columns=['ID', 'ClientName', 'ClientKey', 'ClientType', 'PermissionGroup', 'SuperUser', 'LastContact', 'MaxSubChannels', 'OwnedSubChannelsKeys', 'SubChannelsInUse', 'Handlers'])
+        df = pd.DataFrame(df, columns=['ID', 'ClientName', 'ClientKey', 'ClientType', 'PermissionGroup', 'SuperUser', 'LastContact', 'MaxSubChannels', 'OwnedSubChannelsKeys', 'SubChannelsInUse', 'Handlers', 'Syncronized'])
         dict_df = df.to_dict()
         
         return dict_df

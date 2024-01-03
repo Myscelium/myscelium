@@ -1,8 +1,11 @@
 use crate::common::enhanced_buffer::utilities::Command;
 use crate::common::structs::results_structs::ResultType;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::sync::MutexGuard;
+pub enum ConversionError {
+    UnsuportedValueVariant(String),
+}
 
 /// Converts a `HashMap<String, ResultType>` into another `HashMap<String, ResultType>`
 /// with specific transformations.
@@ -58,7 +61,7 @@ pub fn convert_to_resulttype_map(m: &HashMap<String, ResultType>) -> HashMap<Str
 /// let result_type = value_to_resulttype(&value);
 /// assert!(matches!(result_type, Ok(ResultType::Str(_))));
 /// ```
-pub fn value_to_resulttype(value: &Value) -> Result<ResultType, String> {
+pub fn value_to_resulttype(value: &Value) -> Result<ResultType, ConversionError> {
     match value {
         Value::String(s) => Ok(ResultType::Str(s.clone())),
         Value::Number(n) => {
@@ -67,7 +70,7 @@ pub fn value_to_resulttype(value: &Value) -> Result<ResultType, String> {
             } else if n.is_f64() {
                 Ok(ResultType::Float(n.as_f64().unwrap()))
             } else {
-                Err("Number is neither i64 nor f64".to_string())
+                Err(ConversionError::UnsuportedValueVariant("Number is neither i64 nor f64".to_string()))
             }
         },
         Value::Bool(b) => Ok(ResultType::Bool(*b)),
@@ -84,7 +87,7 @@ pub fn value_to_resulttype(value: &Value) -> Result<ResultType, String> {
         },
         Value::Null => Ok(ResultType::Empty),
         // Handling of other Value variants if needed
-        _ => Err("Unsupported Value variant".to_string()),
+        _ => Err(ConversionError::UnsuportedValueVariant("".to_string())),
     }
 }
 
@@ -141,6 +144,30 @@ pub fn convert_to_value_map(dict: &HashMap<String, ResultType>) -> HashMap<Strin
     dict.iter().map(|(k, v)| (k.clone(), resulttype_to_value(v))).collect()
 }
 
+/// Converts a `HashMap<String, ResultType>` into a `HashMap<String, Value>`.
+///
+/// This function is a utility to transform a map of `ResultType` values into their
+/// corresponding JSON representations.
+///
+/// # Arguments
+///
+/// * `dict` - The input map to be converted.
+///
+/// # Returns
+///
+/// * A `HashMap<String, Value>` with values converted into their `serde_json::Value` representations.
+pub fn convert_value_map_to_resulttype_map(map: &HashMap<String, Value>) -> Result<ResultType, ConversionError> {
+    let result_map: HashMap<String, ResultType> = map
+        .iter()
+        .map(|(k, v)| match value_to_resulttype(v) {
+            Ok(result_type) => Ok((k.clone(), result_type)),
+            Err(e) => Err(e),
+        })
+        .collect::<Result<_, _>>()?;
+
+    Ok(ResultType::Map(result_map))
+}
+
 /// Recursively deserializes a JSON string into a `Command` structure.
 ///
 /// This function is useful when the "response" field of a `Command` contains another serialized `Command` as a string.
@@ -164,4 +191,38 @@ pub fn recursive_deserialize_command(json_str: &str) -> Command {
     }
 
     command
+}
+
+/// Converts a reference to a `serde_json::Map<String, Value>` into a `HashMap<String, Value>`.
+///
+/// This function takes a reference to a map from the `serde_json` crate and
+/// clones each key-value pair into a new `HashMap` from the standard library.
+/// This is useful when you need to work with standard `HashMap` functionality
+/// not specifically tied to JSON processing.
+///
+/// # Arguments
+///
+/// * `json_map` - A reference to a `serde_json::Map<String, Value>` that needs to be converted.
+///
+/// # Returns
+///
+/// Returns a `HashMap<String, Value>` containing all the keys and values from the input `serde_json::Map`.
+///
+/// # Examples
+///
+/// ```
+/// use serde_json::{Map, Value};
+/// use std::collections::HashMap;
+///
+/// let json_map: Map<String, Value> = serde_json::from_str(r#"{"key1": "value1", "key2": "value2"}"#).unwrap();
+/// let hash_map: HashMap<String, Value> = convert_json_map_to_hash_map(&json_map);
+///
+/// assert_eq!(hash_map.get("key1"), Some(&Value::String("value1".to_string())));
+/// assert_eq!(hash_map.get("key2"), Some(&Value::String("value2".to_string())));
+/// ```
+///
+/// Note: This function clones the data from the `serde_json::Map`, so changes to the returned `HashMap`
+/// will not affect the original `serde_json::Map`.
+pub fn convert_json_map_to_hash_map(json_map: &Map<String, Value>) -> HashMap<String, Value> {
+    json_map.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
 }

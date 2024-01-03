@@ -368,6 +368,7 @@ class MysceliumHostInterface:
                         continue
 
                     self.clients_contact_retriever_callback(actual_to_compare[1], actual_to_compare[2], actual_to_compare[6])
+                    print(f"Client: {actual_to_compare[1]} of key: {actual_to_compare[2]} made contact")
                 
                 else:
                     pass                
@@ -425,6 +426,8 @@ class MysceliumHostInterface:
         """
         Start the clients event retriever process.
         """
+
+        print("client_events_retriever started!")
 
         self.client_events_retriever_stats = True
 

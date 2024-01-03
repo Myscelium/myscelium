@@ -171,7 +171,7 @@ impl ResultType {
     ///
     /// This makes it easier to handle type mismatches by providing a human-readable
     /// type name.
-    fn type_of(&self) -> &'static str {
+    pub fn type_of(&self) -> &'static str {
         match self {
             ResultType::Map(_) => "Map",
             ResultType::List(_) => "List",

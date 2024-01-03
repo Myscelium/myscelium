@@ -9,6 +9,7 @@ use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 #[derive(Debug)]
 pub enum CommandType {
     SpecialFunction(Value),
+    DirectFunction(Value),
     Function(Value),
     Response(HashMap<String, Value>),
     Redirect(HashMap<String, Value>),
@@ -18,7 +19,7 @@ pub enum CommandType {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Command {
-    pub client_id: String,
+    pub client_key: String,
     pub parity_id: String,
     pub priority: u8,
     pub command: HashMap<String, Value>,
@@ -58,12 +59,12 @@ fn transform_value(value: &Value) -> Value {
 }
 
 impl Command {
-    pub fn new(client_id: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
-        Self { client_id, parity_id, priority, command }
+    pub fn new(client_key: String, parity_id: String, priority: u8, command: HashMap<String, Value>) -> Self {
+        Self { client_key, parity_id, priority, command }
     }
 
     pub fn from_down_command(down_command: DownCommand) -> Self {
-        let client_id = down_command.client_id.clone();
+        let client_key = down_command.client_key.clone();
         let parity_id = down_command.parity_id.clone();
         let priority = down_command.priority.clone();
 
@@ -80,18 +81,18 @@ impl Command {
             command = HashMap::new();
             // Handle the case where the outer_value is not an object
         }
-        Self { client_id, parity_id, priority, command }
+        Self { client_key, parity_id, priority, command }
     }
 
     pub fn from_up_command(up_command: UpCommand) -> Self {
-        let client_id = up_command.client_id.clone();
+        let client_key = up_command.client_key.clone();
         let parity_id = up_command.parity_id.clone();
         let priority = up_command.priority.clone();
         let command: HashMap<String, Value> = serde_json::from_str(&up_command.command).unwrap();
 
         println!("Client -> Command from UpCommand: {:?}", command);
 
-        Self { client_id, parity_id, priority, command }
+        Self { client_key, parity_id, priority, command }
     }
 
     pub fn command_type(&self) -> CommandType {
@@ -104,6 +105,10 @@ impl Command {
                 "function" => {
                     println!("Self: {:?} have function: {:?}", self.command, self.command.get("function"));
                     CommandType::Function(self.command.get("function").unwrap().clone())
+                },
+                "direct_function" => {
+                    println!("Self: {:?} have direct function: {:?}", self.command, self.command.get("function"));
+                    CommandType::DirectFunction(self.command.get("function").unwrap().clone())
                 },
                 "special_function" => {
                     println!("Self: {:?} have special function: {:?}", self.command, self.command.get("function"));
