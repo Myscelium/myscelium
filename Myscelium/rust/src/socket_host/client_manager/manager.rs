@@ -490,6 +490,8 @@ impl Client {
 
         edit_client(new_client.clone());
 
+        println!("Update client contact for client: {}!", self.client_id);
+
         Ok(new_client)
     }
 
@@ -709,8 +711,8 @@ pub fn edit_client(client: Client) {
                 client.max_sub_channels,
                 serialized_owned_sub_channels_keys,
                 client.sub_channels_in_use,
+                client_handlers,
                 client.client_id,
-                client_handlers
             ],
         );
 
