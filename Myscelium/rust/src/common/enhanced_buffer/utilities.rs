@@ -6,6 +6,38 @@ use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 
+use std::fmt;
+
+trait Stringifiable: Sized {
+    fn eq_str(&self, other: &str) -> bool;
+}
+
+// Implement the trait for each of your enums
+macro_rules! impl_stringfiable_for_enum {
+    ($($t:ty),+) => {
+        $(
+            impl Stringifiable for $t {
+                fn eq_str(&self, other:&str) -> bool {
+                    format!("{:?}", self) == other
+                }
+            }
+
+            impl fmt::Display for $t {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    write!(f, "{:?}", self)
+                }
+            }
+
+            impl PartialEq<&str> for $t {
+                fn eq(&self, other:&&str) -> bool {
+                    self.eq_str(other)
+                }
+            }
+        )+
+    }
+
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandMode {
     Function,
@@ -27,14 +59,16 @@ pub enum CommandStatus {
     Failure,
 }
 
-impl PartialEq<&str> for CommandStatus {
-    fn eq(&self, other: &&str) -> bool {
-        match self {
-            CommandStatus::Success => *other == "Success",
-            CommandStatus::Failure => *other == "Failure",
-        }
-    }
-}
+// impl PartialEq<&str> for CommandStatus {
+//     fn eq(&self, other: &&str) -> bool {
+//         match self {
+//             CommandStatus::Success => *other == "Success",
+//             CommandStatus::Failure => *other == "Failure",
+//         }
+//     }
+// }
+
+impl_stringfiable_for_enum!(CommandMode, CommandType, CommandStatus);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandOrigin {

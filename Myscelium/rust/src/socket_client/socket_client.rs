@@ -1,7 +1,7 @@
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 
-use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandType};
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
@@ -392,6 +392,33 @@ fn handle_response(received: Response) -> Received {
         },
     }
 
+    match command_received.command.mode {
+        // TODO >> Rebuild this, responses now isn't a command type but a CommandMode
+        CommandMode::Response => {
+            //* From now this is basically equal to response
+            logger.info(format!("[Socket Client] - Received a response!: \n{:?}", command_received.command));
+
+            let status: String = command_received.command.status.to_string();
+
+            // if status == "error".to_string() {
+            //     let val = Value::String("Unknown error".to_string());
+            //     let error_msg = command_received.command.get("message").unwrap_or(&val);
+            //     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", serde_json::from_value::<String>(error_msg.clone()).unwrap()));
+            //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
+            //     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+            //     return None;
+            // }
+
+            let down_command = DownCommand::from_command(command_received.clone());
+
+            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
+
+            return Received::DownCommand(down_command);
+        },
+
+        CommandMode::Function => {},
+    }
+
     match command_received.command.command_type {
         CommandType::Default => {
             // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
@@ -451,28 +478,7 @@ fn handle_response(received: Response) -> Received {
             return Received::DownCommand(down_command);
         },
 
-        CommandType::SpecialFunction => {
-            let function: String = command_received.command.actf;
-
-            if command_received.parity_id != "itisaspecialcase" {
-                if function == "C210".to_string() {
-                    logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", command_received.parity_id, command_received.client_key));
-                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-                    return Received::Confirmation;
-                }
-
-                // TODO >>> Implement the error cases
-                // else if function == "Error".to_string() {
-                //     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
-                //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-                //     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                //     return Received::Error("".to_string());
-                // }
-            }
-
-            logger.debug(format!("Receive a special function: {:?}", command_received.command.actf));
-            return Received::Nothing;
-        },
+        CommandTpye::InternalManagement => {},
 
         CommandType::SpecialFunction => {
             if command_received.parity_id != "itisaspecialcase" {
@@ -492,50 +498,26 @@ fn handle_response(received: Response) -> Received {
             return Received::Nothing;
         },
 
-        CommandType::Response(r) => {
-            //* From now this is basically equal to response
-            logger.info(format!("[Socket Client] - Received a response!: \n{:?}", r));
+        // CommandType::Error(_) => {
+        //     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("message").unwrap()));
+        //     // CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
 
-            let status = serde_json::from_value::<String>(r.get("status").unwrap().clone()).unwrap();
+        //     // return None;
 
-            // if status == "error".to_string() {
-            //     let val = Value::String("Unknown error".to_string());
-            //     let error_msg = command_received.command.get("message").unwrap_or(&val);
-            //     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", serde_json::from_value::<String>(error_msg.clone()).unwrap()));
-            //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-            //     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-            //     return None;
-            // }
+        //     let down_command = DownCommand::from_command(command_received.clone());
 
-            let down_command = DownCommand::from_command(command_received.clone());
+        //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
 
-            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-
-            return Received::DownCommand(down_command);
-        },
-
-        CommandType::Error(_) => {
-            logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("message").unwrap()));
-            // CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-
-            // return None;
-
-            let down_command = DownCommand::from_command(command_received.clone());
-
-            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-
-            return Received::DownCommand(down_command);
-        },
-
-        CommandType::Redirect(_) => {
+        //     return Received::DownCommand(down_command);
+        // },
+        CommandType::Redirect => {
             logger.warn(format!("Received an Unknown command!"));
             return Received::Nothing;
         },
-
-        CommandType::Unknown => {
-            logger.warn(format!("Received an Unknown command!"));
-            return Received::Nothing;
-        },
+        // CommandType::Unknown => {
+        //     logger.warn(format!("Received an Unknown command!"));
+        //     return Received::Nothing;
+        // },
     }
 }
 
