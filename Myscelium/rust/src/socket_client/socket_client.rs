@@ -171,13 +171,39 @@ enum Response {
     None,
 }
 
+macro_rules! create_error_command {
+    ($client_key:expr, $parity_id:expr, $error:expr) => {{
+        let mut command_map = HashMap::new();
+
+        let kwargs: HashMap<String, Value> = HashMap::new();
+
+        command_map.insert("mode".to_string(), Value::String("function".to_string()));
+        command_map.insert("command_type".to_string(), Value::String("direct_function".to_string()));
+        command_map.insert("target".to_string(), Value::String("origin".to_string()));
+        command_map.insert("status".to_string(), Value::String("failure".to_string()));
+        command_map.insert("actf".to_string(), Value::String("error_handler".to_string()));
+        command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
+        command_map.insert("message".to_string(), Value::String($error.to_string()));
+
+        let command_instructions: CommandInstructions = CommandInstructions::from_hashmap(command_map).unwrap();
+
+        let command = Command {
+            client_key: $client_key.to_string(),
+            parity_id: $parity_id.to_string(),
+            priority: 11,
+            command: command_instructions,
+        };
+        command
+    }};
+}
+
 macro_rules! create_special_command {
     ($client_key:expr, $special_command:expr) => {{
         let mut command_map = HashMap::new();
 
         let kwargs: HashMap<String, Value> = HashMap::new();
 
-        command_map.insert("mode".to_string(), Value::String("function".to_string()));
+        command_map.insert("mode".to_string(), Value::String("functrion".to_string()));
         command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
         command_map.insert("target".to_string(), Value::String("origin".to_string()));
         command_map.insert("status".to_string(), Value::String("success".to_string()));
@@ -214,7 +240,9 @@ macro_rules! create_special_command {
 fn verify_connection(stream: &mut TcpStream) -> bool {
     let logger = acquire_logger!("Core");
 
-    let command = create_special_command!("C202");
+    let client_id_storage = CLIENT_ID.lock();
+
+    let command = create_special_command!(*client_id_storage, "C202");
 
     let command_json = json!(command).to_string();
 
@@ -296,7 +324,9 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
         return None;
     }
 
-    let command_to_request = create_special_command!("C206");
+    let client_id_storage = CLIENT_ID.lock();
+
+    let command_to_request = create_special_command!(*client_id_storage, "C206");
     let received = send(&mut stream, command_to_request.clone());
 
     match handle_response(received) {
@@ -444,23 +474,21 @@ fn handle_response(received: Response) -> Received {
             return Received::Nothing;
         },
 
-        CommandType::SpecialFunction(f) => {
-            let function: String = serde_json::from_value(f.clone()).unwrap();
-
+        CommandType::SpecialFunction => {
             if command_received.parity_id != "itisaspecialcase" {
-                if function == "C210".to_string() {
+                if command_received.command.actf == "C210".to_string() {
                     logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", command_received.parity_id, command_received.client_key));
                     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
                     return Received::Confirmation;
-                } else if function == "Error".to_string() {
-                    logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
+                } else if command_received.command.status == "Failure" {
+                    logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.message));
                     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
                     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                     return Received::Error("".to_string());
                 }
             }
 
-            logger.debug(format!("Receive a special function: {:?}", f));
+            logger.debug(format!("Receive a special function: {:?}", command_received.command.actf));
             return Received::Nothing;
         },
 

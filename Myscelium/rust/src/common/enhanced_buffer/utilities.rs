@@ -27,6 +27,15 @@ pub enum CommandStatus {
     Failure,
 }
 
+impl PartialEq<&str> for CommandStatus {
+    fn eq(&self, other: &&str) -> bool {
+        match self {
+            CommandStatus::Success => *other == "Success",
+            CommandStatus::Failure => *other == "Failure",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandOrigin {
     Host,
