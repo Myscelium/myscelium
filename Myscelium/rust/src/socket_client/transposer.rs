@@ -7,6 +7,7 @@ use crate::common::functions::python_functions::{call_callback, client_call_call
 use crate::common::structs::results_structs::ResultType;
 
 use crate::socket_client::functions::direct_functions::handle_direct_function;
+use crate::socket_host::transposer_functions::handle_direct_function::ProcessResult;
 
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
@@ -254,7 +255,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
 
-    let result;
+    let result: ProcessResult;
 
     if command_patterns.command_exists(client_name.as_str(), &activation_key) {
         logger.info(format!("Command function: {} is a valid function!", activation_key));

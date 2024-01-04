@@ -263,22 +263,10 @@ fn process_and_schedule(resulttype_command: ProcessResult, mut client_key: Strin
 
     match resulttype_command {
         // TODO >>> Implement change of response here
-        ResultType::Map(m) => {
+        ProcessResult::CommandInstructions(m) => {
             (response, client_key) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
         },
-        ResultType::Str(s) => {
-            response = Ok(s.clone());
-        },
-        ResultType::Int(i) => {
-            response = Ok(i.to_string());
-        },
-        ResultType::Float(fl) => {
-            response = Ok(fl.to_string());
-        },
-        ResultType::Bool(b) => {
-            response = Ok(b.to_string());
-        },
-        ResultType::List(l) => {
+        ProcessResult::List(l) => {
             let mut counter: u64 = 0;
             for res in l {
                 match res {
@@ -310,13 +298,13 @@ fn process_and_schedule(resulttype_command: ProcessResult, mut client_key: Strin
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
             return;
         },
-        ResultType::Empty => {
+        ProcessResult::Empty => {
             let mut command_map = HashMap::new();
             command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
             command_map.insert("function".to_string(), Value::String("C210".to_string()));
             response = Ok(serde_json::to_string(&command_map).unwrap());
         },
-        ResultType::Error(e) => {
+        ProcessResult::Error(e) => {
             logger.warn(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
             response = error_response!(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
         },

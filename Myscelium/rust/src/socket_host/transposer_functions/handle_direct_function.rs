@@ -41,6 +41,7 @@ macro_rules! acquire_logger {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProcessResult {
+    Empty,
     List(Vec<ProcessResult>),
     Error(String),
     CommandInstructions(CommandInstructions),
