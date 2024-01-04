@@ -189,6 +189,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     // Determine the type of the command
     match translated_command.command_type() {
+        //TODO link the command types to where they are redirected, now is just obtaining the key and sending to the same place
         CommandType::SpecialFunction => {
             activation_key = translated_command.command.actf;
         },
