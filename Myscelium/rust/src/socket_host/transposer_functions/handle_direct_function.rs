@@ -2,10 +2,12 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 use crate::common::enhanced_buffer;
-use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandStatus, CommandTarget, CommandType};
 use crate::common::structs::avaliable_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
 use crate::socket_client::transposer::ProcessError;
+
+use serde::{Deserialize, Serialize};
 
 use crate::socket_host::transposer::COMMAND_PATTERNS;
 
@@ -37,7 +39,14 @@ macro_rules! acquire_logger {
     }};
 }
 
-pub fn handle_direct_function(client_key: &String, activation_key: &String, command: CommandInstructions, command_id: u32) -> ResultType {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ProcessResult {
+    List(Vec<ProcessResult>),
+    Error(String),
+    Command(CommandInstructions),
+}
+
+pub fn handle_direct_function(client_key: &String, activation_key: &String, command: CommandInstructions, command_id: u32) -> ProcessResult {
     let logger = acquire_logger!("Transposer - Process - Handle Direct Functions");
 
     logger.info(format!("Initializing processing!"));
@@ -59,10 +68,10 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             Ok(c) => c,
             Err(e) => match e {
                 ClientError::ClientDoesNotExist(_) => {
-                    return ResultType::Error(format!("Unknow client_key: {:?}", client_key));
+                    return ProcessResult::Error(format!("Unknow client_key: {:?}", client_key));
                 },
                 _ => {
-                    return ResultType::Error(format!("Get a error {:?}, obtaining client: {:?}", e, client_key));
+                    return ProcessResult::Error(format!("Get a error {:?}, obtaining client: {:?}", e, client_key));
                 },
             },
         };
@@ -76,7 +85,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             Err(e) => match e {
                 ConversionError::UnsuportedValueVariant(s) => {
                     logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                    return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
+                    return ProcessResult::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
                 },
             },
         };
@@ -97,6 +106,8 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         to_send.insert("function".to_string(), ResultType::Str(function)); // TODO maybe change to response_act_function
         to_send.insert("kwargs".to_string(), filtered_resulttype_commands_map);
         to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // -> This will be an identifier, to know the origin of the retransmited command
+
+        CommandInstructions::new("response", "default", CommandTarget::Origin, CommandStatus::Success, "host", actf, kwargs, message);
 
         return ResultType::Map(to_send);
     } else if activation_key == &"update_client_commands_ref".to_string() {

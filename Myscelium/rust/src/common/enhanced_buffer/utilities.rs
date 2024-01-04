@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
+use crate::socket_host::client_manager::manager::Client;
 
 use std::fmt;
 
@@ -68,7 +69,15 @@ pub enum CommandStatus {
 //     }
 // }
 
-impl_stringfiable_for_enum!(CommandMode, CommandType, CommandStatus);
+#[derive(Debug, Clone, Serialize, Deserialize)]
+
+pub enum CommandTarget {
+    Origin,
+    ClientId(String),
+    Host,
+}
+
+impl_stringfiable_for_enum!(CommandMode, CommandType, CommandStatus, CommandTarget);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandOrigin {
@@ -81,7 +90,7 @@ pub struct CommandInstructions {
     pub mode: CommandMode,
     #[serde(rename = "type")]
     pub command_type: CommandType,
-    pub target: String,
+    pub target: CommandTarget,
     pub status: CommandStatus,
     pub origin: CommandOrigin,
     pub actf: String,
@@ -95,7 +104,7 @@ pub enum CommandError {
 }
 
 impl CommandInstructions {
-    pub fn new(mode: CommandMode, command_type: CommandType, target: String, status: CommandStatus, origin: CommandOrigin, actf: String, kwargs: HashMap<String, serde_json::Value>, message: String) -> Self {
+    pub fn new(mode: CommandMode, command_type: CommandType, target: CommandTarget, status: CommandStatus, origin: CommandOrigin, actf: String, kwargs: HashMap<String, serde_json::Value>, message: String) -> Self {
         Self {
             mode,
             command_type,
@@ -136,7 +145,20 @@ impl CommandInstructions {
             _ => return Err(CommandError::InvalidCommand("Invalid or missing mode".to_string())),
         };
 
-        let target = map.get("target").and_then(Value::as_str).map(String::from).ok_or_else(|| CommandError::InvalidCommand("Missing target".to_string()))?;
+        // let target = map.get("target").and_then(Value::as_str).map(String::from).ok_or_else(|| CommandError::InvalidCommand("Missing target".to_string()))?;
+
+        let target = match map.get("target").and_then(Value::as_str) {
+            Some("host") => CommandTarget::Host,
+            Some("origin") => CommandTarget::Origin,
+            Some(c) => {
+                if c != "" {
+                    return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
+                }
+
+                CommandTarget::ClientId(c.to_string())
+            },
+        };
+
         let status = match map.get("status").and_then(Value::as_str) {
             Some("success") => CommandStatus::Success,
             Some("failure") => CommandStatus::Failure,
@@ -169,11 +191,11 @@ impl CommandInstructions {
         })
     }
 
-    pub fn from_string_hashmap(mut map: HashMap<String, String>) -> Result<Self, String> {
+    pub fn from_string_hashmap(mut map: HashMap<String, String>) -> Result<Self, CommandError> {
         let mode = match map.get("type").map(String::as_str) {
             Some("function") => CommandMode::Function,
             Some("response") => CommandMode::Response,
-            _ => return Err("Invalid or missing type".to_string()),
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
         };
 
         let command_type = match map.get("mode").map(String::as_str) {
@@ -182,28 +204,41 @@ impl CommandInstructions {
             Some("internal_management") => CommandType::InternalManagement,
             Some("default") => CommandType::Default,
             Some("redirect") => CommandType::Redirect,
-            _ => return Err("Invalid or missing mode".to_string()),
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing mode".to_string())),
         };
 
-        let target = map.get("target").cloned().ok_or_else(|| "Missing target".to_string())?;
+        // let target = map.get("target").cloned().ok_or_else(|| "Missing target".to_string())?;
+
+        let target = match map.get("target").map(String::as_str) {
+            Some("host") => CommandTarget::Host,
+            Some("origin") => CommandTarget::Origin,
+            Some(c) => {
+                if c != "" {
+                    return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
+                }
+
+                CommandTarget::ClientId(c.to_string())
+            },
+        };
+
         let status = match map.get("status").map(String::as_str) {
             Some("success") => CommandStatus::Success,
             Some("failure") => CommandStatus::Failure,
-            _ => return Err("Invalid or missing status".to_string()),
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing status".to_string())),
         };
 
         let origin = match map.get("origin").map(String::as_str) {
             Some("host") => CommandOrigin::Host,
             Some(client_id) => CommandOrigin::ClientId(client_id.to_string()),
-            _ => return Err("Invalid or missing origin".to_string()),
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing origin".to_string())),
         };
 
-        let actf = map.get("actf").cloned().ok_or_else(|| "Missing actf".to_string())?;
-        let message = map.get("message").cloned().ok_or_else(|| "Missing message".to_string())?;
+        let actf = map.get("actf").cloned().ok_or_else(|| CommandError::InvalidCommand("Missing actf".to_string()))?;
+        let message = map.get("message").cloned().ok_or_else(|| CommandError::InvalidCommand("Missing message".to_string()))?;
 
         // Extract and parse the kwargs field
         let kwargs = if let Some(kwargs_str) = map.remove("kwargs") {
-            serde_json::from_str::<HashMap<String, Value>>(&kwargs_str).map_err(|e| format!("Failed to parse kwargs: {}", e))?
+            serde_json::from_str::<HashMap<String, Value>>(&kwargs_str).map_err(|e| CommandError::InvalidCommand(format!("Failed to parse kwargs: {}", e)))?
         } else {
             HashMap::new()
         };
