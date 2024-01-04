@@ -250,7 +250,7 @@ pub fn process_map_result(m: HashMap<String, ResultType>, client_key: &String, p
 /// let down_command = DownCommand::new(...); // Construct a DownCommand
 /// process_and_schedule(resulttype_command, client_key, down_command);
 /// ```
-fn process_and_schedule(resulttype_command: ResultType, mut client_key: String, down_command: DownCommand) {
+fn process_and_schedule(resulttype_command: ProcessResult, mut client_key: String, down_command: DownCommand) {
     let logger = acquire_logger!("Transposer - Process");
 
     let command_id: u32 = down_command.command_id.clone().unwrap();
@@ -416,18 +416,6 @@ fn process(py: Python, down_command: DownCommand) {
     };
 
     logger.debug(format!("Translated command: {:?}", translated_command));
-
-    // let function;
-
-    // {
-    //     function = match translated_command.command.get("function") {
-    //         Some(Value::String(function)) => function,
-    //         _ => {
-    //             logger.warn(format!("The function name is not found or not a string."));
-    //             return;
-    //         },
-    //     };
-    // }
 
     let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
 
