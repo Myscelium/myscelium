@@ -27,7 +27,6 @@ macro_rules! create_error_response_and_return {
 
 macro_rules! create_error_response_and_return {
     ($error:expr) => {{
-
         let new_command_instructions = CommandInstructions::new(
             CommandMode::Response,
             CommandType::DirectFunction,
@@ -94,7 +93,7 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
 
             let parsed_new_client = fast_json_comparator(&new_client, &Value::Object(serde_json::Map::from_iter(expected)));
 
-            let verified_client_value:Value = match parsed_new_client {
+            let verified_client_value: Value = match parsed_new_client {
                 Err(e) => match e {
                     ComparatorError::TypeMismatch(tp) => {
                         logger.warn(format!("ERROR, Client kwargs have mismatch type {} kwarg!", tp));
@@ -108,14 +107,14 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
                         logger.warn(format!("ERROR, Client kwargs have a missing kwarg: {}!", k));
                         return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k));
                     },
-                    ComparatorError::TargetIsEmpty=> {
+                    ComparatorError::TargetIsEmpty => {
                         logger.warn("ERROR, Client target pattern is empty!".to_string());
                         return create_error_response_and_return!("Error! Client target pattern is empty!");
                     },
                     ComparatorError::ParseError(e) => {
                         logger.warn(format!("ERROR, Can't parse {:?}!", e).to_string());
                         return create_error_response_and_return!("Error! Client target pattern is empty!");
-                    }
+                    },
                 },
 
                 Ok(new_client) => new_client,
@@ -129,11 +128,11 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
                 .and_then(|v| v.as_array().ok_or("Not an array"))
                 .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
 
-            let owned_sub_channels_keys:Vec<String> = match owned_sub_channels_keys_result  {
+            let owned_sub_channels_keys: Vec<String> = match owned_sub_channels_keys_result {
                 Ok(keys) => keys,
                 Err(e) => {
                     return create_error_response_and_return!(format!("Error! Can't extract new client owned_sub_channels_keys error: {}!", e));
-                } 
+                },
             };
 
             let client_key = verified_client_value.get("client_key").unwrap().as_str().map(|s| s.to_string()).unwrap();
@@ -161,7 +160,7 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
 
             resp_kwargs.insert("actual_client_key".to_string(), Value::String(client_key.to_string()));
 
-            let new_command_instructions:CommandInstructions = CommandInstructions::new(
+            let new_command_instructions: CommandInstructions = CommandInstructions::new(
                 CommandMode::Response,
                 CommandType::Default,
                 CommandTarget::Origin,
@@ -171,10 +170,10 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
                 resp_kwargs,
                 format!("Successfully add a client: {}!", client_key).to_string(),
             );
-            
+
             logger.info(format!("Successfully add a client: {}!", client_key));
 
-            return new_command_instructions;        
+            return new_command_instructions;
         },
 
         "update_client" => {
@@ -190,30 +189,29 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
                 return create_error_response_and_return!("Error! Callback response kwargs don't have actual_client_key kwarg!");
             }
 
-            if !inner_map.contains_key("updated_client") {
+            if !kwargs.contains_key("updated_client") {
                 logger.warn("ERROR, Error! Callback response kwargs don't have update_client kwarg!".to_string());
                 return create_error_response_and_return!("Error! Callback response kwargs don't have update_client kwarg!");
             }
 
-            let actual_client_key = result.get("actual_client_key").unwrap().to_str().unwrap();
+            let actual_client_key = kwargs.get("actual_client_key").unwrap().as_str().unwrap();
             let updated_client = kwargs.get("updated_client").unwrap().clone();
 
             // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
 
             let mut expected = HashMap::new();
 
-            expected.insert("client_name".to_string(), ResultType::Str("".to_string()));
-            expected.insert("client_key".to_string(), ResultType::Str("".to_string()));
-            expected.insert("client_type".to_string(), ResultType::Str("".to_string()));
-            expected.insert("permission_group".to_string(), ResultType::Str("".to_string()));
-            expected.insert("is_super_user".to_string(), ResultType::Bool(false));
-            expected.insert("max_sub_channels".to_string(), ResultType::Int(0));
-            expected.insert("owned_sub_channels_keys".to_string(), ResultType::List(vec![]));
+            expected.insert("client_name".to_string(), Value::String("".to_string()));
+            expected.insert("client_key".to_string(), Value::String("".to_string()));
+            expected.insert("client_type".to_string(), Value::String("".to_string()));
+            expected.insert("permission_group".to_string(), Value::String("".to_string()));
+            expected.insert("is_super_user".to_string(), Value::Bool(false));
+            expected.insert("max_sub_channels".to_string(), Value::Number(serde_json::Number::from(0)));
+            expected.insert("owned_sub_channels_keys".to_string(), Value::Array(vec![]));
 
-            
-            let parsed_new_client = fast_json_comparator(&updated_client, &ResultType::Map(expected.clone()))
+            let parsed_new_client = fast_json_comparator(&updated_client, &Value::Object(serde_json::Map::from_iter(expected)));
 
-            let new_client = match parsed_new_client {
+            let verified_client_value: Value = match parsed_new_client {
                 Err(e) => match e {
                     ComparatorError::TypeMismatch(tp) => {
                         logger.warn(format!("ERROR, Client kwargs have mismatch type {} kwarg!", tp));
@@ -227,41 +225,50 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
                         logger.warn(format!("ERROR, Client kwargs have a missing kwarg: {}!", k));
                         return create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k));
                     },
-                    ComparatorError::TargetIsEmpty=> {
+                    ComparatorError::TargetIsEmpty => {
                         logger.warn("ERROR, Client target pattern is empty!".to_string());
                         return create_error_response_and_return!("Error! Client target pattern is empty!");
                     },
                     ComparatorError::ParseError(e) => {
                         logger.warn(format!("ERROR, Can't parse {:?}!", e).to_string());
                         return create_error_response_and_return!("Error! Client target pattern is empty!");
-                    }
+                    },
                 },
 
                 Ok(new_client) => new_client,
             };
 
-            let updated_client_unwraped: HashMap<String, ResultType> = new_client.to_map().unwrap();
+            let owned_sub_channels_keys_result: Result<Vec<String>, _> = verified_client_value
+                .get("owned_sub_channels_keys")
+                .ok_or("Key not found")
+                .and_then(|v| v.as_array().ok_or("Not an array"))
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
 
-            let owned_sub_channels_keys: Vec<String> = updated_client_unwraped.get("owned_sub_channels_keys").unwrap().to_list().unwrap().iter().map(|v| v.to_str().unwrap()).collect();
+            let owned_sub_channels_keys: Vec<String> = match owned_sub_channels_keys_result {
+                Ok(keys) => keys,
+                Err(e) => {
+                    return create_error_response_and_return!(format!("Error! Can't extract new client owned_sub_channels_keys error: {}!", e));
+                },
+            };
 
-            let client_key = updated_client_unwraped.get("client_key").unwrap().to_str().unwrap();
+            let client_key = verified_client_value.get("client_key").unwrap().as_str().map(|s| s.to_string()).unwrap();
 
-            logger.debug(format!("Updated client: {:?}", new_client));
+            logger.debug(format!("Updated client: {:?}", client_key));
 
             let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 
             let new_client = handle_client_error!(Client::new(
-                updated_client_unwraped.get("client_name").unwrap().to_str().unwrap(),
+                verified_client_value.get("client_name").unwrap().as_str().map(|s| s.to_string()).unwrap(),
                 client_key.clone(),
-                updated_client_unwraped.get("client_type").unwrap().to_str().unwrap(),
-                updated_client_unwraped.get("permission_group").unwrap().to_str().unwrap(),
-                updated_client_unwraped.get("is_super_user").unwrap().to_bool().unwrap(),
-                updated_client_unwraped.get("max_sub_channels").unwrap().to_int().unwrap() as u32,
+                verified_client_value.get("client_type").unwrap().as_str().map(|s| s.to_string()).unwrap(),
+                verified_client_value.get("permission_group").unwrap().as_str().map(|s| s.to_string()).unwrap(),
+                verified_client_value.get("is_super_user").unwrap().as_bool().unwrap(),
+                verified_client_value.get("max_sub_channels").unwrap().as_u64().unwrap().try_into().unwrap(), // TODO >>> Create a better handler to cases greather than u32
                 owned_sub_channels_keys,
                 client_handlers,
             ));
 
-            let old_client = handle_client_error!(Client::get_by_key(&actual_client_key));
+            let old_client = handle_client_error!(Client::get_by_key(&actual_client_key.to_string()));
 
             let result = old_client.update_to(&new_client); //> It already saves into the database
 
@@ -269,25 +276,24 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
 
             match result {
                 Ok(_) => {
-                    to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
-                    to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-                    to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-                    to_send.insert(
-                        "message".to_string(),
-                        ResultType::Str(format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key).to_string()),
+                    let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
+
+                    resp_kwargs.insert("actual_client_key".to_string(), Value::String(client_key.to_string()));
+
+                    let new_command_instructions: CommandInstructions = CommandInstructions::new(
+                        CommandMode::Response,
+                        CommandType::Default,
+                        CommandTarget::Origin,
+                        CommandStatus::Success,
+                        CommandOrigin::Host,
+                        "update_client_handler".to_string(),
+                        resp_kwargs,
+                        format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key).to_string(),
                     );
-                    to_send.insert("response_activation_function".to_string(), ResultType::Str("update_client_handler".to_string()));
-
-                    let mut resp_kwargs: HashMap<String, ResultType> = HashMap::new();
-
-                    resp_kwargs.insert("actual_client_key".to_string(), ResultType::Str(client_key.to_string()));
-
-                    to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
-                    to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a identifier to know from where the command is
 
                     logger.info(format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key));
 
-                    return to_send;
+                    return new_command_instructions;
                 },
 
                 Err(e) => match e {

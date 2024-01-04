@@ -179,7 +179,7 @@ pub fn process_map_result(m: CommandInstructions, client_key: &String, parity_id
 
     let response: Value = match m.target {
         CommandTarget::Host => {
-            let resp = handle_internal_management(m, &mut client_to_send);
+            let resp: CommandInstructions = handle_internal_management(m, &mut client_to_send);
             resp.to_value_map()
         },
         CommandTarget::Origin => m.to_value_map(),
