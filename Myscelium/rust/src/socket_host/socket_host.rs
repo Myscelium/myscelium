@@ -429,7 +429,7 @@ fn handle_special_functions(client_key: String, function: String) -> Command {
 
         let command_response = &up_schedule[0];
 
-        let response_command = match Command::from_up_command(command_response.clone()) {
+        let response_command = match Command::from_up_command(&command_response) {
             Ok(c) => c,
             Err(e) => {
                 // TODO >>> Handle the invalid Commands cases
@@ -438,7 +438,7 @@ fn handle_special_functions(client_key: String, function: String) -> Command {
             },
         };
 
-        enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(client_key.clone(), response_command.parity_id.clone());
+        enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&client_key, &response_command.parity_id);
 
         return response_command;
     } else {
@@ -536,7 +536,7 @@ enum Response {
 /// 4. The original scheduled response is then removed from the buffer to avoid any future retrievals.
 /// 5. The transformed command is returned as `Response::Command(response_command)`.
 fn get_response(command: Command) -> Response {
-    let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_manager::buffer_up_get_scheduled_by_parity_id(command.client_key.clone(), command.parity_id.clone());
+    let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_manager::buffer_up_get_scheduled_by_parity_id(&command.client_key, &command.parity_id);
 
     if !(up_schedule.len() > 0) {
         return Response::None;
@@ -548,7 +548,7 @@ fn get_response(command: Command) -> Response {
 
     let response_command = create_response_command!(command_response.client_key, command_response.parity_id, command_response.priority, command_response_command);
 
-    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command.client_key.clone(), response_command.parity_id.clone());
+    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command.client_key, &response_command.parity_id);
 
     return Response::Command(response_command);
 }

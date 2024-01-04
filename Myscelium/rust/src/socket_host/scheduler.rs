@@ -159,7 +159,7 @@ pub fn schedule(command: HashMap<String, ResultType>, priority: u8, client_key: 
 
     let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
 
-    let command_to_schedule = UpCommand::new(new_client_key, parity_id, priority, response.unwrap());
+    let command_to_schedule = UpCommand::new(&new_client_key, &parity_id, priority, &response.unwrap());
 
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
 

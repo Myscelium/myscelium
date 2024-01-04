@@ -76,16 +76,16 @@ impl UpCommand {
         }
     }
 
-    pub fn new(client_key: String, parity_id: String, priority: u8, command: String) -> Self {
+    pub fn new(client_key: &String, parity_id: &String, priority: u8, command: &String) -> Self {
         let now = Utc::now();
         let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
         Self {
             command_id: Some(0000u32),
-            client_key,
-            parity_id,
+            client_key: client_key.clone(),
+            parity_id: parity_id.clone(),
             priority,
-            command,
+            command: command.clone(),
             created_time: timestamp,
         }
     }
@@ -244,7 +244,7 @@ pub fn buffer_up_gen_valid_parity_id(client_key: String) -> String {
     return valid_parity_id;
 }
 
-pub fn buffer_up_get_scheduled_by_parity_id(client_key: String, parity_id: String) -> Vec<UpCommand> {
+pub fn buffer_up_get_scheduled_by_parity_id(client_key: &String, parity_id: &String) -> Vec<UpCommand> {
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let mut commands_schedule: Vec<UpCommand> = Vec::new();
 
@@ -426,7 +426,7 @@ pub fn buffer_up_remove_schedule_by_id(id: u32) {
     });
 }
 
-pub fn buffer_up_remove_schedule_by_parity_id(client_key: String, parity_id: String) {
+pub fn buffer_up_remove_schedule_by_parity_id(client_key: &String, parity_id: &String) {
     BufferHistory::new("UP").log_remove_operation(&client_key, &parity_id, None.as_ref(), &"Remove From Schedule".to_string());
 
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {

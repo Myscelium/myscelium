@@ -191,14 +191,14 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     match translated_command.command_type() {
         //TODO link the command types to where they are redirected, now is just obtaining the key and sending to the same place
         CommandType::SpecialFunction => {
-            activation_key = translated_command.command.actf;
+            activation_key = &translated_command.command.actf;
         },
 
         CommandType::Default => {
-            activation_key = translated_command.command.actf;
+            activation_key = &translated_command.command.actf;
         },
 
-        CommandType::DirectFunction => activation_key = translated_command.command.actf,
+        CommandType::DirectFunction => activation_key = &translated_command.command.actf,
 
         // CommandType::Response(_) => {
         //     activation_key = match translated_command.command.get("response_activation_function") {
@@ -217,14 +217,14 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         //     };
         // },
         CommandType::Redirect => {
-            activation_key = translated_command.command.actf
+            activation_key = &translated_command.command.actf
 
             // return Err(ProcessError::UnknownCommandType);
         },
 
 
         CommandType::InternalManagement => {
-            activation_key = translated_command.command.actf
+            activation_key = &translated_command.command.actf
         }
 
         // CommandType::Unknown => {
@@ -263,7 +263,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         let response;
         {
             let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
-            response = client_call_callback(py, translated_command.clone(), callback_patterns);
+            response = client_call_callback(py, &translated_command, &callback_patterns);
         }
 
         // Process the Python callback's return value
@@ -279,7 +279,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     } else if direct_functions.contains(&activation_key) {
         logger.info(format!("Command function: {} is a valid function!", activation_key));
 
-        let value = handle_direct_function(client_key.clone(), &activation_key, translated_command.clone(), command_id);
+        let value = handle_direct_function(&client_key, &activation_key, &translated_command, command_id);
         println!("Direct Function Result: {:?}", value);
 
         result = value;
@@ -362,7 +362,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
     // Schedule the resulting up command for transmission
-    let up_command: UpCommand = UpCommand::new(client_key, down_command.parity_id.clone(), down_command.priority.clone(), response);
+    let up_command: UpCommand = UpCommand::new(&client_key, &down_command.parity_id, down_command.priority.clone(), &response);
     enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 

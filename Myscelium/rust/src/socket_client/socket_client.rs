@@ -406,14 +406,14 @@ fn handle_response(received: Response) -> Received {
                 let val = Value::String("Unknown error".to_string());
                 let error_msg = command_received.command.message;
                 logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg.clone()));
-                enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
+                enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
                 CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                 return Received::Error(error_msg);
             }
 
             // let down_command = DownCommand::from_command(command_received.clone());
 
-            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
+            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
 
             // return Received::DownCommand(down_command);
         },
@@ -441,11 +441,11 @@ fn handle_response(received: Response) -> Received {
             if command_received.parity_id != "itisaspecialcase" {
                 if command_received.command.actf == "C210".to_string() {
                     logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", command_received.parity_id, command_received.client_key));
-                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
+                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
                     return Received::Confirmation;
                 } else if command_received.command.status == "Failure" {
                     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.message));
-                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
+                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
                     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                     return Received::Error("".to_string());
                 }
@@ -542,7 +542,7 @@ pub fn initialize_client(address: String, client_id: String) {
         }
 
         for up_command in up_schedule {
-            let command_to_request = match Command::from_up_command(up_command) {
+            let command_to_request = match Command::from_up_command(&up_command) {
                 Ok(c) => c,
                 Err(e) => {
                     println!("Command: {:?} gives an exception when converting to command, the error was: \n{:?}", up_command, e);

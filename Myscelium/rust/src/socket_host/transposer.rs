@@ -282,14 +282,14 @@ fn process_and_schedule(resulttype_command: ResultType, mut client_key: String, 
                     ResultType::Map(m) => {
                         if counter == 0 {
                             let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
-                            let up_command = UpCommand::new(client_to_send_back, down_command.parity_id.clone(), down_command.priority.clone(), processed_resp.unwrap());
+                            let up_command = UpCommand::new(&client_to_send_back, &down_command.parity_id, down_command.priority.clone(), &processed_resp.unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         } else {
                             // -> Gen 20 digits parity id based on client
                             let special_parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_special_parity_id(&client_key);
 
                             let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
-                            let up_command = UpCommand::new(client_to_send_back, special_parity_id, down_command.priority.clone(), processed_resp.unwrap());
+                            let up_command = UpCommand::new(&client_to_send_back, &special_parity_id, down_command.priority.clone(), &processed_resp.unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         }
 
@@ -297,7 +297,7 @@ fn process_and_schedule(resulttype_command: ResultType, mut client_key: String, 
                     },
                     _ => {
                         response = error_response!("Error! Received a list, but expected a map!");
-                        let up_command = UpCommand::new(client_key, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
+                        let up_command = UpCommand::new(&client_key, &down_command.parity_id, down_command.priority.clone(), &response.unwrap());
                         enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         break;
                     },
@@ -324,7 +324,7 @@ fn process_and_schedule(resulttype_command: ResultType, mut client_key: String, 
     logger.debug(format!("Function returned: {:?}", response));
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
-    let up_command = UpCommand::new(client_key, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
+    let up_command = UpCommand::new(&client_key, &down_command.parity_id, down_command.priority.clone(), &response.unwrap());
 
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 }

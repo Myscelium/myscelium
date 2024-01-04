@@ -28,7 +28,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-pub fn handle_direct_function(client_key: String, activation_key: &String, translated_command: Command, command_id: u32) -> ResultType {
+pub fn handle_direct_function(client_key: &String, activation_key: &String, translated_command: &Command, command_id: u32) -> ResultType {
     let logger = acquire_logger!("Transposer - Process");
 
     logger.info(format!("Initializing processing!"));
@@ -37,7 +37,7 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
     if activation_key == &"update_available_host_commands".to_string() {
         logger.info(format!("Receive Host Allowed Commands"));
 
-        let response_obj = translated_command.command.kwargs;
+        let response_obj = &translated_command.command.kwargs;
 
         // Clone the object to get a HashMap<String, Value>
         let response_map: HashMap<String, Value> = response_obj.clone().into_iter().collect();
@@ -96,7 +96,7 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
         let response = serde_json::to_string(&converted_to_value).unwrap();
 
         let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
-        let up_command: UpCommand = UpCommand::new(client_key, parity_id, 11u8, response);
+        let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &response);
         enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
         enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
@@ -149,7 +149,7 @@ pub fn handle_direct_function(client_key: String, activation_key: &String, trans
         let response = serde_json::to_string(&converted_to_value).unwrap();
 
         let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
-        let up_command: UpCommand = UpCommand::new(client_key, parity_id, 11u8, response);
+        let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &response);
         enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 
         enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());

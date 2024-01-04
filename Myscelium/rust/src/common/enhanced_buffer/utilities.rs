@@ -108,6 +108,18 @@ impl CommandInstructions {
         }
     }
 
+    pub fn to_value_map(&self) -> Value {
+        serde_json::to_value(&self).unwrap()
+    }
+
+    pub fn to_string_value(&self) -> HashMap<String, Value> {
+        // Serialize the struct to a JSON string
+        let json_str: String = serde_json::to_string(&self).unwrap();
+
+        // Deserialize the JSON string into a HashMap
+        serde_json::from_str(&json_str).unwrap()
+    }
+
     pub fn from_hashmap(mut map: HashMap<String, Value>) -> Result<Self, CommandError> {
         let mode = match map.get("type").and_then(Value::as_str) {
             Some("function") => CommandMode::Function,
@@ -316,7 +328,7 @@ impl Command {
     /// };
     /// let result = YourStruct::from_up_command(up_command);
     /// ```
-    pub fn from_up_command(up_command: UpCommand) -> Result<Self, CommandError> {
+    pub fn from_up_command(up_command: &UpCommand) -> Result<Self, CommandError> {
         let client_key = up_command.client_key.clone();
         let parity_id = up_command.parity_id.clone();
         let priority = up_command.priority.clone();
@@ -332,6 +344,6 @@ impl Command {
     }
 
     pub fn command_type(&self) -> CommandType {
-        return self.command.command_type;
+        return self.command.command_type.clone();
     }
 }
