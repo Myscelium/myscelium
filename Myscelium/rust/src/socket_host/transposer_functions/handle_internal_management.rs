@@ -1,6 +1,7 @@
 use serde_json::Value;
 use std::collections::HashMap;
 
+use crate::common::enhanced_buffer::utilities::CommandInstructions;
 use crate::common::functions::converters::convert_to_value_map;
 
 use crate::common::structs::results_structs::ResultType;
@@ -38,7 +39,7 @@ macro_rules! acquire_logger {
 // > --------------------------------------------------------------------------------------------------------------------------------------------
 // > Internal Management Handler
 
-pub fn handle_internal_management(m: HashMap<String, ResultType>, client_id: &mut String) -> HashMap<String, ResultType> {
+pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String) -> CommandInstructions {
     let logger = acquire_logger!("[Process][Internal Management]");
 
     let mut to_send = HashMap::new();

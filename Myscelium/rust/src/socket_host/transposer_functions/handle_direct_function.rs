@@ -256,7 +256,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             let new_command_instructions = CommandInstructions::new(
                 CommandMode::Response,
                 CommandType::DirectFunction,
-                CommandTarget::ClientId(client_key_to_redirect),
+                CommandTarget::ClientKey(client_key_to_redirect),
                 CommandStatus::Success,
                 CommandOrigin::Host,
                 "update_available_host_commands".to_string(),

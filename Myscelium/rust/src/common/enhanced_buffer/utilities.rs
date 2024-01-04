@@ -72,7 +72,7 @@ pub enum CommandStatus {
 
 pub enum CommandTarget {
     Origin,
-    ClientId(String),
+    ClientKey(String),
     Host,
 }
 
@@ -81,7 +81,7 @@ impl_stringfiable_for_enum!(CommandMode, CommandType, CommandStatus, CommandTarg
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandOrigin {
     Host,
-    ClientId(String),
+    ClientKey(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -154,7 +154,7 @@ impl CommandInstructions {
                     return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
                 }
 
-                CommandTarget::ClientId(c.to_string())
+                CommandTarget::ClientKey(c.to_string())
             },
         };
 
@@ -166,7 +166,7 @@ impl CommandInstructions {
 
         let origin = match map.get("origin").and_then(Value::as_str) {
             Some("host") => CommandOrigin::Host,
-            Some(client_id) => CommandOrigin::ClientId(client_id.to_string()),
+            Some(client_id) => CommandOrigin::ClientKey(client_id.to_string()),
             _ => return Err(CommandError::InvalidCommand("Invalid or missing origin".to_string())),
         };
 
@@ -216,7 +216,7 @@ impl CommandInstructions {
                     return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
                 }
 
-                CommandTarget::ClientId(c.to_string())
+                CommandTarget::ClientKey(c.to_string())
             },
         };
 
@@ -228,7 +228,7 @@ impl CommandInstructions {
 
         let origin = match map.get("origin").map(String::as_str) {
             Some("host") => CommandOrigin::Host,
-            Some(client_id) => CommandOrigin::ClientId(client_id.to_string()),
+            Some(client_id) => CommandOrigin::ClientKey(client_id.to_string()),
             _ => return Err(CommandError::InvalidCommand("Invalid or missing origin".to_string())),
         };
 

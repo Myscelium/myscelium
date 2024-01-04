@@ -7,7 +7,7 @@ use std::thread;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
-use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandTarget};
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, extract_pyobject};
 use crate::common::structs::results_structs::ResultType;
@@ -171,55 +171,66 @@ use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
 /// let (response, client_key) = process_map_result(result_map, &client_key, &down_command);
 /// // Handle the response and client_key as needed
 /// ```
-pub fn process_map_result(m: HashMap<String, ResultType>, client_key: &String, parity_id: String, priority: u8) -> (Result<String, Error>, String) {
+/// // TODO >>> Remake this Doc string!
+pub fn process_map_result(m: CommandInstructions, client_key: &String, parity_id: String, priority: u8) -> (Result<String, Error>, String) {
     let logger = acquire_logger!("Transposer - Process");
-
-    let response: Result<String, Error>;
 
     let mut client_to_send: String = client_key.clone();
 
-    if m.contains_key("response_mode") {
-        let response_mode = m.get("response_mode").unwrap();
-
-        if *response_mode == ResultType::Str("to_origin".to_string()) {
-            let converted_to_value = convert_to_value_map(&m);
-            logger.debug(format!("Converted to Value: {:?}", &converted_to_value));
-            response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-            // Response at this point is like this: Map({
-            //      "command_type":String("function"),
-            //      "response_mode":String("to_origin"),
-            //      "status": String("success"),
-            //      "response_activation_function":String(response_activation_function),
-            //      "message":String(_),
-            //      "kwargs":Map(response)
-            // })
-        } else if *response_mode == ResultType::Str("redirect".to_string()) {
-            logger.debug(format!("Response: {:?}", m));
-
-            let resp = handle_redirect(m, &mut client_to_send, parity_id.clone(), priority.clone());
-            let converted_to_value = convert_to_value_map(&resp);
-            response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-            // Response at this point is like this: Map({
-            //      "command_type":String("function"),
-            //      "response_mode":String("redirect"),
-            //      "status": String("success"),
-            //      "response_activation_function":String(response_activation_function),
-            //      "message":String(_),
-            //      "kwargs":Map(response),
-            //      "redirect_to":String(redirect_to_client_id)
-            //  })
-        } else if *response_mode == ResultType::Str("internal_management".to_string()) {
+    let response: Value = match m.target {
+        CommandTarget::Host => {
             let resp = handle_internal_management(m, &mut client_to_send);
-            let converted_to_value = convert_to_value_map(&resp);
-            response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-        } else {
-            logger.warn("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!".to_string());
-            response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
-        }
+            resp.to_value_map()
+        },
+        CommandTarget::Origin => m.to_value_map(),
+        CommandTarget::ClientKey(key) => {
+            // TODO >>> Implement the handle redirect
+            let resp: CommandInstructions = handle_redirect(m, &mut client_to_send, parity_id.clone(), priority.clone());
+            resp.to_value_map()
+        },
+    };
+
+    logger.debug(format!("Converted to Value: {:?}", &response));
+
+    if *response_target == ResultType::Str("to_origin".to_string()) {
+        let converted_to_value = convert_to_value_map(&m);
+        logger.debug(format!("Converted to Value: {:?}", &converted_to_value));
+        response = Ok(serde_json::to_string(&converted_to_value).unwrap());
+        // Response at this point is like this: Map({
+        //      "command_type":String("function"),
+        //      "response_target":String("to_origin"),
+        //      "status": String("success"),
+        //      "response_activation_function":String(response_activation_function),
+        //      "message":String(_),
+        //      "kwargs":Map(response)
+        // })
+    } else if *response_target == ResultType::Str("redirect".to_string()) {
+        logger.debug(format!("Response: {:?}", m));
+
+        let resp = handle_redirect(m, &mut client_to_send, parity_id.clone(), priority.clone());
+        let converted_to_value = convert_to_value_map(&resp);
+        response = Ok(serde_json::to_string(&converted_to_value).unwrap());
+        // Response at this point is like this: Map({
+        //      "command_type":String("function"),
+        //      "response_target":String("redirect"),
+        //      "status": String("success"),
+        //      "response_activation_function":String(response_activation_function),
+        //      "message":String(_),
+        //      "kwargs":Map(response),
+        //      "redirect_to":String(redirect_to_client_id)
+        //  })
+    } else if *response_target == ResultType::Str("internal_management".to_string()) {
+        let resp = handle_internal_management(m, &mut client_to_send);
+        let converted_to_value = convert_to_value_map(&resp);
+        response = Ok(serde_json::to_string(&converted_to_value).unwrap());
     } else {
-        logger.warn("Error! Callback doesn't implement response mode!".to_string());
-        response = error_response!("Error! Callback doesn't implement response mode!");
+        logger.warn("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!".to_string());
+        response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
     }
+    // else {
+    //     logger.warn("Error! Callback doesn't implement response mode!".to_string());
+    //     response = error_response!("Error! Callback doesn't implement response mode!");
+    // }
 
     return (response, client_to_send);
 }
