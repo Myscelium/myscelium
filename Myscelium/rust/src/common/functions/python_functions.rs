@@ -164,9 +164,9 @@ pub fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyRes
     Ok(py_tuple)
 }
 
-pub fn extract_pyobject(py: Python, obj: PyObject) -> ResultType {
+pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
     if let Ok(dict) = obj.cast_as::<PyDict>(py) {
-        let mut rust_dict = HashMap::new();
+        let mut rust_dict: HashMap<String, serde_json::Value> = HashMap::new();
 
         for (key, value) in dict.iter() {
             let key_str = match key.extract::<String>() {
@@ -178,12 +178,12 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> ResultType {
             };
 
             if let Ok(value_str) = value.extract::<String>() {
-                rust_dict.insert(key_str, ResultType::Str(value_str));
+                rust_dict.insert(key_str, Value::String(value_str));
             } else if let Ok(value_int) = value.extract::<i64>() {
-                rust_dict.insert(key_str, ResultType::Int(value_int));
+                rust_dict.insert(key_str, Value::Number(value_int.into()));
             } else if let Ok(value_list) = value.cast_as::<PyList>() {
                 let rust_list: Vec<_> = value_list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
-                rust_dict.insert(key_str, ResultType::List(rust_list));
+                rust_dict.insert(key_str, Value::Array(rust_list));
             } else if let Ok(nested_dict) = value.cast_as::<PyDict>() {
                 rust_dict.insert(key_str, extract_pyobject(py, nested_dict.into()));
             } else {
@@ -192,50 +192,60 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> ResultType {
             }
         }
 
-        ResultType::Map(rust_dict)
+        Value::Object(serde_json::Map::from_iter(rust_dict))
     } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
         let rust_list: Vec<_> = tuple.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
-        ResultType::List(rust_list)
+        Value::Array(rust_list)
     } else if let Ok(list) = obj.cast_as::<PyList>(py) {
         let rust_list: Vec<_> = list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
-        ResultType::List(rust_list)
+        Value::Array(rust_list)
     } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
-        match int.extract() {
-            Ok(i) => ResultType::Int(i),
+        match int.extract::<i64>() {
+            Ok(i) => {
+                let num = serde_json::Number::from(i);
+                Value::Number(num)
+            },
             Err(e) => {
                 println!("Failed to extract integer: {:?}", e);
-                ResultType::Empty
+                Value::Null
             },
         }
     } else if let Ok(float) = obj.cast_as::<PyFloat>(py) {
-        match float.extract() {
-            Ok(f) => ResultType::Float(f),
+        match float.extract::<f64>() {
+            Ok(i) => {
+                if let Some(num) = serde_json::Number::from_f64(i) {
+                    Value::Number(num)
+                } else {
+                    println!("Failed to extract float!");
+                    Value::Null
+                }
+            },
             Err(e) => {
                 println!("Failed to extract float: {:?}", e);
-                ResultType::Empty
+                Value::Null
             },
         }
     } else if let Ok(string) = obj.cast_as::<PyString>(py) {
         match string.extract() {
-            Ok(s) => ResultType::Str(s),
+            Ok(s) => Value::String(s),
             Err(e) => {
                 println!("Failed to extract string: {:?}", e);
-                ResultType::Empty
+                Value::Null
             },
         }
     } else if let Ok(boolean) = obj.cast_as::<PyBool>(py) {
         match boolean.extract() {
-            Ok(b) => ResultType::Bool(b),
+            Ok(b) => Value::Bool(b),
             Err(e) => {
                 println!("Failed to extract boolean: {:?}", e);
-                ResultType::Empty
+                Value::Null
             },
         }
     } else if obj.is_none(py) {
-        ResultType::Empty
+        Value::Null
     } else {
         println!("Unmatched type for object: {:?}", obj);
-        ResultType::Empty
+        Value::Null
     }
 }
 
