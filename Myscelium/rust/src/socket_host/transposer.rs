@@ -24,6 +24,7 @@ use std::time::Duration;
 
 use super::host_logger;
 use super::host_logger::log_handler::Logger;
+use super::transposer_functions::handle_direct_function::ProcessResult;
 use crate::HOST_LOG_LEVEL;
 
 use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
@@ -430,7 +431,7 @@ fn process(py: Python, down_command: DownCommand) {
 
     let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
 
-    let result;
+    let result: ProcessResult;
 
     if direct_functions.contains(&translated_command.command.actf) {
         // -> Default Rust direct function
