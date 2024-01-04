@@ -7,7 +7,7 @@ use std::thread;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
-use crate::common::enhanced_buffer::utilities::Command;
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions};
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, extract_pyobject};
 use crate::common::structs::results_structs::ResultType;

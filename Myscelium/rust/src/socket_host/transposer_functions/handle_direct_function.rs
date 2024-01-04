@@ -2,7 +2,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 use crate::common::enhanced_buffer;
-use crate::common::enhanced_buffer::utilities::Command;
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions};
 use crate::common::structs::avaliable_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
 use crate::socket_client::transposer::ProcessError;
@@ -37,7 +37,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-pub fn handle_direct_function(client_key: &String, activation_key: &String, command: HashMap<String, Value>, command_id: u32) -> ResultType {
+pub fn handle_direct_function(client_key: &String, activation_key: &String, command: CommandInstructions, command_id: u32) -> ResultType {
     let logger = acquire_logger!("Transposer - Process - Handle Direct Functions");
 
     logger.info(format!("Initializing processing!"));
@@ -117,17 +117,16 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         let client_handlers;
 
-        // Check if 'kwargs' exists and is an object
-        if let Some(Value::Object(kwargs_map)) = command.get("kwargs") {
-            // Check if 'client_handlers' exists within 'kwargs'
-            if let Some(Value::Object(handlers)) = kwargs_map.get("client_handlers") {
-                client_handlers = handlers;
-            } else {
-                return ResultType::Error(format!("update_client_commands_ref give the followign error: The 'client_handlers' key does not exist within 'kwargs'."));
-            }
+        // Check if 'client_handlers' exists within 'kwargs'
+        if let Some(Value::Object(handlers)) = command.kwargs.get("client_handlers") {
+            client_handlers = handlers;
         } else {
-            return ResultType::Error(format!("update_client_commands_ref command doesn't have kwargs in it!"));
+            return ResultType::Error(format!("update_client_commands_ref give the followign error: The 'client_handlers' key does not exist within 'kwargs'."));
         }
+
+        // } else {
+        //     return ResultType::Error(format!("update_client_commands_ref command doesn't have kwargs in it!"));
+        // }
 
         let client_name: String = client.get_client_name();
 

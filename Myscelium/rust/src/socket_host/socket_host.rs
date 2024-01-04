@@ -70,13 +70,13 @@ lazy_static! {
     };
 }
 
-macro_rules! create_command_error {
+macro_rules! create_error_command_response {
     ($client_key:expr, $parity_id:expr, $error:expr) => {{
         let mut command_map = HashMap::new();
 
         let kwargs: HashMap<String, Value> = HashMap::new();
 
-        command_map.insert("mode".to_string(), Value::String("function".to_string()));
+        command_map.insert("mode".to_string(), Value::String("response".to_string()));
         command_map.insert("command_type".to_string(), Value::String("direct_function".to_string()));
         command_map.insert("target".to_string(), Value::String("origin".to_string()));
         command_map.insert("status".to_string(), Value::String("failure".to_string()));
@@ -126,13 +126,13 @@ macro_rules! acquire_logger {
     }};
 }
 
-macro_rules! create_special_command {
+macro_rules! create_special_command_response {
     ($client_key:expr, $special_command:expr) => {{
         let mut command_map = HashMap::new();
 
         let kwargs: HashMap<String, Value> = HashMap::new();
 
-        command_map.insert("mode".to_string(), Value::String("function".to_string()));
+        command_map.insert("mode".to_string(), Value::String("response".to_string()));
         command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
         command_map.insert("target".to_string(), Value::String("origin".to_string()));
         command_map.insert("status".to_string(), Value::String("success".to_string()));
@@ -417,14 +417,14 @@ fn handle_special_functions(client_key: String, function: String) -> Command {
 
     if function == "C202" {
         // -> Connection conf request
-        command = create_special_command!(client_key, "C200");
+        command = create_special_command_response!(client_key, "C200");
     } else if function == "C206" {
         // -> Ping request
 
         let up_schedule: Vec<UpCommand> = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule_fo_client_id(client_key.clone());
 
         if !(up_schedule.len() > 0) {
-            return create_special_command!(client_key, "C207"); // If don't have any response to send send C207 that is a ping confirmation
+            return create_special_command_response!(client_key, "C207"); // If don't have any response to send send C207 that is a ping confirmation
         }
 
         let command_response = &up_schedule[0];
@@ -434,7 +434,7 @@ fn handle_special_functions(client_key: String, function: String) -> Command {
             Err(e) => {
                 // TODO >>> Handle the invalid Commands cases
                 println!("Command received during ping: {} is invalid, gives error: {:?}! Returning C207", command_response, e);
-                return create_special_command!(client_key, "C207");
+                return create_special_command_response!(client_key, "C207");
             },
         };
 
@@ -443,7 +443,7 @@ fn handle_special_functions(client_key: String, function: String) -> Command {
         return response_command;
     } else {
         // -> Receive conf
-        command = create_special_command!(client_key, "C210");
+        command = create_special_command_response!(client_key, "C210");
     }
 
     return command;
@@ -481,7 +481,7 @@ fn handle_common_function(command: Command) -> Command {
     // command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
     // command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-    let command_map = create_special_command!(command.client_key.to_string().clone(), "C210".to_string());
+    let command_map = create_special_command_response!(command.client_key.to_string().clone(), "C210".to_string());
 
     let mut command_map = HashMap::new();
 
@@ -611,7 +611,7 @@ fn handle_connection(mut stream: TcpStream) {
         if !check_if_client_key_exists(command.client_key.clone()) {
             // -> In case client isn't registered in the clients allowed
 
-            let response = create_command_error!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
+            let response = create_error_command_response!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
 
             let command_response_json = json!(response).to_string();
 
@@ -626,7 +626,7 @@ fn handle_connection(mut stream: TcpStream) {
             Ok(c) => c,
             Err(e) => match e {
                 ClientError::ClientDoesNotExist(_) => {
-                    let response = create_command_error!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
+                    let response = create_error_command_response!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
 
                     let command_response_json = json!(response).to_string();
 
@@ -637,7 +637,7 @@ fn handle_connection(mut stream: TcpStream) {
                     break;
                 },
                 _ => {
-                    let response = create_command_error!(command.client_key, command.parity_id, "Unexpected error getting your client");
+                    let response = create_error_command_response!(command.client_key, command.parity_id, "Unexpected error getting your client");
 
                     let command_response_json = json!(response).to_string();
 
@@ -770,12 +770,12 @@ fn handle_connection(mut stream: TcpStream) {
                                 response = c;
                             } else {
                                 logger.info("Response is None!".to_string());
-                                response = create_special_command!(command.client_key, "C210");
+                                response = create_special_command_response!(command.client_key, "C210");
                             }
                         },
                         Response::None => {
                             logger.info("Response is None!".to_string());
-                            response = create_special_command!(command.client_key, "C210");
+                            response = create_special_command_response!(command.client_key, "C210");
                         },
                     }
                 } else {
@@ -790,7 +790,7 @@ fn handle_connection(mut stream: TcpStream) {
             } else {
                 // -> None of above
 
-                let command = create_command_error!(command.client_key, command.parity_id, format!("Function: {}, Doesn't exist!", command.command.actf));
+                let command = create_error_command_response!(command.client_key, command.parity_id, format!("Function: {}, Doesn't exist!", command.command.actf));
 
                 let command_json = json!(command).to_string();
 

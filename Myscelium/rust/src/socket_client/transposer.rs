@@ -176,7 +176,12 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     // TODO >>> Use the command.command or create a require type field to redirect the command to another client
 
     // Convert the down command to a more general command structure for further processing
-    let translated_command: Command = Command::from_down_command(down_command.clone());
+    let translated_command: Command = match Command::from_down_command(down_command.clone()) {
+        Ok(c) => c,
+        Err(e) => {
+            return Err(ProcessError::Error(format!("{:?}", e)));
+        },
+    };
 
     logger.debug(format!("Translated command: {:?}", translated_command));
 
@@ -184,31 +189,15 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     // Determine the type of the command
     match translated_command.command_type() {
-        CommandType::SpecialFunction(_) => {
-            if let Some(Value::Object(function_obj)) = translated_command.command.get("function") {
-                activation_key = match function_obj.get("function") {
-                    // Replace "desired_inner_key" with the key you want to access
-                    Some(Value::String(activation_key)) => activation_key,
-                    _ => {
-                        return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
-                    },
-                };
-            } else {
-                return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
-            }
+        CommandType::SpecialFunction => {
+            activation_key = translated_command.command.actf;
         },
 
-        CommandType::Function(_) => {
-            activation_key = match translated_command.command.get("function") {
-                // Replace "desired_inner_key" with the key you want to access
-                Some(Value::String(activation_key)) => activation_key,
-                _ => {
-                    return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
-                },
-            };
+        CommandType::Default => {
+            activation_key = translated_command.command.actf;
         },
 
-        CommandType::DirectFunction(_) => {
+        CommandType::DirectFunction => {
             activation_key = match translated_command.command.get("function") {
                 // Replace "desired_inner_key" with the key you want to access
                 Some(Value::String(activation_key)) => activation_key,
