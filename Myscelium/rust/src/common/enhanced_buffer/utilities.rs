@@ -1,11 +1,10 @@
-use serde::{Deserialize, Serialize};
-use serde_json::{from_str, Value};
-use std::collections::HashMap;
-
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::socket_host::client_manager::manager::Client;
+use serde::{Deserialize, Serialize};
+use serde_json::{from_str, Map, Value};
+use std::collections::HashMap;
 
 use std::fmt;
 
@@ -129,7 +128,7 @@ impl CommandInstructions {
         serde_json::from_str(&json_str).unwrap()
     }
 
-    pub fn from_hashmap(mut map: HashMap<String, Value>) -> Result<Self, CommandError> {
+    pub fn from_value_map(mut map: HashMap<String, Value>) -> Result<Self, CommandError> {
         let mode = match map.get("type").and_then(Value::as_str) {
             Some("function") => CommandMode::Function,
             Some("response") => CommandMode::Response,

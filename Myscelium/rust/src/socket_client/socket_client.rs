@@ -185,7 +185,7 @@ macro_rules! create_error_command {
         command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
         command_map.insert("message".to_string(), Value::String($error.to_string()));
 
-        let command_instructions: CommandInstructions = CommandInstructions::from_hashmap(command_map).unwrap();
+        let command_instructions: CommandInstructions = CommandInstructions::from_value_map(command_map).unwrap();
 
         let command = Command {
             client_key: $client_key.to_string(),
@@ -211,7 +211,7 @@ macro_rules! create_special_command {
         command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
         command_map.insert("message".to_string(), Value::String("".to_string()));
 
-        let command_instructions: CommandInstructions = CommandInstructions::from_hashmap(command_map).unwrap();
+        let command_instructions: CommandInstructions = CommandInstructions::from_value_map(command_map).unwrap();
 
         let command = Command {
             client_key: $client_key.to_string(),

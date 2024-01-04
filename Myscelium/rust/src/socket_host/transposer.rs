@@ -460,12 +460,28 @@ fn process(py: Python, down_command: DownCommand) {
         }
 
         result = match response {
-            Ok(r) => extract_pyobject(py, r),
+            Ok(r) => {
+                let value: Value = extract_pyobject(py, r);
+
+                // Check if the Value is an object and convert it to HashMap
+                if let Some(obj) = value.as_object() {
+                    match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
+                        Ok(c) => ProcessResult::CommandInstructions(c),
+                        Err(e) => {
+                            // TODO >>> Handle this error case
+                            ProcessResult::Error("callback return a non valid response!".to_string())
+                        },
+                    }
+                } else {
+                    // TODO >>> Handle this error case
+                    ProcessResult::Error("The value is not a JSON object!".to_string())
+                }
+            },
             Err(e) => {
                 // Handle the error or log it
                 logger.exception(format!("Python error: {:?}", e));
                 // You can return a default value or propagate the error further
-                ResultType::Error(format!("{:?}", e))
+                ProcessResult::Error(format!("{:?}", e))
             },
         };
     }
