@@ -212,6 +212,30 @@ impl Command {
         Self { client_key, parity_id, priority, command }
     }
 
+    /// Converts a `DownCommand` into `Command`.
+    ///
+    /// This function takes a `DownCommand` and attempts to convert it into an instance of `YourStruct`.
+    /// It extracts the `client_key`, `parity_id`, and `priority` fields from the `DownCommand`,
+    /// and then tries to deserialize the `command` JSON string into `CommandInstructions`.
+    ///
+    /// # Arguments
+    /// * `down_command` - A `DownCommand` instance containing the necessary information.
+    ///
+    /// # Returns
+    /// * `Ok(YourStruct)` - If the conversion is successful.
+    /// * `Err(CommandError::InvalidCommand)` - If the `command` field cannot be parsed into `CommandInstructions`.
+    ///
+    /// # Examples
+    /// ```
+    /// // Example usage
+    /// let down_command = DownCommand {
+    ///     client_key: "client_key_value".to_string(),
+    ///     parity_id: "parity_id_value".to_string(),
+    ///     priority: "priority_value".to_string(),
+    ///     command: "{\"mode\":\"default\", ...}".to_string(),
+    /// };
+    /// let result = YourStruct::from_down_command(down_command);
+    /// ```
     pub fn from_down_command(down_command: DownCommand) -> Result<Self, CommandError> {
         let client_key = down_command.client_key.clone();
         let parity_id = down_command.parity_id.clone();
@@ -225,6 +249,30 @@ impl Command {
         Ok(Self { client_key, parity_id, priority, command })
     }
 
+    /// Converts an `UpCommand` into `Command`.
+    ///
+    /// This function takes an `UpCommand` and attempts to convert it into an instance of `YourStruct`.
+    /// It extracts the `client_key`, `parity_id`, and `priority` fields from the `UpCommand`,
+    /// and then tries to deserialize the `command` JSON string into `CommandInstructions`.
+    ///
+    /// # Arguments
+    /// * `up_command` - An `UpCommand` instance containing the necessary information.
+    ///
+    /// # Returns
+    /// * `Ok(YourStruct)` - If the conversion is successful.
+    /// * `Err(CommandError::InvalidCommand)` - If the `command` field cannot be parsed into `CommandInstructions`.
+    ///
+    /// # Examples
+    /// ```
+    /// // Example usage
+    /// let up_command = UpCommand {
+    ///     client_key: "client_key_value".to_string(),
+    ///     parity_id: "parity_id_value".to_string(),
+    ///     priority: "priority_value".to_string(),
+    ///     command: "{\"mode\":\"default\", ...}".to_string(),
+    /// };
+    /// let result = YourStruct::from_up_command(up_command);
+    /// ```
     pub fn from_up_command(up_command: UpCommand) -> Result<Self, CommandError> {
         let client_key = up_command.client_key.clone();
         let parity_id = up_command.parity_id.clone();

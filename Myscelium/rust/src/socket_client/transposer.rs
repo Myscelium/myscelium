@@ -198,38 +198,38 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
             activation_key = translated_command.command.actf;
         },
 
-        CommandType::DirectFunction => {
-            activation_key = match translated_command.command.get("function") {
-                // Replace "desired_inner_key" with the key you want to access
-                Some(Value::String(activation_key)) => activation_key,
-                _ => {
-                    return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
-                },
-            };
+        CommandType::DirectFunction => activation_key = translated_command.command.actf,
+
+        // CommandType::Response(_) => {
+        //     activation_key = match translated_command.command.get("response_activation_function") {
+        //         Some(Value::String(activation_key)) => activation_key,
+        //         _ => {
+        //             return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
+        //         },
+        //     };
+        // },
+        // CommandType::Error(_) => {
+        //     activation_key = match translated_command.command.get("response_activation_function") {
+        //         Some(Value::String(activation_key)) => activation_key,
+        //         _ => {
+        //             return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
+        //         },
+        //     };
+        // },
+        CommandType::Redirect => {
+            activation_key = translated_command.command.actf
+
+            // return Err(ProcessError::UnknownCommandType);
         },
 
-        CommandType::Response(_) => {
-            activation_key = match translated_command.command.get("response_activation_function") {
-                Some(Value::String(activation_key)) => activation_key,
-                _ => {
-                    return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
-                },
-            };
-        },
-        CommandType::Error(_) => {
-            activation_key = match translated_command.command.get("response_activation_function") {
-                Some(Value::String(activation_key)) => activation_key,
-                _ => {
-                    return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
-                },
-            };
-        },
-        CommandType::Redirect(_) => {
-            return Err(ProcessError::UnknownCommandType);
-        },
-        CommandType::Unknown => {
-            return Err(ProcessError::UnknownCommandType);
-        },
+
+        CommandType::InternalManagement => {
+            activation_key = translated_command.command.actf
+        }
+
+        // CommandType::Unknown => {
+        //     return Err(ProcessError::UnknownCommandType);
+        // },
     }
 
     println!("Resolved Activation Key are: {:?}", activation_key);
@@ -256,7 +256,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     let result;
 
-    if command_patterns.command_exists(client_name.as_str(), activation_key) {
+    if command_patterns.command_exists(client_name.as_str(), &activation_key) {
         logger.info(format!("Command function: {} is a valid function!", activation_key));
         logger.debug(format!("Calling the callback!\n"));
         // Execute the associated Python callback for the command
@@ -276,10 +276,10 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
                 ResultType::Error(format!("{:?}", e))
             },
         };
-    } else if direct_functions.contains(activation_key) {
+    } else if direct_functions.contains(&activation_key) {
         logger.info(format!("Command function: {} is a valid function!", activation_key));
 
-        let value = handle_direct_function(client_key.clone(), activation_key, translated_command.clone(), command_id);
+        let value = handle_direct_function(client_key.clone(), &activation_key, translated_command.clone(), command_id);
         println!("Direct Function Result: {:?}", value);
 
         result = value;
