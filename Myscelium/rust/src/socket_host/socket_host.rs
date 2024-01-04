@@ -74,6 +74,8 @@ macro_rules! create_error_command_response {
     ($client_key:expr, $parity_id:expr, $error:expr) => {{
         let mut command_map = HashMap::new();
 
+        // TODO >>> Change the CommandInStructions case to use the new method!
+
         let kwargs: HashMap<String, Value> = HashMap::new();
 
         command_map.insert("mode".to_string(), Value::String("response".to_string()));
@@ -129,6 +131,8 @@ macro_rules! acquire_logger {
 macro_rules! create_special_command_response {
     ($client_key:expr, $special_command:expr) => {{
         let mut command_map = HashMap::new();
+
+        // TODO >>> Change the CommandInStructions case to use the new method!
 
         let kwargs: HashMap<String, Value> = HashMap::new();
 
@@ -484,6 +488,8 @@ fn handle_common_function(command: Command) -> Command {
     let command_map = create_special_command_response!(command.client_key.to_string().clone(), "C210".to_string());
 
     let mut command_map = HashMap::new();
+
+    // TODO >>> Change the CommandInStructions case to use the new method!
 
     let kwargs: HashMap<String, Value> = HashMap::new();
 

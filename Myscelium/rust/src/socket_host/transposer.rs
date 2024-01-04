@@ -259,6 +259,8 @@ fn process_and_schedule(resulttype_command: ProcessResult, mut client_key: Strin
 
     let mut client_to_send_back: String;
 
+    // TODO >>> Change from ResultType to ProcessResult
+
     match resulttype_command {
         // TODO >>> Implement change of response here
         ResultType::Map(m) => {
