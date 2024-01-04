@@ -161,14 +161,6 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
 
             resp_kwargs.insert("actual_client_key".to_string(), Value::String(client_key.to_string()));
 
-            // to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
-            // to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-            // to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-            // to_send.insert("message".to_string(), ResultType::Str(format!("Successfully add a client: {}!", client_key).to_string()));
-            // to_send.insert("response_activation_function".to_string(), ResultType::Str("add_client_handler".to_string()));
-            // to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
-            // to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a identifier to know from where the command is
-
             let new_command_instructions:CommandInstructions = CommandInstructions::new(
                 CommandMode::Response,
                 CommandType::Default,
@@ -177,7 +169,7 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
                 CommandOrigin::Host,
                 "add_client_handler".to_string(),
                 resp_kwargs,
-                "".to_string(),
+                format!("Successfully add a client: {}!", client_key).to_string(),
             );
             
             logger.info(format!("Successfully add a client: {}!", client_key));
