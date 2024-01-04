@@ -266,7 +266,7 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
                 return create_error_response_and_return!("Error! Callback response kwargs don't have client_key kwarg!");
             }
 
-            let client_key: &Value = kwargs.get("client_key").unwrap();
+            let client_key: String = kwargs.get("client_key").unwrap().as_str().map(|s| s.to_string()).unwrap();
 
             let client = handle_client_error!(Client::get_by_key(&client_key));
 
