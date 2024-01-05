@@ -625,6 +625,7 @@ fn handle_connection(mut stream: TcpStream) {
 
         update_last_contact(command.client_key.clone());
 
+        // -> SYNC CONTROLER:
         if let Some(sync) = client_sync_status {
             if !sync {
                 println!("\nClient: {:?} isn't sync\n", &command.client_key);
