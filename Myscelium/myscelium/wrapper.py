@@ -873,7 +873,7 @@ class HostPatterns:
 
         return command_instructions
 
-    def error_response_pattern (self, error_message:str, expected_remote_error_handler:str):
+    def error_response_pattern (self, error_message:str, expected_remote_error_handler:str = ""):
         
         # TODO >>> Implement a Error Handler Callback Caller in client, to allow personalize how errors will be treated or change the way that client handles responses
 
@@ -899,24 +899,6 @@ class HostPatterns:
         # This router will be responsible to receive a entire command, so he will decide how to process it and what activation function to call
         # Then this will be able to send a response for host redirect if something is wrong redirecting the error for the client tha cause it and keep going
 
-        if not isinstance(error_message, str):
-            print("Error message needs to be a string!")
-
-        if not isinstance(expected_remote_error_handler, str):
-            print("Expected remote error handler needs to be a string!")
-
-        kwargs = []
-
-        response = {
-            "command_type":"response",
-            "response_mode":"to_origin", 
-            "status": "error", 
-            "response_activation_function":expected_remote_error_handler,
-            "message":error_message, 
-            "kwargs":kwargs,
-            "origin":"host"
-        }
-
         # -> This pattern is used to manipulate host configs remotely
         # >   
         # > (Client 1)       [Host]
@@ -930,7 +912,42 @@ class HostPatterns:
         # > (|) This is this pattern
         # > 
 
-        return response
+        if not isinstance(error_message, str):
+            print("Error message needs to be a string!")
+
+        if not isinstance(expected_remote_error_handler, str):
+            print("Expected remote error handler needs to be a string!")
+
+        kwargs = {}
+        command_instructions = {}
+
+        if expected_remote_error_handler == "":
+
+            command_instructions = cast_command_instruction(
+                "Response",
+                "DirectFunction", 
+                "Origin",
+                "Failure", 
+                "Host",
+                "error_handler", # Default error handler
+                kwargs,
+                error_message, 
+            )
+
+        else:
+
+            command_instructions = cast_command_instruction(
+                "Response",
+                "Default", 
+                "Origin",
+                "Failure", 
+                "Host",
+                expected_remote_error_handler,
+                kwargs,
+                error_message, 
+            )
+
+        return command_instructions
 
     def update_host_configs (self, activation_function:str, **kwargs): # TODO >>> Need rust backend implementation!
 
