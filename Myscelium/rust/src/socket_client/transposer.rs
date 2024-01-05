@@ -187,6 +187,10 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     logger.debug(format!("Translated command: {:?}", translated_command));
 
+    // let client_name;
+
+    // TODO >>> Veriy if the problem of random client disconnect isn't here
+
     // Validate the command against known command patterns
     let command_patterns;
     {
@@ -196,7 +200,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     let client_name;
 
     {
-        client_name = CLIENT_NODE_NAME.lock().clone(); // TODO > This is using parking lot, see if need to change to smart-lock
+        client_name = CLIENT_NODE_NAME.lock().clone();
     }
 
     // logger.info(format!("Command function: {} is a valid function!", activation_key));
@@ -261,6 +265,30 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         },
     };
 
+    fn process_resp(resp: ProcessResult) -> Option<Vec<CommandInstructions>> {
+        let mut command_instructions: Vec<CommandInstructions> = Vec::new();
+
+        match resp {
+            ProcessResult::CommandInstructions(c) => {
+                command_instructions.push(c);
+                Some(command_instructions)
+            },
+            ProcessResult::List(lis) => {
+                for l in lis {
+                    if let Some(c) = process_resp(l) {
+                        command_instructions.extend(c)
+                    }
+                }
+                Some(command_instructions)
+            },
+            ProcessResult::Empty => None,
+            ProcessResult::Error(e) => {
+                println!("Command Gives process result error: {:?}", e);
+                None
+            },
+        }
+    }
+
     let client_key = down_command.client_key.clone();
 
     // TODO >>> Add a rule to command that the origin isn't host that give a error be redirected to origin
@@ -270,10 +298,13 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     logger.debug(format!("Function returned: {:?}", resp));
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
-    // Schedule the resulting up command for transmission
-    let up_command: UpCommand = UpCommand::new(&client_key, &down_command.parity_id, down_command.priority.clone(), &to_string(&resp).unwrap());
-    enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-    enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+    if let Some(v) = process_resp(resp) {
+        for c in v {
+            let up_command: UpCommand = UpCommand::new(&client_key, &down_command.parity_id, down_command.priority.clone(), &to_string(&c).unwrap());
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+            enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+        }
+    }
 
     return Ok(());
 }

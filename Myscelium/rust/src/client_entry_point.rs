@@ -456,12 +456,17 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id
 
     CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
 
-    let mut client_key: String = "".to_string();
+    // let mut client_key: String = "".to_string();
 
-    let client_key_storage = &CLIENT_ID;
-    smart_lock(&client_key_storage, |key: &mut String| {
-        *key = client_id.clone();
-    });
+    // {
+    //     let mut key = CLIENT_ID.lock();
+    //     *key = client_id;
+    // }
+
+    // let client_key_storage = CLIENT_ID;
+    // smart_lock(&*client_key_storage, |key: &mut String| {
+    //     *key = client_id.clone();
+    // });
 
     let address = format!("{}:{}", ip, port);
 

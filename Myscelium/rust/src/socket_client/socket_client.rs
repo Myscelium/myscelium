@@ -252,35 +252,33 @@ fn verify_connection(mut stream: &mut TcpStream, client_key: &String) -> bool {
 
     stream.write_all(command_json.as_bytes()).unwrap();
 
-    let command: Command = match read_json_from_stream(&mut stream) {
-        Ok(command) => {
-            // Process the command
-            println!("Received command: {:?}", command);
-            command
-        },
-        Err(e) => {
-            if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
-                // Handle IO-specific errors
-                eprintln!("IO error occurred: {}", io_err);
-                return false;
-            } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
-                // Handle JSON-specific errors
-                eprintln!("JSON parsing error: {}", json_err);
-                return false;
-            } else {
-                // Handle other errors
-                eprintln!("An error occurred: {}", e);
-                return false;
-            }
-        },
-    };
+    // let command: Command = match read_json_from_stream(&mut stream) {
+    //     Ok(command) => {
+    //         // Process the command
+    //         println!("Received command: {:?}", command);
+    //         command
+    //     },
+    //     Err(e) => {
+    //         if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+    //             // Handle IO-specific errors
+    //             eprintln!("IO error occurred: {}", io_err);
+    //             return false;
+    //         } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
+    //             // Handle JSON-specific errors
+    //             eprintln!("JSON parsing error: {}", json_err);
+    //             return false;
+    //         } else {
+    //             // Handle other errors
+    //             eprintln!("An error occurred: {}", e);
+    //             return false;
+    //         }
+    //     },
+    // };
 
-    // let mut buffer = [0; 4096];
-    // stream.read(&mut buffer).unwrap();
-
-    // let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
-
-    // let command: Command = serde_json::from_str(&buffer_string).unwrap();
+    let mut buffer = [0; 4096];
+    stream.read(&mut buffer).unwrap();
+    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+    let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
     logger.debug(format!("{:?}", command));
 
@@ -324,35 +322,35 @@ fn send(mut stream: &mut TcpStream, command: Command, client_key: &String) -> Re
 
     stream.write_all(command_json.as_bytes()).unwrap();
 
-    // let mut buffer = [0; 16384];
-    // stream.read(&mut buffer).unwrap();
+    let mut buffer = [0; 16384];
+    stream.read(&mut buffer).unwrap();
 
-    // let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
-    let command: Command = match read_json_from_stream(&mut stream) {
-        Ok(command) => {
-            // Process the command
-            println!("Received command: {:?}", command);
-            command
-        },
-        Err(e) => {
-            if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
-                // Handle IO-specific errors
-                eprintln!("IO error occurred: {}", io_err);
-                return Response::None;
-            } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
-                // Handle JSON-specific errors
-                eprintln!("JSON parsing error: {}", json_err);
-                return Response::None;
-            } else {
-                // Handle other errors
-                eprintln!("An error occurred: {}", e);
-                return Response::None;
-            }
-        },
-    };
+    // let command: Command = match read_json_from_stream(&mut stream) {
+    //     Ok(command) => {
+    //         // Process the command
+    //         println!("Received command: {:?}", command);
+    //         command
+    //     },
+    //     Err(e) => {
+    //         if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+    //             // Handle IO-specific errors
+    //             eprintln!("IO error occurred: {}", io_err);
+    //             return Response::None;
+    //         } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
+    //             // Handle JSON-specific errors
+    //             eprintln!("JSON parsing error: {}", json_err);
+    //             return Response::None;
+    //         } else {
+    //             // Handle other errors
+    //             eprintln!("An error occurred: {}", e);
+    //             return Response::None;
+    //         }
+    //     },
+    // };
 
-    // let command: Command = serde_json::from_str(&buffer_string).unwrap();
+    let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
     logger.debug(format!("Received: {:?}", command));
 

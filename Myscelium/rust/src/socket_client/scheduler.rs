@@ -34,10 +34,15 @@ macro_rules! acquire_logger {
 pub fn set_client_id(client_uid: String) {
     println!("Setting client_id to: {:?}", client_uid.clone());
 
-    let client_key_storage = &CLIENT_ID;
-    smart_lock(client_key_storage, |key: &mut String| {
-        *key = client_uid;
-    });
+    // let client_key_storage = &CLIENT_ID;
+    // smart_lock(client_key_storage, |key: &mut String| {
+    //     *key = client_uid;
+    // });
+
+    {
+        let mut key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
+        *key = client_uid
+    }
 }
 
 /// Requests the available commands that are registered on the host.
@@ -70,10 +75,15 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
 
     let mut client_key: String = "".to_string();
 
-    let client_key_storage = &CLIENT_ID;
-    smart_lock(&client_key_storage, |key: &mut String| {
-        client_key = key.clone();
-    });
+    // let client_key_storage = &CLIENT_ID;
+    // smart_lock(&client_key_storage, |key: &mut String| {
+    //     client_key = key.clone();
+    // });
+
+    {
+        let key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
+        client_key = key.clone()
+    }
 
     logger.debug(format!("Client id is: {:?}", client_key));
     let command: Result<String, serde_json::Error> = serde_json::to_string(&command);
