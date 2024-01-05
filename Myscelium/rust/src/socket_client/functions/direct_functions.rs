@@ -2,7 +2,8 @@ use crate::common::structs::avaliable_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
 use crate::socket_client::socket_client::COMMAND_PATTERNS;
 use crate::socket_client::transposer::ProcessError;
-use serde_json::Value;
+use crate::socket_host::transposer_functions::handle_direct_function::ProcessResult;
+use serde_json::{to_string, Value};
 use std::collections::HashMap;
 
 use crate::socket_client::client_logger::log_handler::Logger;
@@ -11,7 +12,7 @@ use crate::CLIENT_LOG_LEVEL;
 use crate::socket_client::transposer::HOST_ALLOWED_COMMANDS;
 
 use crate::common::enhanced_buffer;
-use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use crate::common::functions::advanced_lockers::smart_lock;
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::converters::convert_value_map_to_resulttype_map;
@@ -28,7 +29,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, command_id: u32) -> ResultType {
+pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, command_id: u32) -> Result<ProcessResult, ProcessError> {
     let logger = acquire_logger!("Transposer - Process");
 
     logger.info(format!("Initializing processing!"));
@@ -61,29 +62,29 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
-            let mut filtered_resulttype_commands_map = HashMap::new();
-            filtered_resulttype_commands_map.insert("client_handlers".to_string(), Value::Object(serde_json::Map::from_iter(actual_patterns)));
+            let mut filtered_commands_map = HashMap::new();
+            filtered_commands_map.insert("client_handlers".to_string(), Value::Object(serde_json::Map::from_iter(actual_patterns)));
 
-            let function: String = "update_client_commands_ref".to_string();
+            let new_command_instructions = CommandInstructions::new(
+                CommandMode::Function,
+                CommandType::DirectFunction,
+                CommandTarget::Host,
+                CommandStatus::Success,
+                CommandOrigin::ClientKey(client_key.clone()),
+                "update_client_commands_ref".to_string(),
+                filtered_commands_map,
+                "".to_string(),
+            );
 
-            let mut to_send = HashMap::new();
-
-            to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
-            to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-            to_send.insert("function".to_string(), ResultType::Str(function)); // -> Function that it will act in host
-            to_send.insert("kwargs".to_string(), ResultType::Map(filtered_resulttype_commands_map));
-            to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
-            to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host
-
-            let converted_to_value = convert_to_value_map(&to_send);
-            let response = serde_json::to_string(&converted_to_value).unwrap();
+            // > This need to be scheduled this way since this is a new command and need a new parity id, if return this will use the parity id received
+            // TODO >>> A possible way to do this is by call the schedule instead of schedule by hand, mybe is a better option to avoid code repetition
 
             let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
-            let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &response);
+            let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &to_string(&new_command_instructions).unwrap());
             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
-            return ResultType::Empty;
+            return Ok(ProcessResult::Empty);
         },
         "get_socket_client_available_handlers" => {
             logger.info(format!("Receive Available Handlers Request"));
@@ -101,45 +102,33 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             // enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
-            let handlers = match convert_value_map_to_resulttype_map(&actual_patterns) {
-                Ok(c) => c,
-                Err(e) => match e {
-                    ConversionError::UnsuportedValueVariant(s) => {
-                        logger.warn(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                        return ResultType::Error(format!("Error of unsuported variant to client: {:?} in handle_direct_function, the error was: {:?}", client_key, s));
-                    },
-                },
-            };
+            let mut filtered_commands_map: HashMap<String, Value> = HashMap::new();
+            filtered_commands_map.insert("client_handlers".to_string(), Value::Object(serde_json::Map::from_iter(actual_patterns)));
 
-            let mut filtered_resulttype_commands_map = HashMap::new();
-
-            filtered_resulttype_commands_map.insert("client_handlers".to_string(), handlers);
-
-            let function: String = "update_client_commands_ref".to_string();
-
-            let mut to_send = HashMap::new();
-
-            to_send.insert("command_type".to_string(), ResultType::Str("direct_function".to_string()));
-            to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-            to_send.insert("function".to_string(), ResultType::Str(function)); // -> Function that it will act in host
-            to_send.insert("kwargs".to_string(), ResultType::Map(filtered_resulttype_commands_map));
-            to_send.insert("origin".to_string(), ResultType::Str(client_key.clone())); // -> This will be an identifier, to know the origin of the retransmited command
-            to_send.insert("response_mode".to_string(), ResultType::Str("to_host".to_string())); // -> This is necessary to send this response back to host
-
-            let converted_to_value = convert_to_value_map(&to_send);
-            let response = serde_json::to_string(&converted_to_value).unwrap();
+            let new_command_instructions = CommandInstructions::new(
+                CommandMode::Response,
+                CommandType::DirectFunction,
+                CommandTarget::Host,
+                CommandStatus::Success,
+                CommandOrigin::ClientKey(client_key.clone()),
+                "update_client_commands_ref".to_string(),
+                filtered_commands_map,
+                "".to_string(),
+            );
 
             let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
-            let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &response);
+            let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &to_string(&new_command_instructions).unwrap());
             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
-
-            // TODO >>> Remove this, this needs to be in the end of the thing, not here
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
-            return ResultType::Empty;
+            // TODO >>> See if need to remove this, this needs to be in the end of the thing, not here
+            // enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+
+            return Ok(ProcessResult::Empty);
+        },
+
+        _ => {
+            return Err(ProcessError::CommandNotRegistered(c.actf));
         },
     }
-
-    // TODO >>> Build a nice error handler for this
-    return ResultType::Error(format!("Command: {:?} not found!", translated_command.clone()));
 }
