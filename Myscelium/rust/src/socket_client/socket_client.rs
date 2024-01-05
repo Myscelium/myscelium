@@ -206,7 +206,7 @@ macro_rules! create_special_command {
             CommandType::SpecialFunction,
             CommandTarget::Host,
             CommandStatus::Success,
-            CommandOrigin::ClientKey($client_key),
+            CommandOrigin::ClientKey($client_key.clone()),
             $special_command.to_string(),
             HashMap::new(),
             "".to_string(),
@@ -239,9 +239,14 @@ macro_rules! create_special_command {
 fn verify_connection(stream: &mut TcpStream) -> bool {
     let logger = acquire_logger!("Core");
 
-    let client_key_storage = CLIENT_ID.lock();
+    let client_key: String;
 
-    let command = create_special_command!(client_key_storage.clone(), CommandMode::Function, "C202");
+    {
+        let client_key_storage = CLIENT_ID.lock();
+        client_key = client_key_storage.clone()
+    }
+
+    let command = create_special_command!(client_key.clone(), CommandMode::Function, "C202");
 
     let command_json = json!(command).to_string();
 
