@@ -798,49 +798,11 @@ class HostPatterns:
         #* Triggered in the target, the engine will get the response and redirect to the other client by this id, if client exists.
         #* Else this will return a error saying that client doesn't exists
 
-        if response_activation_function == "" or response_activation_function == None:
-            return self.error_response_pattern("Missing response_activation_function!", response_activation_function)
-
-        if response_mode == "redirect":
-
-            if redirect_to_client_id != None:
-                pass
-            else:
-                return self.error_response_pattern("Invalid redirect! Missing client_id to redirect!", response_activation_function)
-
-            response = {
-                "command_type":"function",
-                "response_mode":"redirect", 
-                "status": "success", 
-                "response_activation_function":response_activation_function,
-                "message":"", 
-                "kwargs":response,
-                "redirect_to":redirect_to_client_id
-            }
-
-            # -> here the origin identifier is added when the command is reforged inside engine
-            # -> inside the myscelium engine to redirect to the other client so because of that doesn't need the origin here
-
-            return response
-
-        elif response_mode == 'to_origin': # > this is returned directly to the client
-
-            print("Response mode set to origin")
-
-            response = {
-                "command_type":"response",
-                "response_mode":"to_origin", 
-                "status": "success", 
-                "response_activation_function":response_activation_function,
-                "message":message, 
-                "kwargs":response,
-                "origin":"host" # -> Since this is a return from host to client does't make sense to add a marker here 
-            }
-
-            return response
-        
-        else:
-            return self.error_response_pattern("Response mode invalid! Please use one of this: ('redirect', 'to_origin')", response_activation_function)
+        cast_command_instruction(
+            "Response",
+            "Default", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
+            ""
+        )
 
     def error_response_pattern (self, error_message:str, expected_remote_error_handler:str):
         
