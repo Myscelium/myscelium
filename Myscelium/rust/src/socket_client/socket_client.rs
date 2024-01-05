@@ -28,8 +28,9 @@ use crate::CLIENT_LOG_LEVEL;
 
 use crate::CLIENT_NODE_NAME;
 
-use parking_lot::Mutex;
+// use parking_lot::Mutex;
 use std::sync;
+use std::sync::Mutex;
 
 use crate::common::functions::advanced_lockers::smart_lock;
 
@@ -213,7 +214,7 @@ macro_rules! create_special_command {
         );
 
         let command = Command {
-            client_key: $client_key.to_string(),
+            client_key: $client_key.clone().to_string(),
             parity_id: "itisaspecialcase".to_string(),
             priority: 11,
             command: command_instructions,
@@ -239,12 +240,12 @@ macro_rules! create_special_command {
 fn verify_connection(stream: &mut TcpStream) -> bool {
     let logger = acquire_logger!("Core");
 
-    let client_key: String;
+    let mut client_key: String = "".to_string();
 
-    {
-        let client_key_storage = CLIENT_ID.lock();
-        client_key = client_key_storage.clone()
-    }
+    let client_key_storage = &CLIENT_ID;
+    smart_lock(&*client_key_storage, |key: &mut String| {
+        client_key = key.clone();
+    });
 
     let command = create_special_command!(client_key.clone(), CommandMode::Function, "C202");
 
@@ -328,12 +329,12 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
         return None;
     }
 
-    let client_key: String;
+    let mut client_key: String = "".to_string();
 
-    {
-        let client_key_storage = CLIENT_ID.lock();
-        client_key = client_key_storage.clone()
-    }
+    let client_key_storage = &CLIENT_ID;
+    smart_lock(&*client_key_storage, |key: &mut String| {
+        client_key = key.clone();
+    });
 
     let command_to_request = create_special_command!(client_key, CommandMode::Function, "C206");
     let received = send(&mut stream, command_to_request.clone());
