@@ -92,11 +92,11 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
         raise ValueError("Response activation function can't be empty")
 
     command_instruction = {
-        "mode": command_mode,
-        "type": command_type,
-        "target": command_target,
-        "status": command_status,
-        "origin": command_origin,
+        "CommandMode": command_mode,
+        "CommandType": command_type,
+        "CommandTarget": command_target,
+        "CommandStatus": command_status,
+        "CommandOrigin": command_origin,
         "actf": command_actf,
         "kwargs": command_kwargs,
         "message": command_message,

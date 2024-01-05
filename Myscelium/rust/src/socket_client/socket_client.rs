@@ -31,9 +31,9 @@ use crate::CLIENT_LOG_LEVEL;
 
 use crate::CLIENT_NODE_NAME;
 
-// use parking_lot::Mutex;
+use parking_lot::Mutex;
 use std::sync;
-use std::sync::Mutex;
+// use std::sync::Mutex;
 
 use crate::common::functions::advanced_lockers::smart_lock;
 
@@ -48,7 +48,7 @@ macro_rules! acquire_logger {
 }
 
 use crate::common::structs::avaliable_commands::CommandPatterns;
-use crate::CLIENT_ID;
+// use crate::CLIENT_ID;
 
 lazy_static! {
     pub static ref COMMAND_PATTERNS: Arc<sync::Mutex<CommandPatterns>> = Arc::new(sync::Mutex::new(CommandPatterns::new()));
@@ -75,6 +75,7 @@ lazy_static! {
         let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
         Arc::new(Mutex::new(command_patterns))
     };
+    static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
 }
 
 // >-------------------------------------------------------------------------------------------------------------------------------------------
@@ -170,6 +171,8 @@ pub fn get_available_handlers_registered() -> HashMap<String, Value> {
 /// Variants:
 /// - `Command`: Represents a valid command response from the server.
 /// - `None`: Represents an absence of response or an invalid response.
+
+#[derive(Debug)]
 enum Response {
     Command(Command),
     None,
@@ -240,15 +243,8 @@ macro_rules! create_special_command {
 ///
 /// # Behavior
 /// - The function logs any unexpected responses or errors.
-fn verify_connection(mut stream: &mut TcpStream) -> bool {
+fn verify_connection(mut stream: &mut TcpStream, client_key: &String) -> bool {
     let logger = acquire_logger!("Core");
-
-    let mut client_key: String = "".to_string();
-
-    let client_key_storage = &CLIENT_ID;
-    smart_lock(&client_key_storage, |key: &mut String| {
-        client_key = key.clone();
-    });
 
     let command = create_special_command!(client_key.clone(), CommandMode::Function, "C202");
 
@@ -311,14 +307,15 @@ fn verify_connection(mut stream: &mut TcpStream) -> bool {
 ///
 /// # Behavior
 /// - If the connection is not verified, the function logs the event and returns `Response::None`.
-fn send(mut stream: &mut TcpStream, command: Command) -> Response {
+fn send(mut stream: &mut TcpStream, command: Command, client_key: &String) -> Response {
     let logger = acquire_logger!("Core");
 
-    let conn: bool = verify_connection(stream);
-
-    if !conn {
-        logger.info(format!("Not connected!"));
-        return Response::None;
+    {
+        let conn: bool = verify_connection(stream, &client_key);
+        if !conn {
+            logger.info(format!("Not connected!"));
+            return Response::None;
+        }
     }
 
     let command_json: String = to_string(&command).unwrap();
@@ -375,20 +372,18 @@ fn send(mut stream: &mut TcpStream, command: Command) -> Response {
 ///
 /// # Behavior
 /// - If the `CLIENT_IS_RUNNING` global flag is set to false, the function will immediately return `None`.
-pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
+pub fn send_ping(mut stream: &mut TcpStream, client_key: &String) -> Option<DownCommand> {
     if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
         return None;
     }
 
-    let mut client_key: String = "".to_string();
-
-    let client_key_storage = &CLIENT_ID;
-    smart_lock(&*client_key_storage, |key: &mut String| {
-        client_key = key.clone();
-    });
-
     let command_to_request = create_special_command!(client_key, CommandMode::Function, "C206");
-    let received = send(&mut stream, command_to_request.clone());
+
+    println!("Create C206 ping request: {:?}", command_to_request);
+
+    let received: Response = send(&mut stream, command_to_request.clone(), client_key);
+
+    println!("Received response: {:?}", received);
 
     match handle_response(received) {
         Received::DownCommand(down_command) => return Some(down_command),
@@ -530,7 +525,7 @@ fn handle_response(received: Response) -> Received {
 ///
 /// # Arguments
 /// - `address`: The server address to connect to, in the format "ip:port".
-/// - `client_id`: A unique identifier for the client, used for communication purposes.
+/// - `client_key`: A unique identifier for the client, used for communication purposes.
 ///
 /// # How it works
 /// 1. The function first spawns a background thread that checks for deadlocks every 5 seconds.
@@ -549,7 +544,7 @@ fn handle_response(received: Response) -> Received {
 /// - The client sends a ping to the server when there are no commands in the schedule.
 /// - The client will wait for 200 milliseconds between retries if a command's response is not received.
 /// - The client will continue to check for scheduled commands as long as `CLIENT_IS_RUNNING` is true.
-pub fn initialize_client(address: String, client_id: String) {
+pub fn initialize_client(address: String, client_key: String) {
     // Create a global Mutex for demonstration
     let mutex1 = Mutex::new(0);
     let mutex2 = Mutex::new(0);
@@ -585,7 +580,12 @@ pub fn initialize_client(address: String, client_id: String) {
 
     thread::sleep(Duration::from_millis(200));
 
-    let mut client_key_was_seted = false;
+    // let mut client_key_was_seted = false;
+
+    // let client_key_storage = &CLIENT_ID;
+    // smart_lock(&client_key_storage, |key: &mut String| {
+    //     *key = client_key.clone();
+    // });
 
     loop {
         if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
@@ -593,30 +593,31 @@ pub fn initialize_client(address: String, client_id: String) {
             break;
         }
 
-        if !client_key_was_seted {
-            let mut client_key: String = " ".to_string();
+        // if !client_key_was_seted {
+        //     let mut client_key: String = " ".to_string();
 
-            let client_key_storage = &CLIENT_ID;
-            smart_lock(&*client_key_storage, |key: &mut String| {
-                client_key = key.clone();
-            });
+        //     let client_key_storage = &CLIENT_ID;
+        //     smart_lock(&*client_key_storage, |key: &mut String| {
+        //         client_key = key.clone();
+        //     });
 
-            // TODO >>> Maybe add a mechanism taht when this is seted it don't verify again to reduce complexity, maybe a boolean
+        //     // TODO >>> Maybe add a mechanism taht when this is seted it don't verify again to reduce complexity, maybe a boolean
 
-            if client_key == " " {
-                // Whait untill client id was seted!
-                thread::sleep(Duration::from_millis(200));
-                continue;
-            } else {
-                client_key_was_seted = true;
-            }
-        }
+        //     if client_key == " " {
+        //         // Whait untill client id was seted!
+        //         thread::sleep(Duration::from_millis(200));
+        //         continue;
+        //     } else {
+        //         client_key_was_seted = true;
+        //     }
+        // }
 
         let up_schedule = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule();
 
         if !(up_schedule.len() > 0) {
             {
-                if let Some(down_command) = send_ping(&mut stream) {
+                println!("Nothing in schedule to send to host, so sending ping!");
+                if let Some(down_command) = send_ping(&mut stream, &client_key) {
                     enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
                 }
             }
@@ -641,7 +642,7 @@ pub fn initialize_client(address: String, client_id: String) {
                 let received: Response;
 
                 {
-                    received = send(&mut stream, command_to_request.clone());
+                    received = send(&mut stream, command_to_request.clone(), &client_key);
                 }
 
                 match handle_response(received) {
