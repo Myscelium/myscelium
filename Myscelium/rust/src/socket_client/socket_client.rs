@@ -323,6 +323,8 @@ fn send(mut stream: &mut TcpStream, command: Command) -> Response {
 
     let command_json: String = to_string(&command).unwrap();
 
+    println!("Sending to host: {:?}", command_json);
+
     stream.write_all(command_json.as_bytes()).unwrap();
 
     // let mut buffer = [0; 16384];
