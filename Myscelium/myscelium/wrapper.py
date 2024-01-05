@@ -89,7 +89,7 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
 
 
     if command_actf == "" or command_actf == None:
-        raise "Response activation function can't be empty"
+        raise ValueError("Response activation function can't be empty")
 
     command_instruction = {
         "mode": command_mode,
