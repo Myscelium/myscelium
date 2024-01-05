@@ -186,55 +186,6 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     logger.debug(format!("Translated command: {:?}", translated_command));
 
-    let activation_key;
-
-    // Determine the type of the command
-    match translated_command.command_type() {
-        //TODO link the command types to where they are redirected, now is just obtaining the key and sending to the same place
-        CommandType::SpecialFunction => {
-            activation_key = &translated_command.command.actf;
-        },
-
-        CommandType::Default => {
-            activation_key = &translated_command.command.actf;
-        },
-
-        CommandType::DirectFunction => activation_key = &translated_command.command.actf,
-
-        // CommandType::Response(_) => {
-        //     activation_key = match translated_command.command.get("response_activation_function") {
-        //         Some(Value::String(activation_key)) => activation_key,
-        //         _ => {
-        //             return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
-        //         },
-        //     };
-        // },
-        // CommandType::Error(_) => {
-        //     activation_key = match translated_command.command.get("response_activation_function") {
-        //         Some(Value::String(activation_key)) => activation_key,
-        //         _ => {
-        //             return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
-        //         },
-        //     };
-        // },
-        CommandType::Redirect => {
-            activation_key = &translated_command.command.actf
-
-            // return Err(ProcessError::UnknownCommandType);
-        },
-
-
-        CommandType::InternalManagement => {
-            activation_key = &translated_command.command.actf
-        }
-
-        // CommandType::Unknown => {
-        //     return Err(ProcessError::UnknownCommandType);
-        // },
-    }
-
-    println!("Resolved Activation Key are: {:?}", activation_key);
-
     // Validate the command against known command patterns
     let command_patterns;
     {
@@ -253,44 +204,43 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     let response: String;
 
-    let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
+    // let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
 
     let result: ProcessResult;
 
-    if command_patterns.command_exists(client_name.as_str(), &activation_key) {
-        logger.info(format!("Command function: {} is a valid function!", activation_key));
-        logger.debug(format!("Calling the callback!\n"));
-        // Execute the associated Python callback for the command
-        let response;
-        {
-            let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
-            response = client_call_callback(py, &translated_command, &callback_patterns);
-        }
+    if translated_command.command_type() == CommandType::DirectFunction {
+        logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
+        result = handle_direct_function(&client_key, &translated_command.command.actf, &translated_command, command_id);
+        println!("Direct Function Result: {:?}", result);
+    }
 
-        // Process the Python callback's return value
-        result = match response {
-            Ok(r) => extract_pyobject(py, r),
-            Err(e) => {
-                // Handle the error or log it
-                eprintln!("Python error: {:?}", e);
-                // You can return a default value or propagate the error further
-                ResultType::Error(format!("{:?}", e))
-            },
-        };
-    } else if direct_functions.contains(&activation_key) {
-        logger.info(format!("Command function: {} is a valid function!", activation_key));
-
-        let value = handle_direct_function(&client_key, &activation_key, &translated_command, command_id);
-        println!("Direct Function Result: {:?}", value);
-
-        result = value;
-    } else {
+    if !command_patterns.command_exists(client_name.as_str(), &translated_command.command.actf) {
         // If the command is not in the patterns, remove it from the schedule and return an error
         logger.warn(format!("Command isn't registered in the patterns"));
         enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
         logger.info(format!("command skipped and removed from schedule"));
-        return Err(ProcessError::CommandNotRegistered(activation_key.clone()));
+        return Err(ProcessError::CommandNotRegistered(translated_command.command.actf.clone()));
     }
+
+    logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
+    logger.debug(format!("Calling the callback!\n"));
+    // Execute the associated Python callback for the command
+    let response;
+    {
+        let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
+        response = client_call_callback(py, &translated_command, &callback_patterns);
+    }
+
+    // Process the Python callback's return value
+    result = match response {
+        Ok(r) => extract_pyobject(py, r),
+        Err(e) => {
+            // Handle the error or log it
+            eprintln!("Python error: {:?}", e);
+            // You can return a default value or propagate the error further
+            ResultType::Error(format!("{:?}", e))
+        },
+    };
 
     match result {
         ResultType::Map(m) => {
