@@ -2,6 +2,7 @@ use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
+use crate::common::functions::advanced_lockers::smart_lock;
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
 use crate::common::structs::results_structs::ResultType;
@@ -10,7 +11,7 @@ use crate::socket_client::functions::direct_functions::handle_direct_function;
 use crate::socket_host::transposer_functions::handle_direct_function::ProcessResult;
 
 use lazy_static::lazy_static;
-use serde_json::{from_str, Value};
+use serde_json::{from_str, to_string, Value};
 use std::collections::HashMap;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
@@ -189,13 +190,13 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     // Validate the command against known command patterns
     let command_patterns;
     {
-        command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+        command_patterns = COMMAND_PATTERNS.lock().unwrap().clone(); // TODO > This is using parking lot, see if need to change to smart-lock
     }
 
     let client_name;
 
     {
-        client_name = CLIENT_NODE_NAME.lock().clone();
+        client_name = CLIENT_NODE_NAME.lock().clone(); // TODO > This is using parking lot, see if need to change to smart-lock
     }
 
     // logger.info(format!("Command function: {} is a valid function!", activation_key));
@@ -206,12 +207,12 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     // let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
 
-    let result: ProcessResult;
+    let mut resp: ProcessResult;
 
     if translated_command.command_type() == CommandType::DirectFunction {
         logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
-        result = handle_direct_function(&translated_command.command, &client_key, command_id)?;
-        println!("Direct Function Result: {:?}", result);
+        resp = handle_direct_function(&translated_command.command, &client_key, command_id)?;
+        println!("Direct Function Result: {:?}", resp);
     }
 
     if !command_patterns.command_exists(client_name.as_str(), &translated_command.command.actf) {
@@ -225,95 +226,52 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
     logger.debug(format!("Calling the callback!\n"));
     // Execute the associated Python callback for the command
+
+    // -> CALL PYTHON CALLBACK:
     let response;
     {
         let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
         response = client_call_callback(py, &translated_command, &callback_patterns);
     }
 
-    // Process the Python callback's return value
-    result = match response {
-        Ok(r) => extract_pyobject(py, r),
+    // -> PROCESS CALLBACK RESPONSE:
+    resp = match response {
+        Ok(r) => {
+            let value: Value = extract_pyobject(py, r);
+
+            // Check if the Value is an object and convert it to HashMap
+            if let Some(obj) = value.as_object() {
+                match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
+                    Ok(c) => ProcessResult::CommandInstructions(c),
+                    Err(e) => {
+                        // TODO >>> Handle this error case
+                        return Err(ProcessError::Error("callback return a non valid response!".to_string()));
+                    },
+                }
+            } else {
+                // TODO >>> See if the command that gives the error will be deleted
+                return Err(ProcessError::Error("The value is not a JSON object!".to_string()));
+            }
+        },
         Err(e) => {
             // Handle the error or log it
-            eprintln!("Python error: {:?}", e);
+            logger.exception(format!("Python error: {:?}", e));
             // You can return a default value or propagate the error further
-            ResultType::Error(format!("{:?}", e))
+            return Err(ProcessError::Error(format!("{:?}", e)));
         },
     };
 
-    match result {
-        ResultType::Map(m) => {
-            if m.contains_key("response_mode") {
-                let response_mode = m.get("response_mode").unwrap();
+    let client_key = down_command.client_key.clone();
 
-                if *response_mode == ResultType::Str("to_host".to_string()) {
-                    let converted_to_value = convert_to_value_map(&m);
-                    response = serde_json::to_string(&converted_to_value).unwrap();
-
-                    println!("Stringfied Response to send to host: {:?}", response)
-                } else if *response_mode == ResultType::Str("retransmit".to_string()) {
-                    // TODO >>> Check if retransmit is necessary here
-
-                    let converted_to_value = convert_to_value_map(&m);
-                    response = serde_json::to_string(&converted_to_value).unwrap();
-                } else {
-                    enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-                    return Err(ProcessError::InvalidCallbackResponse(
-                        activation_key.clone(),
-                        "Response mode doesn't match any known mode. Please use one of: ('to_host', 'retransmit')!".to_string(),
-                    ));
-                }
-            } else {
-                enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-                return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Callback doesn't implement response mode!".to_string()));
-            }
-        },
-        ResultType::Str(s) => {
-            response = s.clone();
-        },
-        ResultType::Int(i) => {
-            response = i.to_string();
-        },
-        ResultType::Float(fl) => {
-            response = fl.to_string();
-        },
-        ResultType::Bool(b) => {
-            response = b.to_string();
-        },
-        ResultType::List(_) => {
-            // eprintln!("Error! Received a list, but expected a map!");
-            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-            return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Received a list, but expected a map!".to_string()));
-        },
-        ResultType::Empty => {
-            logger.info(format!("Response is None!"));
-
-            // let mut command_map = HashMap::new();
-            // command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-            // command_map.insert("function".to_string(), Value::String("C210".to_string()));
-            // response = serde_json::to_string(&command_map).unwrap();
-
-            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-            return Ok(());
-        },
-        ResultType::Error(e) => {
-            // eprintln!();
-            return Err(ProcessError::InvalidCallbackResponse(
-                activation_key.clone(),
-                format!("An error occurred while converting the Python callback response. The error was: {:?}", e),
-            ));
-        },
-    }
-
+    // TODO >>> Add a rule to command that the origin isn't host that give a error be redirected to origin
     // TODO >>> Remake the command, in a way that it accept Values instead of only string, to we be able to use Value map instead of a json str
     //> This will allow to easily manage commands, reducing the times that it needs to be parsed from str and allowing convert from value directly.
 
-    logger.debug(format!("Function returned: {:?}", response));
+    logger.debug(format!("Function returned: {:?}", resp));
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
     // Schedule the resulting up command for transmission
-    let up_command: UpCommand = UpCommand::new(&client_key, &down_command.parity_id, down_command.priority.clone(), &response);
+    let up_command: UpCommand = UpCommand::new(&client_key, &down_command.parity_id, down_command.priority.clone(), &to_string(&resp).unwrap());
     enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 

@@ -244,9 +244,10 @@ pub fn process_map_result(m: CommandInstructions, client_key: &String, parity_id
 /// let resulttype_command = ResultType::Map(...); // Construct a ResultType::Map
 /// let mut client_key = "client123".to_string();
 /// let down_command = DownCommand::new(...); // Construct a DownCommand
-/// process_and_schedule(resulttype_command, client_key, down_command);
+/// process_response_and_schedule(resulttype_command, client_key, down_command);
 /// ```
-fn process_and_schedule(resulttype_command: ProcessResult, mut client_key: String, down_command: DownCommand) {
+// TODO >>> Remake this doc string
+fn process_response_and_schedule(resulttype_command: ProcessResult, mut client_key: String, down_command: DownCommand) {
     let logger = acquire_logger!("Transposer - Process");
 
     let command_id: u32 = down_command.command_id.clone().unwrap();
@@ -460,7 +461,7 @@ fn process(py: Python, down_command: DownCommand) {
 
     let client_key = down_command.client_key.clone();
 
-    process_and_schedule(result, client_key, down_command);
+    process_response_and_schedule(result, client_key, down_command);
 
     enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 }
