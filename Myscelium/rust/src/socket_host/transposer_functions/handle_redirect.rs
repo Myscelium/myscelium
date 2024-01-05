@@ -1,6 +1,7 @@
 use serde_json::Value;
 use std::collections::HashMap;
 
+use crate::common::enhanced_buffer::utilities::{CommandInstructions, CommandType};
 use crate::socket_host::client_manager::manager::check_if_client_key_exists;
 
 use crate::common::enhanced_buffer;
@@ -83,7 +84,7 @@ macro_rules! acquire_logger {
 /// let response = handle_redirect(m, &mut client_id, down_command);
 /// ```
 ///
-pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, parity_id: String, priority: u8) -> HashMap<String, ResultType> {
+pub fn handle_redirect(m: CommandInstructions, client_id: &mut String, parity_id: String, priority: u8) -> CommandInstructions {
     let logger = acquire_logger!("[Process][Handle Redirect]");
 
     let mut to_send = HashMap::new();
@@ -92,7 +93,7 @@ pub fn handle_redirect(m: HashMap<String, ResultType>, client_id: &mut String, p
 
     let converted_m = convert_to_value_map(&m);
 
-    if !m.contains_key("redirect_to") {
+    if m.command_type != CommandType::Redirect {
         logger.warn("Error! Callback response args don't have redirect_to client_id field!".to_string());
         return create_error_response_and_return!("Error! Callback response args don't have redirect_to client_id field!", converted_m, to_send);
         // error_response!("Error! Callback response args don't have redirect_to client_id field!");
