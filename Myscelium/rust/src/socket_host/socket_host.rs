@@ -525,7 +525,7 @@ fn handle_connection(mut stream: TcpStream) {
     let mut client: Option<Client> = None;
 
     loop {
-        let mut buffer = [0; 4096];
+        let mut buffer = [0; 16384];
 
         match stream.read(&mut buffer) {
             Ok(0) => {

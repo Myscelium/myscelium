@@ -8,6 +8,8 @@ use std::collections::HashMap;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
+use serde_json::to_string;
+
 use crate::common::functions::converters::value_to_resulttype;
 
 use std::sync::atomic::Ordering;
@@ -295,11 +297,11 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
         return Response::None;
     }
 
-    let command_json = json!(command).to_string();
+    let command_json: String = to_string(&command).unwrap();
 
     stream.write_all(command_json.as_bytes()).unwrap();
 
-    let mut buffer = [0; 4096];
+    let mut buffer = [0; 16384];
     stream.read(&mut buffer).unwrap();
 
     let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
