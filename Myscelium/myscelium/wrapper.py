@@ -49,6 +49,9 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
     else: 
         raise "Command origin can only be one of those: ['Host', 'ClientKey(String)']"
 
+    if command_actf == "" or command_actf == None:
+        raise "Response activation function can't be empty"
+
     command_instruction = {
         "mode": command_mode,
         "type": command_type,
@@ -738,7 +741,7 @@ class HostPatterns:
 
         return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":max_sub_channels, "owned_sub_channels_keys":owned_sub_channels_keys}
 
-    def response_pattern (self, response:dict, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None, message="") -> dict:
+    def response_pattern (self, client_key:str, activation_function:str, target_key:str = None, kwargs:dict = {}, message="") -> dict:
 
         """
         Create a response pattern.
@@ -798,11 +801,32 @@ class HostPatterns:
         #* Triggered in the target, the engine will get the response and redirect to the other client by this id, if client exists.
         #* Else this will return a error saying that client doesn't exists
 
-        cast_command_instruction(
-            "Response",
-            "Default", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
-            ""
-        )
+        command_instructions = {}
+
+        if target_key == None:
+            command_instructions = cast_command_instruction(
+                "Response",
+                "Default", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
+                "Origin",
+                "Success", 
+                "Host",
+                activation_function,
+                kwargs,
+                message, 
+            )
+        else: # Redirect case
+            command_instructions = cast_command_instruction(
+                "Response",
+                "Default", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
+                f"ClientKey({target_key})",
+                "Success", 
+                "Host",
+                activation_function,
+                kwargs,
+                message, 
+            )
+
+        return command_instructions
 
     def error_response_pattern (self, error_message:str, expected_remote_error_handler:str):
         
