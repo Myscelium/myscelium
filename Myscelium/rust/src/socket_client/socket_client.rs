@@ -1,3 +1,4 @@
+use crate::common::communication::decoders::read_json_from_stream;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 
@@ -287,7 +288,7 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
 ///
 /// # Behavior
 /// - If the connection is not verified, the function logs the event and returns `Response::None`.
-fn send(stream: &mut TcpStream, command: Command) -> Response {
+fn send(mut stream: &mut TcpStream, command: Command) -> Response {
     let logger = acquire_logger!("Core");
 
     let conn: bool = verify_connection(stream);
@@ -301,12 +302,14 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
 
     stream.write_all(command_json.as_bytes()).unwrap();
 
-    let mut buffer = [0; 16384];
-    stream.read(&mut buffer).unwrap();
+    // let mut buffer = [0; 16384];
+    // stream.read(&mut buffer).unwrap();
 
-    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+    // let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
-    let command: Command = serde_json::from_str(&buffer_string).unwrap();
+    let command: Command = read_json_from_stream(&mut stream).unwrap();
+
+    // let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
     logger.debug(format!("Received: {:?}", command));
 

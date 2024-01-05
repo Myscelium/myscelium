@@ -13,6 +13,7 @@ use serde_json::json;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 
+use crate::common::communication::decoders::read_json_from_stream;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
@@ -525,25 +526,27 @@ fn handle_connection(mut stream: TcpStream) {
     let mut client: Option<Client> = None;
 
     loop {
-        let mut buffer = [0; 16384];
+        // let mut buffer = [0; 16384];
 
-        match stream.read(&mut buffer) {
-            Ok(0) => {
-                // No data was read, break the loop
-                continue;
-            },
-            Ok(_) => {
-                logger.debug("Data received!".to_string());
-            },
-            Err(e) => {
-                // Handle the error
-                logger.exception(format!("Failed to read from the stream: {}", e));
-            },
-        }
+        // match stream.read(&mut buffer) {
+        //     Ok(0) => {
+        //         // No data was read, break the loop
+        //         continue;
+        //     },
+        //     Ok(_) => {
+        //         logger.debug("Data received!".to_string());
+        //     },
+        //     Err(e) => {
+        //         // Handle the error
+        //         logger.exception(format!("Failed to read from the stream: {}", e));
+        //     },
+        // }
 
-        let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+        // let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
-        let command: Command = serde_json::from_str(&buffer_string).unwrap(); // TODO >>> Fix the error treatment in the cases that results in a error
+        let command: Command = read_json_from_stream(&mut stream).unwrap();
+
+        // let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
         logger.debug(format!("Command received:\n{:?}\n", command));
 
