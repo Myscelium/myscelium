@@ -307,7 +307,28 @@ fn send(mut stream: &mut TcpStream, command: Command) -> Response {
 
     // let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
-    let command: Command = read_json_from_stream(&mut stream).unwrap();
+    let command: Command = match read_json_from_stream(&mut stream) {
+        Ok(command) => {
+            // Process the command
+            println!("Received command: {:?}", command);
+            command
+        },
+        Err(e) => {
+            if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                // Handle IO-specific errors
+                eprintln!("IO error occurred: {}", io_err);
+                return Response::None;
+            } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
+                // Handle JSON-specific errors
+                eprintln!("JSON parsing error: {}", json_err);
+                return Response::None;
+            } else {
+                // Handle other errors
+                eprintln!("An error occurred: {}", e);
+                return Response::None;
+            }
+        },
+    };
 
     // let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
@@ -563,9 +584,12 @@ pub fn initialize_client(address: String, client_id: String) {
         let up_schedule = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule();
 
         if !(up_schedule.len() > 0) {
-            if let Some(down_command) = send_ping(&mut stream) {
-                enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
+            {
+                if let Some(down_command) = send_ping(&mut stream) {
+                    enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
+                }
             }
+
             // println!("[Socket] - Nothing in schedule, skipping..");
             thread::sleep(Duration::from_millis(100));
             continue;
@@ -583,7 +607,11 @@ pub fn initialize_client(address: String, client_id: String) {
             loop {
                 println!("Sending to host: {:?}", command_to_request.clone());
 
-                let received = send(&mut stream, command_to_request.clone());
+                let received: Response;
+
+                {
+                    received = send(&mut stream, command_to_request.clone());
+                }
 
                 match handle_response(received) {
                     Received::DownCommand(down_command) => {

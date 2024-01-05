@@ -544,7 +544,28 @@ fn handle_connection(mut stream: TcpStream) {
 
         // let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
 
-        let command: Command = read_json_from_stream(&mut stream).unwrap();
+        let command: Command = match read_json_from_stream(&mut stream) {
+            Ok(command) => {
+                // Process the command
+                println!("Received command: {:?}", command);
+                command
+            },
+            Err(e) => {
+                if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                    // Handle IO-specific errors
+                    eprintln!("IO error occurred: {}", io_err);
+                    break;
+                } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
+                    // Handle JSON-specific errors
+                    eprintln!("JSON parsing error: {}", json_err);
+                    break;
+                } else {
+                    // Handle other errors
+                    eprintln!("An error occurred: {}", e);
+                    break;
+                }
+            },
+        };
 
         // let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
