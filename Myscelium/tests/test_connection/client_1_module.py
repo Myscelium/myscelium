@@ -8,6 +8,7 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 
+CLIENT_KEY = "some_client_id"
 class Senders:
 
     @staticmethod
@@ -18,7 +19,13 @@ class Senders:
         mys_client.running = True
         mys_client.set_client_uid(client_uid="some_client_id")
 
-        command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
+        # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
+        command = client_patterns.command_pattern(
+            CLIENT_KEY,
+            "python_function", 
+            "", # Empty is default
+            {"age": 10, "birth": 8, "name": "cristian"}
+        )
 
         result = mys_client.send(command, priority=10)
 
@@ -60,11 +67,11 @@ class MyClient:
 
         receivers = Receivers()
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level=self.debug_level)
+        mys_client = MysceliumClient(client_uid=CLIENT_KEY, buffer_path="Temp/Client1Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
 
-        mys_client.set_client_uid(client_uid="some_client_id")
+        mys_client.set_client_uid(client_uid=CLIENT_KEY)
 
         callbacks = [
             client_patterns.callback_pattern(callback=receivers.test_handler),

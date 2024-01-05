@@ -49,35 +49,44 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
     """
 
     if command_mode not in ["Function", "Response"]:
-        raise "Command mode needs to be one of those: ['function', 'response']"
+        raise ValueError("Command mode needs to be one of those: ['function', 'response']")
     
     if command_type not in ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'Default']:
-        raise "Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'Default',]"
+        raise ValueError("Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'Default',]")
 
-    if command_target.split("(")[0] in ['Origin', 'ClientKey(String)', 'Host']:
-        if command_target.split("(")[0] == 'ClientKey':
-            if command_target.split("(")[0].split(")")[0].replace(" ", "") == "":
-                raise "Command target ClientKey needs a valid ClientKey!"
-            else:
-                pass
-        else:
-            pass
+    if command_target in ['Origin', 'Host']:
+        pass
+    
+    # -> Validate the redirect cases:
+    elif command_target.startswith('ClientKey(') and command_target.endswith(')'):
+        # Extracting the part inside 'ClientKey()'
+        content = command_target[len('ClientKey('):-1].strip()
+
+        # Validate the content inside the parentheses
+        if content == "":
+            raise ValueError("Command target ClientKey needs a valid ClientKey!")
+
     else:
-        raise "Command target needs to be one of those: ['Origin', 'ClientKey(String)', 'Host']"
+        raise ValueError("Command target must be either 'Origin', 'Host', or 'ClientKey(some_value)'")
 
     if command_status not in ['Success', 'Failure']:
-        raise "Command status can only be one of those: ['Success', 'Failure']"
+        raise ValueError("Command status can only be one of those: ['Success', 'Failure']")
 
-    if command_origin in ['Host', 'ClientKey(String)']:
-        if command_origin.split("(")[0] == 'ClientKey':
-            if command_origin.split("(")[0].split(")")[0].replace(" ", "") == "":
-                raise "Command target ClientKey needs a valid ClientKey!"
-            else:
-                pass
-        else:
-            pass
-    else: 
-        raise "Command origin can only be one of those: ['Host', 'ClientKey(String)']"
+    if command_origin == 'Host':
+        pass
+
+    # -> Validate the client cases:
+    elif command_origin.startswith('ClientKey(') and command_origin.endswith(')'):
+        # Extracting the part inside 'ClientKey()'
+        content = command_origin[len('ClientKey('):-1].strip()
+
+        # Validate the content inside the parentheses
+        if content == "":
+            raise ValueError("Command target ClientKey needs a valid ClientKey!")
+
+    else:
+        raise ValueError("Command origin must be either 'Host' or 'ClientKey(some_value)'")
+
 
     if command_actf == "" or command_actf == None:
         raise "Response activation function can't be empty"
