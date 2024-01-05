@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use crate::common::functions::advanced_lockers::smart_lock;
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_database_dir, set_client_log_level};
 
 use pyo3::prelude::*;
@@ -455,10 +456,12 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id
 
     CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
 
-    {
-        let mut client_id_global = CLIENT_ID.lock();
-        *client_id_global = client_id.clone();
-    }
+    let mut client_key: String = "".to_string();
+
+    let client_key_storage = &CLIENT_ID;
+    smart_lock(&client_key_storage, |key: &mut String| {
+        *key = client_id.clone();
+    });
 
     let address = format!("{}:{}", ip, port);
 

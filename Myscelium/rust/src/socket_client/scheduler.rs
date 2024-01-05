@@ -2,6 +2,7 @@ use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::{Command, CommandType};
+use crate::common::functions::advanced_lockers::smart_lock;
 
 use lazy_static::lazy_static;
 
@@ -33,10 +34,10 @@ macro_rules! acquire_logger {
 pub fn set_client_id(client_uid: String) {
     println!("Setting client_id to: {:?}", client_uid.clone());
 
-    {
-        let mut client_id_global = CLIENT_ID.lock();
-        *client_id_global = client_uid.clone();
-    }
+    let client_key_storage = &CLIENT_ID;
+    smart_lock(client_key_storage, |key: &mut String| {
+        *key = client_uid;
+    });
 }
 
 /// Requests the available commands that are registered on the host.
@@ -67,9 +68,14 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
 
     logger.debug("Enter Scheduler".to_string());
 
-    let client_id: String = CLIENT_ID.lock().clone();
+    let mut client_key: String = "".to_string();
 
-    logger.debug(format!("Client id is: {:?}", client_id));
+    let client_key_storage = &CLIENT_ID;
+    smart_lock(&client_key_storage, |key: &mut String| {
+        client_key = key.clone();
+    });
+
+    logger.debug(format!("Client id is: {:?}", client_key));
     let command: Result<String, serde_json::Error> = serde_json::to_string(&command);
 
     let unwraped_command: String;
@@ -87,9 +93,9 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
         },
     }
 
-    let parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_id.clone());
+    let parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
 
-    let command_to_schedule: UpCommand = UpCommand::new(&client_id, &parity_id, priority, &unwraped_command);
+    let command_to_schedule: UpCommand = UpCommand::new(&client_key, &parity_id, priority, &unwraped_command);
 
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
 

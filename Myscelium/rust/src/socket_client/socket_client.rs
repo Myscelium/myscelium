@@ -45,6 +45,7 @@ macro_rules! acquire_logger {
 }
 
 use crate::common::structs::avaliable_commands::CommandPatterns;
+use crate::CLIENT_ID;
 
 lazy_static! {
     pub static ref COMMAND_PATTERNS: Arc<sync::Mutex<CommandPatterns>> = Arc::new(sync::Mutex::new(CommandPatterns::new()));
@@ -71,7 +72,6 @@ lazy_static! {
         let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
         Arc::new(Mutex::new(command_patterns))
     };
-    static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
 }
 
 // >-------------------------------------------------------------------------------------------------------------------------------------------
@@ -243,7 +243,7 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
     let mut client_key: String = "".to_string();
 
     let client_key_storage = &CLIENT_ID;
-    smart_lock(&*client_key_storage, |key: &mut String| {
+    smart_lock(&client_key_storage, |key: &mut String| {
         client_key = key.clone();
     });
 
@@ -546,6 +546,8 @@ pub fn initialize_client(address: String, client_id: String) {
         smart_lock(&*client_key_storage, |key: &mut String| {
             client_key = key.clone();
         });
+
+        // TODO >>> Maybe add a mechanism taht when this is seted it don't verify again to reduce complexity, maybe a boolean
 
         if client_key == " " {
             // Whait untill client id was seted!
