@@ -210,7 +210,7 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     if translated_command.command_type() == CommandType::DirectFunction {
         logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
-        result = handle_direct_function(&client_key, &translated_command.command.actf, &translated_command, command_id);
+        result = handle_direct_function(&translated_command.command, &client_key, command_id)?;
         println!("Direct Function Result: {:?}", result);
     }
 

@@ -402,9 +402,10 @@ fn process(py: Python, down_command: DownCommand) {
     let result: ProcessResult;
 
     if direct_functions.contains(&translated_command.command.actf) {
-        // -> Default Rust direct function
+        // -> HANDLE DIRECT FUNCTIONS:
         result = handle_direct_function(&translated_command.client_key, &translated_command.command.actf, translated_command.command.clone(), command_id);
     } else {
+        // -> VERIFY IF THE COMMAND EXIST:
         {
             let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
 
@@ -419,7 +420,7 @@ fn process(py: Python, down_command: DownCommand) {
             }
         }
 
-        // -> Default Python function
+        // -> CALL PYTHON CALLBACK:
         let response;
 
         {
@@ -427,6 +428,7 @@ fn process(py: Python, down_command: DownCommand) {
             response = call_callback(py, translated_command.clone(), callback_patterns);
         }
 
+        // -> PROCESS CALLBACK RESPONSE:
         result = match response {
             Ok(r) => {
                 let value: Value = extract_pyobject(py, r);
