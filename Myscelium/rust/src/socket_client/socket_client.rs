@@ -540,6 +540,19 @@ pub fn initialize_client(address: String, client_id: String) {
             break;
         }
 
+        let mut client_key: String = " ".to_string();
+
+        let client_key_storage = &CLIENT_ID;
+        smart_lock(&*client_key_storage, |key: &mut String| {
+            client_key = key.clone();
+        });
+
+        if client_key == " " {
+            // Whait untill client id was seted!
+            thread::sleep(Duration::from_millis(200));
+            continue;
+        }
+
         let up_schedule = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule();
 
         if !(up_schedule.len() > 0) {
