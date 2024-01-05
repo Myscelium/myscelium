@@ -328,9 +328,14 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
         return None;
     }
 
-    let client_key_storage = CLIENT_ID.lock();
+    let client_key: String;
 
-    let command_to_request = create_special_command!(client_key_storage.clone(), CommandMode::Function, "C206");
+    {
+        let client_key_storage = CLIENT_ID.lock();
+        client_key = client_key_storage.clone()
+    }
+
+    let command_to_request = create_special_command!(client_key, CommandMode::Function, "C206");
     let received = send(&mut stream, command_to_request.clone());
 
     match handle_response(received) {
