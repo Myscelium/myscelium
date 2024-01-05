@@ -73,21 +73,16 @@ lazy_static! {
 
 macro_rules! create_error_command_response {
     ($client_key:expr, $parity_id:expr, $error:expr) => {{
-        let mut command_map = HashMap::new();
-
-        // TODO >>> Change the CommandInStructions case to use the new method!
-
-        let kwargs: HashMap<String, Value> = HashMap::new();
-
-        command_map.insert("mode".to_string(), Value::String("response".to_string()));
-        command_map.insert("command_type".to_string(), Value::String("direct_function".to_string()));
-        command_map.insert("target".to_string(), Value::String("origin".to_string()));
-        command_map.insert("status".to_string(), Value::String("failure".to_string()));
-        command_map.insert("actf".to_string(), Value::String("error_handler".to_string()));
-        command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
-        command_map.insert("message".to_string(), Value::String($error.to_string()));
-
-        let command_instructions: CommandInstructions = CommandInstructions::from_value_map(command_map).unwrap();
+        let command_instructions = CommandInstructions::new(
+            CommandMode::Response,
+            CommandType::DirectFunction,
+            CommandTarget::Origin,
+            CommandStatus::Failure,
+            CommandOrigin::Host,
+            "error_handler".to_string(),
+            HashMap::new(),
+            $error.to_string(),
+        );
 
         let command = Command {
             client_key: $client_key.to_string(),
