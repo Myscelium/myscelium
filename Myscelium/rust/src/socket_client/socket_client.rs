@@ -1,7 +1,7 @@
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 
-use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
@@ -171,47 +171,46 @@ enum Response {
     None,
 }
 
-macro_rules! create_error_command {
-    ($client_key:expr, $parity_id:expr, $error:expr) => {{
-        let mut command_map = HashMap::new();
+// macro_rules! create_error_command {
+//     ($client_key:expr, $parity_id:expr, $error:expr) => {{
+//         let mut command_map = HashMap::new();
 
-        let kwargs: HashMap<String, Value> = HashMap::new();
+//         let kwargs: HashMap<String, Value> = HashMap::new();
 
-        command_map.insert("mode".to_string(), Value::String("function".to_string()));
-        command_map.insert("command_type".to_string(), Value::String("direct_function".to_string()));
-        command_map.insert("target".to_string(), Value::String("origin".to_string()));
-        command_map.insert("status".to_string(), Value::String("failure".to_string()));
-        command_map.insert("actf".to_string(), Value::String("error_handler".to_string()));
-        command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
-        command_map.insert("message".to_string(), Value::String($error.to_string()));
+//         command_map.insert("mode".to_string(), Value::String("function".to_string()));
+//         command_map.insert("command_type".to_string(), Value::String("direct_function".to_string()));
+//         command_map.insert("target".to_string(), Value::String("origin".to_string()));
+//         command_map.insert("status".to_string(), Value::String("failure".to_string()));
+//         command_map.insert("actf".to_string(), Value::String("error_handler".to_string()));
+//         command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
+//         command_map.insert("message".to_string(), Value::String($error.to_string()));
 
-        let command_instructions: CommandInstructions = CommandInstructions::from_value_map(command_map).unwrap();
+//         // TODO >>> Change this for the descriptive form!
 
-        let command = Command {
-            client_key: $client_key.to_string(),
-            parity_id: $parity_id.to_string(),
-            priority: 11,
-            command: command_instructions,
-        };
-        command
-    }};
-}
+//         let command_instructions: CommandInstructions = CommandInstructions::from_value_map(command_map).unwrap();
+
+//         let command = Command {
+//             client_key: $client_key.to_string(),
+//             parity_id: $parity_id.to_string(),
+//             priority: 11,
+//             command: command_instructions,
+//         };
+//         command
+//     }};
+// }
 
 macro_rules! create_special_command {
-    ($client_key:expr, $special_command:expr) => {{
-        let mut command_map = HashMap::new();
-
-        let kwargs: HashMap<String, Value> = HashMap::new();
-
-        command_map.insert("mode".to_string(), Value::String("functrion".to_string()));
-        command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-        command_map.insert("target".to_string(), Value::String("origin".to_string()));
-        command_map.insert("status".to_string(), Value::String("success".to_string()));
-        command_map.insert("actf".to_string(), Value::String($special_command.to_string()));
-        command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
-        command_map.insert("message".to_string(), Value::String("".to_string()));
-
-        let command_instructions: CommandInstructions = CommandInstructions::from_value_map(command_map).unwrap();
+    ($client_key:expr, $command_mode:expr, $special_command:expr) => {{
+        let command_instructions = CommandInstructions::new(
+            $command_mode,
+            CommandType::SpecialFunction,
+            CommandTarget::Host,
+            CommandStatus::Success,
+            CommandOrigin::ClientKey($client_key),
+            $special_command.to_string(),
+            HashMap::new(),
+            "".to_string(),
+        );
 
         let command = Command {
             client_key: $client_key.to_string(),
@@ -240,9 +239,9 @@ macro_rules! create_special_command {
 fn verify_connection(stream: &mut TcpStream) -> bool {
     let logger = acquire_logger!("Core");
 
-    let client_id_storage = CLIENT_ID.lock();
+    let client_key_storage = CLIENT_ID.lock();
 
-    let command = create_special_command!(*client_id_storage, "C202");
+    let command = create_special_command!(client_key_storage.clone(), CommandMode::Function, "C202");
 
     let command_json = json!(command).to_string();
 
@@ -324,9 +323,9 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
         return None;
     }
 
-    let client_id_storage = CLIENT_ID.lock();
+    let client_key_storage = CLIENT_ID.lock();
 
-    let command_to_request = create_special_command!(*client_id_storage, "C206");
+    let command_to_request = create_special_command!(client_key_storage.clone(), CommandMode::Function, "C206");
     let received = send(&mut stream, command_to_request.clone());
 
     match handle_response(received) {
@@ -334,7 +333,7 @@ pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
         Received::Confirmation => {
             return None;
         },
-        Received::Error(e) => {
+        Received::Error(_) => {
             //TODO >>> Add the mechanism to stop the client if received a error
             return None;
         },
