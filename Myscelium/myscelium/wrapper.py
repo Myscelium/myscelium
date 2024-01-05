@@ -13,6 +13,67 @@ from . import sql_pool
 import inspect
 
 
+#> Type Cast
+
+
+def cast_command_instruction (command_mode:str,command_type:str, command_target:str,command_status:str,command_origin:str,command_actf:str,command_kwargs:dict, command_message:str):
+    
+    if command_mode not in ["Function", "Response"]:
+        raise "Command mode needs to be one of those: ['function', 'response']"
+    
+    if command_type not in ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'Default']:
+        raise "Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'Default',]"
+
+    if command_target.split("(")[0] in ['Origin', 'ClientKey(String)', 'Host']:
+        if command_target.split("(")[0] == 'ClientKey':
+            if  command_target.split("(")[0].split(")")[0].replace(" ", "") == "":
+                raise "Command target ClientKey needs a valid ClientKey!"
+            else:
+                pass
+        else:
+            pass
+    else:
+        raise "Command target needs to be one of those: ['Origin', 'ClientKey(String)', 'Host']"
+
+    if command_status not in []:
+
+
+
+    command_status
+    command_origin
+    command_actf
+    command_kwargs
+    command_message
+
+    command_instruction = {
+
+        "mode": command_mode,
+        "type": command_type,
+        "target": command_target,
+        "status": command_status,
+        "origin": command_origin,
+        "actf": command_actf,
+        "kwargs": command_kwargs,
+        "message": command_message,
+
+    }
+
+    return command_instruction
+
+# [derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandInstructions {
+    pub mode: CommandMode,
+    #[serde(rename = "type")]
+    pub command_type: CommandType,
+    pub target: CommandTarget,
+    pub status: CommandStatus,
+    pub origin: CommandOrigin,
+    pub actf: String,
+    pub kwargs: HashMap<String, serde_json::Value>,
+    pub message: String,
+}
+
+
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > Utilities
 
