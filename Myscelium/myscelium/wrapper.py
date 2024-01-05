@@ -1110,7 +1110,7 @@ class HostPatterns:
                 kwargs,
                 "", 
             )
-            
+
             return command_instructions
 
         else:
@@ -1583,17 +1583,35 @@ class ClientPatterns:
 
         return {"client_type":client_type, "client_id":client_id}
 
-    def command_pattern (self, command_function:str, args=None):
+    def command_pattern (self, origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""):
 
         """
-        Create a command pattern.
+        Creates a response pattern for sending back to a client or for retransmission.
+
+        This function handles two main cases:
+        1. Simple send to origin: The response is sent back to the originating client.
+        2. Retransmit to another client: The response is retransmitted to a different client specified by `target_key`.
 
         Parameters:
-        - command_function: Function name for the command.
-        - args: Arguments for the command function (default is None).
+        - client_key (str): The key identifying the client.
+        - activation_function (str): The activation function to be triggered upon response.
+        - target_key (str, optional): The key of the target client for retransmission. Default is None.
+        - kwargs (dict, optional): Additional keyword arguments for the command. Default is an empty dict.
+        - message (str, optional): A message to be sent to the client. Default is an empty string.
 
         Returns:
-        - Dictionary representing the command pattern.
+        dict: A dictionary representing the command instructions based on the specified pattern.
+
+        Note:
+        - In the case of 'Simple send to origin', the response is scheduled to be sent back to the client
+        that originated the command.
+        - In the case of 'Retransmit to another client', the response is redirected to a different client
+        specified by `target_key`. The function then triggers the specified `activation_function` on the
+        target client. If the target client does not exist, an error is returned.
+
+        Example:
+        command = response_pattern("client123", "activate", target_key="client456", 
+                                kwargs={"arg1": "value1"}, message="Example message")
         """
 
         # > The idea of this pattern
@@ -1610,13 +1628,34 @@ class ClientPatterns:
         # > [|] This is a host process
         # >
         # > basically creates a command to send to host, when the command arrives in host the command will execute something
- 
-        if args != None:
-            return {"command_type":"function", "function":command_function, "kwargs":args}
-        else:
-            pass
+        
 
-        return {"command_type":"function", "function":command_function, "kwargs":""}
+        command_instruction = {}
+
+        if target_key == "":
+            command_instruction = cast_command_instruction(
+                "Function",
+                "Default",
+                "Host",
+                "Success",
+                f"ClientKey({origin_key})",
+                command_function,
+                kwargs,
+                message
+            )
+        else:
+            command_instruction = cast_command_instruction(
+                "Function",
+                "Default",
+                f"ClientKey({target_key})",
+                "Success",
+                f"ClientKey({origin_key})",
+                command_function,
+                kwargs,
+                message
+            )
+
+        return command_instruction
 
     def response_pattern (self, kwargs:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
 
