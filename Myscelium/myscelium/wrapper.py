@@ -16,7 +16,7 @@ import inspect
 #> Type Cast
 
 
-def cast_command_instruction (command_mode:str,command_type:str, command_target:str,command_status:str,command_origin:str,command_actf:str,command_kwargs:dict, command_message:str):
+def cast_command_instruction (command_mode:str,command_type:str, command_target:str,command_status:str,command_origin:str,command_actf:str,command_kwargs:dict, command_message:str) -> dict:
     
     if command_mode not in ["Function", "Response"]:
         raise "Command mode needs to be one of those: ['function', 'response']"
@@ -26,7 +26,7 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
 
     if command_target.split("(")[0] in ['Origin', 'ClientKey(String)', 'Host']:
         if command_target.split("(")[0] == 'ClientKey':
-            if  command_target.split("(")[0].split(")")[0].replace(" ", "") == "":
+            if command_target.split("(")[0].split(")")[0].replace(" ", "") == "":
                 raise "Command target ClientKey needs a valid ClientKey!"
             else:
                 pass
@@ -35,18 +35,21 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
     else:
         raise "Command target needs to be one of those: ['Origin', 'ClientKey(String)', 'Host']"
 
-    if command_status not in []:
+    if command_status not in ['Success', 'Failure']:
+        raise "Command status can only be one of those: ['Success', 'Failure']"
 
-
-
-    command_status
-    command_origin
-    command_actf
-    command_kwargs
-    command_message
+    if command_origin in ['Host', 'ClientKey(String)']:
+        if command_origin.split("(")[0] == 'ClientKey':
+            if command_origin.split("(")[0].split(")")[0].replace(" ", "") == "":
+                raise "Command target ClientKey needs a valid ClientKey!"
+            else:
+                pass
+        else:
+            pass
+    else: 
+        raise "Command origin can only be one of those: ['Host', 'ClientKey(String)']"
 
     command_instruction = {
-
         "mode": command_mode,
         "type": command_type,
         "target": command_target,
@@ -55,24 +58,9 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
         "actf": command_actf,
         "kwargs": command_kwargs,
         "message": command_message,
-
     }
 
     return command_instruction
-
-# [derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CommandInstructions {
-    pub mode: CommandMode,
-    #[serde(rename = "type")]
-    pub command_type: CommandType,
-    pub target: CommandTarget,
-    pub status: CommandStatus,
-    pub origin: CommandOrigin,
-    pub actf: String,
-    pub kwargs: HashMap<String, serde_json::Value>,
-    pub message: String,
-}
-
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > Utilities
