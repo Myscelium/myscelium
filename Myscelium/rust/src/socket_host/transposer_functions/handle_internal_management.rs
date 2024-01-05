@@ -136,8 +136,6 @@ fn cast_new_client(new_client: Value) -> Result<Client, CommandInstructions> {
 pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String) -> CommandInstructions {
     let logger = acquire_logger!("[Process][Internal Management]");
 
-    let mut to_send = HashMap::new();
-
     let activation_function: String = m.actf;
     let kwargs: HashMap<String, Value> = m.kwargs;
 
@@ -147,10 +145,17 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
             // {'response_mode':'InternalManagement', 'activation_function':'add_client', 'kwargs':response, 'response_activation_function':'function_name'}
             // 'kwargs':{'new_client':clientpattern}
 
+            if !kwargs.contains_key("actual_client_key") {
+                logger.warn("Error! Callback response kwargs don't have actual_client_key kwarg!".to_string());
+                return create_error_response_and_return!("Error! Callback response kwargs don't have actual_client_key kwarg!");
+            }
+
             if !kwargs.contains_key("new_client") {
                 logger.warn("Error! Callback response kwargs don't have new_client kwarg!".to_string());
                 return create_error_response_and_return!("Error! Callback response kwargs don't have new_client kwarg!");
             }
+
+            let actual_client_key = kwargs.get("actual_client_key").unwrap().as_str().unwrap();
 
             // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
 
@@ -165,7 +170,7 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
 
             let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
 
-            resp_kwargs.insert("actual_client_key".to_string(), Value::String(new_client.client_key.to_string()));
+            resp_kwargs.insert("actual_client_key".to_string(), Value::String(actual_client_key.to_string()));
 
             let new_command_instructions: CommandInstructions = CommandInstructions::new(
                 CommandMode::Response,
@@ -220,7 +225,7 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
                 Ok(_) => {
                     let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
 
-                    resp_kwargs.insert("actual_client_key".to_string(), Value::String(new_client.client_key.to_string())); // TODO >>> See if this actual client key is correct
+                    resp_kwargs.insert("actual_client_key".to_string(), Value::String(actual_client_key.to_string())); // TODO >>> See if this actual client key is correct
 
                     let new_command_instructions: CommandInstructions = CommandInstructions::new(
                         CommandMode::Response,
@@ -284,25 +289,24 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
                     },
                 },
                 Ok(_) => {
-                    to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
-                    to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-                    to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-                    to_send.insert(
-                        "message".to_string(),
-                        ResultType::Str(format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key).to_string()),
+                    let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
+
+                    resp_kwargs.insert("actual_client_key".to_string(), Value::String(client_key.to_string())); // TODO >>> See if this actual client key is correct
+
+                    let new_command_instructions: CommandInstructions = CommandInstructions::new(
+                        CommandMode::Response,
+                        CommandType::Default,
+                        CommandTarget::Origin,
+                        CommandStatus::Success,
+                        CommandOrigin::Host,
+                        "remove_client_handler".to_string(),
+                        resp_kwargs,
+                        format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key).to_string(),
                     );
-                    to_send.insert("response_activation_function".to_string(), ResultType::Str("remove_client_handler".to_string()));
-
-                    let mut resp_kwargs: HashMap<String, ResultType> = HashMap::new();
-
-                    resp_kwargs.insert("actual_client_key".to_string(), ResultType::Str(client_key.to_string()));
-
-                    to_send.insert("kwargs".to_string(), ResultType::Map(resp_kwargs));
-                    to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a identifier to know from where the command is
 
                     logger.info(format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key));
 
-                    return to_send;
+                    return new_command_instructions;
                 },
             }
             // else {
@@ -314,16 +318,8 @@ pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String
         },
 
         _ => {
-            to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
-            to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-            to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
-            to_send.insert("message".to_string(), ResultType::Str(format!("Response Activation Function: {} doesn't exists!!", activation_function).to_string()));
-            to_send.insert("response_activation_function".to_string(), ResultType::Str("response_activation_function".to_string()));
-            to_send.insert("origin".to_string(), ResultType::Str("host".to_string())); // This is a identifier to know from where the command is
-
             logger.warn(format!("Response Activation Function: {} doesn't exists!!", activation_function));
-
-            return to_send;
+            return create_error_response_and_return!(format!("Response Activation Function: {} doesn't exists!!", activation_function).to_string());
         },
     }
 
