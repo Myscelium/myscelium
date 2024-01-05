@@ -17,7 +17,37 @@ import inspect
 
 
 def cast_command_instruction (command_mode:str,command_type:str, command_target:str,command_status:str,command_origin:str,command_actf:str,command_kwargs:dict, command_message:str) -> dict:
+
+    """
+    Constructs a command instruction dictionary from the given parameters.
+
+    Validates the provided arguments against specific criteria for each command aspect 
+    (mode, type, target, status, origin, activation function). Raises an exception if 
+    any of the provided arguments do not meet the expected values or format.
+
+    Parameters:
+    - command_mode (str): Mode of the command, must be one of ['Function', 'Response'].
+    - command_type (str): Type of the command, must be one of ['SpecialFunction', 'DirectFunction',
+                      'InternalManagement', 'Default'].
+    - command_target (str): Target of the command, should follow the format 'Origin', 
+                            'ClientKey(String)', or 'Host'.
+    - command_status (str): Status of the command, must be one of ['Success', 'Failure'].
+    - command_origin (str): Origin of the command, must be 'Host' or 'ClientKey(String)'.
+    - command_actf (str): Activation function for the command. Cannot be empty.
+    - command_kwargs (dict): Additional keyword arguments for the command.
+    - command_message (str): Message associated with the command.
+
+    Returns:
+    dict: A dictionary representing the constructed command instruction.
+
+    Raises:
+    Exception: If any parameter does not conform to its expected format or allowable values.
     
+    Example:
+    command_dict = cast_command_instruction("Function", "DirectFunction", "Host", "Success",
+                                            "ClientKey(123)", "activate", {}, "Execute action")
+    """
+
     if command_mode not in ["Function", "Response"]:
         raise "Command mode needs to be one of those: ['function', 'response']"
     
@@ -741,22 +771,35 @@ class HostPatterns:
 
         return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":max_sub_channels, "owned_sub_channels_keys":owned_sub_channels_keys}
 
-    def response_pattern (self, client_key:str, activation_function:str, target_key:str = None, kwargs:dict = {}, message="") -> dict:
+    def response_pattern (self, activation_function:str, target_key:str = None, kwargs:dict = {}, message="") -> dict:
 
         """
-        Create a response pattern.
+        Creates a response pattern for sending back to a client or for retransmission.
+
+        This function handles two main cases:
+        1. Simple send to origin: The response is sent back to the originating client.
+        2. Retransmit to another client: The response is retransmitted to a different client specified by `target_key`.
 
         Parameters:
-        - response: The actual response data.
-        - response_mode: Mode of the response (e.g., 'redirect' or 'to_origin').
-        - response_activation_function: Activation function for the response.
-        - redirect_to_client_id: Client ID to redirect to (if response_mode is 'redirect').
-
-        Additional parameters for to_origin:
-        - message: Allow to send a message to client besides the args, needs to be a string!
+        - `activation_function` (str): The activation function to be triggered upon response.
+        - `target_key` (str, optional): The key of the target client for retransmission. Default is None.
+        - `kwargs` (dict, optional): Additional keyword arguments for the command. Default is an empty dict.
+        - `message` (str, optional): A message to be sent to the client. Default is an empty string.
 
         Returns:
-        - Dictionary representing the response pattern.
+        dict: A dictionary representing the command instructions based on the specified pattern.
+
+        Note:
+        - In the case of 'Simple send to origin', the response is scheduled to be sent back to the client
+        that originated the command.
+        - In the case of 'Retransmit to another client', the response is redirected to a different client
+        specified by `target_key`. The function then triggers the specified `activation_function` on the
+        target client. If the target client does not exist, an error is returned.
+
+        Example:
+        ```Python
+        command = response_pattern("some_function", target_key="client456", kwargs={"arg1": "value1"}, message="Example message")
+        ```
         """
 
         # > The idea of this pattern is to create a response to send back to a client or to retransmit
@@ -779,6 +822,8 @@ class HostPatterns:
         # ->
         # -> Case 2 (retransmit to)
         
+        # TODO >>> Change this when impl the new redirect mechanism:
+
         # >   
         # > (Client 1)     (Client 2)   [Host]
         # >    |                |         |
