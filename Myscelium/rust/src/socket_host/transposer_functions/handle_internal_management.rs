@@ -15,17 +15,6 @@ use crate::handle_client_error;
 use crate::common::structs::results_structs::ExpectationError;
 
 macro_rules! create_error_response_and_return {
-    ($error_msg:expr, $converted_m:expr, $to_send:expr) => {{
-        $to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
-        $to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-        $to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
-        $to_send.insert("response_activation_function".to_string(), ResultType::Str($converted_m.get("response_activation_function").unwrap().to_string()));
-        $to_send.insert("message".to_string(), ResultType::Str($error_msg.to_string()));
-        $to_send
-    }};
-}
-
-macro_rules! create_error_response_and_return {
     ($error:expr) => {{
         let new_command_instructions = CommandInstructions::new(
             CommandMode::Response,

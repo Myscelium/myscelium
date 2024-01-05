@@ -1,7 +1,7 @@
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
-use crate::common::enhanced_buffer::utilities::{Command, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandType};
 use crate::common::functions::converters::convert_value_map_to_resulttype_map;
 use crate::common::functions::converters::ConversionError;
 use crate::common::structs::results_structs::ResultType;
@@ -147,7 +147,7 @@ pub fn send_network_available_commands(client_key: String) {
 /// - `command`: A map representing the command to be scheduled.
 /// - `priority`: The priority level of the command. Commands with higher priority values
 ///               are processed before those with lower priority values.
-pub fn schedule(command: HashMap<String, ResultType>, priority: u8, client_key: String, parity_id: String) {
+pub fn schedule(command: CommandInstructions, priority: u8, client_key: String, parity_id: String) {
     let response: Result<String, Error>;
     let new_client_key: String;
 
