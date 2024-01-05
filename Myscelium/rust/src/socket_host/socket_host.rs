@@ -188,34 +188,6 @@ pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>,
     }
 }
 
-// pub fn is_client_registered(client_key: &String) -> bool {
-//     let clients;
-
-//     {
-//         clients = CLIENTS_ALLOWED.lock().unwrap().clone();
-//     }
-
-//     clients.contains_key(client_key)
-// }
-
-// pub fn register_client(client_key: String, client_type: String) {
-
-//     Client
-
-// if !is_client_registered(&client_key) {
-//     let mut clients = CLIENTS_ALLOWED.lock().unwrap();
-
-//     clients.insert(
-//         client_key.clone(),
-//         Client {
-//             client_key,
-//             last_contact: SystemTime::now(),
-//             client_type,
-//         },
-//     );
-// }
-// }
-
 /// Update the last contact time for a given client.
 ///
 /// This function fetches a client based on their key and attempts to update their last contact time.
@@ -246,51 +218,6 @@ pub fn update_last_contact(client_key: String) {
         },
     }
 }
-
-// > Commands Management & Checking:
-
-// fn validate_command(command: &Command, command_patterns: &HashMap<String, Value>) -> bool {
-//     let function_name = match command.command.get("function") {
-//         Some(Value::String(name)) => name,
-//         _ => return false,
-//     };
-
-//     let parameters = match command.command.get(function_name) {
-//         Some(parameters) => parameters,
-//         None => return false,
-//     };
-
-//     match command_patterns.get(function_name) {
-//         Some(pattern) => validate_parameters(parameters, pattern),
-//         None => false,
-//     }
-// }
-
-// fn validate_parameters(parameters: &Value, pattern: &Value) -> bool {
-//     match (parameters, pattern) {
-//         (Value::Object(params_map), Value::Object(pattern_map)) => {
-//             for (key, pattern_value) in pattern_map {
-//                 match params_map.get(key) {
-//                     Some(param_value) => {
-//                         if !validate_parameters(param_value, pattern_value) {
-//                             return false;
-//                         }
-//                     },
-//                     None => return false,
-//                 }
-//             }
-//             true
-//         },
-//         (Value::Array(params_arr), Value::Array(pattern_arr)) => params_arr.len() == pattern_arr.len() && params_arr.iter().zip(pattern_arr.iter()).all(|(param, pattern)| validate_parameters(param, pattern)),
-//         (_, Value::String(pattern_type)) => match pattern_type.as_str() {
-//             "str" => parameters.is_string(),
-//             "float" => parameters.is_f64(),
-//             // Add more type checks here...
-//             _ => false,
-//         },
-//         _ => false,
-//     }
-// }
 
 // > Socket Interactive Functions:
 
