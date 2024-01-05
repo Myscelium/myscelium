@@ -1657,38 +1657,6 @@ class ClientPatterns:
 
         return command_instruction
 
-    def response_pattern (self, kwargs:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
-
-        """
-        Create a response pattern.
-
-        Parameters:
-        - response: The actual response data.
-        - response_mode: Mode of the response (e.g., 'retransmit' or 'to_host').
-        - retransmit_to_client_id: Client ID to retransmit to (if response_mode is 'retransmit').
-
-        Returns:
-        - Dictionary representing the response pattern.
-        """
-
-        if response_mode == "retransmit":
-
-            if retransmit_to_client_id != None:
-                pass
-            else:
-                print ("Invalid redirect! Missing client_id to redirect!")
-                return None
-
-            return {"command_type":"response", "response_mode":"retransmit", "kwargs":kwargs, "redirect_to":retransmit_to_client_id}
-
-        elif response_mode == 'to_host':
-
-            return {"command_type":"response", "response_mode":"to_host", "kwargs":kwargs}
-        
-        else:
-            print ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
-            return None
-
     def callback_pattern (self, callback) -> dict:
 
         """
@@ -1762,7 +1730,12 @@ def get_registered_commands () -> dict:
 
     print(f"\nAvailable commands:\n{response}\n")
 
-    response = host_patterns.response_pattern(response=response, response_activation_function='update_available_host_commands',  response_mode='to_origin')
+    response = host_patterns.response_pattern(
+        'update_available_host_commands',
+        "", # means origin
+        response,
+        "", 
+    )
 
     print(f"Response to return to rust myscelium engine: {response}")
 
