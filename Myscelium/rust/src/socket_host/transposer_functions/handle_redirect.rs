@@ -1,7 +1,8 @@
 use serde_json::Value;
 use std::collections::HashMap;
 
-use crate::common::enhanced_buffer::utilities::{CommandInstructions, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
+
 use crate::socket_host::client_manager::manager::check_if_client_key_exists;
 
 use crate::common::enhanced_buffer;
@@ -13,16 +14,21 @@ use crate::common::functions::converters::convert_to_value_map;
 use crate::common::structs::results_structs::ResultType;
 
 macro_rules! create_error_response_and_return {
-    ($error_msg:expr, $converted_m:expr, $to_send:expr) => {{
-        $to_send.insert("command_type".to_string(), ResultType::Str("response".to_string()));
-        $to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-        $to_send.insert("status".to_string(), ResultType::Str("error".to_string()));
-        $to_send.insert("response_activation_function".to_string(), ResultType::Str($converted_m.get("response_activation_function").unwrap().to_string()));
-        $to_send.insert("message".to_string(), ResultType::Str($error_msg.to_string()));
-        $to_send
+    ($error:expr) => {{
+        let new_command_instructions = CommandInstructions::new(
+            CommandMode::Response,
+            CommandType::DirectFunction,
+            CommandTarget::Origin,
+            CommandStatus::Failure,
+            CommandOrigin::Host,
+            "error_handler".to_string(),
+            HashMap::new(),
+            $error.to_string(),
+        );
+
+        new_command_instructions
     }};
 }
-
 use crate::socket_host::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
 
@@ -87,24 +93,32 @@ macro_rules! acquire_logger {
 pub fn handle_redirect(m: CommandInstructions, client_id: &mut String, parity_id: String, priority: u8) -> CommandInstructions {
     let logger = acquire_logger!("[Process][Handle Redirect]");
 
-    let mut to_send = HashMap::new();
-
     println!("Try to redirect: {:?}", m);
-
-    let converted_m = convert_to_value_map(&m);
 
     if m.command_type != CommandType::Redirect {
         logger.warn("Error! Callback response args don't have redirect_to client_id field!".to_string());
-        return create_error_response_and_return!("Error! Callback response args don't have redirect_to client_id field!", converted_m, to_send);
+        return create_error_response_and_return!("Error! Callback response args don't have redirect_to client_id field!");
         // error_response!("Error! Callback response args don't have redirect_to client_id field!");
     }
 
-    let redirect_to_value = converted_m.get("redirect_to").unwrap().clone();
-    let redirect_to: String = serde_json::from_value(redirect_to_value).unwrap();
+    // -> Filter not allowed cases:
+    match m.target {
+        CommandTarget::Host => {
+            logger.warn("Error! Cont redirect from origin to host, this is a Origin to Host direct case!".to_string());
+            return create_error_response_and_return!("Error! Cont redirect from origin to host, this is a Origin to Host direct case!");
+        },
+        CommandTarget::Origin => {
+            logger.warn("Error! Cont redirect from host to origin, this is a host to origin direct case!".to_string());
+            return create_error_response_and_return!("Error! Cont redirect from host to origin, this is a Origin to Host direct case!");
+        },
+        CommandTarget::ClientKey(_) => {},
+    }
+
+    let redirect_to: String = m.target.to_string();
 
     if !check_if_client_key_exists(redirect_to.to_string()) {
         logger.warn(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
-        return create_error_response_and_return!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()), converted_m, to_send);
+        return create_error_response_and_return!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
         // return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
     }
 
@@ -117,32 +131,23 @@ pub fn handle_redirect(m: CommandInstructions, client_id: &mut String, parity_id
     // let up_command = UpCommand::new(client_id.clone(), parity_id.clone(), priority.clone(), response);
     // enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 
-    logger.debug(format!("Converted redirect command: {:?}", converted_m));
-
-    if !converted_m.contains_key("kwargs") {
-        logger.warn("Error! Callback response args don't have response kwarg!".to_string());
-        return create_error_response_and_return!("Error! Callback response args don't have response kwarg!", converted_m, to_send);
-        // return error_response!("Error! Callback response args don't have response kwarg!");
-    }
-
-    let response_act_fn_value = converted_m.get("response_activation_function").unwrap().clone();
-    let function: String = serde_json::from_value(response_act_fn_value).unwrap();
+    let function: String = m.actf;
 
     // TODO >>> Add a logic here to see when the redirect is to redirect a `update_available_host_commands` command and use this as a function and set response mode to to host
+    // TODO >>> See if need to add restrictions to some command modes and types don't be allwoed to be redirectd
 
-    to_send.insert("command_type".to_string(), ResultType::Str("function".to_string()));
-    to_send.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
-    to_send.insert("status".to_string(), ResultType::Str("success".to_string()));
-    to_send.insert("function".to_string(), ResultType::Str(function.to_string()));
-    to_send.insert("kwargs".to_string(), m.get("kwargs").unwrap().clone());
-    to_send.insert("origin".to_string(), ResultType::Str(client_id.clone())); // -> This will be an identifier, to know the origin of the retransmited command
-
-    // to_send.insert("message".to_string(), ResultType::Str($error_msg.to_string()));
+    let new_command_instructions = CommandInstructions::new(
+        m.mode,                // Depend on the command sended
+        m.command_type,        // Depends on the command sended
+        CommandTarget::Origin, // Seted because at this point this was alwready redirected
+        CommandStatus::Success,
+        CommandOrigin::ClientKey(client_id.clone()),
+        function,
+        m.kwargs,
+        "".to_string(),
+    );
 
     *client_id = redirect_to.to_string(); // > Update the client id that it will send to
 
-    // {'response_mode':'to_origin', 'response_activation_function':response_activation_function, 'response':response}
-    // {"response": Map({"data": Str("hello!")}), "response_activation_function": Str("test_handler"), "response_mode": Str("to_origin")}
-
-    return to_send;
+    return new_command_instructions;
 }
