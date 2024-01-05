@@ -949,6 +949,8 @@ class HostPatterns:
 
         return command_instructions
 
+    # TODO >>> Add a version of this to client since now it is possible to activate this types of fns remotelly
+    # TODO >>> See if is worth to turn the update host configs functions DirectFunctions and not Internal Management functions 
     def update_host_configs (self, activation_function:str, **kwargs): # TODO >>> Need rust backend implementation!
 
         """
@@ -1024,15 +1026,19 @@ class HostPatterns:
 
             kwargs = {'new_client':new_client}
 
-            response = {
-                "response_mode":"internal_management", 
-                "status": "success", 
-                "activation_function":"add_client",
-                "message":"", 
-                "kwargs":kwargs,
-            }
 
-            return response
+            command_instructions = cast_command_instruction(
+                "Response",
+                "InternalManagement", 
+                "Host",
+                "Success", 
+                "Host",
+                "add_client", 
+                kwargs,
+                "", 
+            )
+
+            return command_instructions
 
         elif activation_function == "update_client":
 
@@ -1065,15 +1071,18 @@ class HostPatterns:
 
             kwargs = {'actual_client_key':actual_client_key, 'updated_client':updated_client}
 
-            response = {
-                "response_mode":"internal_management", 
-                "status": "success", 
-                "activation_function":"update_client",
-                "message":"", 
-                "kwargs":kwargs,
-            }
+            command_instructions = cast_command_instruction(
+                "Response",
+                "InternalManagement", 
+                "Host",
+                "Success", 
+                "Host",
+                "update_client", 
+                kwargs,
+                "", 
+            )
 
-            return response
+            return command_instructions
         
         elif activation_function == "remove_client":
 
@@ -1091,15 +1100,18 @@ class HostPatterns:
 
             kwargs = {'client_key':client_key}
 
-            response = {
-                "response_mode":"internal_management", 
-                "status": "success", 
-                "activation_function":"remove_client",
-                "message":"", 
-                "kwargs":kwargs,
-            }
-
-            return response
+            command_instructions = cast_command_instruction(
+                "Response",
+                "InternalManagement", 
+                "Host",
+                "Success", 
+                "Host",
+                "remove_client", 
+                kwargs,
+                "", 
+            )
+            
+            return command_instructions
 
         else:
             return self.error_response_pattern(f"activation_function: {activation_function} doesn't registered in the available host internal management commands!", "remove_client_handler")
