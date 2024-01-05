@@ -585,25 +585,31 @@ pub fn initialize_client(address: String, client_id: String) {
 
     thread::sleep(Duration::from_millis(200));
 
+    let mut client_key_was_seted = false;
+
     loop {
         if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
             logger.info(format!("running is set to false, shutdown socket client main process!"));
             break;
         }
 
-        let mut client_key: String = " ".to_string();
+        if !client_key_was_seted {
+            let mut client_key: String = " ".to_string();
 
-        let client_key_storage = &CLIENT_ID;
-        smart_lock(&*client_key_storage, |key: &mut String| {
-            client_key = key.clone();
-        });
+            let client_key_storage = &CLIENT_ID;
+            smart_lock(&*client_key_storage, |key: &mut String| {
+                client_key = key.clone();
+            });
 
-        // TODO >>> Maybe add a mechanism taht when this is seted it don't verify again to reduce complexity, maybe a boolean
+            // TODO >>> Maybe add a mechanism taht when this is seted it don't verify again to reduce complexity, maybe a boolean
 
-        if client_key == " " {
-            // Whait untill client id was seted!
-            thread::sleep(Duration::from_millis(200));
-            continue;
+            if client_key == " " {
+                // Whait untill client id was seted!
+                thread::sleep(Duration::from_millis(200));
+                continue;
+            } else {
+                client_key_was_seted = true;
+            }
         }
 
         let up_schedule = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule();
