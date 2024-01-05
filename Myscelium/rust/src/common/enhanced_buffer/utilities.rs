@@ -43,7 +43,6 @@ macro_rules! impl_stringfiable_for_enum {
 
         )+
     }
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +57,6 @@ pub enum CommandType {
     DirectFunction,
     InternalManagement,
     Default,
-    Redirect,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

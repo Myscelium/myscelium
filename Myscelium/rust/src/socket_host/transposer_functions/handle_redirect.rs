@@ -95,11 +95,11 @@ pub fn handle_redirect(m: CommandInstructions, client_id: &mut String, parity_id
 
     println!("Try to redirect: {:?}", m);
 
-    if m.command_type != CommandType::Redirect {
-        logger.warn("Error! Callback response args don't have redirect_to client_id field!".to_string());
-        return create_error_response_and_return!("Error! Callback response args don't have redirect_to client_id field!");
-        // error_response!("Error! Callback response args don't have redirect_to client_id field!");
-    }
+    // if m.command_type != CommandType::Redirect {
+    //     logger.warn("Error! Callback response args don't have redirect_to client_id field!".to_string());
+    //     return create_error_response_and_return!("Error! Callback response args don't have redirect_to client_id field!");
+    //     // error_response!("Error! Callback response args don't have redirect_to client_id field!");
+    // }
 
     // -> Filter not allowed cases:
     match m.target {

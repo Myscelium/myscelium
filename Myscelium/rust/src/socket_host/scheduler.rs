@@ -1,6 +1,7 @@
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandType};
 use crate::common::functions::converters::convert_value_map_to_resulttype_map;
 use crate::common::functions::converters::ConversionError;
@@ -134,7 +135,18 @@ pub fn send_network_available_commands(client_key: String) {
     let parity_id = "itisaspecialcase".to_string();
     let priority: u8 = 11;
 
-    schedule(to_send, priority, client_key, parity_id)
+    let command_instructions = CommandInstructions::new(
+        CommandMode::Response,
+        CommandType::SpecialFunction,
+        CommandTarget::Origin,
+        CommandStatus::Success,
+        CommandOrigin::Host,
+        "".to_string(),
+        HashMap::new(),
+        "".to_string(),
+    );
+
+    schedule(command_instructions, priority, client_key, parity_id)
 }
 
 /// Schedules a command for processing.
