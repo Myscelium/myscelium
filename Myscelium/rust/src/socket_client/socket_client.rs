@@ -240,7 +240,7 @@ macro_rules! create_special_command {
 ///
 /// # Behavior
 /// - The function logs any unexpected responses or errors.
-fn verify_connection(stream: &mut TcpStream) -> bool {
+fn verify_connection(mut stream: &mut TcpStream) -> bool {
     let logger = acquire_logger!("Core");
 
     let mut client_key: String = "".to_string();
@@ -256,12 +256,35 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
 
     stream.write_all(command_json.as_bytes()).unwrap();
 
-    let mut buffer = [0; 4096];
-    stream.read(&mut buffer).unwrap();
+    let command: Command = match read_json_from_stream(&mut stream) {
+        Ok(command) => {
+            // Process the command
+            println!("Received command: {:?}", command);
+            command
+        },
+        Err(e) => {
+            if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                // Handle IO-specific errors
+                eprintln!("IO error occurred: {}", io_err);
+                return false;
+            } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
+                // Handle JSON-specific errors
+                eprintln!("JSON parsing error: {}", json_err);
+                return false;
+            } else {
+                // Handle other errors
+                eprintln!("An error occurred: {}", e);
+                return false;
+            }
+        },
+    };
 
-    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+    // let mut buffer = [0; 4096];
+    // stream.read(&mut buffer).unwrap();
 
-    let command: Command = serde_json::from_str(&buffer_string).unwrap();
+    // let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+
+    // let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
     logger.debug(format!("{:?}", command));
 
