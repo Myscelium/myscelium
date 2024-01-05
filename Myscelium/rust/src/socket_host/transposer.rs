@@ -197,20 +197,20 @@ use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
 /// // Handle the response and client_key as needed
 /// ```
 /// // TODO >>> Remake this Doc string!
-pub fn process_map_result(m: CommandInstructions, client_key: &String, parity_id: String, priority: u8) -> (Value, String) {
+pub fn process_map_result(m: &CommandInstructions, client_key: &String, parity_id: String, priority: u8) -> (Value, String) {
     let logger = acquire_logger!("Transposer - Process");
 
     let mut client_to_send: String = client_key.clone();
 
-    let response: Value = match m.target {
+    let response: Value = match &m.target {
         CommandTarget::Host => {
-            let resp: CommandInstructions = handle_internal_management(m, &mut client_to_send);
+            let resp: CommandInstructions = handle_internal_management(&m, &mut client_to_send);
             resp.to_value_map()
         },
         CommandTarget::Origin => m.to_value_map(),
         CommandTarget::ClientKey(key) => {
             // TODO >>> Implement the handle redirect
-            let resp: CommandInstructions = handle_redirect(m, &mut client_to_send, parity_id.clone(), priority.clone());
+            let resp: CommandInstructions = handle_redirect(&m, &mut client_to_send, parity_id.clone(), priority.clone());
             resp.to_value_map()
         },
     };
@@ -261,7 +261,7 @@ fn process_response_and_schedule(resulttype_command: ProcessResult, mut client_k
     match resulttype_command {
         // TODO >>> Implement change of response here
         ProcessResult::CommandInstructions(m) => {
-            (response, client_key) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
+            (response, client_key) = process_map_result(&m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
         },
         ProcessResult::List(l) => {
             let mut counter: u64 = 0;
@@ -269,14 +269,14 @@ fn process_response_and_schedule(resulttype_command: ProcessResult, mut client_k
                 match res {
                     ProcessResult::CommandInstructions(m) => {
                         if counter == 0 {
-                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
+                            let (processed_resp, client_to_send_back) = process_map_result(&m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
                             let up_command = UpCommand::new(&client_to_send_back, &down_command.parity_id, down_command.priority.clone(), &to_string(&processed_resp).unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         } else {
                             // -> Gen 20 digits parity id based on client
                             let special_parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_special_parity_id(&client_key);
 
-                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
+                            let (processed_resp, client_to_send_back) = process_map_result(&m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
                             let up_command = UpCommand::new(&client_to_send_back, &special_parity_id, down_command.priority.clone(), &to_string(&processed_resp).unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         }

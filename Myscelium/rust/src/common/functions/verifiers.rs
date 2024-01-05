@@ -83,7 +83,7 @@ pub fn fast_json_comparator(val: &Value, target: &Value) -> Result<Value, Compar
             if val == target {
                 Ok(val.clone())
             } else {
-                Err(ComparatorError::TypeMismatch(*val))
+                Err(ComparatorError::TypeMismatch(val.clone()))
             }
         },
     }

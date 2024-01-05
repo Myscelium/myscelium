@@ -66,7 +66,7 @@ pub fn request_client_available_commands(client_key: String) {
         "".to_string(),
     );
 
-    schedule(command_instructions, 11, client_key, "itisaspecialcase".to_string())
+    schedule(&command_instructions, 11, client_key, "itisaspecialcase".to_string())
 }
 
 pub fn send_network_available_commands(client_key: String) {
@@ -112,7 +112,7 @@ pub fn send_network_available_commands(client_key: String) {
         "".to_string(),
     );
 
-    schedule(command_instructions, 11u8, client_key, "itisaspecialcase".to_string())
+    schedule(&command_instructions, 11u8, client_key, "itisaspecialcase".to_string())
 }
 
 /// Schedules a command for processing.
@@ -125,11 +125,11 @@ pub fn send_network_available_commands(client_key: String) {
 /// - `command`: A map representing the command to be scheduled.
 /// - `priority`: The priority level of the command. Commands with higher priority values
 ///               are processed before those with lower priority values.
-pub fn schedule(command: CommandInstructions, priority: u8, client_key: String, parity_id: String) {
+pub fn schedule(command: &CommandInstructions, priority: u8, client_key: String, parity_id: String) {
     let response: Value;
     let new_client_key: String;
 
-    (response, new_client_key) = process_map_result(command, &client_key, parity_id.clone(), priority);
+    (response, new_client_key) = process_map_result(&command, &client_key, parity_id.clone(), priority);
 
     let logger = acquire_logger!("Core - Scheduler");
 

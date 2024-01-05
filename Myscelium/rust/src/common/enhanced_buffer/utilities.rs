@@ -146,7 +146,6 @@ impl CommandInstructions {
             Some("direct_function") => CommandType::DirectFunction,
             Some("internal_management") => CommandType::InternalManagement,
             Some("default") => CommandType::Default,
-            Some("redirect") => CommandType::Redirect,
             _ => return Err(CommandError::InvalidCommand("Invalid or missing mode".to_string())),
         };
 
@@ -161,6 +160,9 @@ impl CommandInstructions {
                 }
 
                 CommandTarget::ClientKey(c.to_string())
+            },
+            None => {
+                return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
             },
         };
 
@@ -208,7 +210,6 @@ impl CommandInstructions {
             Some("direct_function") => CommandType::DirectFunction,
             Some("internal_management") => CommandType::InternalManagement,
             Some("default") => CommandType::Default,
-            Some("redirect") => CommandType::Redirect,
             _ => return Err(CommandError::InvalidCommand("Invalid or missing mode".to_string())),
         };
 
@@ -223,6 +224,9 @@ impl CommandInstructions {
                 }
 
                 CommandTarget::ClientKey(c.to_string())
+            },
+            None => {
+                return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
             },
         };
 

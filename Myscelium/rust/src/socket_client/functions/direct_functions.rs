@@ -41,7 +41,7 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
             logger.info(format!("Receive Host Allowed Commands"));
 
             // Clone the object to get a HashMap<String, Value>
-            let response_map: HashMap<String, Value> = c.kwargs;
+            let response_map: HashMap<String, Value> = c.kwargs.clone();
 
             // TODO >>> Maybe create a mechanism to validate the new_patterns received, maybe using regex, idk...
 
@@ -128,7 +128,7 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
         },
 
         _ => {
-            return Err(ProcessError::CommandNotRegistered(c.actf));
+            return Err(ProcessError::CommandNotRegistered(c.actf.clone()));
         },
     }
 }

@@ -90,7 +90,7 @@ macro_rules! acquire_logger {
 /// let response = handle_redirect(m, &mut client_id, down_command);
 /// ```
 ///
-pub fn handle_redirect(m: CommandInstructions, client_id: &mut String, parity_id: String, priority: u8) -> CommandInstructions {
+pub fn handle_redirect(m: &CommandInstructions, client_id: &mut String, parity_id: String, priority: u8) -> CommandInstructions {
     let logger = acquire_logger!("[Process][Handle Redirect]");
 
     println!("Try to redirect: {:?}", m);
@@ -131,19 +131,17 @@ pub fn handle_redirect(m: CommandInstructions, client_id: &mut String, parity_id
     // let up_command = UpCommand::new(client_id.clone(), parity_id.clone(), priority.clone(), response);
     // enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 
-    let function: String = m.actf;
-
     // TODO >>> Add a logic here to see when the redirect is to redirect a `update_available_host_commands` command and use this as a function and set response mode to to host
     // TODO >>> See if need to add restrictions to some command modes and types don't be allwoed to be redirectd
 
     let new_command_instructions = CommandInstructions::new(
-        m.mode,                // Depend on the command sended
-        m.command_type,        // Depends on the command sended
-        CommandTarget::Origin, // Seted because at this point this was alwready redirected
+        m.mode.clone(),         // Depend on the command sended
+        m.command_type.clone(), // Depends on the command sended
+        CommandTarget::Origin,  // Seted because at this point this was alwready redirected
         CommandStatus::Success,
         CommandOrigin::ClientKey(client_id.clone()),
-        function,
-        m.kwargs,
+        m.actf.clone(),
+        m.kwargs.clone(),
         "".to_string(),
     );
 

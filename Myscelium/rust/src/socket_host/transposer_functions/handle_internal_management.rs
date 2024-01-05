@@ -122,11 +122,11 @@ fn cast_new_client(new_client: Value) -> Result<Client, CommandInstructions> {
     Ok(new_client)
 }
 
-pub fn handle_internal_management(m: CommandInstructions, client_id: &mut String) -> CommandInstructions {
+pub fn handle_internal_management(m: &CommandInstructions, client_id: &mut String) -> CommandInstructions {
     let logger = acquire_logger!("[Process][Internal Management]");
 
-    let activation_function: String = m.actf;
-    let kwargs: HashMap<String, Value> = m.kwargs;
+    let activation_function: String = m.actf.clone();
+    let kwargs: HashMap<String, Value> = m.kwargs.clone();
 
     match activation_function.as_str() {
         "add_client" => {
