@@ -35,8 +35,6 @@ use parking_lot::Mutex;
 use std::sync;
 // use std::sync::Mutex;
 
-use crate::common::functions::advanced_lockers::smart_lock;
-
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let client_log_level;
@@ -92,10 +90,13 @@ lazy_static! {
 pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
     let client_name = CLIENT_NODE_NAME.lock().clone();
 
-    let command_patterns = &COMMAND_PATTERNS;
-    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
-        patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
-    });
+    {
+        let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+
+        {
+            command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
+        }
+    }
 }
 
 use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
@@ -146,11 +147,16 @@ pub fn initialize_client_buffer(buffer_location: String) {
 /// # Returns
 /// - A `HashMap` containing the available command patterns.
 pub fn get_available_handlers_registered() -> HashMap<String, Value> {
-    let mut global_command_patterns: HashMap<String, Value> = HashMap::new();
-    let command_patterns = &COMMAND_PATTERNS;
-    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
-        global_command_patterns = patterns.extract_all_commands();
-    });
+    let global_command_patterns: HashMap<String, Value>;
+
+    {
+        let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+
+        {
+            global_command_patterns = command_patterns.extract_all_commands();
+        }
+    }
+
     return global_command_patterns;
 }
 
@@ -404,7 +410,7 @@ fn send(mut stream: &TcpStream, command: Command) -> Response {
 ///
 /// # Behavior
 /// - If the `CLIENT_IS_RUNNING` global flag is set to false, the function will immediately return `None`.
-pub fn send_ping(mut stream: &mut TcpStream, client_key: &String) -> Option<DownCommand> {
+pub fn send_ping(mut stream: &TcpStream, client_key: &String) -> Option<DownCommand> {
     if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
         return None;
     }
@@ -437,6 +443,13 @@ pub enum Received {
     Confirmation,
     Nothing,
     Error(String),
+}
+
+pub fn set_client_uid(client_key: String) {
+    {
+        let mut c_uid = CLIENT_ID.lock();
+        *c_uid = client_key
+    }
 }
 
 /// Handles the received response from the server and processes it accordingly.
@@ -576,7 +589,7 @@ fn handle_response(received: Response) -> Received {
 /// - The client sends a ping to the server when there are no commands in the schedule.
 /// - The client will wait for 200 milliseconds between retries if a command's response is not received.
 /// - The client will continue to check for scheduled commands as long as `CLIENT_IS_RUNNING` is true.
-pub fn initialize_client(address: String, client_key: String) {
+pub fn initialize_client(address: String) {
     // Create a global Mutex for demonstration
     let mutex1 = Mutex::new(0);
     let mutex2 = Mutex::new(0);
@@ -612,12 +625,12 @@ pub fn initialize_client(address: String, client_key: String) {
 
     thread::sleep(Duration::from_millis(200));
 
-    // let mut client_key_was_seted = false;
+    let client_key: String;
 
-    // let client_key_storage = &CLIENT_ID;
-    // smart_lock(&client_key_storage, |key: &mut String| {
-    //     *key = client_key.clone();
-    // });
+    {
+        let c_uid = CLIENT_ID.lock();
+        client_key = c_uid.clone()
+    }
 
     loop {
         if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
@@ -649,7 +662,7 @@ pub fn initialize_client(address: String, client_key: String) {
         if !(up_schedule.len() > 0) {
             {
                 println!("Nothing in schedule to send to host, so sending ping!");
-                if let Some(down_command) = send_ping(&mut stream, &client_key) {
+                if let Some(down_command) = send_ping(&stream, &client_key) {
                     enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
                 }
             }

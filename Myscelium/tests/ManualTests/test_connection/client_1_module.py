@@ -18,7 +18,6 @@ class Senders:
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.running = True
-        mys_client.set_client_uid(client_uid="some_client_id")
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
         command = client_patterns.command_pattern(
@@ -65,8 +64,6 @@ class MyClient:
         mys_client = MysceliumClient(client_uid=CLIENT_KEY, buffer_path="Temp/Client1Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
-
-        mys_client.set_client_uid(client_uid=CLIENT_KEY)
 
         callbacks = [
             client_patterns.callback_pattern(callback=receivers.test_handler),

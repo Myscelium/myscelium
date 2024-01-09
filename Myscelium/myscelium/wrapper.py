@@ -1196,9 +1196,11 @@ class MysceliumClient:
         - client_uid: Unique identifier for the client.
         - buffer_path: Path to the buffer.
         - log_level: Logging level.
-        """
+        """ 
 
-        if not hasattr(self, 'initialized'):
+        self.client_uid = client_uid
+
+        if not mys.get_client_state():
             self.client_uid = client_uid
             self.running = False
             mys.initialize_client_buffer_tables(buffer_path)
@@ -1214,7 +1216,7 @@ class MysceliumClient:
                 pass
 
             mys.set_socket_client_log_level(log_level)
-
+        
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -1235,18 +1237,18 @@ class MysceliumClient:
     #     print("active py set log callback")
     #     mys.registry_client_logs_handler(logs_handler_callback)
 
-    def set_client_uid (self, client_uid):
+    # def set_client_uid (self, client_uid):
 
-        """
-        Set the client's unique identifier.
+    #     """
+    #     Set the client's unique identifier.
 
-        Parameters:
-        - client_uid: Unique identifier for the client.
-        """
+    #     Parameters:
+    #     - client_uid: Unique identifier for the client.
+    #     """
 
-        mys.set_client_uid(client_uid)
+    #     mys.set_client_uid(client_uid)
 
-        return 
+    #     return 
 
     def set_workers_num (self, n_workers=2):
 

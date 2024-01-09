@@ -9,10 +9,16 @@ use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
 
-use crate::CLIENT_ID;
-
 use super::client_logger::log_handler::Logger;
 use crate::CLIENT_LOG_LEVEL;
+
+use parking_lot::Mutex;
+
+use std::sync::Arc;
+
+lazy_static! {
+    static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
+}
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{

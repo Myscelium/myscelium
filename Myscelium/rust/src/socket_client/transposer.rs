@@ -2,7 +2,6 @@ use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
-use crate::common::functions::advanced_lockers::smart_lock;
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
 use crate::common::structs::results_structs::ResultType;
@@ -193,21 +192,21 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
 
     // Validate the command against known command patterns
     let command_patterns;
-    {
-        command_patterns = COMMAND_PATTERNS.lock().unwrap().clone(); // TODO > This is using parking lot, see if need to change to smart-lock
-    }
-
     let client_name;
 
     {
-        client_name = CLIENT_NODE_NAME.lock().clone();
+        {
+            command_patterns = COMMAND_PATTERNS.lock().unwrap().clone(); // TODO > This is using parking lot, see if need to change to smart-lock
+        }
+
+        {
+            client_name = CLIENT_NODE_NAME.lock().clone();
+        }
     }
 
     // logger.info(format!("Command function: {} is a valid function!", activation_key));
 
     let client_key = down_command.client_key.clone();
-
-    let response: String;
 
     // let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
 
