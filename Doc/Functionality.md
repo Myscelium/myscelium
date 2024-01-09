@@ -189,3 +189,20 @@ C: 02 - `update_client_commands_ref`:
 	"kwargs": {<netwrok av commands>}
 }
 ```
+
+---
+
+
+```mermaid
+sequenceDiagram
+
+
+Client 1 ->> Host: Connect
+Host ->> Host: Client isn't sync 
+Host ->> Client 1: C: 01
+Client 1 ->> Client 1: update available commands
+Client 1 ->> Host: C: 02
+Host ->> Host: Update client handlers
+
+
+```

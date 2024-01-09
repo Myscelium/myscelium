@@ -495,6 +495,30 @@ fn get_response(command: Command) -> Response {
     return Response::Command(response_command);
 }
 
+const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
+
+fn send(mut stream: &TcpStream, data: Command) {
+    let command_response_json = json!(data).to_string();
+    let data_size = command_response_json.len() as u32;
+    let size_buffer = data_size.to_be_bytes();
+
+    // Send the size of the data
+    match stream.write(&size_buffer) {
+        Ok(_) => {},
+        Err(e) => {
+            println!("Error sending data lenght to client: {:?}, the error was:  {:?}", data.client_key, e);
+        },
+    };
+
+    // Send the actual data
+    match stream.write(command_response_json.as_bytes()) {
+        Ok(_) => {},
+        Err(e) => {
+            println!("Error sending data to client: {:?} the error was: {:?}", data.client_key, e);
+        },
+    };
+}
+
 /// Handles an individual connection to the server.
 ///
 /// This function is responsible for managing the lifecycle of a client connection to the server.
@@ -526,23 +550,38 @@ fn handle_connection(mut stream: TcpStream) {
     let mut client: Option<Client> = None;
 
     loop {
-        let mut buffer = [0; 16384];
+        let mut size_buffer = [0; 4];
 
-        match stream.read(&mut buffer) {
-            Ok(0) => {
-                // No data was read, break the loop
-                continue;
-            },
-            Ok(_) => {
-                logger.debug("Data received!".to_string());
-            },
+        // Read the size of the incoming data
+
+        let data_size = match stream.read_exact(&mut size_buffer) {
+            Ok(_) => u32::from_be_bytes(size_buffer) as usize,
             Err(e) => {
-                // Handle the error
-                logger.exception(format!("Failed to read from the stream: {}", e));
+                eprintln!("Failed to read from the stream: {:?}", e);
+                // Handle the error, e.g., by returning from the function or taking corrective action
+                return; // or handle differently
             },
+        };
+
+        if data_size > MAX_DATA_SIZE {
+            logger.exception(format!("Data size too large: {}", data_size));
+            break; // Close connection or handle appropriately
         }
 
-        let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+        // Allocate a buffer of the appropriate size
+        let mut data_buffer = vec![0; data_size];
+
+        // Read the data into the buffer
+        let buffer_string = match stream.read_exact(&mut data_buffer) {
+            Ok(_) => String::from_utf8_lossy(&data_buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string(),
+            Err(e) => {
+                eprintln!("Failed to read from the stream: {:?}", e);
+                // Handle the error, e.g., by returning from the function or taking corrective action
+                return; // or handle differently
+            },
+        };
+
+        // println!("Data received: {:?}", data_buffer);
 
         // let command: Command = match read_json_from_stream(&mut stream) {
         //     Ok(command) => {
@@ -569,6 +608,7 @@ fn handle_connection(mut stream: TcpStream) {
 
         let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
+        println!("Command received: {:?}", command);
         logger.debug(format!("Command received:\n{:?}\n", command));
 
         let special_functions: Vec<String> = vec!["C202".to_string(), "C206".to_string()];
@@ -576,13 +616,11 @@ fn handle_connection(mut stream: TcpStream) {
         if !check_if_client_key_exists(command.client_key.clone()) {
             // -> In case client isn't registered in the clients allowed
 
-            let response = create_error_command_response!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
+            let response: Command = create_error_command_response!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
 
-            let command_response_json = json!(response).to_string();
+            logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", response));
 
-            logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", command_response_json));
-
-            stream.write_all(command_response_json.as_bytes()).unwrap();
+            send(&stream, response);
 
             break;
         }
@@ -593,22 +631,18 @@ fn handle_connection(mut stream: TcpStream) {
                 ClientError::ClientDoesNotExist(_) => {
                     let response = create_error_command_response!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
 
-                    let command_response_json = json!(response).to_string();
+                    logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", response));
 
-                    logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", command_response_json));
-
-                    stream.write_all(command_response_json.as_bytes()).unwrap();
+                    send(&stream, response);
 
                     break;
                 },
                 _ => {
                     let response = create_error_command_response!(command.client_key, command.parity_id, "Unexpected error getting your client");
 
-                    let command_response_json = json!(response).to_string();
-
                     logger.exception(format!("WARNING: Unexpected error getting client: {:?}", command.client_key));
 
-                    stream.write_all(command_response_json.as_bytes()).unwrap();
+                    send(&stream, response);
 
                     break;
                 },
@@ -675,7 +709,7 @@ fn handle_connection(mut stream: TcpStream) {
                     println!("Try to sync with: {}", command.client_key);
 
                     // -> case of be the first sync attempt
-                    send_network_available_commands(command.client_key.clone());
+                    send_network_available_commands(command.client_key.clone()); //TODO >>> Make this send directly withoput schedule in buffer via the send function
 
                     let controller = &CLIENTS_SYNC_CONTROLLER;
                     smart_lock(&*controller, |clients: &mut Clients| {
@@ -709,13 +743,11 @@ fn handle_connection(mut stream: TcpStream) {
             if special_functions.contains(&command.command.actf) {
                 // -> Special Function Handler
 
-                let response = handle_special_functions(command.client_key, command.command.actf.clone());
+                let response: Command = handle_special_functions(command.client_key, command.command.actf.clone());
 
-                let command_response_json = json!(response).to_string();
+                logger.debug(format!("Sending back: {:?}", response));
 
-                logger.debug(format!("Sending back: {:?}", command_response_json));
-
-                stream.write_all(command_response_json.as_bytes()).unwrap();
+                send(&stream, response);
             } else if command_patterns.command_exists("host", command.command.actf.as_str()) || direct_functions.contains(&command.command.actf) {
                 // TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
 
@@ -748,21 +780,17 @@ fn handle_connection(mut stream: TcpStream) {
                     response = handle_common_function(command);
                 }
 
-                let command_json = json!(response).to_string();
+                logger.debug(format!("Sending back: {:?}", response));
 
-                logger.debug(format!("Sending back: {:?}", command_json));
-
-                stream.write_all(command_json.as_bytes()).unwrap();
+                send(&stream, response);
             } else {
                 // -> None of above
 
-                let command = create_error_command_response!(command.client_key, command.parity_id, format!("Function: {}, Doesn't exist!", command.command.actf));
+                let command: Command = create_error_command_response!(command.client_key, command.parity_id, format!("Function: {}, Doesn't exist!", command.command.actf));
 
-                let command_json = json!(command).to_string();
+                logger.debug(format!("Sending back: {:?}", command));
 
-                logger.debug(format!("Sending back: {:?}", command_json));
-
-                stream.write_all(command_json.as_bytes()).unwrap();
+                send(&stream, command);
             }
             // _ => {
             //     logger.warn("The function name is not found or not a string.".to_string());

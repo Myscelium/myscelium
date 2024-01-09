@@ -291,6 +291,8 @@ fn verify_connection(mut stream: &mut TcpStream, client_key: &String) -> bool {
     // logger.warn(format!("The function name is not found or not a string."));
 }
 
+const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
+
 /// Sends a command to the server and waits for a response.
 ///
 /// Before sending the command, the function verifies the connection using the `verify_connection` function.
@@ -305,27 +307,59 @@ fn verify_connection(mut stream: &mut TcpStream, client_key: &String) -> bool {
 ///
 /// # Behavior
 /// - If the connection is not verified, the function logs the event and returns `Response::None`.
-fn send(mut stream: &mut TcpStream, command: Command, client_key: &String) -> Response {
+fn send(mut stream: &TcpStream, command: Command) -> Response {
     let logger = acquire_logger!("Core");
 
     {
-        let conn: bool = verify_connection(stream, &client_key);
-        if !conn {
-            logger.info(format!("Not connected!"));
-            return Response::None;
-        }
+        let command_response_json = json!(command).to_string();
+        let data_size = command_response_json.len() as u32;
+        let size_buffer = data_size.to_be_bytes();
+
+        // Send the size of the data
+        match stream.write(&size_buffer) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("Error sending data lenght to client: {:?}, the error was:  {:?}", command.client_key, e);
+            },
+        };
+
+        // Send the actual data
+        match stream.write(command_response_json.as_bytes()) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("Error sending data to client: {:?} the error was: {:?}", command.client_key, e);
+            },
+        };
     }
 
-    let command_json: String = to_string(&command).unwrap();
+    let mut size_buffer = [0; 4];
 
-    println!("Sending to host: {:?}", command_json);
+    // Read the size of the incoming data
+    let data_size = match stream.read_exact(&mut size_buffer) {
+        Ok(_) => u32::from_be_bytes(size_buffer) as usize,
+        Err(e) => {
+            eprintln!("Failed to read from the stream: {:?}", e);
+            // Handle the error, e.g., by returning from the function or taking corrective action
+            return Response::None; // or handle differently
+        },
+    };
 
-    stream.write_all(command_json.as_bytes()).unwrap();
+    if data_size > MAX_DATA_SIZE {
+        logger.exception(format!("Data size too large: {}", data_size));
+        return Response::None; // TODO >>> Close connection or handle appropriately
+    }
 
-    let mut buffer = [0; 16384];
-    stream.read(&mut buffer).unwrap();
+    // Allocate a buffer of the appropriate size
+    let mut data_buffer = vec![0; data_size];
 
-    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+    let buffer_string = match stream.read_exact(&mut data_buffer) {
+        Ok(_) => String::from_utf8_lossy(&data_buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string(),
+        Err(e) => {
+            eprintln!("Failed to read from the stream: {:?}", e);
+            // Handle the error, e.g., by returning from the function or taking corrective action
+            return Response::None; // or handle differently
+        },
+    };
 
     // let command: Command = match read_json_from_stream(&mut stream) {
     //     Ok(command) => {
@@ -379,7 +413,7 @@ pub fn send_ping(mut stream: &mut TcpStream, client_key: &String) -> Option<Down
 
     println!("Create C206 ping request: {:?}", command_to_request);
 
-    let received: Response = send(&mut stream, command_to_request.clone(), client_key);
+    let received: Response = send(&stream, command_to_request.clone());
 
     println!("Received response: {:?}", received);
 
@@ -640,7 +674,7 @@ pub fn initialize_client(address: String, client_key: String) {
                 let received: Response;
 
                 {
-                    received = send(&mut stream, command_to_request.clone(), &client_key);
+                    received = send(&stream, command_to_request.clone());
                 }
 
                 match handle_response(received) {

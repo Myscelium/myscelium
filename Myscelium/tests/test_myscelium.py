@@ -204,7 +204,13 @@ def test_communication():
             pass
     
     test_end_time = time.time()
-    average_com_delta = (sum(deltas) / len(deltas)) 
+
+    if len(deltas) > 0:
+        average_com_delta = sum(deltas) / len(deltas)
+    else:
+        # Handle the empty list case
+        average_com_delta = 0  # or any other default or error valu
+
     test_run_time = test_end_time - test_start_time 
 
     if (client_contact and basic_callback) and (send_data and basic_response_handler):
