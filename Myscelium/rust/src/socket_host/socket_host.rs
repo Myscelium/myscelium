@@ -421,23 +421,28 @@ fn handle_common_function(command: Command) -> Command {
     // command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
     // command_map.insert("function".to_string(), Value::String("C210".to_string()));
 
-    let command_map = create_special_command_response!(command.client_key.to_string().clone(), "C210".to_string());
-
-    let mut command_map = HashMap::new();
-
     // TODO >>> Change the CommandInStructions case to use the new method!
 
     let kwargs: HashMap<String, Value> = HashMap::new();
 
-    command_map.insert("mode".to_string(), Value::String("function".to_string()));
-    command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-    command_map.insert("target".to_string(), Value::String("origin".to_string()));
-    command_map.insert("status".to_string(), Value::String("success".to_string()));
-    command_map.insert("actf".to_string(), Value::String("C210".to_string()));
-    command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
-    command_map.insert("message".to_string(), Value::String("".to_string()));
+    // command_map.insert("mode".to_string(), Value::String("function".to_string()));
+    // command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
+    // command_map.insert("target".to_string(), Value::String("origin".to_string()));
+    // command_map.insert("status".to_string(), Value::String("success".to_string()));
+    // command_map.insert("actf".to_string(), Value::String("C210".to_string()));
+    // command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
+    // command_map.insert("message".to_string(), Value::String("".to_string()));
 
-    let command_instructions: CommandInstructions = CommandInstructions::from_value_map(command_map).unwrap();
+    let command_instructions: CommandInstructions = CommandInstructions::new(
+        CommandMode::Function,
+        CommandType::SpecialFunction,
+        CommandTarget::Origin,
+        CommandStatus::Success,
+        CommandOrigin::Host,
+        "C210".to_string(),
+        kwargs,
+        "".to_string(),
+    );
 
     let conf_command = Command {
         client_key: command.client_key.to_string().clone(),

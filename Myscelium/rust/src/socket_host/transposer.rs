@@ -434,6 +434,8 @@ fn process(py: Python, down_command: DownCommand) {
             Ok(r) => {
                 let value: Value = extract_pyobject(py, r);
 
+                println!("Value map extracted from vallback response: {:?}", value);
+
                 // Check if the Value is an object and convert it to HashMap
                 if let Some(obj) = value.as_object() {
                     match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {

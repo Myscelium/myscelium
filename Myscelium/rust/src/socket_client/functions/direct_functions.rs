@@ -32,7 +32,7 @@ macro_rules! acquire_logger {
 pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, command_id: u32) -> Result<ProcessResult, ProcessError> {
     let logger = acquire_logger!("Transposer - Process");
 
-    logger.info(format!("Initializing processing!"));
+    logger.info(format!("Initializing Direct Function processing!"));
 
     // TODO >>> Change this for a mathc
 
@@ -49,16 +49,29 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
             let mut new_patterns = CommandPatterns::new();
             new_patterns.add_from_map(response_map);
 
-            let host_allowed_commands = &HOST_ALLOWED_COMMANDS;
-            smart_lock(&*host_allowed_commands, |actual_patterns: &mut CommandPatterns| {
-                *actual_patterns = new_patterns;
-            });
+            logger.info(format!("Try Lock In Host Allowed Commands!"));
 
-            let mut actual_patterns: HashMap<String, Value> = HashMap::new();
-            let command_patterns = &COMMAND_PATTERNS;
-            smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
-                actual_patterns = patterns.extract_all_commands();
-            });
+            {
+                let mut host_allowed_commands = HOST_ALLOWED_COMMANDS.lock();
+                logger.info(format!("Lock In Host Allowed Commands!"));
+                *host_allowed_commands = new_patterns.clone();
+            }
+
+            logger.info(format!("Release Lock"));
+
+            let actual_patterns: HashMap<String, Value>;
+
+            logger.info(format!("Try Lock In Commnd Patterns!"));
+
+            {
+                let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+
+                logger.info(format!("Lock In Host Commnd Patterns!"));
+
+                actual_patterns = command_patterns.extract_all_commands().clone();
+            }
+
+            logger.info(format!("Release Lock"));
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
@@ -91,12 +104,12 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             // Lock the COMMAND_PATTERNS and insert the new map
 
-            let mut actual_patterns: HashMap<String, Value> = HashMap::new();
+            let actual_patterns: HashMap<String, Value>;
 
-            let command_patterns = &COMMAND_PATTERNS;
-            smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
-                actual_patterns = patterns.extract_all_commands();
-            });
+            {
+                let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+                actual_patterns = command_patterns.extract_all_commands().clone();
+            }
 
             logger.info(format!("Successfully actualize the host available commands!"));
 

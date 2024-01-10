@@ -1,7 +1,7 @@
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
-use crate::common::enhanced_buffer::utilities::{Command, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandType};
 use crate::common::functions::advanced_lockers::smart_lock;
 
 use lazy_static::lazy_static;
@@ -79,39 +79,25 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
 
     logger.debug("Enter Scheduler".to_string());
 
-    let mut client_key: String = "".to_string();
-
-    // let client_key_storage = &CLIENT_ID;
-    // smart_lock(&client_key_storage, |key: &mut String| {
-    //     client_key = key.clone();
-    // });
+    let client_key: String;
 
     {
         let key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
-        client_key = key.clone()
+        client_key = key.clone();
+        drop(key)
     }
 
     logger.debug(format!("Client id is: {:?}", client_key));
-    let command: Result<String, serde_json::Error> = serde_json::to_string(&command);
-
-    let unwraped_command: String;
 
     // TODO >>> Add mecanisms to check the structure of the command that we are trying to registry
 
-    match command {
-        Ok(c) => {
-            unwraped_command = c;
-        },
-
-        Err(e) => {
-            logger.exception(format!("An error occured while trying to stringfy the command when sending it to schedule! The error was: {}", e));
-            return;
-        },
-    }
-
     let parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
 
-    let command_to_schedule: UpCommand = UpCommand::new(&client_key, &parity_id, priority, &unwraped_command);
+    let command_instructions = CommandInstructions::from_string_hashmap(command).unwrap();
+
+    let command = Command::new(client_key, parity_id, priority, command_instructions);
+
+    let command_to_schedule: UpCommand = UpCommand::from_command(command);
 
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
 

@@ -2,7 +2,7 @@ use crate::common::communication::decoders::read_json_from_stream;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 
-use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandError, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
@@ -249,48 +249,81 @@ macro_rules! create_special_command {
 ///
 /// # Behavior
 /// - The function logs any unexpected responses or errors.
-fn verify_connection(mut stream: &mut TcpStream, client_key: &String) -> bool {
+fn verify_connection(stream: &mut TcpStream, client_key: &String) -> bool {
     let logger = acquire_logger!("Core");
 
     let command = create_special_command!(client_key.clone(), CommandMode::Function, "C202");
 
-    let command_json = json!(command).to_string();
+    println!("\nTry to verify connection!");
 
-    stream.write_all(command_json.as_bytes()).unwrap();
+    {
+        let command_response_json = json!(command).to_string();
+        let data_size = command_response_json.len() as u32;
+        let size_buffer = data_size.to_be_bytes();
 
-    // let command: Command = match read_json_from_stream(&mut stream) {
-    //     Ok(command) => {
-    //         // Process the command
-    //         println!("Received command: {:?}", command);
-    //         command
-    //     },
-    //     Err(e) => {
-    //         if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
-    //             // Handle IO-specific errors
-    //             eprintln!("IO error occurred: {}", io_err);
-    //             return false;
-    //         } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
-    //             // Handle JSON-specific errors
-    //             eprintln!("JSON parsing error: {}", json_err);
-    //             return false;
-    //         } else {
-    //             // Handle other errors
-    //             eprintln!("An error occurred: {}", e);
-    //             return false;
-    //         }
-    //     },
-    // };
+        // Send the size of the data
+        match stream.write(&size_buffer) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("Error sending data lenght to client: {:?}, the error was:  {:?}", command.client_key, e);
+            },
+        };
 
-    let mut buffer = [0; 4096];
-    stream.read(&mut buffer).unwrap();
-    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+        println!("Data lenght: {:?}", size_buffer);
+
+        // Send the actual data
+        match stream.write(command_response_json.as_bytes()) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("Error sending data to client: {:?} the error was: {:?}", command.client_key, e);
+            },
+        };
+
+        println!("Connection verification sended!");
+    }
+
+    let mut size_buffer = [0; 4];
+
+    // Read the size of the incoming data
+    let data_size = match stream.read_exact(&mut size_buffer) {
+        Ok(_) => u32::from_be_bytes(size_buffer) as usize,
+        Err(e) => {
+            eprintln!("Failed to read from the stream: {:?}", e);
+            // Handle the error, e.g., by returning from the function or taking corrective action
+            return false; // or handle differently
+        },
+    };
+
+    println!("Confirmation data received!");
+
+    if data_size > MAX_DATA_SIZE {
+        logger.exception(format!("Data size too large: {}", data_size));
+        return false; // TODO >>> Close connection or handle appropriately
+    }
+
+    // Allocate a buffer of the appropriate size
+    let mut data_buffer = vec![0; data_size];
+
+    let buffer_string = match stream.read_exact(&mut data_buffer) {
+        Ok(_) => String::from_utf8_lossy(&data_buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string(),
+        Err(e) => {
+            eprintln!("Failed to read from the stream: {:?}", e);
+            // Handle the error, e.g., by returning from the function or taking corrective action
+            return false; // or handle differently
+        },
+    };
+
+    println!("Confirmation data decoded!");
+
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
-    logger.debug(format!("{:?}", command));
+    logger.debug(format!("Received: {:?}", command));
 
     if command.command.actf == "C200" {
+        println!("Connected!\n");
         return true;
     } else {
+        println!("Error in connection verification, not connected!\n");
         return false;
     }
 
@@ -313,8 +346,18 @@ const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
 ///
 /// # Behavior
 /// - If the connection is not verified, the function logs the event and returns `Response::None`.
-fn send(mut stream: &TcpStream, command: Command) -> Response {
+fn send(stream: &mut TcpStream, command: Command) -> Response {
     let logger = acquire_logger!("Core");
+
+    println!("Sending: {:?}", command);
+
+    {
+        let conn: bool = verify_connection(stream, &command.client_key);
+        if !conn {
+            logger.info(format!("Not connected!"));
+            return Response::None;
+        }
+    }
 
     {
         let command_response_json = json!(command).to_string();
@@ -329,6 +372,8 @@ fn send(mut stream: &TcpStream, command: Command) -> Response {
             },
         };
 
+        println!("Data lenght: {:?}", size_buffer);
+
         // Send the actual data
         match stream.write(command_response_json.as_bytes()) {
             Ok(_) => {},
@@ -336,6 +381,8 @@ fn send(mut stream: &TcpStream, command: Command) -> Response {
                 println!("Error sending data to client: {:?} the error was: {:?}", command.client_key, e);
             },
         };
+
+        println!("Data sended!")
     }
 
     let mut size_buffer = [0; 4];
@@ -350,10 +397,14 @@ fn send(mut stream: &TcpStream, command: Command) -> Response {
         },
     };
 
+    println!("Receive incomming data lenght: {}", data_size);
+
     if data_size > MAX_DATA_SIZE {
         logger.exception(format!("Data size too large: {}", data_size));
         return Response::None; // TODO >>> Close connection or handle appropriately
     }
+
+    println!("Data isn't greather than leght limit!");
 
     // Allocate a buffer of the appropriate size
     let mut data_buffer = vec![0; data_size];
@@ -366,6 +417,8 @@ fn send(mut stream: &TcpStream, command: Command) -> Response {
             return Response::None; // or handle differently
         },
     };
+
+    println!("Received binary data");
 
     // let command: Command = match read_json_from_stream(&mut stream) {
     //     Ok(command) => {
@@ -392,6 +445,8 @@ fn send(mut stream: &TcpStream, command: Command) -> Response {
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
+    println!("Data reeived: {:?}\n", command);
+
     logger.debug(format!("Received: {:?}", command));
 
     return Response::Command(command);
@@ -410,7 +465,7 @@ fn send(mut stream: &TcpStream, command: Command) -> Response {
 ///
 /// # Behavior
 /// - If the `CLIENT_IS_RUNNING` global flag is set to false, the function will immediately return `None`.
-pub fn send_ping(mut stream: &TcpStream, client_key: &String) -> Option<DownCommand> {
+pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownCommand> {
     if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
         return None;
     }
@@ -419,20 +474,24 @@ pub fn send_ping(mut stream: &TcpStream, client_key: &String) -> Option<DownComm
 
     println!("Create C206 ping request: {:?}", command_to_request);
 
-    let received: Response = send(&stream, command_to_request.clone());
+    let received: Response = send(stream, command_to_request.clone());
 
     println!("Received response: {:?}", received);
 
     match handle_response(received) {
         Received::DownCommand(down_command) => return Some(down_command),
         Received::Confirmation => {
+            println!("Receive confirmation C210");
             return None;
         },
-        Received::Error(_) => {
+        Received::Error(e) => {
+            println!("Error when processing response received after ping: {:?}", e);
+
             //TODO >>> Add the mechanism to stop the client if received a error
             return None;
         },
         Received::Nothing => {
+            println!("Response is none!");
             return None;
         },
     }
@@ -591,8 +650,6 @@ fn handle_response(received: Response) -> Received {
 /// - The client will continue to check for scheduled commands as long as `CLIENT_IS_RUNNING` is true.
 pub fn initialize_client(address: String) {
     // Create a global Mutex for demonstration
-    let mutex1 = Mutex::new(0);
-    let mutex2 = Mutex::new(0);
 
     // Spawn a thread to periodically check for deadlocks
     thread::spawn(|| {
@@ -633,6 +690,8 @@ pub fn initialize_client(address: String) {
     }
 
     loop {
+        println!("Client status: {:?}", CLIENT_IS_RUNNING.load(Ordering::SeqCst));
+
         if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
             logger.info(format!("running is set to false, shutdown socket client main process!"));
             break;
@@ -662,7 +721,7 @@ pub fn initialize_client(address: String) {
         if !(up_schedule.len() > 0) {
             {
                 println!("Nothing in schedule to send to host, so sending ping!");
-                if let Some(down_command) = send_ping(&stream, &client_key) {
+                if let Some(down_command) = send_ping(&mut stream, &client_key) {
                     enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
                 }
             }
@@ -672,11 +731,29 @@ pub fn initialize_client(address: String) {
             continue;
         }
 
+        if up_schedule.len() > 1 {
+            println!("Find: {:?} command in schedule", up_schedule.len());
+        } else {
+            println!("Find: {:?} commands in schedule", up_schedule.len());
+        }
+        println!("Start to process it!");
+
+        let mut index: u32 = 0u32;
+
         for up_command in up_schedule {
+            println!("processing command {:?} index", index);
+
             let command_to_request = match Command::from_up_command(&up_command) {
                 Ok(c) => c,
-                Err(e) => {
-                    println!("Command: {:?} gives an exception when converting to command, the error was: \n{:?}", up_command, e);
+                Err(error) => {
+                    match error {
+                        CommandError::InvalidCommand(e) => {
+                            println!("Command: {:?} gives an exception when converting to command, the error was: \n{:?}", up_command, e);
+                        },
+                    }
+
+                    index = index + 1;
+
                     continue;
                 },
             };
@@ -686,9 +763,7 @@ pub fn initialize_client(address: String) {
 
                 let received: Response;
 
-                {
-                    received = send(&stream, command_to_request.clone());
-                }
+                received = send(&mut stream, command_to_request.clone());
 
                 match handle_response(received) {
                     Received::DownCommand(down_command) => {
@@ -697,12 +772,16 @@ pub fn initialize_client(address: String) {
                         break;
                     },
                     Received::Confirmation => {
+                        println!("Receive confirmation C210!");
                         break;
                     },
                     Received::Error(e) => {
+                        println!("Receive a error response, the error is: {:?}", e);
                         //TODO >>> Add the mechanism to stop the client if received a error
                     },
-                    Received::Nothing => {},
+                    Received::Nothing => {
+                        println!("Receive nothing!");
+                    },
                 }
 
                 thread::sleep(Duration::from_millis(200));
@@ -710,6 +789,9 @@ pub fn initialize_client(address: String) {
         }
 
         println!("End schedule data, so skipping >>>");
+
+        index = index + 1;
+
         continue;
     }
 }

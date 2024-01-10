@@ -413,6 +413,12 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
     }
 }
 
+#[pyfunction]
+pub fn set_client_key(client_key: String) {
+    scheduler::set_client_id(client_key.clone());
+    socket_client::set_client_uid(client_key);
+}
+
 /// Initializes the socket client, sets up deadlock detection, and starts the main processing loop.
 ///
 /// This function sets up the socket client to communicate with a server and starts the main loop
@@ -439,16 +445,12 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_key: String) {
-    // Create a global Mutex for demonstration
-    let mutex1 = Mutex::new(0);
-    let mutex2 = Mutex::new(0);
-
     // Spawn a thread to periodically check for deadlocks
     thread::spawn(|| {
         loop {
-            thread::sleep(Duration::from_secs(5)); // Check every 5 seconds
             let deadlocks = parking_lot::deadlock::check_deadlock();
             if deadlocks.is_empty() {
+                thread::sleep(Duration::from_millis(200)); // Check every 200 millis
                 continue;
             }
 
@@ -462,9 +464,6 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
             }
         }
     });
-
-    scheduler::set_client_id(client_key.clone());
-    socket_client::set_client_uid(client_key);
 
     CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
 
@@ -494,9 +493,9 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
 
         initialize_client(address);
 
-        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-
         println!("Socket host exited successfully!");
+
+        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
     });
 
     // scheduler::request_host_available_commands();

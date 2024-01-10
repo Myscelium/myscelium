@@ -22,11 +22,10 @@ class Handlers:
         print(age)
 
         host_patterns = HostPatterns()
-        
+
         response = host_patterns.response_pattern(
-            response_mode='to_origin',
-            response_activation_function="test_handler",
-            response={"data": 'hello!'}
+            activation_function="test_handler", 
+            kwargs={"data": 'hello!'}
         )
 
         # (callback name) - Receive Data: [Data received list for comparison]
@@ -99,13 +98,13 @@ class MyHost:
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(
-                        callbacks=callbacks, 
-                        host_id="xnsmdkeflerpfsa",
-                        allowed_clients=allowed_clients, 
-                        buffer_path="Temp/Data/", 
-                        n_workers=2, 
-                        log_level=self.debug_level
-                    )
+            callbacks=callbacks, 
+            host_id="xnsmdkeflerpfsa",
+            allowed_clients=allowed_clients, 
+            buffer_path="Temp/Data/", 
+            n_workers=2, 
+            log_level=self.debug_level
+        )
 
         self.mys_host = mys_host
 
