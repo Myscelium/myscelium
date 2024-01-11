@@ -482,36 +482,64 @@ pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownComm
 
     println!("Received response: {:?}", received);
 
-    match handle_response(&received) {
-        Received::DownCommand(down_command) => return Some(down_command),
-        Received::Confirmation => {
-            println!("Receive confirmation C210");
-            return None;
-        },
-        Received::PingResponse => {
-            println!("Receive ping response!");
-            return None;
-        },
-        Received::Error(e) => {
-            println!("Error when processing response received after ping: {:?}", e);
+    match received {
+        Response::Command(c) => {
+            match c.command.status {
+                CommandStatus::Failure => {
+                    println!("\nAn error occurred in host, the error was: {}\n", c.command.message);
+                    CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                    return None;
+                },
+                CommandStatus::Success => {},
+            }
 
-            //TODO >>> Add the mechanism to stop the client if received a error
-            return None;
+            match c.command_type() {
+                CommandType::SpecialFunction => {
+                    if c.command.actf == "C207" {
+                        println!("Receive ping response ponf conf!");
+                        return None;
+                    };
+                },
+                _ => {},
+            }
+            let down_command = DownCommand::from_command(c);
+            return Some(down_command);
         },
-        Received::Nothing => {
-            println!("Response is none!");
+        Response::None => {
             return None;
         },
     }
+
+    // match handle_response(&received) {
+    //     Received::DownCommand(down_command) => return Some(down_command),
+    //     Received::Confirmation => {
+    //         println!("Receive confirmation C210");
+    //         return None;
+    //     },
+    //     Received::PingResponse => {
+    //         println!("Receive ping response!");
+    //         return None;
+    //     },
+    //     Received::Error(e) => {
+    //         println!("Error when processing response received after ping: {:?}", e);
+
+    //         //TODO >>> Add the mechanism to stop the client if received a error
+    //         return None;
+    //     },
+    //     Received::Nothing => {
+    //         println!("Response is none!");
+    //         return None;
+    //     },
+    // }
 }
 
-pub enum Received {
-    DownCommand(DownCommand),
-    Confirmation,
-    PingResponse,
-    Nothing,
-    Error(String),
-}
+// pub enum Received {
+//     DownCommand(DownCommand),
+//     Confirmation,
+//     PingResponse,
+//     Nothing,
+//     Error(String),
+// }
 
 pub fn set_client_uid(client_key: String) {
     {
@@ -548,93 +576,55 @@ pub fn set_client_uid(client_key: String) {
 /// # Notes
 /// - This function uses the `COMMAND_PATTERNS` global lock to access and modify the command patterns.
 /// - The function also accesses the `CLIENT_IS_RUNNING` global flag to control the client's running state.
-fn handle_response(received: &Response) -> Received {
-    let logger = acquire_logger!("Core");
+// fn handle_response(received: &Response) -> Received {
+//     let logger = acquire_logger!("Core");
 
-    let command_received;
+//     let command_received;
 
-    match received {
-        Response::None => {
-            logger.warn(format!("Received invalid data!"));
-            return Received::Nothing;
-        },
-        Response::Command(c) => {
-            logger.debug(format!("\nReceived command: {:?}", c));
-            command_received = c;
-        },
-    }
+//     match received {
+//         Response::None => {
+//             logger.warn(format!("Received invalid data!"));
+//             return Received::Nothing;
+//         },
+//         Response::Command(c) => {
+//             logger.debug(format!("\nReceived command: {:?}", c));
+//             command_received = c;
+//         },
+//     }
 
-    match command_received.command.mode {
-        CommandMode::Function => {},
-        CommandMode::Response => {
-            // Response format:
-            //* From now this is basically equal to response
-            logger.info(format!("[Socket Client] - Received a response!: \n{:?}", command_received.command));
+//     match command_received.command.mode {
+//         CommandMode::Function => {},
+//     }
 
-            let status: String = command_received.command.status.to_string();
+//     match command_received.command.command_type {
+//         CommandType::Default => {
+//             // > Also we can use a similar system to sync multiple hosts
+//             logger.info(format!("[Socket Client] - Received a function!:\n {:?}", command_received.command.actf));
+//             return Received::DownCommand(DownCommand::from_command(command_received.clone()));
+//         },
 
-            // TODO >>> Add a better handler for error cases:
-            if status == "error".to_string() {
-                let val = Value::String("Unknown error".to_string());
-                let error_msg = command_received.command.message.clone();
-                logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg.clone()));
-                enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
-                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                return Received::Error(error_msg);
-            }
+//         CommandType::DirectFunction => {
+//             // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
+//             // > Also we can use a similar system to sync multiple hosts
+//             logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", command_received.command.actf));
+//             return Received::DownCommand(DownCommand::from_command(command_received.clone()));
+//         },
 
-            // let down_command = DownCommand::from_command(command_received.clone());
+//         CommandType::InternalManagement => {
+//             return Received::Nothing;
+//         },
 
-            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
+//         CommandType::SpecialFunction => {
+//             logger.debug(format!("Receive a unknow special function: {:?}", command_received.command.actf));
+//             return Received::Nothing;
+//         },
 
-            // return Received::DownCommand(down_command);
-        },
-    }
-
-    match command_received.command.command_type {
-        CommandType::Default => {
-            // > Also we can use a similar system to sync multiple hosts
-            logger.info(format!("[Socket Client] - Received a function!:\n {:?}", command_received.command.actf));
-            return Received::DownCommand(DownCommand::from_command(command_received.clone()));
-        },
-
-        CommandType::DirectFunction => {
-            // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
-            // > Also we can use a similar system to sync multiple hosts
-            logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", command_received.command.actf));
-            return Received::DownCommand(DownCommand::from_command(command_received.clone()));
-        },
-
-        CommandType::InternalManagement => {
-            return Received::Nothing;
-        },
-
-        CommandType::SpecialFunction => {
-            if command_received.parity_id != "itisaspecialcase" {
-                if command_received.command.actf == "C210".to_string() {
-                    logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", command_received.parity_id, command_received.client_key));
-                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
-                    return Received::Confirmation;
-                } else if command_received.command.actf == "C207".to_string() {
-                    logger.debug(format!("Received Ping response!"));
-                    return Received::PingResponse;
-                } else if command_received.command.status == "Failure" {
-                    logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.message));
-                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
-                    CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                    return Received::Error("".to_string());
-                }
-            }
-            logger.debug(format!("Receive a unknow special function: {:?}", command_received.command.actf));
-            return Received::Nothing;
-        },
-
-        _ => {
-            logger.warn(format!("Received an Unknown command!"));
-            return Received::Nothing;
-        },
-    }
-}
+//         _ => {
+//             logger.warn(format!("Received an Unknown command!"));
+//             return Received::Nothing;
+//         },
+//     }
+// }
 
 /// Initializes the client and sets up communication with the specified server address.
 ///
@@ -789,28 +779,73 @@ pub fn initialize_client(address: String) {
                     received = send(&mut stream, &command_to_request);
                 }
 
-                match handle_response(&received) {
-                    Received::DownCommand(down_command) => {
-                        println!("[Socket Client] - Receives Data.. : {:?}", down_command);
-                        enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
-                        break;
+                // CommandMode::Response => {
+                //     // Response format:
+                //     //* From now this is basically equal to response
+                //     logger.info(format!("[Socket Client] - Received a response!: \n{:?}", command_received.command));
+
+                //     let status: String = command_received.command.status.to_string();
+
+                //     // TODO >>> Add a better handler for error cases:
+                //     if status == "error".to_string() {
+                //         let val = Value::String("Unknown error".to_string());
+                //         let error_msg = command_received.command.message.clone();
+                //         logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg.clone()));
+                //         enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
+                //         CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                //         return Received::Error(error_msg);
+                //     }
+
+                //     // let down_command = DownCommand::from_command(command_received.clone());
+
+                //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
+
+                //     // return Received::DownCommand(down_command);
+                // },
+
+                match received {
+                    Response::Command(c) => {
+                        match c.command.status {
+                            CommandStatus::Failure => {
+                                logger.exception(format!("\nAn error occurred in host, the error was: {}\n", c.command.message));
+                                enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&c.client_key, &c.parity_id);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            CommandStatus::Success => {},
+                        }
+
+                        match c.command_type() {
+                            CommandType::Default => {
+                                let down_command = DownCommand::from_command(c);
+                                println!("[Socket Client] - Receives Data.. : {:?}", down_command);
+                                enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+                            },
+                            CommandType::DirectFunction => {
+                                // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
+                                // > Also we can use a similar system to sync multiple hosts
+                                logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", c.command.actf));
+                                let down_command = DownCommand::from_command(c);
+                                enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+                            },
+                            CommandType::SpecialFunction => {
+                                if c.parity_id != "itisaspecialcase" {
+                                    if c.command.actf == "C210".to_string() {
+                                        logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", c.parity_id, c.client_key));
+                                        enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&c.client_key, &c.parity_id);
+                                        break;
+                                    }
+                                } else {
+                                    if c.command.actf == "C207".to_string() {
+                                        logger.debug(format!("Received Ping response!"));
+                                        break;
+                                    }
+                                }
+                            },
+                            CommandType::InternalManagement => {},
+                        }
                     },
-                    Received::Confirmation => {
-                        println!("Receive confirmation C210!");
-                        break;
-                    },
-                    Received::PingResponse => {
-                        println!("Receive ping response C207!");
-                        break;
-                    },
-                    Received::Error(e) => {
-                        println!("Receive a error response, the error is: {:?}", e);
-                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                        println!("Stopping client due to a error!");
-                        break;
-                    },
-                    Received::Nothing => {
-                        println!("Receive nothing!");
+                    Response::None => {
                         break;
                     },
                 }
