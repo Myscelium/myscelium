@@ -304,11 +304,11 @@ pub fn initialize_host(address: String, client_key: String) {
         }
 
         match listener.accept() {
-            Ok((stream, _)) => {
+            Ok((mut stream, _)) => {
                 // Directly run the connection handler in a new thread or a thread pool.
                 // This allows the main loop to immediately go back to listening for new connections.
                 run_in_thread_pool!(CONNECTION_HANDLER_POOL, {
-                    handle_connection(stream);
+                    handle_connection(&mut stream);
                 });
             },
             Err(e) => {
@@ -398,7 +398,7 @@ fn handle_special_functions(client_key: String, function: String) -> Command {
 ///
 /// # Returns
 /// - A `Command` object representing the response for the common command.
-fn handle_common_function(command: Command) -> Command {
+fn handle_common_function(command: &Command) -> Command {
     // let actual_client_id = CLIENT_ID.lock().unwrap();
 
     // let mut command_map = HashMap::new();
@@ -412,7 +412,7 @@ fn handle_common_function(command: Command) -> Command {
     let json_command = serde_json::to_string(&command.command).unwrap();
     let down_command = DownCommand::new(command.client_key.clone(), command.parity_id.clone(), command.priority, json_command);
 
-    enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command);
+    enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
 
     // >----------
     // > Send receive conf
@@ -502,7 +502,7 @@ fn get_response(command: Command) -> Response {
 
 const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
 
-fn send(mut stream: &TcpStream, data: Command) {
+fn send(stream: &mut TcpStream, data: Command) {
     let command_response_json = json!(data).to_string();
     let data_size = command_response_json.len() as u32;
     let size_buffer = data_size.to_be_bytes();
@@ -546,7 +546,7 @@ fn send(mut stream: &TcpStream, data: Command) {
 /// - The TODO within the function indicates a need to enhance error handling during deserialization of the command.
 /// - Special care is given to the handling of special functions, which are identified by specific codes (e.g., "C202" and "C206").
 /// - There is a mechanism in place to check if a command's parity ID is already registered and to retrieve existing responses if necessary.
-fn handle_connection(mut stream: TcpStream) {
+fn handle_connection(stream: &mut TcpStream) {
     // Aquire logger to section Handle Conn
     let logger = acquire_logger!("Core");
 
@@ -625,7 +625,7 @@ fn handle_connection(mut stream: TcpStream) {
 
             logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", response));
 
-            send(&stream, response);
+            send(stream, response);
 
             break;
         }
@@ -638,7 +638,7 @@ fn handle_connection(mut stream: TcpStream) {
 
                     logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", response));
 
-                    send(&stream, response);
+                    send(stream, response);
 
                     break;
                 },
@@ -647,7 +647,7 @@ fn handle_connection(mut stream: TcpStream) {
 
                     logger.exception(format!("WARNING: Unexpected error getting client: {:?}", command.client_key));
 
-                    send(&stream, response);
+                    send(stream, response);
 
                     break;
                 },
@@ -752,7 +752,7 @@ fn handle_connection(mut stream: TcpStream) {
 
                 logger.debug(format!("Sending back: {:?}", response));
 
-                send(&stream, response);
+                send(stream, response);
             } else if command_patterns.command_exists("host", command.command.actf.as_str()) || direct_functions.contains(&command.command.actf) {
                 // TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
 
@@ -782,12 +782,12 @@ fn handle_connection(mut stream: TcpStream) {
                         },
                     }
                 } else {
-                    response = handle_common_function(command);
+                    response = handle_common_function(&command);
                 }
 
                 logger.debug(format!("Sending back: {:?}", response));
 
-                send(&stream, response);
+                send(stream, response);
             } else {
                 // -> None of above
 
@@ -795,7 +795,7 @@ fn handle_connection(mut stream: TcpStream) {
 
                 logger.debug(format!("Sending back: {:?}", command));
 
-                send(&stream, command);
+                send(stream, command);
             }
             // _ => {
             //     logger.warn("The function name is not found or not a string.".to_string());

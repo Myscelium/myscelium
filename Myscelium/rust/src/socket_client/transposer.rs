@@ -73,9 +73,13 @@ lazy_static! {
 /// - `n_workers`: The desired number of worker threads for the transposer.
 pub fn set_socket_client_transposer_workers_num(n_workers: u32) {
     {
+        println!("[CLIENT][GLOBAL][Try Lock] - NUM_WORKERS");
         let mut default_num_of_workers = NUM_WORKERS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - NUM_WORKERS");
         *default_num_of_workers = n_workers;
     }
+
+    println!("[CLIENT][GLOBAL][Release] - NUM_WORKERS");
 
     enhanced_buffer::buffer_down_manager::set_workers_num(n_workers);
     enhanced_buffer::buffer_up_manager::set_workers_num(n_workers);
@@ -91,15 +95,28 @@ pub fn set_socket_client_transposer_workers_num(n_workers: u32) {
 /// - `commands_patterns`: A map of recognized command patterns.
 /// - `callbacks_patterns`: A map of associated Python functions and arguments for each recognized command.
 pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
-    let client_name = CLIENT_NODE_NAME.lock().clone();
-
     {
-        let mut global_command_patterns = COMMAND_PATTERNS.lock();
-        global_command_patterns.add_commands_from_map(client_name.as_str(), commands_patterns);
-    }
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
+        let client_name = CLIENT_NODE_NAME.lock().clone();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
 
-    let mut callback_patterns = CALLBACK_PATTERNS.lock();
-    *callback_patterns = callbacks_patterns;
+        {
+            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+            let mut global_command_patterns = COMMAND_PATTERNS.lock();
+            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+
+            global_command_patterns.add_commands_from_map(client_name.as_str(), commands_patterns);
+        }
+        println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+        {
+            println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
+            let mut callback_patterns = CALLBACK_PATTERNS.lock();
+            println!("[CLIENT][GLOBAL][Lock] - CALLBACK_PATTERNS");
+            *callback_patterns = callbacks_patterns;
+            println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
+        }
+    }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
 }
 
 // Transposer:
@@ -165,7 +182,7 @@ pub enum ProcessError {
 /// # Returns
 /// - `Ok(())` if the command was processed successfully.
 /// - `Err(ProcessError)` if an error occurred during processing.
-fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
+fn process(py: Python, down_command: &DownCommand) -> Result<(), ProcessError> {
     let logger = acquire_logger!("Transposer - Process");
 
     logger.info(format!("Initializing processing!"));
@@ -200,14 +217,13 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     // Validate the command against known command patterns
     let client_name;
 
-    logger.debug("Try lock in node name".to_string());
-
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
     {
         let client_n = CLIENT_NODE_NAME.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
         client_name = client_n.clone();
     }
-
-    logger.debug("release node name".to_string());
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
 
     // logger.info(format!("Command function: {} is a valid function!", activation_key));
 
@@ -222,15 +238,18 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     if translated_command.command_type() == CommandType::DirectFunction {
         println!("Command is a direct function!");
         logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
-        resp = handle_direct_function(&translated_command.command, &client_key, command_id)?;
+        resp = handle_direct_function(&translated_command.command, &client_key, command_id)?.clone(); // This cloen avoids locking
         println!("Direct Function Result: {:?}", resp);
     }
 
     println!("Command isn't a direct function");
 
     {
-        logger.debug("Try lock in command patterns".to_string());
+        // logger.debug("Try lock in command patterns".to_string());
+
+        println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
         let command_patterns = COMMAND_PATTERNS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
 
         if !command_patterns.command_exists(client_name.as_str(), &translated_command.command.actf) {
             // If the command is not in the patterns, remove it from the schedule and return an error
@@ -241,8 +260,8 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
         }
 
         drop(command_patterns);
-
-        logger.debug("release command patterns".to_string());
+        println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+        // logger.debug("release command patterns".to_string());
     }
 
     println!("Command exists!");
@@ -254,8 +273,11 @@ fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
     // -> CALL PYTHON CALLBACK:
     let response;
     {
+        println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
         let callback_patterns = CALLBACK_PATTERNS.lock().clone();
+        println!("[CLIENT][GLOBAL][Lock] - CALLBACK_PATTERNS");
         response = client_call_callback(py, &translated_command, &callback_patterns);
+        println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
     }
 
     // -> PROCESS CALLBACK RESPONSE:
@@ -373,12 +395,20 @@ pub fn initialize_socket_client_transposer() {
         return;
     }
 
+    let schedule_len = schedule.len();
+
     // If there are no commands to process, clear old data and sleep
-    if !(schedule.len() > 0) {
+    if !(schedule_len > 0) {
         logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
         thread::sleep(Duration::from_millis(100));
         return;
+    } else {
+        if schedule_len > 1 {
+            println!("Find {} commands to process", schedule_len)
+        } else {
+            println!("Find {} command to process", 1)
+        }
     }
 
     logger.info(format!("\nData found in schedule!"));
@@ -398,7 +428,7 @@ pub fn initialize_socket_client_transposer() {
             logger.debug(format!("Acquired Python in a process task!"));
 
             // Process the command and handle potential errors
-            let result = process(py, dow_command).map_err(|e| match e {
+            let result = process(py, &dow_command).map_err(|e| match e {
                 ProcessError::CommandAlreadyProcessed(m) => {
                     format!("Command: {:?} already processed! So skipping", m)
                 },

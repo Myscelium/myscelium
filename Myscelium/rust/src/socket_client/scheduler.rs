@@ -45,10 +45,13 @@ pub fn set_client_id(client_uid: String) {
     //     *key = client_uid;
     // });
 
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
     {
         let mut key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
         *key = client_uid
     }
+    println!("[CLIENT][GLOBAL][Release] -  CLIENT_ID");
 }
 
 /// Requests the available commands that are registered on the host.
@@ -81,11 +84,14 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
 
     let client_key: String;
 
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
     {
         let key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
         client_key = key.clone();
         drop(key)
     }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_ID");
 
     logger.debug(format!("Client id is: {:?}", client_key));
 

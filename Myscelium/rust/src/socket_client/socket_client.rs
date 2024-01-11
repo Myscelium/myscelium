@@ -49,7 +49,7 @@ use crate::common::structs::avaliable_commands::CommandPatterns;
 // use crate::CLIENT_ID;
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Arc<sync::Mutex<CommandPatterns>> = Arc::new(sync::Mutex::new(CommandPatterns::new()));
+    pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
     static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
             "get_symbols_data": {
@@ -88,15 +88,23 @@ lazy_static! {
 /// # Arguments
 /// - `callbacks_patterns`: A `HashMap` containing the desired command patterns.
 pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
-    let client_name = CLIENT_NODE_NAME.lock().clone();
-
     {
-        let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
+        let client_name = CLIENT_NODE_NAME.lock().clone();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
 
         {
-            command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
+            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+            let mut command_patterns = COMMAND_PATTERNS.lock();
+            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+
+            {
+                command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
+            }
+            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
         }
     }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
 }
 
 use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
@@ -150,12 +158,12 @@ pub fn get_available_handlers_registered() -> HashMap<String, Value> {
     let global_command_patterns: HashMap<String, Value>;
 
     {
-        let command_patterns = COMMAND_PATTERNS.lock().unwrap();
-
-        {
-            global_command_patterns = command_patterns.extract_all_commands();
-        }
+        println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+        let command_patterns = COMMAND_PATTERNS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+        global_command_patterns = command_patterns.extract_all_commands().clone();
     }
+    println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
 
     return global_command_patterns;
 }
@@ -346,18 +354,18 @@ const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
 ///
 /// # Behavior
 /// - If the connection is not verified, the function logs the event and returns `Response::None`.
-fn send(stream: &mut TcpStream, command: Command) -> Response {
+fn send(stream: &mut TcpStream, command: &Command) -> Response {
     let logger = acquire_logger!("Core");
 
     println!("Sending: {:?}", command);
 
-    {
-        let conn: bool = verify_connection(stream, &command.client_key);
-        if !conn {
-            logger.info(format!("Not connected!"));
-            return Response::None;
-        }
-    }
+    // {
+    //     let conn: bool = verify_connection(stream, &command.client_key);
+    //     if !conn {
+    //         logger.info(format!("Not connected!"));
+    //         return Response::None;
+    //     }
+    // }
 
     {
         let command_response_json = json!(command).to_string();
@@ -466,19 +474,15 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
 /// # Behavior
 /// - If the `CLIENT_IS_RUNNING` global flag is set to false, the function will immediately return `None`.
 pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownCommand> {
-    if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
-        return None;
-    }
-
     let command_to_request = create_special_command!(client_key, CommandMode::Function, "C206");
 
     println!("Create C206 ping request: {:?}", command_to_request);
 
-    let received: Response = send(stream, command_to_request.clone());
+    let received: Response = send(stream, &command_to_request);
 
     println!("Received response: {:?}", received);
 
-    match handle_response(received) {
+    match handle_response(&received) {
         Received::DownCommand(down_command) => return Some(down_command),
         Received::Confirmation => {
             println!("Receive confirmation C210");
@@ -506,9 +510,12 @@ pub enum Received {
 
 pub fn set_client_uid(client_key: String) {
     {
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
         let mut c_uid = CLIENT_ID.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
         *c_uid = client_key
     }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_ID");
 }
 
 /// Handles the received response from the server and processes it accordingly.
@@ -536,7 +543,7 @@ pub fn set_client_uid(client_key: String) {
 /// # Notes
 /// - This function uses the `COMMAND_PATTERNS` global lock to access and modify the command patterns.
 /// - The function also accesses the `CLIENT_IS_RUNNING` global flag to control the client's running state.
-fn handle_response(received: Response) -> Received {
+fn handle_response(received: &Response) -> Received {
     let logger = acquire_logger!("Core");
 
     let command_received;
@@ -561,10 +568,10 @@ fn handle_response(received: Response) -> Received {
 
             let status: String = command_received.command.status.to_string();
 
-            // TODO >>> Add a better ahndler for error cases:
+            // TODO >>> Add a better handler for error cases:
             if status == "error".to_string() {
                 let val = Value::String("Unknown error".to_string());
-                let error_msg = command_received.command.message;
+                let error_msg = command_received.command.message.clone();
                 logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg.clone()));
                 enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
                 CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
@@ -673,21 +680,25 @@ pub fn initialize_client(address: String) {
 
     let logger = acquire_logger!("Core");
 
-    let mut stream = TcpStream::connect(address.clone()).unwrap();
+    let mut stream = TcpStream::connect(&address).unwrap();
 
     // Here need to send the new handlers to host
     // then receive the host handlers
 
-    logger.info(format!("Connected to {:?}!", address.clone()).to_string());
+    logger.info(format!("Connected to {:?}!", &address).to_string());
 
     thread::sleep(Duration::from_millis(200));
 
     let client_key: String;
 
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
     {
         let c_uid = CLIENT_ID.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
+
         client_key = c_uid.clone()
     }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_ID");
 
     loop {
         println!("Client status: {:?}", CLIENT_IS_RUNNING.load(Ordering::SeqCst));
@@ -718,30 +729,33 @@ pub fn initialize_client(address: String) {
 
         let up_schedule = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule();
 
-        if !(up_schedule.len() > 0) {
+        let up_schdule_len = up_schedule.len();
+
+        if !(up_schdule_len > 0) {
             {
                 println!("Nothing in schedule to send to host, so sending ping!");
                 if let Some(down_command) = send_ping(&mut stream, &client_key) {
-                    enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
+                    enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+                } else {
+                    println!("[Socket] - No command received in ping, skipping..");
                 }
             }
 
-            // println!("[Socket] - Nothing in schedule, skipping..");
             thread::sleep(Duration::from_millis(100));
             continue;
         }
 
-        if up_schedule.len() > 1 {
-            println!("Find: {:?} command in schedule", up_schedule.len());
+        if up_schdule_len > 1 {
+            println!("Find: {:?} command in schedule", 1);
         } else {
-            println!("Find: {:?} commands in schedule", up_schedule.len());
+            println!("Find: {:?} commands in schedule", up_schdule_len);
         }
         println!("Start to process it!");
 
         let mut index: u32 = 0u32;
 
         for up_command in up_schedule {
-            println!("processing command {:?} index", index);
+            println!("processing command: {}", index);
 
             let command_to_request = match Command::from_up_command(&up_command) {
                 Ok(c) => c,
@@ -753,22 +767,23 @@ pub fn initialize_client(address: String) {
                     }
 
                     index = index + 1;
-
                     continue;
                 },
             };
 
             loop {
-                println!("Sending to host: {:?}", command_to_request.clone());
+                println!("Sending to host: {:?}", &command_to_request);
 
                 let received: Response;
 
-                received = send(&mut stream, command_to_request.clone());
+                {
+                    received = send(&mut stream, &command_to_request);
+                }
 
-                match handle_response(received) {
+                match handle_response(&received) {
                     Received::DownCommand(down_command) => {
                         println!("[Socket Client] - Receives Data.. : {:?}", down_command);
-                        enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
+                        enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
                         break;
                     },
                     Received::Confirmation => {

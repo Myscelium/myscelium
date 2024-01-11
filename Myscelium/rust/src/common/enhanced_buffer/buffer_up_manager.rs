@@ -46,9 +46,13 @@ lazy_static! {
 */
 
 pub fn set_workers_num(n_workers: u32) {
-    let mut default_num_of_workers = NUM_WORKERS.lock();
-
-    *default_num_of_workers = n_workers;
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - NUM_WORKERS");
+        let mut default_num_of_workers = NUM_WORKERS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - NUM_WORKERS");
+        *default_num_of_workers = n_workers;
+    }
+    println!("[CLIENT][GLOBAL][Release] - NUM_WORKERS");
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -437,7 +441,10 @@ pub fn buffer_up_remove_schedule_by_parity_id(client_key: &String, parity_id: &S
                 println!("Successfully remove schedule Command in ClientCommandsTosend where ClientKey = {} AND ParityID = {}", client_key, parity_id);
             },
             Err(e) => {
-                eprintln!("An error occurred while removing scheduled command of parity_id: {} from client: {} in the ClientCommandsTosend table: {}", client_key, parity_id, e);
+                eprintln!(
+                    "An error occurred while removing scheduled command of parity_id: {} from client: {} in the ClientCommandsTosend table: {}",
+                    client_key, parity_id, e
+                );
             },
         };
     });

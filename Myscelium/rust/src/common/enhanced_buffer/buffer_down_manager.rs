@@ -62,9 +62,13 @@ lazy_static! {
 */
 
 pub fn set_workers_num(n_workers: u32) {
-    let mut default_num_of_workers = NUM_WORKERS.lock();
-
-    *default_num_of_workers = n_workers;
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - NUM_WORKERS");
+        let mut default_num_of_workers = NUM_WORKERS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - NUM_WORKERS");
+        *default_num_of_workers = n_workers;
+    }
+    println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -289,8 +293,8 @@ pub fn buffer_down_list_schedule() -> Vec<DownCommand> {
     })
 }
 
-pub fn buffer_down_schedule(command: DownCommand) {
-    if !check_if_parity_id_is_registred(command.parity_id.clone()) {
+pub fn buffer_down_schedule(command: &DownCommand) {
+    if !check_if_parity_id_is_registred(&command.parity_id) {
         return;
     };
 
@@ -320,7 +324,7 @@ pub fn buffer_down_schedule(command: DownCommand) {
     });
 }
 
-pub fn check_if_parity_id_is_registred(parity_id: String) -> bool {
+pub fn check_if_parity_id_is_registred(parity_id: &String) -> bool {
     with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
         let mut ids: Vec<Result<String, _>> = Vec::new();
 
@@ -341,7 +345,7 @@ pub fn check_if_parity_id_is_registred(parity_id: String) -> bool {
         for id in ids {
             match id {
                 Ok(id) => {
-                    if parity_id == id {
+                    if parity_id == &id {
                         return false;
                     }
                 },

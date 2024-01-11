@@ -49,29 +49,28 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
             let mut new_patterns = CommandPatterns::new();
             new_patterns.add_from_map(response_map);
 
-            logger.info(format!("Try Lock In Host Allowed Commands!"));
+            println!("[CLIENT][GLOBAL][Try Lock] - HOST_ALLOWED_COMMANDS");
 
             {
                 let mut host_allowed_commands = HOST_ALLOWED_COMMANDS.lock();
-                logger.info(format!("Lock In Host Allowed Commands!"));
+                println!("[CLIENT][GLOBAL][Lock] - HOST_ALLOWED_COMMANDS");
                 *host_allowed_commands = new_patterns.clone();
             }
-
-            logger.info(format!("Release Lock"));
+            println!("[CLIENT][GLOBAL][Release] - HOST_ALLOWED_COMMANDS");
 
             let actual_patterns: HashMap<String, Value>;
 
-            logger.info(format!("Try Lock In Commnd Patterns!"));
-
+            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
             {
-                let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+                let command_patterns = COMMAND_PATTERNS.lock();
+
+                println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
 
                 logger.info(format!("Lock In Host Commnd Patterns!"));
 
                 actual_patterns = command_patterns.extract_all_commands().clone();
             }
-
-            logger.info(format!("Release Lock"));
+            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
@@ -106,10 +105,13 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             let actual_patterns: HashMap<String, Value>;
 
+            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
             {
-                let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+                let command_patterns = COMMAND_PATTERNS.lock();
+                println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
                 actual_patterns = command_patterns.extract_all_commands().clone();
             }
+            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
