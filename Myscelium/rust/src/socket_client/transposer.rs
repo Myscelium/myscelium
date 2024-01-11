@@ -44,7 +44,8 @@ macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let client_log_level;
         {
-            client_log_level = CLIENT_LOG_LEVEL.lock().clone();
+            let log_level = CLIENT_LOG_LEVEL.lock().clone();
+            client_log_level = log_level.clone();
         }
         Logger::new(client_log_level, $section_name)
     }};
@@ -182,7 +183,7 @@ pub enum ProcessError {
 /// # Returns
 /// - `Ok(())` if the command was processed successfully.
 /// - `Err(ProcessError)` if an error occurred during processing.
-fn process(py: Python, down_command: &DownCommand) -> Result<(), ProcessError> {
+fn process(py: Python, down_command: &DownCommand, client_key: &String, callbacks_patterns: &HashMap<String, (Py<PyFunction>, Value)>) -> Result<(), ProcessError> {
     let logger = acquire_logger!("Transposer - Process");
 
     logger.info(format!("Initializing processing!"));
@@ -200,8 +201,8 @@ fn process(py: Python, down_command: &DownCommand) -> Result<(), ProcessError> {
     // TODO >>> Use the command.command or create a require type field to redirect the command to another client
 
     // Convert the down command to a more general command structure for further processing
-    let translated_command: Command = match Command::from_down_command(down_command.clone()) {
-        Ok(c) => c,
+    let translated_command: Command = match Command::from_down_command(down_command) {
+        Ok(c) => c.clone(),
         Err(e) => {
             println!("error converting down_command into command: {:?}", e);
             return Err(ProcessError::Error(format!("{:?}", e)));
@@ -214,17 +215,6 @@ fn process(py: Python, down_command: &DownCommand) -> Result<(), ProcessError> {
 
     // TODO >>> Veriy if the problem of random client disconnect isn't here
 
-    // Validate the command against known command patterns
-    let client_name;
-
-    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
-    {
-        let client_n = CLIENT_NODE_NAME.lock();
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
-        client_name = client_n.clone();
-    }
-    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
-
     // logger.info(format!("Command function: {} is a valid function!", activation_key));
 
     let client_key = down_command.client_key.clone();
@@ -233,7 +223,7 @@ fn process(py: Python, down_command: &DownCommand) -> Result<(), ProcessError> {
 
     // let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
 
-    let mut resp: ProcessResult;
+    let mut resp;
 
     if translated_command.command_type() == CommandType::DirectFunction {
         println!("Command is a direct function!");
@@ -251,7 +241,7 @@ fn process(py: Python, down_command: &DownCommand) -> Result<(), ProcessError> {
         let command_patterns = COMMAND_PATTERNS.lock();
         println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
 
-        if !command_patterns.command_exists(client_name.as_str(), &translated_command.command.actf) {
+        if !command_patterns.command_exists(client_key.as_str(), &translated_command.command.actf) {
             // If the command is not in the patterns, remove it from the schedule and return an error
             logger.warn(format!("Command isn't registered in the patterns"));
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
@@ -272,13 +262,8 @@ fn process(py: Python, down_command: &DownCommand) -> Result<(), ProcessError> {
 
     // -> CALL PYTHON CALLBACK:
     let response;
-    {
-        println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
-        let callback_patterns = CALLBACK_PATTERNS.lock().clone();
-        println!("[CLIENT][GLOBAL][Lock] - CALLBACK_PATTERNS");
-        response = client_call_callback(py, &translated_command, &callback_patterns);
-        println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
-    }
+
+    response = client_call_callback(py, &translated_command, &callbacks_patterns);
 
     // -> PROCESS CALLBACK RESPONSE:
     resp = match response {
@@ -288,14 +273,16 @@ fn process(py: Python, down_command: &DownCommand) -> Result<(), ProcessError> {
             // Check if the Value is an object and convert it to HashMap
             if let Some(obj) = value.as_object() {
                 match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
-                    Ok(c) => ProcessResult::CommandInstructions(c),
-                    Err(e) => {
+                    Ok(c) => ProcessResult::CommandInstructions(c.clone()),
+                    Err(_) => {
                         // TODO >>> Handle this error case
+                        println!("Callback return a non valid response!");
                         return Err(ProcessError::Error("callback return a non valid response!".to_string()));
                     },
                 }
             } else {
                 // TODO >>> See if the command that gives the error will be deleted
+                println!("The value is not a JSON object!");
                 return Err(ProcessError::Error("The value is not a JSON object!".to_string()));
             }
         },
@@ -413,6 +400,28 @@ pub fn initialize_socket_client_transposer() {
 
     logger.info(format!("\nData found in schedule!"));
 
+    // Validate the command against known command patterns
+    let client_key;
+
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
+    {
+        let client_n = CLIENT_NODE_NAME.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
+        client_key = client_n.clone();
+    }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
+
+    let callbacks_patterns;
+
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
+        let callback_patt = CALLBACK_PATTERNS.lock().clone();
+        println!("[CLIENT][GLOBAL][Lock] - CALLBACK_PATTERNS");
+        callbacks_patterns = callback_patt.clone();
+        println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
+        drop(callback_patt)
+    }
+
     // Process each scheduled command
     for dow_command in schedule {
         let logger = acquire_logger!("Transposer");
@@ -428,7 +437,7 @@ pub fn initialize_socket_client_transposer() {
             logger.debug(format!("Acquired Python in a process task!"));
 
             // Process the command and handle potential errors
-            let result = process(py, &dow_command).map_err(|e| match e {
+            let result = process(py, &dow_command, &client_key, &callbacks_patterns).map_err(|e| match e {
                 ProcessError::CommandAlreadyProcessed(m) => {
                     format!("Command: {:?} already processed! So skipping", m)
                 },

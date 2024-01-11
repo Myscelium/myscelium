@@ -39,7 +39,8 @@ macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let client_log_level;
         {
-            client_log_level = CLIENT_LOG_LEVEL.lock().clone();
+            let log_level = CLIENT_LOG_LEVEL.lock().clone();
+            client_log_level = log_level.clone();
         }
         Logger::new(client_log_level, $section_name)
     }};
@@ -453,7 +454,7 @@ fn send(stream: &mut TcpStream, command: &Command) -> Response {
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
-    println!("Data reeived: {:?}\n", command);
+    println!("Data received: {:?}\n", command);
 
     logger.debug(format!("Received: {:?}", command));
 
@@ -509,7 +510,7 @@ pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownComm
                 },
                 _ => {},
             }
-            let down_command = DownCommand::from_command(c);
+            let down_command: DownCommand = DownCommand::from_command(c);
             return Some(down_command);
         },
         Response::None => {
@@ -827,6 +828,8 @@ pub fn initialize_client(address: String) {
                                 let down_command = DownCommand::from_command(c);
                                 println!("[Socket Client] - Receives Data.. : {:?}", down_command);
                                 enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+                                index = index + 1;
+                                break;
                             },
                             CommandType::DirectFunction => {
                                 // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
@@ -834,6 +837,8 @@ pub fn initialize_client(address: String) {
                                 logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", c.command.actf));
                                 let down_command = DownCommand::from_command(c);
                                 enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+                                index = index + 1;
+                                break;
                             },
                             CommandType::SpecialFunction => {
                                 if c.parity_id != "itisaspecialcase" {
@@ -843,14 +848,31 @@ pub fn initialize_client(address: String) {
                                         break;
                                     }
                                 }
+
+                                if c.command.actf == "C207".to_string() {
+                                    println!("Receive ping confirmation");
+                                    break;
+                                }
+
+                                println!("Received a unknow special function");
+                                break;
                             },
-                            CommandType::InternalManagement => {},
+                            CommandType::InternalManagement => {
+                                let down_command = DownCommand::from_command(c);
+                                println!("[Socket Client] - Receives Data.. : {:?}", down_command);
+                                enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+                                index = index + 1;
+                                break;
+                            },
                         }
                     },
                     Response::None => {
                         break;
                     },
                 }
+
+                println!("Invalid command!");
+                break;
 
                 // thread::sleep(Duration::from_millis(200));
             }

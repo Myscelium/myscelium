@@ -501,6 +501,8 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
     // scheduler::request_host_available_commands();
 
     loop {
+        println!("➡️ Client status: {}", CLIENT_IS_RUNNING.load(Ordering::SeqCst));
+
         if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
             break;

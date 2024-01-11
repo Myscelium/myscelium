@@ -338,12 +338,12 @@ impl Command {
     /// };
     /// let result = YourStruct::from_down_command(down_command);
     /// ```
-    pub fn from_down_command(down_command: DownCommand) -> Result<Self, CommandError> {
+    pub fn from_down_command(down_command: &DownCommand) -> Result<Self, CommandError> {
         let client_key = down_command.client_key.clone();
         let parity_id = down_command.parity_id.clone();
         let priority = down_command.priority.clone();
 
-        let command: CommandInstructions = match serde_json::from_str(&down_command.command) {
+        let command: CommandInstructions = match serde_json::from_str(&down_command.command.clone()) {
             Ok(c) => c,
             Err(_) => return Err(CommandError::InvalidCommand("".to_string())),
         };
@@ -380,7 +380,7 @@ impl Command {
         let parity_id = up_command.parity_id.clone();
         let priority = up_command.priority.clone();
 
-        let command: CommandInstructions = match serde_json::from_str(&up_command.command) {
+        let command: CommandInstructions = match serde_json::from_str(&up_command.command.clone()) {
             Ok(c) => c,
             Err(e) => return Err(CommandError::InvalidCommand(format!("The error is: {:?}", e))),
         };
