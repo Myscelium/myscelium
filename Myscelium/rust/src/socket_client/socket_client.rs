@@ -496,9 +496,16 @@ pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownComm
             match c.command_type() {
                 CommandType::SpecialFunction => {
                     if c.command.actf == "C207" {
-                        println!("Receive ping response ponf conf!");
+                        println!("Receive ping response pong conf!");
                         return None;
                     };
+                    if c.parity_id != "itisaspecialcase" {
+                        if c.command.actf == "C210".to_string() {
+                            println!("Received Confirmation! Removing command {} of client: {} from buffer up", c.parity_id, c.client_key);
+                            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&c.client_key, &c.parity_id);
+                            return None;
+                        }
+                    }
                 },
                 _ => {},
             }
