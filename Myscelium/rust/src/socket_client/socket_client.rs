@@ -842,11 +842,6 @@ pub fn initialize_client(address: String) {
                                         enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&c.client_key, &c.parity_id);
                                         break;
                                     }
-                                } else {
-                                    if c.command.actf == "C207".to_string() {
-                                        logger.debug(format!("Received Ping response!"));
-                                        break;
-                                    }
                                 }
                             },
                             CommandType::InternalManagement => {},
