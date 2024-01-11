@@ -308,6 +308,8 @@ pub fn initialize_host(address: String, client_key: String) {
                 // Directly run the connection handler in a new thread or a thread pool.
                 // This allows the main loop to immediately go back to listening for new connections.
                 run_in_thread_pool!(CONNECTION_HANDLER_POOL, {
+                    // Set a read timeout of 5 seconds
+                    stream.set_read_timeout(Some(std::time::Duration::new(5, 0))).unwrap();
                     handle_connection(&mut stream);
                 });
             },
@@ -572,6 +574,8 @@ fn handle_connection(stream: &mut TcpStream) {
             logger.exception(format!("Data size too large: {}", data_size));
             break; // Close connection or handle appropriately
         }
+
+        println!("Receiving data with lenght: {}", data_size);
 
         // Allocate a buffer of the appropriate size
         let mut data_buffer = vec![0; data_size];

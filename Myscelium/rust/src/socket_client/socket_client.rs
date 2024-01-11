@@ -277,7 +277,7 @@ fn verify_connection(stream: &mut TcpStream, client_key: &String) -> bool {
             },
         };
 
-        println!("Data lenght: {:?}", size_buffer);
+        println!("Data lenght: {:?}", data_size);
 
         // Send the actual data
         match stream.write(command_response_json.as_bytes()) {
@@ -488,6 +488,10 @@ pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownComm
             println!("Receive confirmation C210");
             return None;
         },
+        Received::PingResponse => {
+            println!("Receive ping response!");
+            return None;
+        },
         Received::Error(e) => {
             println!("Error when processing response received after ping: {:?}", e);
 
@@ -504,6 +508,7 @@ pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownComm
 pub enum Received {
     DownCommand(DownCommand),
     Confirmation,
+    PingResponse,
     Nothing,
     Error(String),
 }
@@ -610,6 +615,9 @@ fn handle_response(received: &Response) -> Received {
                     logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", command_received.parity_id, command_received.client_key));
                     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
                     return Received::Confirmation;
+                } else if command_received.command.actf == "C207".to_string() {
+                    logger.debug(format!("Received Ping response!"));
+                    return Received::PingResponse;
                 } else if command_received.command.status == "Failure" {
                     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.message));
                     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
@@ -617,7 +625,7 @@ fn handle_response(received: &Response) -> Received {
                     return Received::Error("".to_string());
                 }
             }
-            logger.debug(format!("Receive a special function: {:?}", command_received.command.actf));
+            logger.debug(format!("Receive a unknow special function: {:?}", command_received.command.actf));
             return Received::Nothing;
         },
 
@@ -681,6 +689,7 @@ pub fn initialize_client(address: String) {
     let logger = acquire_logger!("Core");
 
     let mut stream = TcpStream::connect(&address).unwrap();
+    stream.set_read_timeout(Some(Duration::new(15, 0))).unwrap();
 
     // Here need to send the new handlers to host
     // then receive the host handlers
@@ -790,22 +799,30 @@ pub fn initialize_client(address: String) {
                         println!("Receive confirmation C210!");
                         break;
                     },
+                    Received::PingResponse => {
+                        println!("Receive ping response C207!");
+                        break;
+                    },
                     Received::Error(e) => {
                         println!("Receive a error response, the error is: {:?}", e);
-                        //TODO >>> Add the mechanism to stop the client if received a error
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        println!("Stopping client due to a error!");
+                        break;
                     },
                     Received::Nothing => {
                         println!("Receive nothing!");
+                        break;
                     },
                 }
 
-                thread::sleep(Duration::from_millis(200));
+                // thread::sleep(Duration::from_millis(200));
             }
+
+            index = index + 1;
+            continue;
         }
 
         println!("End schedule data, so skipping >>>");
-
-        index = index + 1;
 
         continue;
     }
