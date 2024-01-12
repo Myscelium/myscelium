@@ -14,11 +14,10 @@ class Senders:
     @staticmethod
     def send_some_data():
 
-        time.sleep(10)
+        time.sleep(70)
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.running = True
-        mys_client.set_client_uid(client_uid="some_client_id")
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
         command = client_patterns.command_pattern(
@@ -66,8 +65,6 @@ class MyClient:
 
         self.mys_client = mys_client
 
-        mys_client.set_client_uid(client_uid=CLIENT_KEY)
-
         callbacks = [
             client_patterns.callback_pattern(callback=receivers.test_handler),
         ]
@@ -102,7 +99,7 @@ class MyClient:
         t2.start()
         t3.start()
 
-        t2.join()
+        
         t3.join()  
 
         time.sleep(5)
@@ -112,6 +109,7 @@ class MyClient:
         os.kill(t1.pid, signal.SIGINT)
 
         t1.join()  # Wait for the process to finish
+        t2.join()
 
         return
 

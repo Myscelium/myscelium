@@ -386,10 +386,11 @@ fn process(py: Python, down_command: DownCommand) {
     // * however if the message is becomes too old before the client the message is redirected catches it
     // * The system have to remove this old message from the buffer too.
 
-    let translated_command: Command = match Command::from_down_command(down_command.clone()) {
+    let translated_command: Command = match Command::from_down_command(&down_command) {
         Ok(c) => c,
-        Err(e) => {
+        Err(_) => {
             // TODO >>> handle this erro case
+            println!("Error converting COMMAND from down_command.");
             logger.warn(format!("Error converting COMMAND from down_command."));
             return;
         },
@@ -433,6 +434,8 @@ fn process(py: Python, down_command: DownCommand) {
         result = match response {
             Ok(r) => {
                 let value: Value = extract_pyobject(py, r);
+
+                println!("Value map extracted from vallback response: {:?}", value);
 
                 // Check if the Value is an object and convert it to HashMap
                 if let Some(obj) = value.as_object() {
