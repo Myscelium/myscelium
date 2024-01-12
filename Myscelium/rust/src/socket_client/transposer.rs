@@ -273,26 +273,27 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
             Ok(r) => {
                 let value: Value = extract_pyobject(py, r);
 
-                // Check if the Value is an object and convert it to HashMap
-                if let Some(obj) = value.as_object() {
+                // Check if the Value is None
+                if value == Value::Null {
+                    // Handle the None case
+                    ProcessResult::Empty
+                } else if let Some(obj) = value.as_object() {
+                    // Existing logic to handle the object
                     match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
                         Ok(c) => ProcessResult::CommandInstructions(c.clone()),
                         Err(_) => {
-                            // TODO >>> Handle this error case
-                            println!("Callback return a non valid response!");
-                            return Err(ProcessError::Error("callback return a non valid response!".to_string()));
+                            println!("Callback returned a non-valid response!");
+                            return Err(ProcessError::Error("callback returned a non-valid response!".to_string()));
                         },
                     }
                 } else {
-                    // TODO >>> See if the command that gives the error will be deleted
                     println!("The value is not a JSON object!");
                     return Err(ProcessError::Error("The value is not a JSON object!".to_string()));
                 }
             },
             Err(e) => {
-                // Handle the error or log it
+                // Existing logic to handle the error
                 logger.exception(format!("Python error: {:?}", e));
-                // You can return a default value or propagate the error further
                 return Err(ProcessError::Error(format!("{:?}", e)));
             },
         };

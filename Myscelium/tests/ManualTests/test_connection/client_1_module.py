@@ -37,6 +37,8 @@ class Receivers:
     @staticmethod
     def test_handler(data:dict):
 
+        print("Received data: ", data)
+
         if "status" in data:
             pass
         else:
@@ -50,6 +52,8 @@ class Receivers:
         print("Received data: ", data)
 
         time.sleep(5)
+
+        return None
         
 
 class MyClient:

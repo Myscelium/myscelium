@@ -303,12 +303,10 @@ pub fn client_call_callback(py: Python<'_>, command: &Command, callback_patterns
     // Get the function and args_types from the CALLBACK_PATTERNS
     let (function, _) = callback_patterns.get(function_name).unwrap();
 
-    let mut inner_hash_map: HashMap<String, Value> = HashMap::new();
-    inner_hash_map.insert("data".to_string(), command.command.to_value_map());
+    let command: &CommandInstructions = &command.command;
 
-    let kwargs_map: HashMap<String, Py<PyAny>> = dict_to_kwargs(py, &inner_hash_map)
-        .map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))
-        .unwrap();
+    let inner_hash_map: HashMap<_, _> = command.kwargs.clone().into_iter().collect();
+    let kwargs_map: HashMap<String, Py<PyAny>> = dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?;
 
     println!("Converted to Python kwargs_map: {:?}", kwargs_map);
 
