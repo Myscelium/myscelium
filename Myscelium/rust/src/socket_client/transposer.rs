@@ -273,6 +273,8 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
             Ok(r) => {
                 let value: Value = extract_pyobject(py, r);
 
+                println!("Value map extracted from callback response: {:?}", value);
+
                 // Check if the Value is None
                 if value == Value::Null {
                     // Handle the None case

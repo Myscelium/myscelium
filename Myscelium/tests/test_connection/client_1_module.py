@@ -30,6 +30,14 @@ class Senders:
 
         result = mys_client.send(command, priority=10)
 
+        Events_Manager(
+            Unit="Client1", 
+            path="Logs"
+        ).Set_Event(
+            step="Data Sended", 
+            event_type="Send", 
+            event_key="088p72pbv9Ozj7T1"
+        )
 
         print(result)
 
