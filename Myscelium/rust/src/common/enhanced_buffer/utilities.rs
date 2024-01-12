@@ -34,13 +34,6 @@ macro_rules! impl_stringfiable_for_enum {
                 }
             }
 
-            // Implement PartialEq for comparing enum to itself
-            impl PartialEq<$t> for $t {
-                fn eq(&self, other: &$t) -> bool {
-                    self == other
-                }
-            }
-
         )+
     }
 }
@@ -135,25 +128,25 @@ impl CommandInstructions {
     }
 
     pub fn from_value_map(mut map: HashMap<String, Value>) -> Result<Self, CommandError> {
-        let mode = match map.get("type").and_then(Value::as_str) {
-            Some("function") => CommandMode::Function,
-            Some("response") => CommandMode::Response,
-            _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
+        let mode = match map.get("mode").and_then(Value::as_str) {
+            Some("Function") => CommandMode::Function,
+            Some("Response") => CommandMode::Response,
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing mode".to_string())),
         };
 
-        let command_type = match map.get("mode").and_then(Value::as_str) {
-            Some("special_function") => CommandType::SpecialFunction,
-            Some("direct_function") => CommandType::DirectFunction,
-            Some("internal_management") => CommandType::InternalManagement,
-            Some("default") => CommandType::Default,
-            _ => return Err(CommandError::InvalidCommand("Invalid or missing mode".to_string())),
+        let command_type = match map.get("type").and_then(Value::as_str) {
+            Some("SpecialFunction") => CommandType::SpecialFunction,
+            Some("DirectFunction") => CommandType::DirectFunction,
+            Some("InternalManagement") => CommandType::InternalManagement,
+            Some("Default") => CommandType::Default,
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
         };
 
         // let target = map.get("target").and_then(Value::as_str).map(String::from).ok_or_else(|| CommandError::InvalidCommand("Missing target".to_string()))?;
 
         let target = match map.get("target").and_then(Value::as_str) {
-            Some("host") => CommandTarget::Host,
-            Some("origin") => CommandTarget::Origin,
+            Some("Host") => CommandTarget::Host,
+            Some("Origin") => CommandTarget::Origin,
             Some(c) => {
                 if c != "" {
                     return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
@@ -167,13 +160,13 @@ impl CommandInstructions {
         };
 
         let status = match map.get("status").and_then(Value::as_str) {
-            Some("success") => CommandStatus::Success,
-            Some("failure") => CommandStatus::Failure,
+            Some("Success") => CommandStatus::Success,
+            Some("Failure") => CommandStatus::Failure,
             _ => return Err(CommandError::InvalidCommand("Invalid or missing status".to_string())),
         };
 
         let origin = match map.get("origin").and_then(Value::as_str) {
-            Some("host") => CommandOrigin::Host,
+            Some("Host") => CommandOrigin::Host,
             Some(client_id) => CommandOrigin::ClientKey(client_id.to_string()),
             _ => return Err(CommandError::InvalidCommand("Invalid or missing origin".to_string())),
         };
@@ -185,6 +178,8 @@ impl CommandInstructions {
         let kwargs = map
             .remove("kwargs")
             .map_or_else(|| HashMap::new(), |v| v.as_object().map_or_else(|| HashMap::new(), |map| map.into_iter().map(|(k, v)| (k.clone(), v.clone())).collect()));
+
+        println!("Converted kwargs value object to Map: {:?}", kwargs);
 
         Ok(CommandInstructions {
             mode,
@@ -199,25 +194,26 @@ impl CommandInstructions {
     }
 
     pub fn from_string_hashmap(mut map: HashMap<String, String>) -> Result<Self, CommandError> {
-        let mode = match map.get("type").map(String::as_str) {
-            Some("function") => CommandMode::Function,
-            Some("response") => CommandMode::Response,
-            _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
+        let mode = match map.get("mode").map(String::as_str) {
+            Some("Function") => CommandMode::Function,
+            Some("Response") => CommandMode::Response,
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing mode".to_string())),
         };
 
-        let command_type = match map.get("mode").map(String::as_str) {
-            Some("special_function") => CommandType::SpecialFunction,
-            Some("direct_function") => CommandType::DirectFunction,
-            Some("internal_management") => CommandType::InternalManagement,
-            Some("default") => CommandType::Default,
-            _ => return Err(CommandError::InvalidCommand("Invalid or missing mode".to_string())),
+        let command_type = match map.get("type").map(String::as_str) {
+            Some("SpecialFunction") => CommandType::SpecialFunction,
+            Some("DirectFunction") => CommandType::DirectFunction,
+            Some("InternalManagement") => CommandType::InternalManagement,
+            Some("Default") => CommandType::Default,
+
+            _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
         };
 
         // let target = map.get("target").cloned().ok_or_else(|| "Missing target".to_string())?;
 
         let target = match map.get("target").map(String::as_str) {
-            Some("host") => CommandTarget::Host,
-            Some("origin") => CommandTarget::Origin,
+            Some("Host") => CommandTarget::Host,
+            Some("Origin") => CommandTarget::Origin,
             Some(c) => {
                 if c != "" {
                     return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
@@ -231,13 +227,13 @@ impl CommandInstructions {
         };
 
         let status = match map.get("status").map(String::as_str) {
-            Some("success") => CommandStatus::Success,
-            Some("failure") => CommandStatus::Failure,
+            Some("Success") => CommandStatus::Success,
+            Some("Failure") => CommandStatus::Failure,
             _ => return Err(CommandError::InvalidCommand("Invalid or missing status".to_string())),
         };
 
         let origin = match map.get("origin").map(String::as_str) {
-            Some("host") => CommandOrigin::Host,
+            Some("Host") => CommandOrigin::Host,
             Some(client_id) => CommandOrigin::ClientKey(client_id.to_string()),
             _ => return Err(CommandError::InvalidCommand("Invalid or missing origin".to_string())),
         };
@@ -335,12 +331,12 @@ impl Command {
     /// };
     /// let result = YourStruct::from_down_command(down_command);
     /// ```
-    pub fn from_down_command(down_command: DownCommand) -> Result<Self, CommandError> {
+    pub fn from_down_command(down_command: &DownCommand) -> Result<Self, CommandError> {
         let client_key = down_command.client_key.clone();
         let parity_id = down_command.parity_id.clone();
         let priority = down_command.priority.clone();
 
-        let command: CommandInstructions = match serde_json::from_str(&down_command.command) {
+        let command: CommandInstructions = match serde_json::from_str(&down_command.command.clone()) {
             Ok(c) => c,
             Err(_) => return Err(CommandError::InvalidCommand("".to_string())),
         };
@@ -377,9 +373,9 @@ impl Command {
         let parity_id = up_command.parity_id.clone();
         let priority = up_command.priority.clone();
 
-        let command: CommandInstructions = match serde_json::from_str(&up_command.command) {
+        let command: CommandInstructions = match serde_json::from_str(&up_command.command.clone()) {
             Ok(c) => c,
-            Err(_) => return Err(CommandError::InvalidCommand("".to_string())),
+            Err(e) => return Err(CommandError::InvalidCommand(format!("The error is: {:?}", e))),
         };
 
         println!("Client -> Command from UpCommand: {:?}", command);

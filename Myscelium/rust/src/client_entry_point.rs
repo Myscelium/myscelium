@@ -20,12 +20,12 @@ use std::thread;
 
 use std::time::Duration;
 
-use crate::CLIENT_ID;
 use crate::CLIENT_IS_RUNNING;
 
 // -> Socket Client main-points:
 
 use crate::socket_client::scheduler::{self, schedule};
+use crate::socket_client::socket_client;
 use crate::socket_client::socket_client::{get_available_handlers_registered, set_socket_client_callbacks_patterns};
 use crate::socket_client::socket_client::{initialize_client, initialize_client_buffer};
 use crate::socket_client::transposer::{initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num};
@@ -404,6 +404,21 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
     Ok(())
 }
 
+#[pyfunction]
+pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
+    if CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
+        Ok(PyBool::new(py, true).into())
+    } else {
+        Ok(PyBool::new(py, false).into())
+    }
+}
+
+#[pyfunction]
+pub fn set_client_key(client_key: String) {
+    scheduler::set_client_id(client_key.clone());
+    socket_client::set_client_uid(client_key);
+}
+
 /// Initializes the socket client, sets up deadlock detection, and starts the main processing loop.
 ///
 /// This function sets up the socket client to communicate with a server and starts the main loop
@@ -429,17 +444,13 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id: String) {
-    // Create a global Mutex for demonstration
-    let mutex1 = Mutex::new(0);
-    let mutex2 = Mutex::new(0);
-
+pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_key: String) {
     // Spawn a thread to periodically check for deadlocks
     thread::spawn(|| {
         loop {
-            thread::sleep(Duration::from_secs(5)); // Check every 5 seconds
             let deadlocks = parking_lot::deadlock::check_deadlock();
             if deadlocks.is_empty() {
+                thread::sleep(Duration::from_millis(200)); // Check every 200 millis
                 continue;
             }
 
@@ -480,38 +491,43 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_id
         })
         .expect("Error setting Ctrl-C handler");
 
-        initialize_client(address, client_id);
+        initialize_client(address);
+
         println!("Socket host exited successfully!");
+
+        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
     });
 
     // scheduler::request_host_available_commands();
 
     loop {
-        initialize_socket_client_transposer();
+        println!("➡️ Client status: {}", CLIENT_IS_RUNNING.load(Ordering::SeqCst));
 
         if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
             println!("Stop the core!");
             break;
         }
+
+        initialize_socket_client_transposer();
     }
 
     println!("Socket transposer exited successfully!");
 }
 
-/// Sets the unique identifier (UID) for the client.
-///
-/// This function updates the global client UID which can be used to identify this client instance
-/// in communications with the server.
-///
-/// # Parameters
-///
-/// - `py`: Python interpreter instance.
-/// - `client_uid`: The new unique identifier for the client.
-///
-/// # Python Binding
-///
-/// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-pub fn set_client_uid(py: Python<'_>, client_uid: String) {
-    scheduler::set_client_id(client_uid);
-}
+// / Sets the unique identifier (UID) for the client.
+// /
+// / This function updates the global client UID which can be used to identify this client instance
+// / in communications with the server.
+// /
+// / # Parameters
+// /
+// / - `py`: Python interpreter instance.
+// / - `client_uid`: The new unique identifier for the client.
+// /
+// / # Python Binding
+// /
+// / This function is exposed to Python and can be called from a Python script.
+// #[pyfunction]
+// pub fn set_client_uid(py: Python<'_>, client_uid: String) {
+
+// }

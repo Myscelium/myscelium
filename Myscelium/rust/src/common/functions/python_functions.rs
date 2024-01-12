@@ -295,7 +295,7 @@ pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexG
     Ok(result_obj) // Return the PyObject
 }
 
-pub fn client_call_callback(py: Python<'_>, command: &Command, callback_patterns: &MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<PyObject> {
+pub fn client_call_callback(py: Python<'_>, command: &Command, callback_patterns: &HashMap<std::string::String, (pyo3::Py<PyFunction>, serde_json::Value)>) -> PyResult<PyObject> {
     println!("Command to call a callback: {:?}", command);
 
     let function_name: &String = &command.command.actf;

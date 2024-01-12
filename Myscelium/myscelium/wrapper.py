@@ -49,7 +49,7 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
     """
 
     if command_mode not in ["Function", "Response"]:
-        raise ValueError("Command mode needs to be one of those: ['function', 'response']")
+        raise ValueError("Command mode needs to be one of those: ['Function', 'Response']")
     
     if command_type not in ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'Default']:
         raise ValueError("Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'Default',]")
@@ -92,11 +92,11 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
         raise ValueError("Response activation function can't be empty")
 
     command_instruction = {
-        "CommandMode": command_mode,
-        "CommandType": command_type,
-        "CommandTarget": command_target,
-        "CommandStatus": command_status,
-        "CommandOrigin": command_origin,
+        "mode": command_mode,
+        "type": command_type,
+        "target": command_target,
+        "status": command_status,
+        "origin": command_origin,
         "actf": command_actf,
         "kwargs": command_kwargs,
         "message": command_message,
@@ -1196,25 +1196,25 @@ class MysceliumClient:
         - client_uid: Unique identifier for the client.
         - buffer_path: Path to the buffer.
         - log_level: Logging level.
-        """
+        """ 
 
-        if not hasattr(self, 'initialized'):
-            self.client_uid = client_uid
-            self.running = False
-            mys.initialize_client_buffer_tables(buffer_path)
+        self.client_uid = client_uid
 
-            time.sleep(5)
+        mys.initialize_client_buffer_tables(buffer_path)
+        mys.set_client_key(client_uid)
 
-            self.host_thread = None
-            self.initialized = True
+        time.sleep(5)
 
-            if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
-                raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
-            else:
-                pass
+        self.host_thread = None
+        self.initialized = True
 
-            mys.set_socket_client_log_level(log_level)
+        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
+            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+        else:
+            pass
 
+        mys.set_socket_client_log_level(log_level)
+        
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -1235,18 +1235,18 @@ class MysceliumClient:
     #     print("active py set log callback")
     #     mys.registry_client_logs_handler(logs_handler_callback)
 
-    def set_client_uid (self, client_uid):
+    # def set_client_uid (self, client_uid):
 
-        """
-        Set the client's unique identifier.
+    #     """
+    #     Set the client's unique identifier.
 
-        Parameters:
-        - client_uid: Unique identifier for the client.
-        """
+    #     Parameters:
+    #     - client_uid: Unique identifier for the client.
+    #     """
 
-        mys.set_client_uid(client_uid)
+    #     mys.set_client_uid(client_uid)
 
-        return 
+    #     return 
 
     def set_workers_num (self, n_workers=2):
 

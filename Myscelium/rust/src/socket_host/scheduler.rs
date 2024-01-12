@@ -13,7 +13,6 @@ use serde_json::{from_str, Value};
 use std::collections::HashMap;
 
 use crate::socket_host::transposer::COMMAND_PATTERNS;
-use crate::CLIENT_ID;
 
 use serde_json::Error;
 
