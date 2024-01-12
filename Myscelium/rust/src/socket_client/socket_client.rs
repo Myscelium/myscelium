@@ -284,7 +284,7 @@ fn verify_connection(stream: &mut TcpStream, client_key: &String) -> bool {
         match stream.write(command_response_json.as_bytes()) {
             Ok(_) => {},
             Err(e) => {
-                println!("Error sending data to client: {:?} the error was: {:?}", command.client_key, e);
+                println!("Error sending data to host: {:?} the error was: {:?}", command.client_key, e);
             },
         };
 
@@ -341,6 +341,16 @@ fn verify_connection(stream: &mut TcpStream, client_key: &String) -> bool {
 
 const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
 
+// Define a custom error type for stream-related errors
+#[derive(Debug)]
+pub enum StreamError {
+    WriteError(std::io::Error),
+    WriteSizeError(std::io::Error),
+    ConnectionClosed,
+    ReadSizeError(std::io::Error),
+    ReadDataError(std::io::Error),
+}
+
 /// Sends a command to the server and waits for a response.
 ///
 /// Before sending the command, the function verifies the connection using the `verify_connection` function.
@@ -355,7 +365,7 @@ const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
 ///
 /// # Behavior
 /// - If the connection is not verified, the function logs the event and returns `Response::None`.
-fn send(stream: &mut TcpStream, command: &Command) -> Response {
+fn send(stream: &mut TcpStream, command: &Command) -> Result<Response, StreamError> {
     let logger = acquire_logger!("Core");
 
     println!("Sending: {:?}", command);
@@ -377,7 +387,7 @@ fn send(stream: &mut TcpStream, command: &Command) -> Response {
         match stream.write(&size_buffer) {
             Ok(_) => {},
             Err(e) => {
-                println!("Error sending data lenght to client: {:?}, the error was:  {:?}", command.client_key, e);
+                return Err(StreamError::WriteSizeError(e));
             },
         };
 
@@ -387,7 +397,7 @@ fn send(stream: &mut TcpStream, command: &Command) -> Response {
         match stream.write(command_response_json.as_bytes()) {
             Ok(_) => {},
             Err(e) => {
-                println!("Error sending data to client: {:?} the error was: {:?}", command.client_key, e);
+                return Err(StreamError::WriteError(e));
             },
         };
 
@@ -400,17 +410,15 @@ fn send(stream: &mut TcpStream, command: &Command) -> Response {
     let data_size = match stream.read_exact(&mut size_buffer) {
         Ok(_) => u32::from_be_bytes(size_buffer) as usize,
         Err(e) => {
-            eprintln!("Failed to read from the stream: {:?}", e);
-            // Handle the error, e.g., by returning from the function or taking corrective action
-            return Response::None; // or handle differently
+            return Err(StreamError::ReadSizeError(e));
         },
     };
 
     println!("Receive incomming data lenght: {}", data_size);
 
     if data_size > MAX_DATA_SIZE {
-        logger.exception(format!("Data size too large: {}", data_size));
-        return Response::None; // TODO >>> Close connection or handle appropriately
+        logger.exception(format!("Received data size does not match expected size: {} max bytes expected, {} bytes received", MAX_DATA_SIZE, data_size));
+        return Err(StreamError::ConnectionClosed); // TODO >>> Close connection or handle appropriately
     }
 
     println!("Data isn't greather than leght limit!");
@@ -421,12 +429,9 @@ fn send(stream: &mut TcpStream, command: &Command) -> Response {
     let buffer_string = match stream.read_exact(&mut data_buffer) {
         Ok(_) => String::from_utf8_lossy(&data_buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string(),
         Err(e) => {
-            eprintln!("Failed to read from the stream: {:?}", e);
-            // Handle the error, e.g., by returning from the function or taking corrective action
-            return Response::None; // or handle differently
+            return Err(StreamError::ReadDataError(e));
         },
     };
-
     println!("Received binary data");
 
     // let command: Command = match read_json_from_stream(&mut stream) {
@@ -458,7 +463,7 @@ fn send(stream: &mut TcpStream, command: &Command) -> Response {
 
     logger.debug(format!("Received: {:?}", command));
 
-    return Response::Command(command);
+    return Ok(Response::Command(command));
 }
 
 /// Sends a ping request to the server.
@@ -474,12 +479,12 @@ fn send(stream: &mut TcpStream, command: &Command) -> Response {
 ///
 /// # Behavior
 /// - If the `CLIENT_IS_RUNNING` global flag is set to false, the function will immediately return `None`.
-pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownCommand> {
+pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Result<Option<DownCommand>, StreamError> {
     let command_to_request = create_special_command!(client_key, CommandMode::Function, "C206");
 
     println!("Create C206 ping request: {:?}", command_to_request);
 
-    let received: Response = send(stream, &command_to_request);
+    let received: Response = send(stream, &command_to_request)?;
 
     println!("Received response: {:?}", received);
 
@@ -489,7 +494,7 @@ pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownComm
                 CommandStatus::Failure => {
                     println!("\nAn error occurred in host, the error was: {}\n", c.command.message);
                     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                    return None;
+                    return Ok(None);
                 },
                 CommandStatus::Success => {},
             }
@@ -498,23 +503,23 @@ pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Option<DownComm
                 CommandType::SpecialFunction => {
                     if c.command.actf == "C207" {
                         println!("Receive ping response pong conf!");
-                        return None;
+                        return Ok(None);
                     };
                     if c.parity_id != "itisaspecialcase" {
                         if c.command.actf == "C210".to_string() {
                             println!("Received Confirmation! Removing command {} of client: {} from buffer up", c.parity_id, c.client_key);
                             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&c.client_key, &c.parity_id);
-                            return None;
+                            return Ok(None);
                         }
                     }
                 },
                 _ => {},
             }
             let down_command: DownCommand = DownCommand::from_command(c);
-            return Some(down_command);
+            return Ok(Some(down_command));
         },
         Response::None => {
-            return None;
+            return Ok(None);
         },
     }
 
@@ -739,13 +744,46 @@ pub fn initialize_client(address: String) {
         let up_schdule_len = up_schedule.len();
 
         if !(up_schdule_len > 0) {
-            {
-                println!("Nothing in schedule to send to host, so sending ping!");
-                if let Some(down_command) = send_ping(&mut stream, &client_key) {
-                    enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
-                } else {
-                    println!("[Socket] - No command received in ping, skipping..");
-                }
+            let option_down_command: Option<DownCommand> = match send_ping(&mut stream, &client_key) {
+                Ok(d) => d,
+                Err(e) => match e {
+                    StreamError::ConnectionClosed => {
+                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                    StreamError::WriteError(e) => {
+                        println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
+                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                    StreamError::WriteSizeError(e) => {
+                        println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                    StreamError::ReadSizeError(e) => {
+                        println!("[HOST][SOCKET][READ SIZE ERROR] - {:?}", e);
+                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                    StreamError::ReadDataError(e) => {
+                        println!("[HOST][SOCKET][READ DATA ERROR] - {:?}", e);
+                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                },
+            };
+
+            println!("Nothing in schedule to send to host, so sending ping!");
+            if let Some(down_command) = option_down_command {
+                enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+            } else {
+                println!("[Socket] - No command received in ping, skipping..");
             }
 
             thread::sleep(Duration::from_millis(100));
@@ -784,7 +822,40 @@ pub fn initialize_client(address: String) {
                 let received: Response;
 
                 {
-                    received = send(&mut stream, &command_to_request);
+                    received = match send(&mut stream, &command_to_request) {
+                        Ok(r) => r,
+                        Err(e) => match e {
+                            StreamError::ConnectionClosed => {
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            StreamError::WriteError(e) => {
+                                println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            StreamError::WriteSizeError(e) => {
+                                println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            StreamError::ReadSizeError(e) => {
+                                println!("[HOST][SOCKET][READ SIZE ERROR] - {:?}", e);
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            StreamError::ReadDataError(e) => {
+                                println!("[HOST][SOCKET][READ DATA ERROR] - {:?}", e);
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                        },
+                    };
                 }
 
                 // CommandMode::Response => {

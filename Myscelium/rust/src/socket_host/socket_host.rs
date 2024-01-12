@@ -604,31 +604,6 @@ fn handle_connection(stream: &mut TcpStream) {
             },
         };
 
-        // println!("Data received: {:?}", data_buffer);
-
-        // let command: Command = match read_json_from_stream(&mut stream) {
-        //     Ok(command) => {
-        //         // Process the command
-        //         println!("Received command: {:?}", command);
-        //         command
-        //     },
-        //     Err(e) => {
-        //         if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
-        //             // Handle IO-specific errors
-        //             eprintln!("IO error occurred: {}", io_err);
-        //             break;
-        //         } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
-        //             // Handle JSON-specific errors
-        //             eprintln!("JSON parsing error: {}", json_err);
-        //             break;
-        //         } else {
-        //             // Handle other errors
-        //             eprintln!("An error occurred: {}", e);
-        //             break;
-        //         }
-        //     },
-        // };
-
         let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
         println!("Command received: {:?}", command);
