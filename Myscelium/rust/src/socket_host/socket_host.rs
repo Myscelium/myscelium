@@ -504,16 +504,28 @@ fn get_response(command: Command) -> Response {
 
 const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
 
-fn send(stream: &mut TcpStream, data: Command) {
+#[derive(Debug)]
+enum StreamError {
+    WriteError(std::io::Error),
+    WriteSizeError(std::io::Error),
+    ConnectionClosed,
+}
+
+fn send(stream: &mut TcpStream, data: Command) -> Result<(), StreamError> {
     let command_response_json = json!(data).to_string();
     let data_size = command_response_json.len() as u32;
     let size_buffer = data_size.to_be_bytes();
+
+    // Check if the connection was closed
+    if stream.peer_addr().is_err() {
+        return Err(StreamError::ConnectionClosed);
+    }
 
     // Send the size of the data
     match stream.write(&size_buffer) {
         Ok(_) => {},
         Err(e) => {
-            println!("Error sending data lenght to client: {:?}, the error was:  {:?}", data.client_key, e);
+            return Err(StreamError::WriteSizeError(e));
         },
     };
 
@@ -521,9 +533,11 @@ fn send(stream: &mut TcpStream, data: Command) {
     match stream.write(command_response_json.as_bytes()) {
         Ok(_) => {},
         Err(e) => {
-            println!("Error sending data to client: {:?} the error was: {:?}", data.client_key, e);
+            return Err(StreamError::WriteError(e));
         },
     };
+
+    Ok(())
 }
 
 /// Handles an individual connection to the server.
@@ -629,7 +643,25 @@ fn handle_connection(stream: &mut TcpStream) {
 
             logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", response));
 
-            send(stream, response);
+            match send(stream, response) {
+                Ok(_) => {},
+                Err(e) => match e {
+                    StreamError::ConnectionClosed => {
+                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                        break;
+                    },
+                    StreamError::WriteError(e) => {
+                        println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
+                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                        break;
+                    },
+                    StreamError::WriteSizeError(e) => {
+                        println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                        break;
+                    },
+                },
+            };
 
             break;
         }
@@ -642,7 +674,25 @@ fn handle_connection(stream: &mut TcpStream) {
 
                     logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", response));
 
-                    send(stream, response);
+                    match send(stream, response) {
+                        Ok(_) => {},
+                        Err(e) => match e {
+                            StreamError::ConnectionClosed => {
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                                break;
+                            },
+                            StreamError::WriteError(e) => {
+                                println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                                break;
+                            },
+                            StreamError::WriteSizeError(e) => {
+                                println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                                break;
+                            },
+                        },
+                    };
 
                     break;
                 },
@@ -651,7 +701,25 @@ fn handle_connection(stream: &mut TcpStream) {
 
                     logger.exception(format!("WARNING: Unexpected error getting client: {:?}", command.client_key));
 
-                    send(stream, response);
+                    match send(stream, response) {
+                        Ok(_) => {},
+                        Err(e) => match e {
+                            StreamError::ConnectionClosed => {
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                                break;
+                            },
+                            StreamError::WriteError(e) => {
+                                println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                                break;
+                            },
+                            StreamError::WriteSizeError(e) => {
+                                println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                                break;
+                            },
+                        },
+                    };
 
                     break;
                 },
@@ -752,11 +820,29 @@ fn handle_connection(stream: &mut TcpStream) {
             if special_functions.contains(&command.command.actf) {
                 // -> Special Function Handler
 
-                let response: Command = handle_special_functions(command.client_key, command.command.actf.clone());
+                let response: Command = handle_special_functions(command.client_key.clone(), command.command.actf.clone());
 
                 logger.debug(format!("Sending back: {:?}", response));
 
-                send(stream, response);
+                match send(stream, response) {
+                    Ok(_) => {},
+                    Err(e) => match e {
+                        StreamError::ConnectionClosed => {
+                            println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                            break;
+                        },
+                        StreamError::WriteError(e) => {
+                            println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
+                            println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", command.client_key);
+                            break;
+                        },
+                        StreamError::WriteSizeError(e) => {
+                            println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                            println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", command.client_key);
+                            break;
+                        },
+                    },
+                };
             } else if command_patterns.command_exists("host", command.command.actf.as_str()) || direct_functions.contains(&command.command.actf) {
                 // TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
 
@@ -791,15 +877,53 @@ fn handle_connection(stream: &mut TcpStream) {
 
                 logger.debug(format!("Sending back: {:?}", response));
 
-                send(stream, response);
+                match send(stream, response) {
+                    Ok(_) => {},
+                    Err(e) => match e {
+                        StreamError::ConnectionClosed => {
+                            println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                            break;
+                        },
+                        StreamError::WriteError(e) => {
+                            println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
+                            println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                            break;
+                        },
+                        StreamError::WriteSizeError(e) => {
+                            println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                            println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &command.client_key);
+                            break;
+                        },
+                    },
+                };
             } else {
                 // -> None of above
 
-                let command: Command = create_error_command_response!(command.client_key, command.parity_id, format!("Function: {}, Doesn't exist!", command.command.actf));
+                let command: Command = create_error_command_response!(command.client_key.clone(), command.parity_id, format!("Function: {}, Doesn't exist!", command.command.actf));
 
-                logger.debug(format!("Sending back: {:?}", command));
+                logger.debug(format!("Sending back: {:?}", &command));
 
-                send(stream, command);
+                let client_key = command.client_key.clone();
+
+                match send(stream, command) {
+                    Ok(_) => {},
+                    Err(e) => match e {
+                        StreamError::ConnectionClosed => {
+                            println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", client_key);
+                            break;
+                        },
+                        StreamError::WriteError(e) => {
+                            println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
+                            println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", client_key);
+                            break;
+                        },
+                        StreamError::WriteSizeError(e) => {
+                            println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                            println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", client_key);
+                            break;
+                        },
+                    },
+                };
             }
             // _ => {
             //     logger.warn("The function name is not found or not a string.".to_string());

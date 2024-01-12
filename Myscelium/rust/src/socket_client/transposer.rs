@@ -234,69 +234,69 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
         logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
         resp = handle_direct_function(&translated_command.command, &client_key, command_id)?.clone(); // This cloen avoids locking
         println!("Direct Function Result: {:?}", resp);
-    }
+    } else {
+        println!("Command isn't a direct function");
 
-    println!("Command isn't a direct function");
+        {
+            // logger.debug("Try lock in command patterns".to_string());
 
-    {
-        // logger.debug("Try lock in command patterns".to_string());
+            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+            let command_patterns = COMMAND_PATTERNS.lock();
+            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
 
-        println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
-        let command_patterns = COMMAND_PATTERNS.lock();
-        println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+            if !command_patterns.command_exists(client_key.as_str(), &translated_command.command.actf) {
+                // If the command is not in the patterns, remove it from the schedule and return an error
+                logger.warn(format!("Command isn't registered in the patterns"));
+                enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+                logger.info(format!("command skipped and removed from schedule"));
+                return Err(ProcessError::CommandNotRegistered(translated_command.command.actf.clone()));
+            }
 
-        if !command_patterns.command_exists(client_key.as_str(), &translated_command.command.actf) {
-            // If the command is not in the patterns, remove it from the schedule and return an error
-            logger.warn(format!("Command isn't registered in the patterns"));
-            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-            logger.info(format!("command skipped and removed from schedule"));
-            return Err(ProcessError::CommandNotRegistered(translated_command.command.actf.clone()));
+            drop(command_patterns);
+            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+            // logger.debug("release command patterns".to_string());
         }
 
-        drop(command_patterns);
-        println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
-        // logger.debug("release command patterns".to_string());
-    }
+        println!("Command exists!");
 
-    println!("Command exists!");
+        logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
+        logger.debug(format!("Calling the callback!\n"));
+        // Execute the associated Python callback for the command
 
-    logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
-    logger.debug(format!("Calling the callback!\n"));
-    // Execute the associated Python callback for the command
+        // -> CALL PYTHON CALLBACK:
+        let response;
 
-    // -> CALL PYTHON CALLBACK:
-    let response;
+        response = client_call_callback(py, &translated_command, &callbacks_patterns);
 
-    response = client_call_callback(py, &translated_command, &callbacks_patterns);
+        // -> PROCESS CALLBACK RESPONSE:
+        resp = match response {
+            Ok(r) => {
+                let value: Value = extract_pyobject(py, r);
 
-    // -> PROCESS CALLBACK RESPONSE:
-    resp = match response {
-        Ok(r) => {
-            let value: Value = extract_pyobject(py, r);
-
-            // Check if the Value is an object and convert it to HashMap
-            if let Some(obj) = value.as_object() {
-                match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
-                    Ok(c) => ProcessResult::CommandInstructions(c.clone()),
-                    Err(_) => {
-                        // TODO >>> Handle this error case
-                        println!("Callback return a non valid response!");
-                        return Err(ProcessError::Error("callback return a non valid response!".to_string()));
-                    },
+                // Check if the Value is an object and convert it to HashMap
+                if let Some(obj) = value.as_object() {
+                    match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
+                        Ok(c) => ProcessResult::CommandInstructions(c.clone()),
+                        Err(_) => {
+                            // TODO >>> Handle this error case
+                            println!("Callback return a non valid response!");
+                            return Err(ProcessError::Error("callback return a non valid response!".to_string()));
+                        },
+                    }
+                } else {
+                    // TODO >>> See if the command that gives the error will be deleted
+                    println!("The value is not a JSON object!");
+                    return Err(ProcessError::Error("The value is not a JSON object!".to_string()));
                 }
-            } else {
-                // TODO >>> See if the command that gives the error will be deleted
-                println!("The value is not a JSON object!");
-                return Err(ProcessError::Error("The value is not a JSON object!".to_string()));
-            }
-        },
-        Err(e) => {
-            // Handle the error or log it
-            logger.exception(format!("Python error: {:?}", e));
-            // You can return a default value or propagate the error further
-            return Err(ProcessError::Error(format!("{:?}", e)));
-        },
-    };
+            },
+            Err(e) => {
+                // Handle the error or log it
+                logger.exception(format!("Python error: {:?}", e));
+                // You can return a default value or propagate the error further
+                return Err(ProcessError::Error(format!("{:?}", e)));
+            },
+        };
+    }
 
     let client_key = down_command.client_key.clone();
 

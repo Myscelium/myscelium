@@ -214,9 +214,9 @@ def test_communication():
     test_run_time = test_end_time - test_start_time 
 
     if (client_contact and basic_callback) and (send_data and basic_response_handler):
-        History_Manager().store_history_point("test_communication", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_communication", communications_speed=float(average_com_delta), test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
     else:
-        History_Manager().store_history_point("test_communication", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_communication", communications_speed=float(average_com_delta), test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
 
     # -> Client1
 

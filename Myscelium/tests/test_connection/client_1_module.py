@@ -9,15 +9,16 @@ from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 
 CLIENT_KEY = "some_client_id"
+
 class Senders:
 
     @staticmethod
     def send_some_data():
 
-        time.sleep(10)
+        time.sleep(70)
+
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.running = True
-        mys_client.set_client_uid(client_uid="some_client_id")
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
         command = client_patterns.command_pattern(
@@ -29,8 +30,6 @@ class Senders:
 
         result = mys_client.send(command, priority=10)
 
-        EVManager = Events_Manager(Unit="Client1", path="Logs")
-        EVManager.Set_Event("Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1")
 
         print(result)
 
@@ -70,8 +69,6 @@ class MyClient:
         mys_client = MysceliumClient(client_uid=CLIENT_KEY, buffer_path="Temp/Client1Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
-
-        mys_client.set_client_uid(client_uid=CLIENT_KEY)
 
         callbacks = [
             client_patterns.callback_pattern(callback=receivers.test_handler),
