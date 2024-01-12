@@ -90,7 +90,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         let new_command_instructions = CommandInstructions::new(
             CommandMode::Response,
-            CommandType::Default,
+            CommandType::ExternalFunction,
             CommandTarget::Origin,
             CommandStatus::Success,
             CommandOrigin::Host,

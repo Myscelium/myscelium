@@ -824,7 +824,7 @@ pub fn initialize_client(address: String) {
                         }
 
                         match c.command_type() {
-                            CommandType::Default => {
+                            CommandType::ExternalFunction => {
                                 let down_command = DownCommand::from_command(c);
                                 println!("[Socket Client] - Receives Data.. : {:?}", down_command);
                                 enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);

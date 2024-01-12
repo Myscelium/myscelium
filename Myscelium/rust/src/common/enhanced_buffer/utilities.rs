@@ -49,7 +49,7 @@ pub enum CommandType {
     SpecialFunction,
     DirectFunction,
     InternalManagement,
-    Default,
+    ExternalFunction,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -138,7 +138,7 @@ impl CommandInstructions {
             Some("SpecialFunction") => CommandType::SpecialFunction,
             Some("DirectFunction") => CommandType::DirectFunction,
             Some("InternalManagement") => CommandType::InternalManagement,
-            Some("Default") => CommandType::Default,
+            Some("ExternalFunction") => CommandType::ExternalFunction,
             _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
         };
 
@@ -204,7 +204,7 @@ impl CommandInstructions {
             Some("SpecialFunction") => CommandType::SpecialFunction,
             Some("DirectFunction") => CommandType::DirectFunction,
             Some("InternalManagement") => CommandType::InternalManagement,
-            Some("Default") => CommandType::Default,
+            Some("ExternalFunction") => CommandType::ExternalFunction,
 
             _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
         };

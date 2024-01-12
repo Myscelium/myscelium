@@ -28,7 +28,7 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
     Parameters:
     - command_mode (str): Mode of the command, must be one of ['Function', 'Response'].
     - command_type (str): Type of the command, must be one of ['SpecialFunction', 'DirectFunction',
-                      'InternalManagement', 'Default'].
+                      'InternalManagement', 'ExternalFunction'].
     - command_target (str): Target of the command, should follow the format 'Origin', 
                             'ClientKey(String)', or 'Host'.
     - command_status (str): Status of the command, must be one of ['Success', 'Failure'].
@@ -51,8 +51,8 @@ def cast_command_instruction (command_mode:str,command_type:str, command_target:
     if command_mode not in ["Function", "Response"]:
         raise ValueError("Command mode needs to be one of those: ['Function', 'Response']")
     
-    if command_type not in ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'Default']:
-        raise ValueError("Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'Default',]")
+    if command_type not in ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction']:
+        raise ValueError("Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction',]")
 
     if command_target in ['Origin', 'Host']:
         pass
@@ -791,9 +791,9 @@ class HostPatterns:
 
         Parameters:
         - `activation_function` (str): The activation function to be triggered upon response.
-        - `target_key` (str, optional): The key of the target client for retransmission. Default is None.
-        - `kwargs` (dict, optional): Additional keyword arguments for the command. Default is an empty dict.
-        - `message` (str, optional): A message to be sent to the client. Default is an empty string.
+        - `target_key` (str, optional): The key of the target client for retransmission. ExternalFunction is None.
+        - `kwargs` (dict, optional): Additional keyword arguments for the command. ExternalFunction is an empty dict.
+        - `message` (str, optional): A message to be sent to the client. ExternalFunction is an empty string.
 
         Returns:
         dict: A dictionary representing the command instructions based on the specified pattern.
@@ -860,7 +860,7 @@ class HostPatterns:
         if target_key == None:
             command_instructions = cast_command_instruction(
                 "Response",
-                "Default", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
+                "ExternalFunction", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
                 "Origin",
                 "Success", 
                 "Host",
@@ -871,7 +871,7 @@ class HostPatterns:
         else: # Redirect case
             command_instructions = cast_command_instruction(
                 "Response",
-                "Default", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
+                "ExternalFunction", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
                 f"ClientKey({target_key})",
                 "Success", 
                 "Host",
@@ -938,7 +938,7 @@ class HostPatterns:
                 "Origin",
                 "Failure", 
                 "Host",
-                "error_handler", # Default error handler
+                "error_handler", # ExternalFunction error handler
                 kwargs,
                 error_message, 
             )
@@ -947,7 +947,7 @@ class HostPatterns:
 
             command_instructions = cast_command_instruction(
                 "Response",
-                "Default", 
+                "ExternalFunction", 
                 "Origin",
                 "Failure", 
                 "Host",
@@ -1604,9 +1604,9 @@ class ClientPatterns:
         Parameters:
         - client_key (str): The key identifying the client.
         - activation_function (str): The activation function to be triggered upon response.
-        - target_key (str, optional): The key of the target client for retransmission. Default is None.
-        - kwargs (dict, optional): Additional keyword arguments for the command. Default is an empty dict.
-        - message (str, optional): A message to be sent to the client. Default is an empty string.
+        - target_key (str, optional): The key of the target client for retransmission. ExternalFunction is None.
+        - kwargs (dict, optional): Additional keyword arguments for the command. ExternalFunction is an empty dict.
+        - message (str, optional): A message to be sent to the client. ExternalFunction is an empty string.
 
         Returns:
         dict: A dictionary representing the command instructions based on the specified pattern.
@@ -1644,7 +1644,7 @@ class ClientPatterns:
         if target_key == "":
             command_instruction = cast_command_instruction(
                 "Function",
-                "Default",
+                "ExternalFunction",
                 "Host",
                 "Success",
                 f"ClientKey({origin_key})",
@@ -1655,7 +1655,7 @@ class ClientPatterns:
         else:
             command_instruction = cast_command_instruction(
                 "Function",
-                "Default",
+                "ExternalFunction",
                 f"ClientKey({target_key})",
                 "Success",
                 f"ClientKey({origin_key})",

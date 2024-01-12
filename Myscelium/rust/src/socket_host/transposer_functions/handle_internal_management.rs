@@ -164,7 +164,7 @@ pub fn handle_internal_management(m: &CommandInstructions, client_id: &mut Strin
 
             let new_command_instructions: CommandInstructions = CommandInstructions::new(
                 CommandMode::Response,
-                CommandType::Default,
+                CommandType::ExternalFunction,
                 CommandTarget::Origin,
                 CommandStatus::Success,
                 CommandOrigin::Host,
@@ -219,7 +219,7 @@ pub fn handle_internal_management(m: &CommandInstructions, client_id: &mut Strin
 
                     let new_command_instructions: CommandInstructions = CommandInstructions::new(
                         CommandMode::Response,
-                        CommandType::Default,
+                        CommandType::ExternalFunction,
                         CommandTarget::Origin,
                         CommandStatus::Success,
                         CommandOrigin::Host,
@@ -285,7 +285,7 @@ pub fn handle_internal_management(m: &CommandInstructions, client_id: &mut Strin
 
                     let new_command_instructions: CommandInstructions = CommandInstructions::new(
                         CommandMode::Response,
-                        CommandType::Default,
+                        CommandType::ExternalFunction,
                         CommandTarget::Origin,
                         CommandStatus::Success,
                         CommandOrigin::Host,
