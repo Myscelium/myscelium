@@ -748,31 +748,31 @@ pub fn initialize_client(address: String) {
                 Ok(d) => d,
                 Err(e) => match e {
                     StreamError::ConnectionClosed => {
-                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                         CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                         break;
                     },
                     StreamError::WriteError(e) => {
-                        println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
-                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        println!("[CLIENT][SOCKET][WRITE ERROR] - {:?}", e);
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                         CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                         break;
                     },
                     StreamError::WriteSizeError(e) => {
-                        println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
-                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        println!("[CLIENT][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                         CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                         break;
                     },
                     StreamError::ReadSizeError(e) => {
-                        println!("[HOST][SOCKET][READ SIZE ERROR] - {:?}", e);
-                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        println!("[CLIENT][SOCKET][READ SIZE ERROR] - {:?}", e);
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                         CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                         break;
                     },
                     StreamError::ReadDataError(e) => {
-                        println!("[HOST][SOCKET][READ DATA ERROR] - {:?}", e);
-                        println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        println!("[CLIENT][SOCKET][READ DATA ERROR] - {:?}", e);
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                         CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                         break;
                     },
@@ -826,31 +826,31 @@ pub fn initialize_client(address: String) {
                         Ok(r) => r,
                         Err(e) => match e {
                             StreamError::ConnectionClosed => {
-                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                                 CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                                 break;
                             },
                             StreamError::WriteError(e) => {
-                                println!("[HOST][SOCKET][WRITE ERROR] - {:?}", e);
-                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                println!("[CLIENT][SOCKET][WRITE ERROR] - {:?}", e);
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                                 CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                                 break;
                             },
                             StreamError::WriteSizeError(e) => {
-                                println!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e);
-                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                println!("[CLIENT][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                                 CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                                 break;
                             },
                             StreamError::ReadSizeError(e) => {
-                                println!("[HOST][SOCKET][READ SIZE ERROR] - {:?}", e);
-                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                println!("[CLIENT][SOCKET][READ SIZE ERROR] - {:?}", e);
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                                 CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                                 break;
                             },
                             StreamError::ReadDataError(e) => {
-                                println!("[HOST][SOCKET][READ DATA ERROR] - {:?}", e);
-                                println!("[HOST][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                println!("[CLIENT][SOCKET][READ DATA ERROR] - {:?}", e);
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
                                 CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
                                 break;
                             },

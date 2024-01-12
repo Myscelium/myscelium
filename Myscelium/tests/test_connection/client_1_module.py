@@ -15,7 +15,7 @@ class Senders:
     @staticmethod
     def send_some_data():
 
-        time.sleep(70)
+        time.sleep(25)
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.running = True
@@ -115,7 +115,7 @@ class MyClient:
         t2.start()
         t3.start()
 
-        t2.join()
+        
         t3.join()  
 
         time.sleep(5)
@@ -125,6 +125,7 @@ class MyClient:
         os.kill(t1.pid, signal.SIGINT)
 
         t1.join()  # Wait for the process to finish
+        t2.join()
 
         return
 

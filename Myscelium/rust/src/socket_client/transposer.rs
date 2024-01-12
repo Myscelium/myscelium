@@ -241,10 +241,10 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
             // logger.debug("Try lock in command patterns".to_string());
 
             println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
-            let command_patterns = COMMAND_PATTERNS.lock();
+            let callback_patterns = CALLBACK_PATTERNS.lock();
             println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
 
-            if !command_patterns.command_exists(client_key.as_str(), &translated_command.command.actf) {
+            if !callback_patterns.contains_key(&translated_command.command.actf) {
                 // If the command is not in the patterns, remove it from the schedule and return an error
                 logger.warn(format!("Command isn't registered in the patterns"));
                 enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
@@ -252,7 +252,7 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
                 return Err(ProcessError::CommandNotRegistered(translated_command.command.actf.clone()));
             }
 
-            drop(command_patterns);
+            drop(callback_patterns);
             println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
             // logger.debug("release command patterns".to_string());
         }
