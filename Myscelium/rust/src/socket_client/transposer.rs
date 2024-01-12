@@ -192,10 +192,12 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
     let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_key.clone());
     let command_id: u32 = down_command.command_id.unwrap().clone();
 
-    if !command_is_not_registry {
-        // If command is already registered, remove it from the down buffer schedule
-        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id);
-        return Err(ProcessError::CommandAlreadyProcessed(down_command.parity_id.clone()));
+    {
+        if !command_is_not_registry {
+            // If command is already registered, remove it from the down buffer schedule
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id);
+            return Err(ProcessError::CommandAlreadyProcessed(down_command.parity_id.clone()));
+        }
     }
 
     // TODO >>> Use the command.command or create a require type field to redirect the command to another client
@@ -217,7 +219,7 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
 
     // logger.info(format!("Command function: {} is a valid function!", activation_key));
 
-    let client_key = down_command.client_key.clone();
+    let client_key = translated_command.client_key.clone();
 
     println!("Client key is: {:?}", client_key);
 
@@ -225,7 +227,9 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
 
     let mut resp;
 
-    if translated_command.command_type() == CommandType::DirectFunction {
+    println!("Command is a direct function: {:?}", translated_command.command.command_type == "DirectFunction");
+
+    if translated_command.command.command_type == "DirectFunction" {
         println!("Command is a direct function!");
         logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
         resp = handle_direct_function(&translated_command.command, &client_key, command_id)?.clone(); // This cloen avoids locking

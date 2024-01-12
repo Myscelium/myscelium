@@ -34,13 +34,6 @@ macro_rules! impl_stringfiable_for_enum {
                 }
             }
 
-            // Implement PartialEq for comparing enum to itself
-            impl PartialEq<$t> for $t {
-                fn eq(&self, other: &$t) -> bool {
-                    self == other
-                }
-            }
-
         )+
     }
 }
