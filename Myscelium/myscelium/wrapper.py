@@ -1595,32 +1595,30 @@ class ClientPatterns:
     def command_pattern (self, origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""):
 
         """
-        Creates a response pattern for sending back to a client or for retransmission.
+        Constructs a command instruction for communication between clients and a host in a network system.
 
-        This function handles two main cases:
-        1. Simple send to origin: The response is sent back to the originating client.
-        2. Retransmit to another client: The response is retransmitted to a different client specified by `target_key`.
+        This function primarily serves two scenarios:
+        1. Response to Origin: The command instructs the host to send a response back to the originating client.
+        2. Retransmission to Another Client: The command instructs the host to forward the response to a different client, identified by the `target_key`.
 
         Parameters:
-        - client_key (str): The key identifying the client.
-        - activation_function (str): The activation function to be triggered upon response.
-        - target_key (str, optional): The key of the target client for retransmission. ExternalFunction is None.
-        - kwargs (dict, optional): Additional keyword arguments for the command. ExternalFunction is an empty dict.
-        - message (str, optional): A message to be sent to the client. ExternalFunction is an empty string.
+        - origin_key (str): Identifier for the client that initiates the command.
+        - command_function (str): The function to be executed in response to the command.
+        - target_key (str, optional): Identifier for the target client to whom the response should be forwarded. Defaults to an empty string.
+        - kwargs (dict, optional): Additional keyword arguments to pass along with the command. Defaults to an empty dictionary.
+        - message (str, optional): A message accompanying the command. Defaults to an empty string.
 
         Returns:
-        dict: A dictionary representing the command instructions based on the specified pattern.
+        dict: A dictionary representing the command instruction, tailored to the specified interaction pattern.
 
-        Note:
-        - In the case of 'Simple send to origin', the response is scheduled to be sent back to the client
-        that originated the command.
-        - In the case of 'Retransmit to another client', the response is redirected to a different client
-        specified by `target_key`. The function then triggers the specified `activation_function` on the
-        target client. If the target client does not exist, an error is returned.
+        Notes:
+        - 'Response to Origin' scenario: The response is directed back to the client who originated the command.
+        - 'Retransmission to Another Client' scenario: The response is directed to a different client, specified by `target_key`, and the specified `command_function` is executed on that client. If the target client is not found, an error is returned.
 
         Example:
-        command = response_pattern("client123", "activate", target_key="client456", 
+        command = command_pattern("client123", "activate", target_key="client456", 
                                 kwargs={"arg1": "value1"}, message="Example message")
+
         """
 
         # > The idea of this pattern
@@ -1663,6 +1661,69 @@ class ClientPatterns:
                 kwargs,
                 message
             )
+
+        return command_instruction
+    
+    def inner_management_command_pattern (self, origin_key:str, command_function:str, kwargs:dict={}, message:str=""):
+
+        """
+        Constructs a command instruction for communication between clients and a host in a network system.
+
+        This function primarily serves two scenarios:
+        1. Response to Origin: The command instructs the host to send a response back to the originating client.
+        2. Retransmission to Another Client: The command instructs the host to forward the response to a different client, identified by the `target_key`.
+
+        Parameters:
+        - origin_key (str): Identifier for the client that initiates the command.
+        - command_function (str): The function to be executed in response to the command.
+        - kwargs (dict, optional): Additional keyword arguments to pass along with the command. Defaults to an empty dictionary.
+        - message (str, optional): A message accompanying the command. Defaults to an empty string.
+
+        Returns:
+        dict: A dictionary representing the command instruction, tailored to the specified interaction pattern.
+
+        Notes:
+        - 'Response to Origin' scenario: The response is directed back to the client who originated the command.
+        - 'Retransmission to Another Client' scenario: The response is directed to a different client, specified by `target_key`, and the specified `command_function` is executed on that client. If the target client is not found, an error is returned.
+
+        Example:
+        ```python
+        command = inner_management_command_pattern(
+            "client123", 
+            "activate", 
+            target_key="client456", 
+            kwargs={"arg1": "value1"}, 
+            message="Example message"
+        )
+        ```
+
+        """
+
+        # > The idea of this pattern
+        # >   
+        # > (Client 1)        [Host]
+        # >    |                |        
+        # >   (|) ------------> |
+        # >    |               [|]     
+        # >    | <------------- | 
+        # >    |                |   
+        # > (Client 1)        [Host]
+        # >   
+        # > (|) This is this pattern
+        # > [|] This is a host process
+        # >
+        # > basically creates a command to send to host, when the command arrives in host the command will execute something
+        
+        command_instruction = cast_command_instruction(
+            "Function", # Command Mode
+            "InternalManagement", # Command Type
+            "Host", # Command Target
+            "Success", # Status
+            f"ClientKey({origin_key})", # Origin
+            command_function, # act function
+            kwargs,
+            message
+        )
 
         return command_instruction
 

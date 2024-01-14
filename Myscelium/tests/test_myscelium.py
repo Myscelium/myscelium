@@ -410,13 +410,19 @@ def test_redirect ():
             pass
     
     test_end_time = time.time()
-    average_com_delta = (sum(deltas) / len(deltas)) 
+
+    if len(deltas) > 0:
+        average_com_delta = sum(deltas) / len(deltas)
+    else:
+        # Handle the empty list case
+        average_com_delta = 0  # or any other default or error valu
+
     test_run_time = test_end_time - test_start_time 
 
     if (client_1_contact and client_2_contact) and (host_redirect_callback and active_callback_remotely) and send_data_to_redirect:
-        History_Manager().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_redirect", communications_speed=float(average_com_delta), test_speed=float(test_run_time), test_status="PASSED", log_level=DEBUG_LEVEL)
     else:
-        History_Manager().store_history_point("test_redirect", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_redirect", communications_speed=float(average_com_delta), test_speed=float(test_run_time), test_status="FAILED", log_level=DEBUG_LEVEL)
 
     # -> Client 1
 
@@ -603,13 +609,19 @@ def test_management ():
             pass
     
     test_end_time = time.time()
-    average_com_delta = (sum(deltas) / len(deltas)) 
+
+    if len(deltas) > 0:
+        average_com_delta = sum(deltas) / len(deltas)
+    else:
+        # Handle the empty list case
+        average_com_delta = 0  # or any other default or error valu
+
     test_run_time = test_end_time - test_start_time 
 
     if (add_client_callback and update_client_callback) and (remove_client_callback and send_add_client) and (send_update_client and send_remove_client) and (receive_add_client_conf and receive_update_client_conf) and receive_remove_client_conf:
-        History_Manager().store_history_point("test_management", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_management", communications_speed=float(average_com_delta), test_speed=float(test_run_time), test_status="PASSED", log_level=DEBUG_LEVEL)
     else:
-        History_Manager().store_history_point("test_management", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_management", communications_speed=float(average_com_delta), test_speed=float(test_run_time), test_status="FAILED", log_level=DEBUG_LEVEL)
 
     # -> Client 1
 
@@ -758,7 +770,13 @@ def test_messages ():
             pass
     
     test_end_time = time.time()
-    average_com_delta = (sum(deltas) / len(deltas)) 
+
+    if len(deltas) > 0:
+        average_com_delta = sum(deltas) / len(deltas)
+    else:
+        # Handle the empty list case
+        average_com_delta = 0  # or any other default or error valu
+
     test_run_time = test_end_time - test_start_time 
 
     if (
@@ -766,9 +784,9 @@ def test_messages ():
         and (send_correct_data_for_host and send_incorrect_data_for_host) 
         and (receive_success_response_handler and receive_error_response_handler)
     ):
-        History_Manager().store_history_point("test_management", communications_speed=average_com_delta, test_speed=test_run_time, test_status="PASSED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_management", communications_speed=float(average_com_delta), test_speed=float(test_run_time), test_status="PASSED", log_level=DEBUG_LEVEL)
     else:
-        History_Manager().store_history_point("test_management", communications_speed=average_com_delta, test_speed=test_run_time, test_status="FAILED", log_level=DEBUG_LEVEL)
+        History_Manager().store_history_point("test_management", communications_speed=float(average_com_delta), test_speed=float(test_run_time), test_status="FAILED", log_level=DEBUG_LEVEL)
 
     # -> Client 1 Senders
 

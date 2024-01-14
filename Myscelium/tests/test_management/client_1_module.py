@@ -8,6 +8,8 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 
+CLIENT_ID = "some_client_id"
+
 class Receivers:
 
     @staticmethod
@@ -87,13 +89,13 @@ class Senders:
 
     def start_send_sequence (self):
 
-        time.sleep(10)
+        time.sleep(15)
         self.test_add_client()
 
-        time.sleep(10)
+        time.sleep(15)
         self.test_update_client()
 
-        time.sleep(10)
+        time.sleep(15)
         self.test_remove_client()
 
     @staticmethod
@@ -101,11 +103,11 @@ class Senders:
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.running = True
-        mys_client.set_client_uid(client_uid="some_client_id")
-        
-        command = client_patterns.command_pattern(
-            "test_add_client", 
-            args = {
+    	
+        command = client_patterns.inner_management_command_pattern(
+            CLIENT_ID, # origin
+            "test_add_client", #actf
+            kwargs = {
                 "client_name":"test_client", 
                 "client_key":"xMndjslwpedcnfe", 
                 "client_type":"Test", 
@@ -130,10 +132,10 @@ class Senders:
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.running = True
-        mys_client.set_client_uid(client_uid="some_client_id")
         
-        command = client_patterns.command_pattern(
-            "test_update_client", 
+        command = client_patterns.inner_management_command_pattern(
+            CLIENT_ID, # origin
+            "test_update_client", #actf
             args = {
                 "actual_client_key":"xMndjslwpedcnfe",
                 "client_key":"xMndjslwpedcnfe", 
@@ -185,12 +187,10 @@ class MyClient:
 
         my_handlers = Receivers ()
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level=self.debug_level)
+        mys_client = MysceliumClient(client_uid=CLIENT_ID, buffer_path="Temp/Client1Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
-
-        mys_client.set_client_uid(client_uid="some_client_id")
-
+        
         callbacks = CallbackCollector([Receivers, ]).get_callbacks()
         
         mys_client.set_callbacks(callbacks=callbacks)
