@@ -106,7 +106,7 @@ class Senders:
     	
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID, # origin
-            "test_add_client", #actf
+            "add_client", #actf
             kwargs = {
                 "client_name":"test_client", 
                 "client_key":"xMndjslwpedcnfe", 
@@ -135,7 +135,7 @@ class Senders:
         
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID, # origin
-            "test_update_client", #actf
+            "update_client", #actf
             kwargs = {
                 "actual_client_key":"xMndjslwpedcnfe",
                 "client_key":"xMndjslwpedcnfe", 
@@ -161,6 +161,86 @@ class Senders:
 
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.running = True
+        
+        command = client_patterns.inner_management_command_pattern(
+            CLIENT_ID,
+            "remove_client", 
+            kwargs = {
+                "client_key": "xMndjslwpedcnfe"
+            }
+        )
+        
+        result = mys_client.send(command, priority=7)
+
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
+            "Send test remove a client", 
+            event_type="Send", 
+            event_key="30bt28u819A1QDpH"
+        )  
+
+    @staticmethod
+    def test_add_client_from_response (): 
+
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client.running = True
+    	
+        command = client_patterns.inner_management_command_pattern(
+            CLIENT_ID, # origin
+            "test_add_client", #actf
+            kwargs = {
+                "client_name":"test_client", 
+                "client_key":"xMndjslwpedcnfe", 
+                "client_type":"Test", 
+                "permission_group":"", 
+                "is_super_user":True, 
+                "max_sub_channels":5, 
+                "owned_sub_channels_keys":[],
+            }
+        )
+
+        result = mys_client.send(command, priority=9)
+
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
+            "Send test add a client", 
+            event_type = "Send", 
+            event_key = "94G2zy6cV54GN64O"
+        ) 
+        
+
+    @staticmethod
+    def test_update_client_from_response (): 
+
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client.running = True
+        
+        command = client_patterns.inner_management_command_pattern(
+            CLIENT_ID, # origin
+            "test_update_client", #actf
+            kwargs = {
+                "actual_client_key":"xMndjslwpedcnfe",
+                "client_key":"xMndjslwpedcnfe", 
+                "client_name":"test_client", 
+                "client_type":"Test", 
+                "permission_group":"", 
+                "is_super_user":True, 
+                "max_sub_channels":10, 
+                "owned_sub_channels_keys":[]
+            }
+        )
+        
+        result = mys_client.send(command, priority=8)
+
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
+            "Send test update a client", 
+            event_type="Send", 
+            event_key="3p7194Y33W6BnYlA"
+        ) 
+ 
+    @staticmethod
+    def test_remove_client_from_response (): 
+
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client.running = True
         mys_client.set_client_uid(client_uid="some_client_id")
         
         command = client_patterns.inner_management_command_pattern(
@@ -177,7 +257,7 @@ class Senders:
             "Send test remove a client", 
             event_type="Send", 
             event_key="30bt28u819A1QDpH"
-        )     
+        )   
 
 class MyClient: 
 

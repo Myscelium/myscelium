@@ -790,7 +790,10 @@ fn handle_connection(stream: &mut TcpStream) {
 
             logger.debug(format!("Command function: {}", command.command.actf));
 
-            let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
+            let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref", "add_client", "update_client", "remove_client"]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
 
             if special_functions.contains(&command.command.actf) {
                 // -> Special Function Handler
