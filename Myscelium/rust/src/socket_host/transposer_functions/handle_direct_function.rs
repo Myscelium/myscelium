@@ -327,7 +327,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         logger.info(format!("Successfully add a client: {}!", new_client.client_key));
 
-        return new_command_instructions;
+        return ProcessResult::CommandInstructions(new_command_instructions);
     };
 
     if activation_key == &"update_client".to_string() {
@@ -382,7 +382,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
                 logger.info(format!("Successfully executed the function: {} and remove client: {}!", activation_key, old_client.client_key));
 
-                return new_command_instructions;
+                return ProcessResult::CommandInstructions(new_command_instructions);
             },
 
             Err(e) => match e {
@@ -447,7 +447,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
                 logger.info(format!("Successfully executed the function: {} and remove client: {}!", activation_key, client_key));
 
-                return new_command_instructions;
+                return ProcessResult::CommandInstructions(new_command_instructions);
             },
         }
         // else {

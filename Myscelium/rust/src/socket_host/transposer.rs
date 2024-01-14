@@ -161,7 +161,7 @@ macro_rules! error_response {
 }
 
 use crate::socket_host::transposer_functions::handle_direct_function::handle_direct_function;
-use crate::socket_host::transposer_functions::handle_internal_management::handle_internal_management;
+// use crate::socket_host::transposer_functions::handle_internal_management::handle_internal_management;
 use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
 
 /// Processes a map result and generates a response based on the specified mode.

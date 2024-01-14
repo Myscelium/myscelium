@@ -5,6 +5,7 @@ use crate::common::functions::verifiers::{fast_json_comparator, ComparatorError}
 
 use crate::common::enhanced_buffer::utilities::{CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use crate::socket_host::client_manager::manager::{Client, ClientError};
+use crate::socket_host::transposer_functions::handle_direct_function::ProcessResult;
 
 use crate::handle_client_error;
 
@@ -39,7 +40,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-pub fn cast_new_client(new_client: Value) -> Result<Client, CommandInstructions> {
+pub fn cast_new_client(new_client: Value) -> Result<Client, ProcessResult> {
     let mut expected: HashMap<String, Value> = HashMap::new();
 
     expected.insert("client_name".to_string(), Value::String("".to_string()));
@@ -56,23 +57,23 @@ pub fn cast_new_client(new_client: Value) -> Result<Client, CommandInstructions>
         Err(e) => match e {
             ComparatorError::TypeMismatch(tp) => {
                 // logger.warn(format!("ERROR, Client kwargs have mismatch type {} kwarg!", tp));
-                return Err(create_error_response_and_return!(format!("Error! Client kwargs have mismatch type {} kwarg!", tp)));
+                return Err(ProcessResult::Error(format!("Error! Client kwargs have mismatch type {} kwarg!", tp)));
             },
             ComparatorError::LengthMismatch => {
                 // logger.warn("ERROR, Client kwargs have mismatch relative length kwargs!".to_string());
-                return Err(create_error_response_and_return!("Error! Client kwargs have mismatch relative length kwargs!"));
+                return Err(ProcessResult::Error(format!("Error! Client kwargs have mismatch relative length kwargs!")));
             },
             ComparatorError::MissingKey(k) => {
                 // logger.warn(format!("ERROR, Client kwargs have a missing kwarg: {}!", k));
-                return Err(create_error_response_and_return!(format!("Error! Client kwargs have a missing kwarg: {}!", k)));
+                return Err(ProcessResult::Error(format!("Error! Client kwargs have a missing kwarg: {}!", k)));
             },
             ComparatorError::TargetIsEmpty => {
                 // logger.warn("ERROR, Client target pattern is empty!".to_string());
-                return Err(create_error_response_and_return!("Error! Client target pattern is empty!"));
+                return Err(ProcessResult::Error(format!("Error! Client target pattern is empty!")));
             },
             ComparatorError::ParseError(e) => {
                 // logger.warn(format!("ERROR, Can't parse {:?}!", e).to_string());
-                return Err(create_error_response_and_return!("Error! Client target pattern is empty!"));
+                return Err(ProcessResult::Error(format!("Error! Client target pattern is empty!")));
             },
         },
 
@@ -90,7 +91,7 @@ pub fn cast_new_client(new_client: Value) -> Result<Client, CommandInstructions>
     let owned_sub_channels_keys: Vec<String> = match owned_sub_channels_keys_result {
         Ok(keys) => keys,
         Err(e) => {
-            return Err(create_error_response_and_return!(format!("Error! Can't extract new client owned_sub_channels_keys error: {}!", e)));
+            return Err(ProcessResult::Error(format!("Error! Can't extract new client owned_sub_channels_keys error: {}!", e)));
         },
     };
 
