@@ -928,13 +928,6 @@ pub fn initialize_client(address: String) {
                                 println!("Received a unknow special function");
                                 break;
                             },
-                            CommandType::InternalManagement => {
-                                let down_command = DownCommand::from_command(c);
-                                println!("[Socket Client] - Receives Data.. : {:?}", down_command);
-                                enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
-                                index = index + 1;
-                                break;
-                            },
                         }
                     },
                     Response::None => {

@@ -48,7 +48,6 @@ pub enum CommandMode {
 pub enum CommandType {
     SpecialFunction,
     DirectFunction,
-    InternalManagement,
     ExternalFunction,
 }
 
@@ -137,7 +136,6 @@ impl CommandInstructions {
         let command_type = match map.get("type").and_then(Value::as_str) {
             Some("SpecialFunction") => CommandType::SpecialFunction,
             Some("DirectFunction") => CommandType::DirectFunction,
-            Some("InternalManagement") => CommandType::InternalManagement,
             Some("ExternalFunction") => CommandType::ExternalFunction,
             _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
         };
@@ -203,7 +201,6 @@ impl CommandInstructions {
         let command_type = match map.get("type").map(String::as_str) {
             Some("SpecialFunction") => CommandType::SpecialFunction,
             Some("DirectFunction") => CommandType::DirectFunction,
-            Some("InternalManagement") => CommandType::InternalManagement,
             Some("ExternalFunction") => CommandType::ExternalFunction,
 
             _ => return Err(CommandError::InvalidCommand("Invalid or missing type".to_string())),
