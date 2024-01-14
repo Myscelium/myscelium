@@ -279,9 +279,8 @@ pub fn handle_internal_management(m: &CommandInstructions, client_id: &mut Strin
                     },
                 },
                 Ok(_) => {
-                    let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
-
-                    resp_kwargs.insert("actual_client_key".to_string(), Value::String(client_key.to_string())); // TODO >>> See if this actual client key is correct
+                    // let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
+                    // resp_kwargs.insert("actual_client_key".to_string(), Value::String(client_key.to_string())); // TODO >>> See if this actual client key is correct
 
                     let new_command_instructions: CommandInstructions = CommandInstructions::new(
                         CommandMode::Response,
@@ -290,7 +289,7 @@ pub fn handle_internal_management(m: &CommandInstructions, client_id: &mut Strin
                         CommandStatus::Success,
                         CommandOrigin::Host,
                         "remove_client_handler".to_string(),
-                        resp_kwargs,
+                        HashMap::new(),
                         format!("Successfully executed the function: {} and remove client: {}!", activation_function, client_key).to_string(),
                     );
 

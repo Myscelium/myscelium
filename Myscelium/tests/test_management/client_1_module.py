@@ -136,7 +136,7 @@ class Senders:
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID, # origin
             "test_update_client", #actf
-            args = {
+            kwargs = {
                 "actual_client_key":"xMndjslwpedcnfe",
                 "client_key":"xMndjslwpedcnfe", 
                 "client_name":"test_client", 
@@ -163,12 +163,13 @@ class Senders:
         mys_client.running = True
         mys_client.set_client_uid(client_uid="some_client_id")
         
-        command = client_patterns.command_pattern(
-                        "test_remove_client", 
-                        args = {
-                            "client_key": "xMndjslwpedcnfe"
-                        }
-                    )
+        command = client_patterns.inner_management_command_pattern(
+            CLIENT_ID,
+            "test_remove_client", 
+            kwargs = {
+                "client_key": "xMndjslwpedcnfe"
+            }
+        )
         
         result = mys_client.send(command, priority=7)
 
