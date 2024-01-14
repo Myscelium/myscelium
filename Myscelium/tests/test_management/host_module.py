@@ -97,7 +97,7 @@ class MyHost:
 
     def __init__(self, debug_level):
         self.host_patterns = HostPatterns()
-        self.my_callbacks = Handlers()
+        # self.my_callbacks = Handlers()
         self.debug_level = debug_level
 
     # @staticmethod
@@ -148,7 +148,7 @@ class MyHost:
 
     def run_host(self, ip, port):
 
-        callbacks = CallbackCollector([Handlers,]).get_callbacks()
+        # callbacks = CallbackCollector([Handlers,]).get_callbacks()
 
         allowed_clients = [
             self.host_patterns.client_pattern(
@@ -174,7 +174,7 @@ class MyHost:
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, max_sub_channels:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(
-            callbacks=callbacks, 
+            callbacks=[], 
             host_id="xnsmdkeflerpfsa",
             allowed_clients=allowed_clients, 
             buffer_path="Temp/Data/", 

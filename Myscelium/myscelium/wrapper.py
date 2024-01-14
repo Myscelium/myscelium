@@ -1716,7 +1716,7 @@ class ClientPatterns:
         
         command_instruction = cast_command_instruction(
             "Function", # Command Mode
-            "InternalManagement", # Command Type
+            "DirectFunction", # Command Type
             "Host", # Command Target
             "Success", # Status
             f"ClientKey({origin_key})", # Origin

@@ -23,6 +23,9 @@ use crate::common::functions::converters::{convert_json_map_to_hash_map, convert
 use crate::common::functions::advanced_lockers::smart_lock;
 use crate::CLIENTS_SYNC_CONTROLLER;
 
+use crate::handle_client_error;
+use crate::socket_host::transposer_functions::helpers::cast_new_client;
+
 use crate::chrono::TimeZone;
 use chrono::Duration;
 use chrono::Utc;
@@ -52,6 +55,9 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
     let logger = acquire_logger!("Transposer - Process - Handle Direct Functions");
 
     logger.info(format!("Initializing processing!"));
+
+    // -> ----------------------------------------------------------------------------------------------------------------------------------
+    // -> SYNCRONIZATION MECHANISM
 
     // Special handling for "update available host commands" command
     if activation_key == &"get_registered_commands".to_string() {
@@ -272,6 +278,185 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
         return ProcessResult::List(responses);
     }
+
+    // -> ----------------------------------------------------------------------------------------------------------------------------------
+    // -> HOST INTERNAL MANAGEMENT
+
+    if activation_key == &"add_client".to_string() {
+        // > edit client
+        // {'response_mode':'InternalManagement', 'activation_function':'add_client', 'kwargs':response, 'response_activation_function':'function_name'}
+        // 'kwargs':{'new_client':clientpattern}
+
+        if !command.kwargs.contains_key("client_key") {
+            logger.warn("Error! Callback response kwargs don't have client_key kwarg!".to_string());
+            return ProcessResult::Error(format!("Error! Callback response kwargs don't have client_key kwarg!"));
+        }
+
+        if !command.kwargs.contains_key("new_client") {
+            logger.warn("Error! Callback response kwargs don't have new_client kwarg!".to_string());
+            return ProcessResult::Error(format!("Error! Callback response kwargs don't have new_client kwarg!"));
+        }
+
+        let client_key = command.kwargs.get("client_key").unwrap().as_str().unwrap();
+
+        // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
+
+        let new_client = match cast_new_client(command.kwargs.get("new_client").unwrap().clone()) {
+            Ok(c) => c,
+            Err(e) => return e, // TODO >>> Fix this error case
+        };
+
+        new_client.save_into_db(); //> It Already create the new client
+
+        logger.debug("New client saved into the database!".to_string());
+
+        // TODO >>> Make a verification if the client already exists or not before add it!
+        let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
+        resp_kwargs.insert("client_key".to_string(), Value::String(client_key.to_string()));
+
+        let new_command_instructions: CommandInstructions = CommandInstructions::new(
+            CommandMode::Response,
+            CommandType::ExternalFunction,
+            CommandTarget::Origin,
+            CommandStatus::Success,
+            CommandOrigin::Host,
+            "add_client_handler".to_string(),
+            resp_kwargs,
+            format!("Successfully add a client: {}!", new_client.client_key).to_string(),
+        );
+
+        logger.info(format!("Successfully add a client: {}!", new_client.client_key));
+
+        return new_command_instructions;
+    };
+
+    if activation_key == &"update_client".to_string() {
+        // > update client
+        // {'response_mode':'InternalManagement', 'activation_function':'update_client', 'kwargs':response, 'response_activation_function':'function_name'}
+        // 'kwargs':{'actual_client_key':String, 'updated_client':client} // Client have to have the same client key
+        // 'client': {"client_name":str, "client_key":str, "client_type":str, "permission_group":str, "is_super_user":bool, "max_sub_channels":int, "owned_sub_channels_keys":list}
+
+        logger.debug("Receive a update client inner command!".to_string());
+
+        if !command.kwargs.contains_key("actual_client_key") {
+            logger.warn("Error! Callback response kwargs don't have actual_client_key kwarg!".to_string());
+            return ProcessResult::Error(format!("Error! Callback response kwargs don't have actual_client_key kwarg!"));
+        }
+
+        if !command.kwargs.contains_key("updated_client") {
+            logger.warn("ERROR, Error! Callback response kwargs don't have update_client kwarg!".to_string());
+            return ProcessResult::Error(format!("Error! Callback response kwargs don't have update_client kwarg!"));
+        }
+
+        let actual_client_key = command.kwargs.get("actual_client_key").unwrap().as_str().unwrap();
+
+        // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
+
+        let new_client = match cast_new_client(command.kwargs.get("updated_client").unwrap().clone()) {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let old_client = handle_client_error!(Client::get_by_key(&actual_client_key.to_string()));
+
+        let result = old_client.update_to(&new_client); //> It already saves into the database
+
+        // TODO >>> Maybe implement a fast result-ype to client if needed
+
+        match result {
+            Ok(_) => {
+                let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
+
+                resp_kwargs.insert("actual_client_key".to_string(), Value::String(actual_client_key.to_string())); // TODO >>> See if this actual client key is correct
+
+                let new_command_instructions: CommandInstructions = CommandInstructions::new(
+                    CommandMode::Response,
+                    CommandType::ExternalFunction,
+                    CommandTarget::Origin,
+                    CommandStatus::Success,
+                    CommandOrigin::Host,
+                    "update_client_handler".to_string(),
+                    resp_kwargs,
+                    format!("Successfully executed the function: {} and remove client: {}!", activation_key, old_client.client_key).to_string(),
+                );
+
+                logger.info(format!("Successfully executed the function: {} and remove client: {}!", activation_key, old_client.client_key));
+
+                return new_command_instructions;
+            },
+
+            Err(e) => match e {
+                ClientError::ClientDoesNotExist(e) => {
+                    logger.warn(format!("Error! Can't Update client because client {} Don't exist!", e));
+                    return ProcessResult::Error(format!("Error! Can't Update client because client {} Don't exist!", e));
+                },
+                _ => {
+                    logger.warn("Error! Can Update client because a unexpected error!".to_string());
+                    return ProcessResult::Error(format!("Error! Can Update client because a unexpected error!"));
+                },
+            },
+        }
+
+        // TODO >>> Implement a mechanism to send back the confirmation or a error message originated from the operation
+        // else {
+        //     logger.warn("Error! Callback response kwargs isn't a Map!".to_string());
+        //     return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
+        // }
+    };
+
+    if activation_key == &"remove_client" {
+        // > remove client
+        // {'response_mode':'InternalManagement', 'activation_function':'remove_client', 'kwargs':response, 'response_activation_function':'function_name'}
+        // 'kwargs':{'client_key':String}
+
+        if !command.kwargs.contains_key("client_key") {
+            return ProcessResult::Error(format!("Error! Callback response kwargs don't have client_key kwarg!"));
+        }
+
+        let client_key: String = command.kwargs.get("client_key").unwrap().as_str().map(|s| s.to_string()).unwrap();
+
+        let client = handle_client_error!(Client::get_by_key(&client_key));
+
+        let result = client.delete();
+
+        match result {
+            Err(e) => match e {
+                ClientError::ClientDoesNotExist(e) => {
+                    logger.warn(format!("Error! Can't Remove client because client {} Don't exist!", e));
+                    return ProcessResult::Error(format!("Error! Can't Remove client because client {} Don't exist!", e));
+                },
+                _ => {
+                    logger.warn("Error! Can Remove client because a unexpected error!".to_string());
+                    return ProcessResult::Error(format!("Error! Can Remove client because a unexpected error!"));
+                },
+            },
+            Ok(_) => {
+                // let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
+                // resp_kwargs.insert("actual_client_key".to_string(), Value::String(client_key.to_string())); // TODO >>> See if this actual client key is correct
+
+                let new_command_instructions: CommandInstructions = CommandInstructions::new(
+                    CommandMode::Response,
+                    CommandType::ExternalFunction,
+                    CommandTarget::Origin,
+                    CommandStatus::Success,
+                    CommandOrigin::Host,
+                    "remove_client_handler".to_string(),
+                    HashMap::new(),
+                    format!("Successfully executed the function: {} and remove client: {}!", activation_key, client_key).to_string(),
+                );
+
+                logger.info(format!("Successfully executed the function: {} and remove client: {}!", activation_key, client_key));
+
+                return new_command_instructions;
+            },
+        }
+        // else {
+        //     logger.warn("Error! Callback response kwargs isn't a Map!".to_string());
+        //     return create_error_response_and_return!("Error! Callback response kwargs isn't a Map!", converted_m, to_send);
+        // }
+
+        // TODO >>> Implement a mechanism to send back the confirmation or a error message originated from the operation
+    };
 
     return ProcessResult::Error(format!("unknow direct function"));
 }

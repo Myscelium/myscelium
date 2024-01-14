@@ -135,9 +135,9 @@ pub fn handle_internal_management(m: &CommandInstructions, client_id: &mut Strin
             // {'response_mode':'InternalManagement', 'activation_function':'add_client', 'kwargs':response, 'response_activation_function':'function_name'}
             // 'kwargs':{'new_client':clientpattern}
 
-            if !kwargs.contains_key("actual_client_key") {
-                logger.warn("Error! Callback response kwargs don't have actual_client_key kwarg!".to_string());
-                return create_error_response_and_return!("Error! Callback response kwargs don't have actual_client_key kwarg!");
+            if !kwargs.contains_key("client_key") {
+                logger.warn("Error! Callback response kwargs don't have client_key kwarg!".to_string());
+                return create_error_response_and_return!("Error! Callback response kwargs don't have client_key kwarg!");
             }
 
             if !kwargs.contains_key("new_client") {
@@ -145,7 +145,7 @@ pub fn handle_internal_management(m: &CommandInstructions, client_id: &mut Strin
                 return create_error_response_and_return!("Error! Callback response kwargs don't have new_client kwarg!");
             }
 
-            let actual_client_key = kwargs.get("actual_client_key").unwrap().as_str().unwrap();
+            let client_key = kwargs.get("client_key").unwrap().as_str().unwrap();
 
             // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
 
@@ -158,9 +158,9 @@ pub fn handle_internal_management(m: &CommandInstructions, client_id: &mut Strin
 
             logger.debug("New client saved into the database!".to_string());
 
+            // TODO >>> Make a verification if the client already exists or not before add it!
             let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
-
-            resp_kwargs.insert("actual_client_key".to_string(), Value::String(actual_client_key.to_string()));
+            resp_kwargs.insert("client_key".to_string(), Value::String(client_key.to_string()));
 
             let new_command_instructions: CommandInstructions = CommandInstructions::new(
                 CommandMode::Response,
