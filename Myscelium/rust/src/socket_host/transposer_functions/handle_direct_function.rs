@@ -51,7 +51,7 @@ pub enum ProcessResult {
     CommandInstructions(CommandInstructions),
 }
 
-pub fn handle_direct_function(client_key: &String, activation_key: &String, command: CommandInstructions, command_id: u32) -> ProcessResult {
+pub fn handle_direct_function(client_key: &String, activation_key: &String, command: CommandInstructions, command_id: Option<u32>) -> ProcessResult {
     let logger = acquire_logger!("Transposer - Process - Handle Direct Functions");
 
     logger.info(format!("Initializing processing!"));

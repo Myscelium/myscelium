@@ -128,7 +128,7 @@ pub fn schedule(command: &CommandInstructions, priority: u8, client_key: String,
     let response: Value;
     let new_client_key: String;
 
-    (response, new_client_key) = process_map_result(&command, &client_key, parity_id.clone(), priority);
+    (response, new_client_key) = process_map_result(&command, &client_key, &parity_id, &priority, &None);
 
     let logger = acquire_logger!("Core - Scheduler");
 
