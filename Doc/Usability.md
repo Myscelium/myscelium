@@ -514,7 +514,6 @@ def __init__(self, client_uid:int, buffer_path:str) -> None:
 
 #### Methods
 
-- `set_client_uid(client_uid)`: Sets the client's unique identifier.
 - `set_workers_num(n_workers=2)`: Sets the number of workers.
 - `set_callbacks(callbacks:list)`: Registers callback functions.
 - `get_registred_commands() -> dict`: Retrieves the registered commands.
@@ -642,7 +641,6 @@ def send_some_data():
         buffer_path="ClientData/"
     )
     
-    mys_client.set_client_uid(client_uid="some_client_id")
     mys_client.runing = True
     time.sleep(10)
     
