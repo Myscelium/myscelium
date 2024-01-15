@@ -91,11 +91,7 @@ class Senders:
 
         time.sleep(15)
         self.test_add_client()
-
-        time.sleep(15)
         self.test_update_client()
-
-        time.sleep(15)
         self.test_remove_client()
 
     @staticmethod

@@ -99,6 +99,7 @@ pub fn cast_new_client(new_client: &HashMap<String, Value>) -> Result<Client, Pr
 
     let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 
+    // TODO >>> Create a better mechanism to unpack these kwargs from json and return errors when need!
     let new_client = handle_client_error!(Client::new(
         verified_client_value.get("client_name").unwrap().as_str().map(|s| s.to_string()).unwrap(),
         client_key.clone(),
