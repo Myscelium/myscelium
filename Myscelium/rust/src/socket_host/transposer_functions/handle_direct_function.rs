@@ -318,7 +318,11 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
             // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
 
-            let new_client = match cast_new_client(&command.kwargs) {
+            // TODO >>> Update this to use the new kwargs structure where the new client is wrapped in updated_client
+            //> The idea was to send the content of the "updated_client" to the cast_new_client, cast the updated client
+            //> and use the current clietn key to get the current client and change it to the new client casted
+
+            let new_client = match cast_new_client(command.kwargs.get("updated_client").unwrap().as_object().unwrap()) {
                 Ok(c) => c,
                 Err(e) => return e,
             };

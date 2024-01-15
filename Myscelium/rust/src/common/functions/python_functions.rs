@@ -305,8 +305,13 @@ pub fn client_call_callback(py: Python<'_>, command: &Command, callback_patterns
 
     let command: &CommandInstructions = &command.command;
 
-    let inner_hash_map: HashMap<_, _> = command.kwargs.clone().into_iter().collect();
-    let kwargs_map: HashMap<String, Py<PyAny>> = dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?;
+    let inner_hash_map: HashMap<String, Value> = command.convert_to_hashmap_string_value();
+
+    let mut kwargs_dict: HashMap<String, Value> = HashMap::new();
+
+    kwargs_dict.insert("data".to_string(), Value::Object(serde_json::Map::from_iter(inner_hash_map)));
+
+    let kwargs_map: HashMap<String, Py<PyAny>> = dict_to_kwargs(py, &kwargs_dict).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?;
 
     println!("Converted to Python kwargs_map: {:?}", kwargs_map);
 

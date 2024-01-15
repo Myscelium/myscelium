@@ -126,6 +126,23 @@ impl CommandInstructions {
         serde_json::from_str(&json_str).unwrap()
     }
 
+    pub fn convert_to_hashmap_string_value(&self) -> HashMap<String, Value> {
+        let mut map = HashMap::new();
+
+        map.insert("mode".to_string(), serde_json::to_value(self.mode.clone()).unwrap());
+        map.insert("type".to_string(), serde_json::to_value(self.command_type.clone()).unwrap());
+        map.insert("target".to_string(), serde_json::to_value(self.target.clone()).unwrap());
+        map.insert("status".to_string(), serde_json::to_value(self.status.clone()).unwrap());
+        map.insert("origin".to_string(), serde_json::to_value(self.origin.clone()).unwrap());
+        map.insert("actf".to_string(), Value::String(self.actf.clone()));
+        map.insert("message".to_string(), Value::String(self.message.clone()));
+
+        // Insert `kwargs` directly
+        map.extend(self.kwargs.clone());
+
+        map
+    }
+
     pub fn from_value_map(mut map: HashMap<String, Value>) -> Result<Self, CommandError> {
         let mode = match map.get("mode").and_then(Value::as_str) {
             Some("Function") => CommandMode::Function,

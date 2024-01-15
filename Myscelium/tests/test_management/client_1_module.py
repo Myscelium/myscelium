@@ -23,6 +23,9 @@ class Receivers:
         #     "kwargs":{"arg1": [], "arg2": "", "arg3": {}}
         #     "response_mode":"",
         # }
+
+        
+        print("Received data in python callback: ", data)
         
         if "status" in data:
             pass
@@ -39,7 +42,6 @@ class Receivers:
             "Activate Basic Response Test Add Client"
         )
 
-        print("Received data: ", data)
 
     @staticmethod
     def update_client_handler (data:any): # -> Need to be implemented
@@ -134,13 +136,15 @@ class Senders:
             "update_client", #actf
             kwargs = {
                 "actual_client_key":"xMndjslwpedcnfe",
-                "client_key":"xMndjslwpedcnfe", 
-                "client_name":"test_client", 
-                "client_type":"Test", 
-                "permission_group":"", 
-                "is_super_user":True, 
-                "max_sub_channels":10, 
-                "owned_sub_channels_keys":[]
+                "updated_client": {
+                    "client_key":"xMndjslwpedcnfe", 
+                    "client_name":"test_client", 
+                    "client_type":"Test", 
+                    "permission_group":"", 
+                    "is_super_user":True, 
+                    "max_sub_channels":10, 
+                    "owned_sub_channels_keys":[]
+                }
             }
         )
         
@@ -261,8 +265,6 @@ class MyClient:
         self.debug_level = debug_level
 
     def initializer(self):
-
-        my_handlers = Receivers ()
 
         mys_client = MysceliumClient(client_uid=CLIENT_ID, buffer_path="Temp/Client1Data/", log_level=self.debug_level)
 
