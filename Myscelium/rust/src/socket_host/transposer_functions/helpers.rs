@@ -105,7 +105,7 @@ pub fn cast_new_client(new_client: &HashMap<String, Value>) -> Result<Client, Pr
         verified_client_value.get("client_type").unwrap().as_str().map(|s| s.to_string()).unwrap(),
         verified_client_value.get("permission_group").unwrap().as_str().map(|s| s.to_string()).unwrap(),
         verified_client_value.get("is_super_user").unwrap().as_bool().unwrap(),
-        verified_client_value.get("max_sub_channels").unwrap().as_u64().unwrap().try_into().unwrap(), // TODO >>> Create a better handler to cases greather than u32
+        verified_client_value.get("max_sub_channels").unwrap().as_f64().unwrap() as u32, // TODO >>> Create a better handler to cases greather than u32
         owned_sub_channels_keys,
         client_handlers,
     ));
