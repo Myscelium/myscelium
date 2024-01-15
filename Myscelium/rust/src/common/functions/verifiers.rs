@@ -35,6 +35,12 @@ pub fn fast_json_comparator(val: &Value, target: &Value) -> Result<Value, Compar
     println!("\n\nCompraing json val:\n{}\nwith json pattern val:\n{}\n\n", &val, &target);
 
     match (val, target) {
+        // Convert string "[]" to empty array
+        (Value::String(s), Value::Array(pattern_arr)) if s == "[]" && pattern_arr.is_empty() => Ok(Value::Array(vec![])),
+
+        // Convert string "{}" to empty object
+        (Value::String(s), Value::Object(pattern_obj)) if s == "{}" && pattern_obj.is_empty() => Ok(Value::Object(serde_json::Map::new())),
+
         (Value::Object(obj), Value::Object(pattern_obj)) => {
             if pattern_obj.is_empty() {
                 return Err(ComparatorError::TargetIsEmpty);
