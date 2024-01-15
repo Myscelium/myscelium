@@ -64,6 +64,15 @@ pub fn fast_json_comparator(val: &Value, target: &Value) -> Result<Value, Compar
             Ok(Value::Array(new_arr?))
         },
 
+        // Convert string to number
+        (Value::String(s), Value::Number(_)) => {
+            if let Ok(num) = s.parse::<f64>() {
+                Ok(Value::Number(serde_json::Number::from_f64(num).unwrap()))
+            } else {
+                Err(ComparatorError::TypeMismatch(val.clone()))
+            }
+        },
+
         // Convert string "1" or "0" to boolean
         (Value::String(s), Value::Bool(_)) => match s.as_str() {
             "1" => Ok(Value::Bool(true)),
