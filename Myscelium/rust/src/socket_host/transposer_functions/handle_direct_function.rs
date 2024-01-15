@@ -254,21 +254,21 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             // {'response_mode':'InternalManagement', 'activation_function':'add_client', 'kwargs':response, 'response_activation_function':'function_name'}
             // 'kwargs':{'new_client':clientpattern}
 
-            if !command.kwargs.contains_key("client_key") {
-                logger.warn("Error! Callback response kwargs don't have client_key kwarg!".to_string());
-                return ProcessResult::Error(format!("Error! Callback response kwargs don't have client_key kwarg!"));
-            }
+            // if !command.kwargs.contains_key("client_key") {
+            //     logger.warn("Error! Callback response kwargs don't have client_key kwarg!".to_string());
+            //     return ProcessResult::Error(format!("Error! Callback response kwargs don't have client_key kwarg!"));
+            // }
 
-            if !command.kwargs.contains_key("new_client") {
-                logger.warn("Error! Callback response kwargs don't have new_client kwarg!".to_string());
-                return ProcessResult::Error(format!("Error! Callback response kwargs don't have new_client kwarg!"));
-            }
+            // if !command.kwargs.contains_key("new_client") {
+            //     logger.warn("Error! Callback response kwargs don't have new_client kwarg!".to_string());
+            //     return ProcessResult::Error(format!("Error! Callback response kwargs don't have new_client kwarg!"));
+            // }
 
-            let client_key = command.kwargs.get("client_key").unwrap().as_str().unwrap();
+            // let client_key = command.kwargs.get("client_key").unwrap().as_str().unwrap();
 
             // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
 
-            let new_client = match cast_new_client(command.kwargs.get("new_client").unwrap().clone()) {
+            let new_client = match cast_new_client(&command.kwargs) {
                 Ok(c) => c,
                 Err(e) => return e, // TODO >>> Fix this error case
             };
@@ -278,8 +278,8 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             logger.debug("New client saved into the database!".to_string());
 
             // TODO >>> Make a verification if the client already exists or not before add it!
-            let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
-            resp_kwargs.insert("client_key".to_string(), Value::String(client_key.to_string()));
+            // let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
+            // resp_kwargs.insert("client_key".to_string(), Value::String(client_key.to_string()));
 
             let new_command_instructions: CommandInstructions = CommandInstructions::new(
                 CommandMode::Response,
@@ -288,7 +288,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
                 CommandStatus::Success,
                 CommandOrigin::Host,
                 "add_client_handler".to_string(),
-                resp_kwargs,
+                HashMap::new(),
                 format!("Successfully add a client: {}!", new_client.client_key).to_string(),
             );
 
@@ -304,21 +304,21 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
             logger.debug("Receive a update client inner command!".to_string());
 
-            if !command.kwargs.contains_key("actual_client_key") {
+            if !&command.kwargs.contains_key("actual_client_key") {
                 logger.warn("Error! Callback response kwargs don't have actual_client_key kwarg!".to_string());
                 return ProcessResult::Error(format!("Error! Callback response kwargs don't have actual_client_key kwarg!"));
             }
 
-            if !command.kwargs.contains_key("updated_client") {
+            if !&command.kwargs.contains_key("updated_client") {
                 logger.warn("ERROR, Error! Callback response kwargs don't have update_client kwarg!".to_string());
                 return ProcessResult::Error(format!("Error! Callback response kwargs don't have update_client kwarg!"));
             }
 
-            let actual_client_key = command.kwargs.get("actual_client_key").unwrap().as_str().unwrap();
+            let actual_client_key = &command.kwargs.get("actual_client_key").unwrap().as_str().unwrap().clone();
 
             // from("client_name":"str", "client_key":"str", "client_type":"str", "permission_group":"str", "is_super_user":"bool", "max_sub_channels":"int", "owned_sub_channels_keys":"list")
 
-            let new_client = match cast_new_client(command.kwargs.get("updated_client").unwrap().clone()) {
+            let new_client = match cast_new_client(&command.kwargs) {
                 Ok(c) => c,
                 Err(e) => return e,
             };

@@ -32,6 +32,8 @@ pub enum ComparatorError {
 /// assert!(result.is_ok());
 /// ```
 pub fn fast_json_comparator(val: &Value, target: &Value) -> Result<Value, ComparatorError> {
+    println!("\n\nCompraing json val:\n{}\nwith json pattern val:\n{}\n\n", &val, &target);
+
     match (val, target) {
         (Value::Object(obj), Value::Object(pattern_obj)) => {
             if pattern_obj.is_empty() {
@@ -62,21 +64,17 @@ pub fn fast_json_comparator(val: &Value, target: &Value) -> Result<Value, Compar
             Ok(Value::Array(new_arr?))
         },
 
-        // Convert integer-like strings to numbers
-        (Value::String(s), Value::Number(_)) => match s.parse::<serde_json::Number>() {
-            Ok(num) => Ok(Value::Number(num)),
-            Err(_) => Err(ComparatorError::ParseError(format!("Failed to parse '{}' as number", s))),
-        },
-
-        // Convert string "true" or "false" to boolean
+        // Convert string "1" or "0" to boolean
         (Value::String(s), Value::Bool(_)) => match s.as_str() {
-            "true" => Ok(Value::Bool(true)),
-            "false" => Ok(Value::Bool(false)),
-            _ => Err(ComparatorError::ParseError(format!("Failed to parse '{}' as bool", s))),
+            "1" => Ok(Value::Bool(true)),
+            "0" => Ok(Value::Bool(false)),
+            _ => Err(ComparatorError::TypeMismatch(val.clone())),
         },
 
-        // Convert integer to boolean (0 -> false, otherwise -> true)
-        (Value::Number(n), Value::Bool(_)) => Ok(Value::Bool(n.as_i64().unwrap_or(0) != 0)),
+        // Compare types without checking content
+        (Value::String(_), Value::String(_)) => Ok(val.clone()),
+        (Value::Number(_), Value::Number(_)) => Ok(val.clone()),
+        (Value::Bool(_), Value::Bool(_)) => Ok(val.clone()),
 
         // For other types, check if they are the same
         _ => {

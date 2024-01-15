@@ -40,7 +40,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-pub fn cast_new_client(new_client: Value) -> Result<Client, ProcessResult> {
+pub fn cast_new_client(new_client: &HashMap<String, Value>) -> Result<Client, ProcessResult> {
     let mut expected: HashMap<String, Value> = HashMap::new();
 
     expected.insert("client_name".to_string(), Value::String("".to_string()));
@@ -51,7 +51,7 @@ pub fn cast_new_client(new_client: Value) -> Result<Client, ProcessResult> {
     expected.insert("max_sub_channels".to_string(), Value::Number(serde_json::Number::from(0)));
     expected.insert("owned_sub_channels_keys".to_string(), Value::Array(vec![]));
 
-    let parsed_new_client = fast_json_comparator(&new_client, &Value::Object(serde_json::Map::from_iter(expected)));
+    let parsed_new_client = fast_json_comparator(&Value::Object(serde_json::Map::from_iter(new_client.clone())), &Value::Object(serde_json::Map::from_iter(expected)));
 
     let verified_client_value: Value = match parsed_new_client {
         Err(e) => match e {

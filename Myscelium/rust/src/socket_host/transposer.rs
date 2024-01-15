@@ -322,8 +322,8 @@ fn process_response_and_schedule(resulttype_command: ProcessResult, mut client_k
         },
         ProcessResult::Empty => response = create_special_command_instruction_response!("C210".to_string()),
         ProcessResult::Error(e) => {
-            logger.warn(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
-            response = error_response!(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
+            logger.warn(format!("An error occurred while converting the callback response. The error was: {:?}", e));
+            response = error_response!(format!("An error occurred while converting the callback response. The error was: {:?}", e));
         },
     }
 
