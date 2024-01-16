@@ -304,12 +304,12 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
             logger.debug("Receive a update client inner command!".to_string());
 
-            if !&command.kwargs.contains_key("actual_client_key") {
+            if !command.kwargs.contains_key("actual_client_key") {
                 logger.warn("Error! Callback response kwargs don't have actual_client_key kwarg!".to_string());
                 return ProcessResult::Error(format!("Error! Callback response kwargs don't have actual_client_key kwarg!"));
             }
 
-            if !&command.kwargs.contains_key("updated_client") {
+            if !command.kwargs.contains_key("updated_client") {
                 logger.warn("ERROR, Error! Callback response kwargs don't have update_client kwarg!".to_string());
                 return ProcessResult::Error(format!("Error! Callback response kwargs don't have update_client kwarg!"));
             }
@@ -322,18 +322,51 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             //> The idea was to send the content of the "updated_client" to the cast_new_client, cast the updated client
             //> and use the current clietn key to get the current client and change it to the new client casted
 
-            let new_client = match cast_new_client(command.kwargs.get("updated_client").unwrap().as_object().unwrap()) {
-                Ok(c) => c,
-                Err(e) => return e,
+            // fn convert(map: &serde_json::Map<String, Value>) -> HashMap<String, Value> {
+            //     map.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+            // }
+
+            // This function now accepts a serde_json::Value that is expected to be a String containing JSON
+            fn convert(value: &Value) -> Result<HashMap<String, Value>, ProcessResult> {
+                if let Value::String(ref json_string) = value {
+                    // Parse the JSON string to a serde_json::Value
+                    match serde_json::from_str::<Value>(&json_string) {
+                        Ok(parsed_json_value) => {
+                            // Convert the serde_json::Value to a HashMap<String, Value>
+                            serde_json::from_value::<HashMap<String, Value>>(parsed_json_value).map_err(|e| ProcessResult::Error(format!("Failed to parse JSON to HashMap: {}", e)))
+                        },
+                        Err(e) => Err(ProcessResult::Error(format!("Failed to parse string to JSON: {}", e))),
+                    }
+                } else {
+                    Err(ProcessResult::Error("Expected a JSON string".to_string()))
+                }
+            }
+
+            println!("command instructions kwargs: {:?}", &command.kwargs);
+
+            let new_client = match command.kwargs.get("updated_client") {
+                Some(map) => {
+                    let converted_map = match convert(map) {
+                        Ok(m) => m,
+                        Err(e) => return e,
+                    };
+                    match cast_new_client(&converted_map) {
+                        Ok(c) => c,
+                        Err(e) => return e,
+                    }
+                },
+                None => {
+                    logger.warn(format!("Error! Kwargs doesn't have the `updated_client` kwargs"));
+                    return ProcessResult::Error(format!("Error! Kwargs doesn't have the `updated_client` kwargs"));
+                },
             };
 
             let old_client = handle_client_error!(Client::get_by_key(&actual_client_key.to_string()));
 
-            let result = old_client.update_to(&new_client); //> It already saves into the database
-
             // TODO >>> Maybe implement a fast result-ype to client if needed
 
-            match result {
+            match old_client.update_to(&new_client) {
+                //> It already saves into the database
                 Ok(_) => {
                     let mut resp_kwargs: HashMap<String, Value> = HashMap::new();
 
