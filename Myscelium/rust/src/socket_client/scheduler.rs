@@ -1,17 +1,24 @@
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
-use crate::common::enhanced_buffer::utilities::{Command, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandType};
+use crate::common::functions::advanced_lockers::smart_lock;
 
 use lazy_static::lazy_static;
 
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
 
-use crate::CLIENT_ID;
-
 use super::client_logger::log_handler::Logger;
 use crate::CLIENT_LOG_LEVEL;
+
+use parking_lot::Mutex;
+
+use std::sync::Arc;
+
+lazy_static! {
+    static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
+}
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
@@ -33,10 +40,18 @@ macro_rules! acquire_logger {
 pub fn set_client_id(client_uid: String) {
     println!("Setting client_id to: {:?}", client_uid.clone());
 
+    // let client_key_storage = &CLIENT_ID;
+    // smart_lock(client_key_storage, |key: &mut String| {
+    //     *key = client_uid;
+    // });
+
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
     {
-        let mut client_id_global = CLIENT_ID.lock();
-        *client_id_global = client_uid.clone();
+        let mut key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
+        *key = client_uid
     }
+    println!("[CLIENT][GLOBAL][Release] -  CLIENT_ID");
 }
 
 /// Requests the available commands that are registered on the host.
@@ -67,29 +82,28 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
 
     logger.debug("Enter Scheduler".to_string());
 
-    let client_id: String = CLIENT_ID.lock().clone();
+    let client_key: String;
 
-    logger.debug(format!("Client id is: {:?}", client_id));
-    let command: Result<String, serde_json::Error> = serde_json::to_string(&command);
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
+    {
+        let key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
+        client_key = key.clone();
+        drop(key)
+    }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_ID");
 
-    let unwraped_command: String;
+    logger.debug(format!("Client id is: {:?}", client_key));
 
     // TODO >>> Add mecanisms to check the structure of the command that we are trying to registry
 
-    match command {
-        Ok(c) => {
-            unwraped_command = c;
-        },
+    let parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
 
-        Err(e) => {
-            logger.exception(format!("An error occured while trying to stringfy the command when sending it to schedule! The error was: {}", e));
-            return;
-        },
-    }
+    let command_instructions = CommandInstructions::from_string_hashmap(command).unwrap();
 
-    let parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_id.clone());
+    let command = Command::new(client_key, parity_id, priority, command_instructions);
 
-    let command_to_schedule: UpCommand = UpCommand::new(client_id, parity_id, priority, unwraped_command);
+    let command_to_schedule: UpCommand = UpCommand::from_command(command);
 
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
 

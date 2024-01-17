@@ -7,12 +7,12 @@ use std::thread;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
-use crate::common::enhanced_buffer::utilities::Command;
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, extract_pyobject};
-use crate::common::structs::results_structs::ResultType;
-
 use crate::common::structs::avaliable_commands::CommandPatterns;
+use crate::common::structs::results_structs::ResultType;
+use serde_json::to_string;
 
 use serde_json::Error;
 
@@ -24,6 +24,7 @@ use std::time::Duration;
 
 use super::host_logger;
 use super::host_logger::log_handler::Logger;
+use super::transposer_functions::handle_direct_function::ProcessResult;
 use crate::HOST_LOG_LEVEL;
 
 use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
@@ -125,17 +126,42 @@ pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, V
 
 // > Transposer:
 
+macro_rules! create_special_command_instruction_response {
+    ($special_command:expr) => {{
+        let new_command_instructions = CommandInstructions::new(
+            CommandMode::Response,
+            CommandType::SpecialFunction,
+            CommandTarget::Origin,
+            CommandStatus::Success,
+            CommandOrigin::Host,
+            $special_command.to_string(),
+            HashMap::new(),
+            "".to_string(),
+        );
+
+        new_command_instructions.to_value_map()
+    }};
+}
+
 macro_rules! error_response {
     ($msg:expr) => {{
-        println!("{:?}", $msg);
-        let mut error_map = HashMap::new();
-        error_map.insert("Error".to_string(), $msg.to_string());
-        serde_json::to_string(&error_map)
+        let new_command_instructions = CommandInstructions::new(
+            CommandMode::Response,
+            CommandType::DirectFunction,
+            CommandTarget::Origin,
+            CommandStatus::Failure,
+            CommandOrigin::Host,
+            "error_handler".to_string(),
+            HashMap::new(),
+            $msg.to_string(),
+        );
+
+        new_command_instructions.to_value_map()
     }};
 }
 
 use crate::socket_host::transposer_functions::handle_direct_function::handle_direct_function;
-use crate::socket_host::transposer_functions::handle_internal_management::handle_internal_management;
+// use crate::socket_host::transposer_functions::handle_internal_management::handle_internal_management;
 use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
 
 /// Processes a map result and generates a response based on the specified mode.
@@ -170,55 +196,54 @@ use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
 /// let (response, client_key) = process_map_result(result_map, &client_key, &down_command);
 /// // Handle the response and client_key as needed
 /// ```
-pub fn process_map_result(m: HashMap<String, ResultType>, client_key: &String, parity_id: String, priority: u8) -> (Result<String, Error>, String) {
+/// // TODO >>> Remake this Doc string!
+pub fn process_map_result(m: &CommandInstructions, client_key: &String, parity_id: &String, priority: &u8, command_id: &Option<u32>) -> (Value, String) {
     let logger = acquire_logger!("Transposer - Process");
-
-    let response: Result<String, Error>;
 
     let mut client_to_send: String = client_key.clone();
 
-    if m.contains_key("response_mode") {
-        let response_mode = m.get("response_mode").unwrap();
+    let response: Value = match &m.target {
+        CommandTarget::Host => {
+            // -> THIS IS DESIGNED TO ALLOW HOST SEND COMMANDS TO ITSELF
 
-        if *response_mode == ResultType::Str("to_origin".to_string()) {
-            let converted_to_value = convert_to_value_map(&m);
-            logger.debug(format!("Converted to Value: {:?}", &converted_to_value));
-            response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-            // Response at this point is like this: Map({
-            //      "command_type":String("function"),
-            //      "response_mode":String("to_origin"),
-            //      "status": String("success"),
-            //      "response_activation_function":String(response_activation_function),
-            //      "message":String(_),
-            //      "kwargs":Map(response)
-            // })
-        } else if *response_mode == ResultType::Str("redirect".to_string()) {
-            logger.debug(format!("Response: {:?}", m));
+            // TODO >>> IMPLEMENT SECURITY EMASURES HERE OR GIVE IT AS A USER RESPONSIBILITY
 
-            let resp = handle_redirect(m, &mut client_to_send, parity_id.clone(), priority.clone());
-            let converted_to_value = convert_to_value_map(&resp);
-            response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-            // Response at this point is like this: Map({
-            //      "command_type":String("function"),
-            //      "response_mode":String("redirect"),
-            //      "status": String("success"),
-            //      "response_activation_function":String(response_activation_function),
-            //      "message":String(_),
-            //      "kwargs":Map(response),
-            //      "redirect_to":String(redirect_to_client_id)
-            //  })
-        } else if *response_mode == ResultType::Str("internal_management".to_string()) {
-            let resp = handle_internal_management(m, &mut client_to_send);
-            let converted_to_value = convert_to_value_map(&resp);
-            response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-        } else {
-            logger.warn("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!".to_string());
-            response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
-        }
-    } else {
-        logger.warn("Error! Callback doesn't implement response mode!".to_string());
-        response = error_response!("Error! Callback doesn't implement response mode!");
-    }
+            // let resp: CommandInstructions = handle_internal_management(&m, &mut client_to_send);
+
+            // -> HANDLE DIRECT FUNCTIONS:
+
+            let mut result: ProcessResult = ProcessResult::Empty;
+
+            if let Some(id) = command_id {
+                result = handle_direct_function(client_key, &m.actf, m.clone(), Some(*id));
+
+                match result {
+                    ProcessResult::CommandInstructions(c) => c.to_value_map(),
+                    ProcessResult::List(l) => {
+                        // TODO >>> Handle this case maybe create a generalized function for all places that uses this
+                        println!("Reeive a unimplemented case in process_map_result!");
+                        create_special_command_instruction_response!("C210".to_string())
+                    },
+                    ProcessResult::Empty => create_special_command_instruction_response!("C210".to_string()),
+                    ProcessResult::Error(e) => {
+                        logger.warn(format!("An error occurred in process_map_result. The error was: {:?}", e));
+                        error_response!(format!("An error occurred in process_map_result. The error was: {:?}", e))
+                    },
+                }
+            } else {
+                logger.warn(format!("An error occurred in process_map_result. The error was: this cases require command_id to be some and not none"));
+                error_response!(format!("An error occurred in process_map_result. The error was: this cases require command_id to be some and not none"))
+            }
+        },
+        CommandTarget::Origin => m.to_value_map(),
+        CommandTarget::ClientKey(key) => {
+            // TODO >>> Implement the handle redirect
+            let resp: CommandInstructions = handle_redirect(&m, &mut client_to_send, parity_id.clone(), priority.clone());
+            resp.to_value_map()
+        },
+    };
+
+    logger.debug(format!("Converted to Value: {:?}", &response));
 
     return (response, client_to_send);
 }
@@ -247,57 +272,45 @@ pub fn process_map_result(m: HashMap<String, ResultType>, client_key: &String, p
 /// let resulttype_command = ResultType::Map(...); // Construct a ResultType::Map
 /// let mut client_key = "client123".to_string();
 /// let down_command = DownCommand::new(...); // Construct a DownCommand
-/// process_and_schedule(resulttype_command, client_key, down_command);
+/// process_response_and_schedule(resulttype_command, client_key, down_command);
 /// ```
-fn process_and_schedule(resulttype_command: ResultType, mut client_key: String, down_command: DownCommand) {
+// TODO >>> Remake this doc string
+fn process_response_and_schedule(resulttype_command: ProcessResult, mut client_key: String, parity_id: &String, priority: &u8, command_id: u32) {
     let logger = acquire_logger!("Transposer - Process");
 
-    let command_id: u32 = down_command.command_id.clone().unwrap();
-
-    let response: Result<String, Error>;
+    let response: Value; // Errors are attached in the response and sent in the same way
 
     let mut client_to_send_back: String;
 
+    // TODO >>> Change from ResultType to ProcessResult
+
     match resulttype_command {
         // TODO >>> Implement change of response here
-        ResultType::Map(m) => {
-            (response, client_key) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
+        ProcessResult::CommandInstructions(m) => {
+            (response, client_key) = process_map_result(&m, &client_key, parity_id, priority, &Some(command_id));
         },
-        ResultType::Str(s) => {
-            response = Ok(s.clone());
-        },
-        ResultType::Int(i) => {
-            response = Ok(i.to_string());
-        },
-        ResultType::Float(fl) => {
-            response = Ok(fl.to_string());
-        },
-        ResultType::Bool(b) => {
-            response = Ok(b.to_string());
-        },
-        ResultType::List(l) => {
+        ProcessResult::List(l) => {
             let mut counter: u64 = 0;
             for res in l {
                 match res {
-                    ResultType::Map(m) => {
+                    ProcessResult::CommandInstructions(m) => {
                         if counter == 0 {
-                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
-                            let up_command = UpCommand::new(client_to_send_back, down_command.parity_id.clone(), down_command.priority.clone(), processed_resp.unwrap());
+                            let (processed_resp, client_to_send_back) = process_map_result(&m, &client_key, parity_id, priority, &Some(command_id));
+                            let up_command = UpCommand::new(&client_to_send_back, &parity_id, priority.clone(), &to_string(&processed_resp).unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         } else {
+                            // -> Send to clients based in the target id
                             // -> Gen 20 digits parity id based on client
                             let special_parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_special_parity_id(&client_key);
 
-                            let (processed_resp, client_to_send_back) = process_map_result(m, &client_key, down_command.parity_id.clone(), down_command.priority.clone());
-                            let up_command = UpCommand::new(client_to_send_back, special_parity_id, down_command.priority.clone(), processed_resp.unwrap());
+                            let (processed_resp, client_to_send_back) = process_map_result(&m, &client_key, parity_id, priority, &Some(command_id));
+                            let up_command = UpCommand::new(&client_to_send_back, &special_parity_id, priority.clone(), &to_string(&processed_resp).unwrap());
                             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         }
-
-                        counter += 1;
                     },
                     _ => {
-                        response = error_response!("Error! Received a list, but expected a map!");
-                        let up_command = UpCommand::new(client_key, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
+                        response = error_response!(format!("Error! Receive {:?} when expecting a Command_Instruction!", res));
+                        let up_command = UpCommand::new(&client_key, &parity_id, priority.clone(), &to_string(&response).unwrap());
                         enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                         break;
                     },
@@ -307,24 +320,19 @@ fn process_and_schedule(resulttype_command: ResultType, mut client_key: String, 
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
             return;
         },
-        ResultType::Empty => {
-            let mut command_map = HashMap::new();
-            command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-            command_map.insert("function".to_string(), Value::String("C210".to_string()));
-            response = Ok(serde_json::to_string(&command_map).unwrap());
-        },
-        ResultType::Error(e) => {
-            logger.warn(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
-            response = error_response!(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
+        ProcessResult::Empty => response = create_special_command_instruction_response!("C210".to_string()),
+        ProcessResult::Error(e) => {
+            logger.warn(format!("An error occurred while converting the callback response. The error was: {:?}", e));
+            response = error_response!(format!("An error occurred while converting the callback response. The error was: {:?}", e));
         },
     }
 
     // TODO >>> Made a better handler to the response errors
 
     logger.debug(format!("Function returned: {:?}", response));
-    logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
+    logger.info(format!("Command: {:?}, processed!", parity_id.clone()));
 
-    let up_command = UpCommand::new(client_key, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
+    let up_command = UpCommand::new(&client_key, &parity_id, priority.clone(), &to_string(&response).unwrap());
 
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 }
@@ -405,35 +413,36 @@ fn process(py: Python, down_command: DownCommand) {
     // * however if the message is becomes too old before the client the message is redirected catches it
     // * The system have to remove this old message from the buffer too.
 
-    let translated_command: Command = Command::from_down_command(down_command.clone());
+    let translated_command: Command = match Command::from_down_command(&down_command) {
+        Ok(c) => c,
+        Err(_) => {
+            // TODO >>> handle this erro case
+            println!("Error converting COMMAND from down_command.");
+            logger.warn(format!("Error converting COMMAND from down_command."));
+            return;
+        },
+    };
 
     logger.debug(format!("Translated command: {:?}", translated_command));
 
-    let function;
+    // TODO >>> Add a direct way to verify if it is a direct function by use the command.commandinstruction.commandtype
+    let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref", "add_client", "update_client", "remove_client"]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
 
-    {
-        function = match translated_command.command.get("function") {
-            Some(Value::String(function)) => function,
-            _ => {
-                logger.warn(format!("The function name is not found or not a string."));
-                return;
-            },
-        };
-    }
+    let result: ProcessResult;
 
-    let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref"].into_iter().map(|s| s.to_string()).collect();
-
-    let result;
-
-    if direct_functions.contains(&function) {
-        // -> Default Rust direct function
-        result = handle_direct_function(&translated_command.client_key, function, translated_command.command.clone(), command_id);
+    if direct_functions.contains(&translated_command.command.actf) {
+        // -> HANDLE DIRECT FUNCTIONS:
+        result = handle_direct_function(&translated_command.client_key, &translated_command.command.actf, translated_command.command.clone(), Some(command_id));
     } else {
+        // -> VERIFY IF THE COMMAND EXIST:
         {
             let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
 
             // -> Remove command from schedule if it isn't on the patterns
-            if !global_command_patterns.command_exists("host", &function) {
+            if !global_command_patterns.command_exists("host", &translated_command.command.actf) {
                 // TODO >>> Add a mecanism to check if the command exist for the target client
                 // TODO >>> Also adda mecanism to commands have a target by default, and if target is host then target is host
                 logger.warn(format!("Command isn't registered in the patterns"));
@@ -443,7 +452,7 @@ fn process(py: Python, down_command: DownCommand) {
             }
         }
 
-        // -> Default Python function
+        // -> CALL PYTHON CALLBACK:
         let response;
 
         {
@@ -451,13 +460,32 @@ fn process(py: Python, down_command: DownCommand) {
             response = call_callback(py, translated_command.clone(), callback_patterns);
         }
 
+        // -> PROCESS CALLBACK RESPONSE:
         result = match response {
-            Ok(r) => extract_pyobject(py, r),
+            Ok(r) => {
+                let value: Value = extract_pyobject(py, r);
+
+                println!("Value map extracted from callback response: {:?}", value);
+
+                // Check if the Value is an object and convert it to HashMap
+                if let Some(obj) = value.as_object() {
+                    match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
+                        Ok(c) => ProcessResult::CommandInstructions(c),
+                        Err(e) => {
+                            // TODO >>> Handle this error case
+                            ProcessResult::Error("callback return a non valid response!".to_string())
+                        },
+                    }
+                } else {
+                    // TODO >>> Handle this error case
+                    ProcessResult::Error("The value is not a JSON object!".to_string())
+                }
+            },
             Err(e) => {
                 // Handle the error or log it
                 logger.exception(format!("Python error: {:?}", e));
                 // You can return a default value or propagate the error further
-                ResultType::Error(format!("{:?}", e))
+                ProcessResult::Error(format!("{:?}", e))
             },
         };
     }
@@ -466,7 +494,11 @@ fn process(py: Python, down_command: DownCommand) {
 
     let client_key = down_command.client_key.clone();
 
-    process_and_schedule(result, client_key, down_command);
+    if let Some(c_id) = down_command.command_id {
+        process_response_and_schedule(result, client_key, &down_command.parity_id, &down_command.priority, c_id);
+    } else {
+        logger.warn("Can't process a command that doesn't have command id".to_string())
+    }
 
     enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 }

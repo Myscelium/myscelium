@@ -180,18 +180,18 @@ pub fn convert_value_map_to_resulttype_map(map: &HashMap<String, Value>) -> Resu
 /// # Returns
 ///
 /// * A `Command` structure with any nested serialized commands also deserialized.
-pub fn recursive_deserialize_command(json_str: &str) -> Command {
-    let mut command: Command = serde_json::from_str(json_str).unwrap();
+// pub fn recursive_deserialize_command(json_str: &str) -> Command {
+//     let mut command: Command = serde_json::from_str(json_str).unwrap();
 
-    if let Some(response) = &command.command.get("response") {
-        if let Value::String(inner_json) = response {
-            let inner_command = recursive_deserialize_command(inner_json);
-            command.command.insert("response".to_string(), serde_json::to_value(inner_command).unwrap());
-        }
-    }
+//     if let Some(response) = &command.command.get("response") {
+//         if let Value::String(inner_json) = response {
+//             let inner_command = recursive_deserialize_command(inner_json);
+//             command.command.insert("response".to_string(), serde_json::to_value(inner_command).unwrap());
+//         }
+//     }
 
-    command
-}
+//     command
+// }
 
 /// Converts a reference to a `serde_json::Map<String, Value>` into a `HashMap<String, Value>`.
 ///

@@ -60,7 +60,7 @@ if option == 'Test Results Visualization':
         fig, ax = plt.subplots(figsize=(8, 5))  # Adjust width and height as needed
         
         # Line plot for 'TestSpeed' over 'Time', separated by 'TestName'
-        lineplot = sns.lineplot(x='Time', y='TestSpeed', hue='TestName', data=filtered_df, ci=None, marker="o", palette="tab10")
+        lineplot = sns.lineplot(x='Time', y='TestSpeed', hue='TestName', data=filtered_df, errorbar=None, marker="o", palette="tab10")
 
         # Get unique test names
         test_names = filtered_df['TestName'].unique()
@@ -109,7 +109,7 @@ if option == 'Test Results Visualization':
         fig, ax = plt.subplots(figsize=(8, 5))  # Adjust width and height as needed
         
         # Line plot for average 'CommunicationSpeed' over 'Time', separated by 'TestName'
-        lineplot = sns.lineplot(x='Time', y='CommunicationSpeed', hue='TestName', data=avg_comm_speed, ci=None, marker="o", palette="tab10")
+        lineplot = sns.lineplot(x='Time', y='CommunicationSpeed', hue='TestName', data=avg_comm_speed, errorbar=None, marker="o", palette="tab10")
 
         # Get unique test names
         test_names = avg_comm_speed['TestName'].unique()

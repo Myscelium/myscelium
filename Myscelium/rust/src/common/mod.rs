@@ -1,3 +1,4 @@
+pub mod communication;
 pub mod custom_thread_pool;
 pub mod enhanced_buffer;
 pub mod functions;

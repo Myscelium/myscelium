@@ -1,13 +1,15 @@
+use crate::common::communication::decoders::read_json_from_stream;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 
-use crate::common::enhanced_buffer::utilities::{Command, CommandType};
-
+use crate::common::enhanced_buffer::utilities::{Command, CommandError, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
 use std::sync::{mpsc, Arc};
 use std::thread;
+
+use serde_json::to_string;
 
 use crate::common::functions::converters::value_to_resulttype;
 
@@ -31,23 +33,24 @@ use crate::CLIENT_NODE_NAME;
 
 use parking_lot::Mutex;
 use std::sync;
-
-use crate::common::functions::advanced_lockers::smart_lock;
+// use std::sync::Mutex;
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let client_log_level;
         {
-            client_log_level = CLIENT_LOG_LEVEL.lock().clone();
+            let log_level = CLIENT_LOG_LEVEL.lock().clone();
+            client_log_level = log_level.clone();
         }
         Logger::new(client_log_level, $section_name)
     }};
 }
 
 use crate::common::structs::avaliable_commands::CommandPatterns;
+// use crate::CLIENT_ID;
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Arc<sync::Mutex<CommandPatterns>> = Arc::new(sync::Mutex::new(CommandPatterns::new()));
+    pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
     static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
             "get_symbols_data": {
@@ -86,12 +89,23 @@ lazy_static! {
 /// # Arguments
 /// - `callbacks_patterns`: A `HashMap` containing the desired command patterns.
 pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
-    let client_name = CLIENT_NODE_NAME.lock().clone();
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
+        let client_name = CLIENT_NODE_NAME.lock().clone();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
 
-    let command_patterns = &COMMAND_PATTERNS;
-    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
-        patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
-    });
+        {
+            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+            let mut command_patterns = COMMAND_PATTERNS.lock();
+            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+
+            {
+                command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
+            }
+            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+        }
+    }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
 }
 
 use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
@@ -142,11 +156,16 @@ pub fn initialize_client_buffer(buffer_location: String) {
 /// # Returns
 /// - A `HashMap` containing the available command patterns.
 pub fn get_available_handlers_registered() -> HashMap<String, Value> {
-    let mut global_command_patterns: HashMap<String, Value> = HashMap::new();
-    let command_patterns = &COMMAND_PATTERNS;
-    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| {
-        global_command_patterns = patterns.extract_all_commands();
-    });
+    let global_command_patterns: HashMap<String, Value>;
+
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+        let command_patterns = COMMAND_PATTERNS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+        global_command_patterns = command_patterns.extract_all_commands().clone();
+    }
+    println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+
     return global_command_patterns;
 }
 
@@ -167,25 +186,61 @@ pub fn get_available_handlers_registered() -> HashMap<String, Value> {
 /// Variants:
 /// - `Command`: Represents a valid command response from the server.
 /// - `None`: Represents an absence of response or an invalid response.
+
+#[derive(Debug)]
 enum Response {
     Command(Command),
     None,
 }
 
+// macro_rules! create_error_command {
+//     ($client_key:expr, $parity_id:expr, $error:expr) => {{
+//         let mut command_map = HashMap::new();
+
+//         let kwargs: HashMap<String, Value> = HashMap::new();
+
+//         command_map.insert("mode".to_string(), Value::String("function".to_string()));
+//         command_map.insert("command_type".to_string(), Value::String("direct_function".to_string()));
+//         command_map.insert("target".to_string(), Value::String("origin".to_string()));
+//         command_map.insert("status".to_string(), Value::String("failure".to_string()));
+//         command_map.insert("actf".to_string(), Value::String("error_handler".to_string()));
+//         command_map.insert("kwargs".to_string(), serde_json::to_value(&kwargs).unwrap());
+//         command_map.insert("message".to_string(), Value::String($error.to_string()));
+
+//         // TODO >>> Change this for the descriptive form!
+
+//         let command_instructions: CommandInstructions = CommandInstructions::from_value_map(command_map).unwrap();
+
+//         let command = Command {
+//             client_key: $client_key.to_string(),
+//             parity_id: $parity_id.to_string(),
+//             priority: 11,
+//             command: command_instructions,
+//         };
+//         command
+//     }};
+// }
+
 macro_rules! create_special_command {
-    ($code:expr) => {{
-        use std::collections::HashMap;
+    ($client_key:expr, $command_mode:expr, $special_command:expr) => {{
+        let command_instructions = CommandInstructions::new(
+            $command_mode,
+            CommandType::SpecialFunction,
+            CommandTarget::Host,
+            CommandStatus::Success,
+            CommandOrigin::ClientKey($client_key.clone()),
+            $special_command.to_string(),
+            HashMap::new(),
+            "".to_string(),
+        );
 
-        let mut command_map = HashMap::new();
-        command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-        command_map.insert("function".to_string(), Value::String($code.to_string()));
-
-        Command {
-            client_key: "some_client_id".to_string(),
+        let command = Command {
+            client_key: $client_key.clone().to_string(),
             parity_id: "itisaspecialcase".to_string(),
             priority: 11,
-            command: command_map,
-        }
+            command: command_instructions,
+        };
+        command
     }};
 }
 
@@ -203,37 +258,97 @@ macro_rules! create_special_command {
 ///
 /// # Behavior
 /// - The function logs any unexpected responses or errors.
-fn verify_connection(stream: &mut TcpStream) -> bool {
+fn verify_connection(stream: &mut TcpStream, client_key: &String) -> bool {
     let logger = acquire_logger!("Core");
 
-    let command = create_special_command!("C202");
+    let command = create_special_command!(client_key.clone(), CommandMode::Function, "C202");
 
-    let command_json = json!(command).to_string();
+    println!("\nTry to verify connection!");
 
-    stream.write_all(command_json.as_bytes()).unwrap();
+    {
+        let command_response_json = json!(command).to_string();
+        let data_size = command_response_json.len() as u32;
+        let size_buffer = data_size.to_be_bytes();
 
-    let mut buffer = [0; 4096];
-    stream.read(&mut buffer).unwrap();
+        // Send the size of the data
+        match stream.write(&size_buffer) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("Error sending data lenght to client: {:?}, the error was:  {:?}", command.client_key, e);
+            },
+        };
 
-    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+        println!("Data lenght: {:?}", data_size);
+
+        // Send the actual data
+        match stream.write(command_response_json.as_bytes()) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("Error sending data to host: {:?} the error was: {:?}", command.client_key, e);
+            },
+        };
+
+        println!("Connection verification sended!");
+    }
+
+    let mut size_buffer = [0; 4];
+
+    // Read the size of the incoming data
+    let data_size = match stream.read_exact(&mut size_buffer) {
+        Ok(_) => u32::from_be_bytes(size_buffer) as usize,
+        Err(e) => {
+            eprintln!("Failed to read from the stream: {:?}", e);
+            // Handle the error, e.g., by returning from the function or taking corrective action
+            return false; // or handle differently
+        },
+    };
+
+    println!("Confirmation data received!");
+
+    if data_size > MAX_DATA_SIZE {
+        logger.exception(format!("Data size too large: {}", data_size));
+        return false; // TODO >>> Close connection or handle appropriately
+    }
+
+    // Allocate a buffer of the appropriate size
+    let mut data_buffer = vec![0; data_size];
+
+    let buffer_string = match stream.read_exact(&mut data_buffer) {
+        Ok(_) => String::from_utf8_lossy(&data_buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string(),
+        Err(e) => {
+            eprintln!("Failed to read from the stream: {:?}", e);
+            // Handle the error, e.g., by returning from the function or taking corrective action
+            return false; // or handle differently
+        },
+    };
+
+    println!("Confirmation data decoded!");
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
-    logger.debug(format!("{:?}", command));
+    logger.debug(format!("Received: {:?}", command));
 
-    match command.command.get("function") {
-        Some(Value::String(function)) => {
-            if function == "C200" {
-                return true;
-            } else {
-                return false;
-            }
-        },
-        _ => {
-            logger.warn(format!("The function name is not found or not a string."));
-            return false;
-        },
+    if command.command.actf == "C200" {
+        println!("Connected!\n");
+        return true;
+    } else {
+        println!("Error in connection verification, not connected!\n");
+        return false;
     }
+
+    // logger.warn(format!("The function name is not found or not a string."));
+}
+
+const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
+
+// Define a custom error type for stream-related errors
+#[derive(Debug)]
+pub enum StreamError {
+    WriteError(std::io::Error),
+    WriteSizeError(std::io::Error),
+    ConnectionClosed,
+    ReadSizeError(std::io::Error),
+    ReadDataError(std::io::Error),
 }
 
 /// Sends a command to the server and waits for a response.
@@ -250,30 +365,105 @@ fn verify_connection(stream: &mut TcpStream) -> bool {
 ///
 /// # Behavior
 /// - If the connection is not verified, the function logs the event and returns `Response::None`.
-fn send(stream: &mut TcpStream, command: Command) -> Response {
+fn send(stream: &mut TcpStream, command: &Command) -> Result<Response, StreamError> {
     let logger = acquire_logger!("Core");
 
-    let conn: bool = verify_connection(stream);
+    println!("Sending: {:?}", command);
 
-    if !conn {
-        logger.info(format!("Not connected!"));
-        return Response::None;
+    // {
+    //     let conn: bool = verify_connection(stream, &command.client_key);
+    //     if !conn {
+    //         logger.info(format!("Not connected!"));
+    //         return Response::None;
+    //     }
+    // }
+
+    {
+        let command_response_json = json!(command).to_string();
+        let data_size = command_response_json.len() as u32;
+        let size_buffer = data_size.to_be_bytes();
+
+        // Send the size of the data
+        match stream.write(&size_buffer) {
+            Ok(_) => {},
+            Err(e) => {
+                return Err(StreamError::WriteSizeError(e));
+            },
+        };
+
+        println!("Data lenght: {:?}", size_buffer);
+
+        // Send the actual data
+        match stream.write(command_response_json.as_bytes()) {
+            Ok(_) => {},
+            Err(e) => {
+                return Err(StreamError::WriteError(e));
+            },
+        };
+
+        println!("Data sended!")
     }
 
-    let command_json = json!(command).to_string();
+    let mut size_buffer = [0; 4];
 
-    stream.write_all(command_json.as_bytes()).unwrap();
+    // Read the size of the incoming data
+    let data_size = match stream.read_exact(&mut size_buffer) {
+        Ok(_) => u32::from_be_bytes(size_buffer) as usize,
+        Err(e) => {
+            return Err(StreamError::ReadSizeError(e));
+        },
+    };
 
-    let mut buffer = [0; 4096];
-    stream.read(&mut buffer).unwrap();
+    println!("Receive incomming data lenght: {}", data_size);
 
-    let buffer_string = String::from_utf8_lossy(&buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string();
+    if data_size > MAX_DATA_SIZE {
+        logger.exception(format!("Received data size does not match expected size: {} max bytes expected, {} bytes received", MAX_DATA_SIZE, data_size));
+        return Err(StreamError::ConnectionClosed); // TODO >>> Close connection or handle appropriately
+    }
+
+    println!("Data isn't greather than leght limit!");
+
+    // Allocate a buffer of the appropriate size
+    let mut data_buffer = vec![0; data_size];
+
+    let buffer_string = match stream.read_exact(&mut data_buffer) {
+        Ok(_) => String::from_utf8_lossy(&data_buffer).trim_end_matches(|c| c == '\n' || c == '\r' || c == '\0').to_string(),
+        Err(e) => {
+            return Err(StreamError::ReadDataError(e));
+        },
+    };
+    println!("Received binary data");
+
+    // let command: Command = match read_json_from_stream(&mut stream) {
+    //     Ok(command) => {
+    //         // Process the command
+    //         println!("Received command: {:?}", command);
+    //         command
+    //     },
+    //     Err(e) => {
+    //         if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+    //             // Handle IO-specific errors
+    //             eprintln!("IO error occurred: {}", io_err);
+    //             return Response::None;
+    //         } else if let Some(json_err) = e.downcast_ref::<serde_json::Error>() {
+    //             // Handle JSON-specific errors
+    //             eprintln!("JSON parsing error: {}", json_err);
+    //             return Response::None;
+    //         } else {
+    //             // Handle other errors
+    //             eprintln!("An error occurred: {}", e);
+    //             return Response::None;
+    //         }
+    //     },
+    // };
 
     let command: Command = serde_json::from_str(&buffer_string).unwrap();
 
+    println!("Data received: {:?}\n", command);
+
     logger.debug(format!("Received: {:?}", command));
 
-    return Response::Command(command);
+    return Ok(Response::Command(command));
 }
 
 /// Sends a ping request to the server.
@@ -289,34 +479,89 @@ fn send(stream: &mut TcpStream, command: Command) -> Response {
 ///
 /// # Behavior
 /// - If the `CLIENT_IS_RUNNING` global flag is set to false, the function will immediately return `None`.
-pub fn send_ping(mut stream: &mut TcpStream) -> Option<DownCommand> {
-    if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
-        return None;
+pub fn send_ping(stream: &mut TcpStream, client_key: &String) -> Result<Option<DownCommand>, StreamError> {
+    let command_to_request = create_special_command!(client_key, CommandMode::Function, "C206");
+
+    println!("Create C206 ping request: {:?}", command_to_request);
+
+    let received: Response = send(stream, &command_to_request)?;
+
+    println!("Received response: {:?}", received);
+
+    match received {
+        Response::Command(c) => {
+            match c.command.status {
+                CommandStatus::Failure => {
+                    println!("\nAn error occurred in host, the error was: {}\n", c.command.message);
+                    CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                    return Ok(None);
+                },
+                CommandStatus::Success => {},
+            }
+
+            match c.command_type() {
+                CommandType::SpecialFunction => {
+                    if c.command.actf == "C207" {
+                        println!("Receive ping response pong conf!");
+                        return Ok(None);
+                    };
+                    if c.parity_id != "itisaspecialcase" {
+                        if c.command.actf == "C210".to_string() {
+                            println!("Received Confirmation! Removing command {} of client: {} from buffer up", c.parity_id, c.client_key);
+                            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&c.client_key, &c.parity_id);
+                            return Ok(None);
+                        }
+                    }
+                },
+                _ => {},
+            }
+            let down_command: DownCommand = DownCommand::from_command(c);
+            return Ok(Some(down_command));
+        },
+        Response::None => {
+            return Ok(None);
+        },
     }
 
-    let command_to_request = create_special_command!("C206");
-    let received = send(&mut stream, command_to_request.clone());
+    // match handle_response(&received) {
+    //     Received::DownCommand(down_command) => return Some(down_command),
+    //     Received::Confirmation => {
+    //         println!("Receive confirmation C210");
+    //         return None;
+    //     },
+    //     Received::PingResponse => {
+    //         println!("Receive ping response!");
+    //         return None;
+    //     },
+    //     Received::Error(e) => {
+    //         println!("Error when processing response received after ping: {:?}", e);
 
-    match handle_response(received) {
-        Received::DownCommand(down_command) => return Some(down_command),
-        Received::Confirmation => {
-            return None;
-        },
-        Received::Error(e) => {
-            //TODO >>> Add the mechanism to stop the client if received a error
-            return None;
-        },
-        Received::Nothing => {
-            return None;
-        },
-    }
+    //         //TODO >>> Add the mechanism to stop the client if received a error
+    //         return None;
+    //     },
+    //     Received::Nothing => {
+    //         println!("Response is none!");
+    //         return None;
+    //     },
+    // }
 }
 
-pub enum Received {
-    DownCommand(DownCommand),
-    Confirmation,
-    Nothing,
-    Error(String),
+// pub enum Received {
+//     DownCommand(DownCommand),
+//     Confirmation,
+//     PingResponse,
+//     Nothing,
+//     Error(String),
+// }
+
+pub fn set_client_uid(client_key: String) {
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
+        let mut c_uid = CLIENT_ID.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
+        *c_uid = client_key
+    }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_ID");
 }
 
 /// Handles the received response from the server and processes it accordingly.
@@ -344,147 +589,55 @@ pub enum Received {
 /// # Notes
 /// - This function uses the `COMMAND_PATTERNS` global lock to access and modify the command patterns.
 /// - The function also accesses the `CLIENT_IS_RUNNING` global flag to control the client's running state.
-fn handle_response(received: Response) -> Received {
-    let logger = acquire_logger!("Core");
+// fn handle_response(received: &Response) -> Received {
+//     let logger = acquire_logger!("Core");
 
-    let command_received;
+//     let command_received;
 
-    match received {
-        Response::None => {
-            logger.warn(format!("Received invalid data!"));
-            return Received::Nothing;
-        },
-        Response::Command(c) => {
-            logger.debug(format!("\nReceived command: {:?}", c));
-            command_received = c;
-        },
-    }
+//     match received {
+//         Response::None => {
+//             logger.warn(format!("Received invalid data!"));
+//             return Received::Nothing;
+//         },
+//         Response::Command(c) => {
+//             logger.debug(format!("\nReceived command: {:?}", c));
+//             command_received = c;
+//         },
+//     }
 
-    match command_received.command_type() {
-        CommandType::Function(f) => {
-            // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
-            // > Also we can use a similar system to sync multiple hosts
+//     match command_received.command.mode {
+//         CommandMode::Function => {},
+//     }
 
-            logger.info(format!("[Socket Client] - Received a function!:\n {:?}", f));
+//     match command_received.command.command_type {
+//         CommandType::Default => {
+//             // > Also we can use a similar system to sync multiple hosts
+//             logger.info(format!("[Socket Client] - Received a function!:\n {:?}", command_received.command.actf));
+//             return Received::DownCommand(DownCommand::from_command(command_received.clone()));
+//         },
 
-            // match serde_json::from_value::<String>(f) {
-            //     Ok(function) => {
-            //         if function == "Error" {
-            //             // TODO >>> See if this is necessary to maintain since the errors now are pretended to be redirected
-            //             let val = Value::String("Unknown error".to_string());
-            //             let error_msg = command_received.command.get("Error").unwrap_or(&val);
-            //             logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
-            //             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-            //             CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-            //             return None;
-            //         } // Optionally handle other string cases here...
-            //     },
-            //     Err(_) => {
-            //         // This block will execute if the JSON is not a string.
-            //         // Just continue, without doing anything.
-            //     },
-            // }
+//         CommandType::DirectFunction => {
+//             // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
+//             // > Also we can use a similar system to sync multiple hosts
+//             logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", command_received.command.actf));
+//             return Received::DownCommand(DownCommand::from_command(command_received.clone()));
+//         },
 
-            let down_command = DownCommand::from_command(command_received.clone());
+//         CommandType::InternalManagement => {
+//             return Received::Nothing;
+//         },
 
-            return Received::DownCommand(down_command);
-        },
+//         CommandType::SpecialFunction => {
+//             logger.debug(format!("Receive a unknow special function: {:?}", command_received.command.actf));
+//             return Received::Nothing;
+//         },
 
-        CommandType::DirectFunction(df) => {
-            // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
-            // > Also we can use a similar system to sync multiple hosts
-
-            logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", df));
-
-            // match serde_json::from_value::<String>(f) {
-            //     Ok(function) => {
-            //         if function == "Error" {
-            //             // TODO >>> See if this is necessary to maintain since the errors now are pretended to be redirected
-            //             let val = Value::String("Unknown error".to_string());
-            //             let error_msg = command_received.command.get("Error").unwrap_or(&val);
-            //             logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg));
-            //             enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-            //             CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-            //             return None;
-            //         } // Optionally handle other string cases here...
-            //     },
-            //     Err(_) => {
-            //         // This block will execute if the JSON is not a string.
-            //         // Just continue, without doing anything.
-            //     },
-            // }
-
-            let down_command = DownCommand::from_command(command_received.clone());
-
-            return Received::DownCommand(down_command);
-        },
-
-        CommandType::SpecialFunction(f) => {
-            let function: String = serde_json::from_value(f.clone()).unwrap();
-
-            if command_received.parity_id != "itisaspecialcase" {
-                if function == "C210".to_string() {
-                    logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", command_received.parity_id, command_received.client_key));
-                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-                    return Received::Confirmation;
-                } else if function == "Error".to_string() {
-                    logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("Error").unwrap()));
-                    enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-                    CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                    return Received::Error("".to_string());
-                }
-            }
-
-            logger.debug(format!("Receive a special function: {:?}", f));
-            return Received::Nothing;
-        },
-
-        CommandType::Response(r) => {
-            //* From now this is basically equal to response
-            logger.info(format!("[Socket Client] - Received a response!: \n{:?}", r));
-
-            let status = serde_json::from_value::<String>(r.get("status").unwrap().clone()).unwrap();
-
-            // if status == "error".to_string() {
-            //     let val = Value::String("Unknown error".to_string());
-            //     let error_msg = command_received.command.get("message").unwrap_or(&val);
-            //     logger.exception(format!("\nAn error occurred in host, the error was: {}\n", serde_json::from_value::<String>(error_msg.clone()).unwrap()));
-            //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-            //     CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-            //     return None;
-            // }
-
-            let down_command = DownCommand::from_command(command_received.clone());
-
-            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-
-            return Received::DownCommand(down_command);
-        },
-
-        CommandType::Error(_) => {
-            logger.exception(format!("\nAn error occurred in host, the error was: {}\n", command_received.command.get("message").unwrap()));
-            // CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-
-            // return None;
-
-            let down_command = DownCommand::from_command(command_received.clone());
-
-            enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(command_received.client_key, command_received.parity_id);
-
-            return Received::DownCommand(down_command);
-        },
-
-        CommandType::Redirect(_) => {
-            logger.warn(format!("Received an Unknown command!"));
-            return Received::Nothing;
-        },
-
-        CommandType::Unknown => {
-            logger.warn(format!("Received an Unknown command!"));
-            return Received::Nothing;
-        },
-    }
-}
+//         _ => {
+//             logger.warn(format!("Received an Unknown command!"));
+//             return Received::Nothing;
+//         },
+//     }
+// }
 
 /// Initializes the client and sets up communication with the specified server address.
 ///
@@ -494,7 +647,7 @@ fn handle_response(received: Response) -> Received {
 ///
 /// # Arguments
 /// - `address`: The server address to connect to, in the format "ip:port".
-/// - `client_id`: A unique identifier for the client, used for communication purposes.
+/// - `client_key`: A unique identifier for the client, used for communication purposes.
 ///
 /// # How it works
 /// 1. The function first spawns a background thread that checks for deadlocks every 5 seconds.
@@ -513,10 +666,8 @@ fn handle_response(received: Response) -> Received {
 /// - The client sends a ping to the server when there are no commands in the schedule.
 /// - The client will wait for 200 milliseconds between retries if a command's response is not received.
 /// - The client will continue to check for scheduled commands as long as `CLIENT_IS_RUNNING` is true.
-pub fn initialize_client(address: String, client_id: String) {
+pub fn initialize_client(address: String) {
     // Create a global Mutex for demonstration
-    let mutex1 = Mutex::new(0);
-    let mutex2 = Mutex::new(0);
 
     // Spawn a thread to periodically check for deadlocks
     thread::spawn(|| {
@@ -540,60 +691,262 @@ pub fn initialize_client(address: String, client_id: String) {
 
     let logger = acquire_logger!("Core");
 
-    let mut stream = TcpStream::connect(address.clone()).unwrap();
+    let mut stream = TcpStream::connect(&address).unwrap();
+    stream.set_read_timeout(Some(Duration::new(15, 0))).unwrap();
 
     // Here need to send the new handlers to host
     // then receive the host handlers
 
-    logger.info(format!("Connected to {:?}!", address.clone()).to_string());
+    logger.info(format!("Connected to {:?}!", &address).to_string());
 
     thread::sleep(Duration::from_millis(200));
 
+    let client_key: String;
+
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
+    {
+        let c_uid = CLIENT_ID.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
+
+        client_key = c_uid.clone()
+    }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_ID");
+
     loop {
+        println!("Client status: {:?}", CLIENT_IS_RUNNING.load(Ordering::SeqCst));
+
         if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
             logger.info(format!("running is set to false, shutdown socket client main process!"));
             break;
         }
 
+        // if !client_key_was_seted {
+        //     let mut client_key: String = " ".to_string();
+
+        //     let client_key_storage = &CLIENT_ID;
+        //     smart_lock(&*client_key_storage, |key: &mut String| {
+        //         client_key = key.clone();
+        //     });
+
+        //     // TODO >>> Maybe add a mechanism taht when this is seted it don't verify again to reduce complexity, maybe a boolean
+
+        //     if client_key == " " {
+        //         // Whait untill client id was seted!
+        //         thread::sleep(Duration::from_millis(200));
+        //         continue;
+        //     } else {
+        //         client_key_was_seted = true;
+        //     }
+        // }
+
         let up_schedule = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule();
 
-        if !(up_schedule.len() > 0) {
-            if let Some(down_command) = send_ping(&mut stream) {
-                enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
+        let up_schdule_len = up_schedule.len();
+
+        if !(up_schdule_len > 0) {
+            let option_down_command: Option<DownCommand> = match send_ping(&mut stream, &client_key) {
+                Ok(d) => d,
+                Err(e) => match e {
+                    StreamError::ConnectionClosed => {
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                    StreamError::WriteError(e) => {
+                        println!("[CLIENT][SOCKET][WRITE ERROR] - {:?}", e);
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                    StreamError::WriteSizeError(e) => {
+                        println!("[CLIENT][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                    StreamError::ReadSizeError(e) => {
+                        println!("[CLIENT][SOCKET][READ SIZE ERROR] - {:?}", e);
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                    StreamError::ReadDataError(e) => {
+                        println!("[CLIENT][SOCKET][READ DATA ERROR] - {:?}", e);
+                        println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                        break;
+                    },
+                },
+            };
+
+            println!("Nothing in schedule to send to host, so sending ping!");
+            if let Some(down_command) = option_down_command {
+                enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+            } else {
+                println!("[Socket] - No command received in ping, skipping..");
             }
-            // println!("[Socket] - Nothing in schedule, skipping..");
+
             thread::sleep(Duration::from_millis(100));
             continue;
         }
 
+        if up_schdule_len > 1 {
+            println!("Find: {:?} command in schedule", 1);
+        } else {
+            println!("Find: {:?} commands in schedule", up_schdule_len);
+        }
+        println!("Start to process it!");
+
+        let mut index: u32 = 0u32;
+
         for up_command in up_schedule {
-            let command_to_request = Command::from_up_command(up_command);
+            println!("processing command: {}", index);
+
+            let command_to_request = match Command::from_up_command(&up_command) {
+                Ok(c) => c,
+                Err(error) => {
+                    match error {
+                        CommandError::InvalidCommand(e) => {
+                            println!("Command: {:?} gives an exception when converting to command, the error was: \n{:?}", up_command, e);
+                        },
+                    }
+
+                    index = index + 1;
+                    continue;
+                },
+            };
 
             loop {
-                println!("Sending to host: {:?}", command_to_request.clone());
+                println!("Sending to host: {:?}", &command_to_request);
 
-                let received = send(&mut stream, command_to_request.clone());
+                let received: Response;
 
-                match handle_response(received) {
-                    Received::DownCommand(down_command) => {
-                        println!("[Socket Client] - Receives Data.. : {:?}", down_command);
-                        enhanced_buffer::buffer_down_manager::buffer_down_schedule(down_command.clone());
-                        break;
-                    },
-                    Received::Confirmation => {
-                        break;
-                    },
-                    Received::Error(e) => {
-                        //TODO >>> Add the mechanism to stop the client if received a error
-                    },
-                    Received::Nothing => {},
+                {
+                    received = match send(&mut stream, &command_to_request) {
+                        Ok(r) => r,
+                        Err(e) => match e {
+                            StreamError::ConnectionClosed => {
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            StreamError::WriteError(e) => {
+                                println!("[CLIENT][SOCKET][WRITE ERROR] - {:?}", e);
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            StreamError::WriteSizeError(e) => {
+                                println!("[CLIENT][SOCKET][WRITE SIZE ERROR] - {:?}", e);
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            StreamError::ReadSizeError(e) => {
+                                println!("[CLIENT][SOCKET][READ SIZE ERROR] - {:?}", e);
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            StreamError::ReadDataError(e) => {
+                                println!("[CLIENT][SOCKET][READ DATA ERROR] - {:?}", e);
+                                println!("[CLIENT][SOCKET][CLOSE CONNECTION] - {}", &client_key);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                        },
+                    };
                 }
 
-                thread::sleep(Duration::from_millis(200));
+                // CommandMode::Response => {
+                //     // Response format:
+                //     //* From now this is basically equal to response
+                //     logger.info(format!("[Socket Client] - Received a response!: \n{:?}", command_received.command));
+
+                //     let status: String = command_received.command.status.to_string();
+
+                //     // TODO >>> Add a better handler for error cases:
+                //     if status == "error".to_string() {
+                //         let val = Value::String("Unknown error".to_string());
+                //         let error_msg = command_received.command.message.clone();
+                //         logger.exception(format!("\nAn error occurred in host, the error was: {}\n", error_msg.clone()));
+                //         enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
+                //         CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                //         return Received::Error(error_msg);
+                //     }
+
+                //     // let down_command = DownCommand::from_command(command_received.clone());
+
+                //     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command_received.client_key, &command_received.parity_id);
+
+                //     // return Received::DownCommand(down_command);
+                // },
+
+                match received {
+                    Response::Command(c) => {
+                        match c.command.status {
+                            CommandStatus::Failure => {
+                                logger.exception(format!("\nAn error occurred in host, the error was: {}\n", c.command.message));
+                                enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&c.client_key, &c.parity_id);
+                                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+                                break;
+                            },
+                            CommandStatus::Success => {},
+                        }
+
+                        match c.command_type() {
+                            CommandType::ExternalFunction => {
+                                let down_command = DownCommand::from_command(c);
+                                println!("[Socket Client] - Receives Data.. : {:?}", down_command);
+                                enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+                                index = index + 1;
+                                break;
+                            },
+                            CommandType::DirectFunction => {
+                                // TODO >>> Need to actualize this to the new patter like Response handler to redirect works as intended!
+                                // > Also we can use a similar system to sync multiple hosts
+                                logger.info(format!("[Socket Client] - Received a direct function!:\n {:?}", c.command.actf));
+                                let down_command = DownCommand::from_command(c);
+                                enhanced_buffer::buffer_down_manager::buffer_down_schedule(&down_command);
+                                index = index + 1;
+                                break;
+                            },
+                            CommandType::SpecialFunction => {
+                                if c.parity_id != "itisaspecialcase" {
+                                    if c.command.actf == "C210".to_string() {
+                                        logger.info(format!("Received Confirmation! Removing command {} of client: {} from buffer up", c.parity_id, c.client_key));
+                                        enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&c.client_key, &c.parity_id);
+                                        break;
+                                    }
+                                }
+
+                                if c.command.actf == "C207".to_string() {
+                                    println!("Receive ping confirmation");
+                                    break;
+                                }
+
+                                println!("Received a unknow special function");
+                                break;
+                            },
+                        }
+                    },
+                    Response::None => {
+                        break;
+                    },
+                }
+
+                println!("Invalid command!");
+                break;
+
+                // thread::sleep(Duration::from_millis(200));
             }
+
+            index = index + 1;
+            continue;
         }
 
         println!("End schedule data, so skipping >>>");
+
         continue;
     }
 }

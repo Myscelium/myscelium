@@ -8,22 +8,36 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 
+CLIENT_KEY = "some_client_id"
+
 class Senders:
 
     @staticmethod
     def send_some_data():
 
-        time.sleep(10)
+        time.sleep(25)
+
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
         mys_client.running = True
-        mys_client.set_client_uid(client_uid="some_client_id")
 
-        command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
+        # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
+        command = client_patterns.command_pattern(
+            CLIENT_KEY,
+            "python_function", 
+            "", # Empty is default
+            {"age": 10, "birth": 8, "name": "cristian"}
+        )
 
         result = mys_client.send(command, priority=10)
 
-        EVManager = Events_Manager(Unit="Client1", path="Logs")
-        EVManager.Set_Event("Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1")
+        Events_Manager(
+            Unit="Client1", 
+            path="Logs"
+        ).Set_Event(
+            step="Data Sended", 
+            event_type="Send", 
+            event_key="088p72pbv9Ozj7T1"
+        )
 
         print(result)
 
@@ -60,11 +74,9 @@ class MyClient:
 
         receivers = Receivers()
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level=self.debug_level)
+        mys_client = MysceliumClient(client_uid=CLIENT_KEY, buffer_path="Temp/Client1Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
-
-        mys_client.set_client_uid(client_uid="some_client_id")
 
         callbacks = [
             client_patterns.callback_pattern(callback=receivers.test_handler),
@@ -111,7 +123,7 @@ class MyClient:
         t2.start()
         t3.start()
 
-        t2.join()
+        
         t3.join()  
 
         time.sleep(5)
@@ -121,6 +133,7 @@ class MyClient:
         os.kill(t1.pid, signal.SIGINT)
 
         t1.join()  # Wait for the process to finish
+        t2.join()
 
         return
 

@@ -13,6 +13,97 @@ from . import sql_pool
 import inspect
 
 
+#> Type Cast
+
+
+def cast_command_instruction (command_mode:str,command_type:str, command_target:str,command_status:str,command_origin:str,command_actf:str,command_kwargs:dict, command_message:str) -> dict:
+
+    """
+    Constructs a command instruction dictionary from the given parameters.
+
+    Validates the provided arguments against specific criteria for each command aspect 
+    (mode, type, target, status, origin, activation function). Raises an exception if 
+    any of the provided arguments do not meet the expected values or format.
+
+    Parameters:
+    - command_mode (str): Mode of the command, must be one of ['Function', 'Response'].
+    - command_type (str): Type of the command, must be one of ['SpecialFunction', 'DirectFunction',
+                      'InternalManagement', 'ExternalFunction'].
+    - command_target (str): Target of the command, should follow the format 'Origin', 
+                            'ClientKey(String)', or 'Host'.
+    - command_status (str): Status of the command, must be one of ['Success', 'Failure'].
+    - command_origin (str): Origin of the command, must be 'Host' or 'ClientKey(String)'.
+    - command_actf (str): Activation function for the command. Cannot be empty.
+    - command_kwargs (dict): Additional keyword arguments for the command.
+    - command_message (str): Message associated with the command.
+
+    Returns:
+    dict: A dictionary representing the constructed command instruction.
+
+    Raises:
+    Exception: If any parameter does not conform to its expected format or allowable values.
+    
+    Example:
+    command_dict = cast_command_instruction("Function", "DirectFunction", "Host", "Success",
+                                            "ClientKey(123)", "activate", {}, "Execute action")
+    """
+
+    if command_mode not in ["Function", "Response"]:
+        raise ValueError("Command mode needs to be one of those: ['Function', 'Response']")
+    
+    if command_type not in ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction']:
+        raise ValueError("Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction',]")
+
+    if command_target in ['Origin', 'Host']:
+        pass
+    
+    # -> Validate the redirect cases:
+    elif command_target.startswith('ClientKey(') and command_target.endswith(')'):
+        # Extracting the part inside 'ClientKey()'
+        content = command_target[len('ClientKey('):-1].strip()
+
+        # Validate the content inside the parentheses
+        if content == "":
+            raise ValueError("Command target ClientKey needs a valid ClientKey!")
+
+    else:
+        raise ValueError("Command target must be either 'Origin', 'Host', or 'ClientKey(some_value)'")
+
+    if command_status not in ['Success', 'Failure']:
+        raise ValueError("Command status can only be one of those: ['Success', 'Failure']")
+
+    if command_origin == 'Host':
+        pass
+
+    # -> Validate the client cases:
+    elif command_origin.startswith('ClientKey(') and command_origin.endswith(')'):
+        # Extracting the part inside 'ClientKey()'
+        content = command_origin[len('ClientKey('):-1].strip()
+
+        # Validate the content inside the parentheses
+        if content == "":
+            raise ValueError("Command target ClientKey needs a valid ClientKey!")
+
+    else:
+        raise ValueError("Command origin must be either 'Host' or 'ClientKey(some_value)'")
+
+
+    if command_actf == "" or command_actf == None:
+        raise ValueError("Response activation function can't be empty")
+
+    command_instruction = {
+        "mode": command_mode,
+        "type": command_type,
+        "target": command_target,
+        "status": command_status,
+        "origin": command_origin,
+        "actf": command_actf,
+        "kwargs": command_kwargs,
+        "message": command_message,
+    }
+
+    return command_instruction
+
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > Utilities
 
@@ -689,22 +780,35 @@ class HostPatterns:
 
         return {"client_name":client_name, "client_key":client_key, "client_type":client_type, "permission_group":client_permission_group, "is_super_user":client_is_super_user, "max_sub_channels":max_sub_channels, "owned_sub_channels_keys":owned_sub_channels_keys}
 
-    def response_pattern (self, response:dict, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None, message="") -> dict:
+    def response_pattern (self, activation_function:str, target_key:str = None, kwargs:dict = {}, message="") -> dict:
 
         """
-        Create a response pattern.
+        Creates a response pattern for sending back to a client or for retransmission.
+
+        This function handles two main cases:
+        1. Simple send to origin: The response is sent back to the originating client.
+        2. Retransmit to another client: The response is retransmitted to a different client specified by `target_key`.
 
         Parameters:
-        - response: The actual response data.
-        - response_mode: Mode of the response (e.g., 'redirect' or 'to_origin').
-        - response_activation_function: Activation function for the response.
-        - redirect_to_client_id: Client ID to redirect to (if response_mode is 'redirect').
-
-        Additional parameters for to_origin:
-        - message: Allow to send a message to client besides the args, needs to be a string!
+        - `activation_function` (str): The activation function to be triggered upon response.
+        - `target_key` (str, optional): The key of the target client for retransmission. ExternalFunction is None.
+        - `kwargs` (dict, optional): Additional keyword arguments for the command. ExternalFunction is an empty dict.
+        - `message` (str, optional): A message to be sent to the client. ExternalFunction is an empty string.
 
         Returns:
-        - Dictionary representing the response pattern.
+        dict: A dictionary representing the command instructions based on the specified pattern.
+
+        Note:
+        - In the case of 'Simple send to origin', the response is scheduled to be sent back to the client
+        that originated the command.
+        - In the case of 'Retransmit to another client', the response is redirected to a different client
+        specified by `target_key`. The function then triggers the specified `activation_function` on the
+        target client. If the target client does not exist, an error is returned.
+
+        Example:
+        ```Python
+        command = response_pattern("some_function", target_key="client456", kwargs={"arg1": "value1"}, message="Example message")
+        ```
         """
 
         # > The idea of this pattern is to create a response to send back to a client or to retransmit
@@ -727,6 +831,8 @@ class HostPatterns:
         # ->
         # -> Case 2 (retransmit to)
         
+        # TODO >>> Change this when impl the new redirect mechanism:
+
         # >   
         # > (Client 1)     (Client 2)   [Host]
         # >    |                |         |
@@ -749,51 +855,34 @@ class HostPatterns:
         #* Triggered in the target, the engine will get the response and redirect to the other client by this id, if client exists.
         #* Else this will return a error saying that client doesn't exists
 
-        if response_activation_function == "" or response_activation_function == None:
-            return self.error_response_pattern("Missing response_activation_function!", response_activation_function)
+        command_instructions = {}
 
-        if response_mode == "redirect":
+        if target_key == None:
+            command_instructions = cast_command_instruction(
+                "Response",
+                "ExternalFunction", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
+                "Origin",
+                "Success", 
+                "Host",
+                activation_function,
+                kwargs,
+                message, 
+            )
+        else: # Redirect case
+            command_instructions = cast_command_instruction(
+                "Response",
+                "ExternalFunction", # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
+                f"ClientKey({target_key})",
+                "Success", 
+                "Host",
+                activation_function,
+                kwargs,
+                message, 
+            )
 
-            if redirect_to_client_id != None:
-                pass
-            else:
-                return self.error_response_pattern("Invalid redirect! Missing client_id to redirect!", response_activation_function)
+        return command_instructions
 
-            response = {
-                "command_type":"function",
-                "response_mode":"redirect", 
-                "status": "success", 
-                "response_activation_function":response_activation_function,
-                "message":"", 
-                "kwargs":response,
-                "redirect_to":redirect_to_client_id
-            }
-
-            # -> here the origin identifier is added when the command is reforged inside engine
-            # -> inside the myscelium engine to redirect to the other client so because of that doesn't need the origin here
-
-            return response
-
-        elif response_mode == 'to_origin': # > this is returned directly to the client
-
-            print("Response mode set to origin")
-
-            response = {
-                "command_type":"response",
-                "response_mode":"to_origin", 
-                "status": "success", 
-                "response_activation_function":response_activation_function,
-                "message":message, 
-                "kwargs":response,
-                "origin":"host" # -> Since this is a return from host to client does't make sense to add a marker here 
-            }
-
-            return response
-        
-        else:
-            return self.error_response_pattern("Response mode invalid! Please use one of this: ('redirect', 'to_origin')", response_activation_function)
-
-    def error_response_pattern (self, error_message:str, expected_remote_error_handler:str):
+    def error_response_pattern (self, error_message:str, expected_remote_error_handler:str = ""):
         
         # TODO >>> Implement a Error Handler Callback Caller in client, to allow personalize how errors will be treated or change the way that client handles responses
 
@@ -819,24 +908,6 @@ class HostPatterns:
         # This router will be responsible to receive a entire command, so he will decide how to process it and what activation function to call
         # Then this will be able to send a response for host redirect if something is wrong redirecting the error for the client tha cause it and keep going
 
-        if not isinstance(error_message, str):
-            print("Error message needs to be a string!")
-
-        if not isinstance(expected_remote_error_handler, str):
-            print("Expected remote error handler needs to be a string!")
-
-        kwargs = []
-
-        response = {
-            "command_type":"response",
-            "response_mode":"to_origin", 
-            "status": "error", 
-            "response_activation_function":expected_remote_error_handler,
-            "message":error_message, 
-            "kwargs":kwargs,
-            "origin":"host"
-        }
-
         # -> This pattern is used to manipulate host configs remotely
         # >   
         # > (Client 1)       [Host]
@@ -850,8 +921,45 @@ class HostPatterns:
         # > (|) This is this pattern
         # > 
 
-        return response
+        if not isinstance(error_message, str):
+            print("Error message needs to be a string!")
 
+        if not isinstance(expected_remote_error_handler, str):
+            print("Expected remote error handler needs to be a string!")
+
+        kwargs = {}
+        command_instructions = {}
+
+        if expected_remote_error_handler == "":
+
+            command_instructions = cast_command_instruction(
+                "Response",
+                "DirectFunction", 
+                "Origin",
+                "Failure", 
+                "Host",
+                "error_handler", # ExternalFunction error handler
+                kwargs,
+                error_message, 
+            )
+
+        else:
+
+            command_instructions = cast_command_instruction(
+                "Response",
+                "ExternalFunction", 
+                "Origin",
+                "Failure", 
+                "Host",
+                expected_remote_error_handler,
+                kwargs,
+                error_message, 
+            )
+
+        return command_instructions
+
+    # TODO >>> Add a version of this to client since now it is possible to activate this types of fns remotelly
+    # TODO >>> See if is worth to turn the update host configs functions DirectFunctions and not Internal Management functions 
     def update_host_configs (self, activation_function:str, **kwargs): # TODO >>> Need rust backend implementation!
 
         """
@@ -927,15 +1035,19 @@ class HostPatterns:
 
             kwargs = {'new_client':new_client}
 
-            response = {
-                "response_mode":"internal_management", 
-                "status": "success", 
-                "activation_function":"add_client",
-                "message":"", 
-                "kwargs":kwargs,
-            }
 
-            return response
+            command_instructions = cast_command_instruction(
+                "Response",
+                "InternalManagement", 
+                "Host",
+                "Success", 
+                "Host",
+                "add_client", 
+                kwargs,
+                "", 
+            )
+
+            return command_instructions
 
         elif activation_function == "update_client":
 
@@ -968,15 +1080,18 @@ class HostPatterns:
 
             kwargs = {'actual_client_key':actual_client_key, 'updated_client':updated_client}
 
-            response = {
-                "response_mode":"internal_management", 
-                "status": "success", 
-                "activation_function":"update_client",
-                "message":"", 
-                "kwargs":kwargs,
-            }
+            command_instructions = cast_command_instruction(
+                "Response",
+                "InternalManagement", 
+                "Host",
+                "Success", 
+                "Host",
+                "update_client", 
+                kwargs,
+                "", 
+            )
 
-            return response
+            return command_instructions
         
         elif activation_function == "remove_client":
 
@@ -994,15 +1109,18 @@ class HostPatterns:
 
             kwargs = {'client_key':client_key}
 
-            response = {
-                "response_mode":"internal_management", 
-                "status": "success", 
-                "activation_function":"remove_client",
-                "message":"", 
-                "kwargs":kwargs,
-            }
+            command_instructions = cast_command_instruction(
+                "Response",
+                "InternalManagement", 
+                "Host",
+                "Success", 
+                "Host",
+                "remove_client", 
+                kwargs,
+                "", 
+            )
 
-            return response
+            return command_instructions
 
         else:
             return self.error_response_pattern(f"activation_function: {activation_function} doesn't registered in the available host internal management commands!", "remove_client_handler")
@@ -1078,25 +1196,25 @@ class MysceliumClient:
         - client_uid: Unique identifier for the client.
         - buffer_path: Path to the buffer.
         - log_level: Logging level.
-        """
+        """ 
 
-        if not hasattr(self, 'initialized'):
-            self.client_uid = client_uid
-            self.running = False
-            mys.initialize_client_buffer_tables(buffer_path)
+        self.client_uid = client_uid
 
-            time.sleep(5)
+        mys.initialize_client_buffer_tables(buffer_path)
+        mys.set_client_key(client_uid)
 
-            self.host_thread = None
-            self.initialized = True
+        time.sleep(5)
 
-            if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
-                raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
-            else:
-                pass
+        self.host_thread = None
+        self.initialized = True
 
-            mys.set_socket_client_log_level(log_level)
+        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
+            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+        else:
+            pass
 
+        mys.set_socket_client_log_level(log_level)
+        
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -1117,18 +1235,18 @@ class MysceliumClient:
     #     print("active py set log callback")
     #     mys.registry_client_logs_handler(logs_handler_callback)
 
-    def set_client_uid (self, client_uid):
+    # def set_client_uid (self, client_uid):
 
-        """
-        Set the client's unique identifier.
+    #     """
+    #     Set the client's unique identifier.
 
-        Parameters:
-        - client_uid: Unique identifier for the client.
-        """
+    #     Parameters:
+    #     - client_uid: Unique identifier for the client.
+    #     """
 
-        mys.set_client_uid(client_uid)
+    #     mys.set_client_uid(client_uid)
 
-        return 
+    #     return 
 
     def set_workers_num (self, n_workers=2):
 
@@ -1474,17 +1592,33 @@ class ClientPatterns:
 
         return {"client_type":client_type, "client_id":client_id}
 
-    def command_pattern (self, command_function:str, args=None):
+    def command_pattern (self, origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""):
 
         """
-        Create a command pattern.
+        Constructs a command instruction for communication between clients and a host in a network system.
+
+        This function primarily serves two scenarios:
+        1. Response to Origin: The command instructs the host to send a response back to the originating client.
+        2. Retransmission to Another Client: The command instructs the host to forward the response to a different client, identified by the `target_key`.
 
         Parameters:
-        - command_function: Function name for the command.
-        - args: Arguments for the command function (default is None).
+        - origin_key (str): Identifier for the client that initiates the command.
+        - command_function (str): The function to be executed in response to the command.
+        - target_key (str, optional): Identifier for the target client to whom the response should be forwarded. Defaults to an empty string.
+        - kwargs (dict, optional): Additional keyword arguments to pass along with the command. Defaults to an empty dictionary.
+        - message (str, optional): A message accompanying the command. Defaults to an empty string.
 
         Returns:
-        - Dictionary representing the command pattern.
+        dict: A dictionary representing the command instruction, tailored to the specified interaction pattern.
+
+        Notes:
+        - 'Response to Origin' scenario: The response is directed back to the client who originated the command.
+        - 'Retransmission to Another Client' scenario: The response is directed to a different client, specified by `target_key`, and the specified `command_function` is executed on that client. If the target client is not found, an error is returned.
+
+        Example:
+        command = command_pattern("client123", "activate", target_key="client456", 
+                                kwargs={"arg1": "value1"}, message="Example message")
+
         """
 
         # > The idea of this pattern
@@ -1501,45 +1635,97 @@ class ClientPatterns:
         # > [|] This is a host process
         # >
         # > basically creates a command to send to host, when the command arrives in host the command will execute something
- 
-        if args != None:
-            return {"command_type":"function", "function":command_function, "kwargs":args}
+        
+
+        command_instruction = {}
+
+        if target_key == "":
+            command_instruction = cast_command_instruction(
+                "Function",
+                "ExternalFunction",
+                "Host",
+                "Success",
+                f"ClientKey({origin_key})",
+                command_function,
+                kwargs,
+                message
+            )
         else:
-            pass
+            command_instruction = cast_command_instruction(
+                "Function",
+                "ExternalFunction",
+                f"ClientKey({target_key})",
+                "Success",
+                f"ClientKey({origin_key})",
+                command_function,
+                kwargs,
+                message
+            )
 
-        return {"command_type":"function", "function":command_function, "kwargs":""}
-
-    def response_pattern (self, kwargs:any, response_mode:str, retransmit_to_client_id:str=None) -> dict:
+        return command_instruction
+    
+    def inner_management_command_pattern (self, origin_key:str, command_function:str, kwargs:dict={}, message:str=""):
 
         """
-        Create a response pattern.
+        Constructs a command instruction for communication between clients and a host in a network system.
+
+        This function primarily serves two scenarios:
+        1. Response to Origin: The command instructs the host to send a response back to the originating client.
+        2. Retransmission to Another Client: The command instructs the host to forward the response to a different client, identified by the `target_key`.
 
         Parameters:
-        - response: The actual response data.
-        - response_mode: Mode of the response (e.g., 'retransmit' or 'to_host').
-        - retransmit_to_client_id: Client ID to retransmit to (if response_mode is 'retransmit').
+        - origin_key (str): Identifier for the client that initiates the command.
+        - command_function (str): The function to be executed in response to the command.
+        - kwargs (dict, optional): Additional keyword arguments to pass along with the command. Defaults to an empty dictionary.
+        - message (str, optional): A message accompanying the command. Defaults to an empty string.
 
         Returns:
-        - Dictionary representing the response pattern.
+        dict: A dictionary representing the command instruction, tailored to the specified interaction pattern.
+
+        Notes:
+        - 'Response to Origin' scenario: The response is directed back to the client who originated the command.
+        - 'Retransmission to Another Client' scenario: The response is directed to a different client, specified by `target_key`, and the specified `command_function` is executed on that client. If the target client is not found, an error is returned.
+
+        Example:
+        ```python
+        command = inner_management_command_pattern(
+            "client123", 
+            "activate", 
+            target_key="client456", 
+            kwargs={"arg1": "value1"}, 
+            message="Example message"
+        )
+        ```
+
         """
 
-        if response_mode == "retransmit":
-
-            if retransmit_to_client_id != None:
-                pass
-            else:
-                print ("Invalid redirect! Missing client_id to redirect!")
-                return None
-
-            return {"command_type":"response", "response_mode":"retransmit", "kwargs":kwargs, "redirect_to":retransmit_to_client_id}
-
-        elif response_mode == 'to_host':
-
-            return {"command_type":"response", "response_mode":"to_host", "kwargs":kwargs}
+        # > The idea of this pattern
+        # >   
+        # > (Client 1)        [Host]
+        # >    |                |        
+        # >   (|) ------------> |
+        # >    |               [|]     
+        # >    | <------------- | 
+        # >    |                |   
+        # > (Client 1)        [Host]
+        # >   
+        # > (|) This is this pattern
+        # > [|] This is a host process
+        # >
+        # > basically creates a command to send to host, when the command arrives in host the command will execute something
         
-        else:
-            print ("Response mode invalid! Please use one of this: ('redirect', 'same_as_origin')")
-            return None
+        command_instruction = cast_command_instruction(
+            "Function", # Command Mode
+            "DirectFunction", # Command Type
+            "Host", # Command Target
+            "Success", # Status
+            f"ClientKey({origin_key})", # Origin
+            command_function, # act function
+            kwargs,
+            message
+        )
+
+        return command_instruction
 
     def callback_pattern (self, callback) -> dict:
 
@@ -1614,7 +1800,12 @@ def get_registered_commands () -> dict:
 
     print(f"\nAvailable commands:\n{response}\n")
 
-    response = host_patterns.response_pattern(response=response, response_activation_function='update_available_host_commands',  response_mode='to_origin')
+    response = host_patterns.response_pattern(
+        'update_available_host_commands',
+        "", # means origin
+        response,
+        "", 
+    )
 
     print(f"Response to return to rust myscelium engine: {response}")
 

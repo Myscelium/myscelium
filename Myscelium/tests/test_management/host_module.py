@@ -97,7 +97,7 @@ class MyHost:
 
     def __init__(self, debug_level):
         self.host_patterns = HostPatterns()
-        self.my_callbacks = Handlers()
+        # self.my_callbacks = Handlers()
         self.debug_level = debug_level
 
     # @staticmethod
@@ -117,7 +117,8 @@ class MyHost:
         # TODO >>> In the future change to use 100% timeout
 
         n = 0 
-        COUNTER = 12 # Each counter is 5 secs of waiting
+        # > In default conditions the test only can last 78 seconds (78/5 = 15,6) so round and add +1 for tolerance
+        COUNTER = 17 # Each counter is 5 secs of waiting 
 
         mys_host_interface = MysceliumHostInterface("Temp/Data/")
         mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
@@ -148,7 +149,7 @@ class MyHost:
 
     def run_host(self, ip, port):
 
-        callbacks = CallbackCollector([Handlers,]).get_callbacks()
+        # callbacks = CallbackCollector([Handlers,]).get_callbacks()
 
         allowed_clients = [
             self.host_patterns.client_pattern(
@@ -174,7 +175,7 @@ class MyHost:
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, max_sub_channels:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(
-            callbacks=callbacks, 
+            callbacks=[], 
             host_id="xnsmdkeflerpfsa",
             allowed_clients=allowed_clients, 
             buffer_path="Temp/Data/", 

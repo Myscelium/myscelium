@@ -24,11 +24,10 @@ class Handlers:
         print(age)
 
         host_patterns = HostPatterns()
-        
+
         response = host_patterns.response_pattern(
-            response_mode='to_origin',
-            response_activation_function="test_handler",
-            response={"data": 'hello!'}
+            activation_function="test_handler", 
+            kwargs={"data": 'hello!'}
         )
 
         Events_Manager(
