@@ -34,9 +34,8 @@ class Handlers:
             print("Case 8 activated")
 
             response = HostPatterns().response_pattern(
-                response_mode='to_origin',
-                response_activation_function="message_test_handler",
-                response={"data": 'hello!'},
+                "message_test_handler",
+                kwargs={"data": 'hello!'},
                 message="Success"
             )
             
@@ -141,18 +140,9 @@ class MyHost:
         while True:
 
             client_1_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
-            client_2_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
 
             if (not client_1_status):
                 print("Receive stop host from client 1")
-                System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
-                mys_host_interface.stop_client_events_retriever()
-                System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
-                break
-            
-            elif (not client_2_status):
-                print("Receive stop host from client 2")
-                System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
                 mys_host_interface.stop_client_events_retriever()
                 System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
                 break
