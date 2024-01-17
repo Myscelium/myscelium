@@ -120,7 +120,6 @@ class MyHost:
         # > In default conditions the test only can last 78 seconds (78/5 = 15,6) so round and add +1 for tolerance
         COUNTER = 17 # Each counter is 5 secs of waiting 
 
-
         mys_host_interface = MysceliumHostInterface("Temp/Data/")
         mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
         mys_host_interface.start_client_events_retriever()

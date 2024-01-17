@@ -94,6 +94,9 @@ class Senders:
         self.test_update_client()
         self.test_remove_client()
 
+    #> -------------------------------------------------------------------------------------------------------------------------------------
+    #> USING DIRECT MANAGEMENT FUNCTIONS:
+
     @staticmethod
     def test_add_client (): 
 
@@ -114,7 +117,7 @@ class Senders:
             }
         )
 
-        result = mys_client.send(command, priority=9)
+        _ = mys_client.send(command, priority=9)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test add a client", 
@@ -146,7 +149,7 @@ class Senders:
             }
         )
         
-        result = mys_client.send(command, priority=8)
+        _ = mys_client.send(command, priority=8)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test update a client", 
@@ -168,13 +171,16 @@ class Senders:
             }
         )
         
-        result = mys_client.send(command, priority=7)
+        _ = mys_client.send(command, priority=7)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test remove a client", 
             event_type="Send", 
             event_key="30bt28u819A1QDpH"
         )  
+
+    #> -------------------------------------------------------------------------------------------------------------------------------------
+    #> USING EXTERNAL FUNCTIONS RESPONSE
 
     @staticmethod
     def test_add_client_from_response (): 
@@ -196,7 +202,7 @@ class Senders:
             }
         )
 
-        result = mys_client.send(command, priority=9)
+        _ = mys_client.send(command, priority=9)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test add a client", 
@@ -226,7 +232,7 @@ class Senders:
             }
         )
         
-        result = mys_client.send(command, priority=8)
+        _ = mys_client.send(command, priority=8)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test update a client", 
@@ -249,7 +255,7 @@ class Senders:
             }
         )
         
-        result = mys_client.send(command, priority=7)
+        _ = mys_client.send(command, priority=7)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test remove a client", 
