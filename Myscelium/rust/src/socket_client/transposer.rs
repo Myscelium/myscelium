@@ -333,18 +333,19 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
                     ProcessResult::CommandInstructions(c) => {
                         let command: Command = Command::new(client_key.clone(), down_command.parity_id.clone(), down_command.priority.clone(), c);
                         let up_command: UpCommand = UpCommand::from_command(command);
-                        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
                         enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                     },
                 }
-                continue;
+                enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
             }
         },
         ProcessResult::Error(e) => {
             println!("Receive a error: {:?}", e);
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
         },
         ProcessResult::Empty => {
             println!("Response is empty, continuing!");
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
         },
     }
 

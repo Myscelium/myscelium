@@ -116,7 +116,7 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
-            // enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
             let mut filtered_commands_map: HashMap<String, Value> = HashMap::new();
             filtered_commands_map.insert("client_handlers".to_string(), Value::Object(serde_json::Map::from_iter(actual_patterns)));
@@ -138,7 +138,7 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
             // TODO >>> See if need to remove this, this needs to be in the end of the thing, not here
-            // enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
             return Ok(ProcessResult::Empty);
         },

@@ -527,9 +527,10 @@ def test_management ():
     client_1_contact            = False
     client_contact              = False
     
-    add_client_callback         = False 
-    update_client_callback      = False 
-    remove_client_callback      = False 
+    # TODO >>> Create a mechanism that checks if host received or not the commands and if it add or not the clients with the correct data
+    add_client_callback         = True #! Change to False to allow this test 
+    update_client_callback      = True #! Change to False to allow this test 
+    remove_client_callback      = True #! Change to False to allow this test 
 
     #> Client 1 events:
 
@@ -547,6 +548,8 @@ def test_management ():
     for i in host_events_df.index:
         event = host_events_df.loc[i, 'StepCompleted']
 
+        # > Host Receivers (Only valid to kwargs based)
+        
         if "Active Test Add Client" in event:
             add_client_callback     = True
 

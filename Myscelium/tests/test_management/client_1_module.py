@@ -17,13 +17,17 @@ class Receivers:
         
         # "data" {
         #     "command_type":"response",
-        #     "status": "success"
+        #     "status": "Success"
         #     "response_activation_function":"",
         #     "message":"", 
         #     "kwargs":{"arg1": [], "arg2": "", "arg3": {}}
         #     "response_mode":"",
         # }
 
+
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
+            "Activate Basic Response Test Add Client"
+        )
         
         print("Received data in python callback: ", data)
         
@@ -32,17 +36,11 @@ class Receivers:
         else:
             return None # This return that the callback called don't have a response for this case 
         
-        if data["status"] == "success":
+        if data["status"] == "Success":
             pass
         else:
             return None
-
-
-        Events_Manager(Unit="Client1", path="Logs").Set_Event(
-            "Activate Basic Response Test Add Client"
-        )
-
-
+        
     @staticmethod
     def update_client_handler (data:any): # -> Need to be implemented
 
@@ -55,7 +53,7 @@ class Receivers:
         else:
             return None
         
-        if data["status"] == "success":
+        if data["status"] == "Success":
             pass
         else:
             return None
@@ -76,7 +74,7 @@ class Receivers:
         else:
             return None
         
-        if data["status"] == "success":
+        if data["status"] == "Success":
             pass
         else:
             return None
