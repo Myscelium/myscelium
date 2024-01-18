@@ -8,6 +8,8 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 
+CLIENT_ID = "some_client_id"
+
 class Senders:
 
     def __init__ (self):
@@ -17,10 +19,15 @@ class Senders:
     def send_some_data():
 
         # time.sleep(10)
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client = MysceliumClient(client_uid=CLIENT_ID, buffer_path="Temp/Client1Data/")
         mys_client.running = True
-        mys_client.set_client_uid(client_uid="some_client_id")
-        command = client_patterns.command_pattern("python_function", args={"age": 10, "birth": 8, "name": "cristian"})
+
+        command = client_patterns.command_pattern(
+            CLIENT_ID,
+            "python_function", 
+            kwargs={"age": 10, "birth": 8, "name": "cristian"}
+        )
+
         result = mys_client.send(command, priority=10)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
@@ -51,7 +58,7 @@ class Receivers:
         else:
             return None
         
-        if data["status"] == "success":
+        if data["status"] == "Success":
             pass
         else:
             return None
@@ -76,14 +83,18 @@ class Receivers:
         else:
             return None
         
-        if data["status"] == "success":
+        if data["status"] == "Success":
             pass
         else:
             return None
+        
+        # TODO >>> Maybe implement a response redirect test from here
 
         print("Received redirected data: ", data)
         
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+
+        return None
 
 class MyClient:
 
@@ -95,8 +106,6 @@ class MyClient:
         mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
-
-        mys_client.set_client_uid(client_uid="some_client_id")
         	
         receivers = Receivers()
 
@@ -139,8 +148,6 @@ class MyClient:
     def run(self):
 
         t1 = Process(target=self.initializer, args=())
-
-        senders = Senders()
 
         # t2 = Process(target=senders.send_some_data, args=())
         t3 = Process(target=self.monitor_stop_event, args=())

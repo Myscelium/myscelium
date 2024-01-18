@@ -8,16 +8,24 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 
+CLIENT_ID = "randomsclientids"
+
 class Senders:
 
     @staticmethod
     def send_some_data_to_redirect():
 
-        # time.sleep(20)
-        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/")
+        time.sleep(20)
+        mys_client = MysceliumClient(client_uid=CLIENT_ID, buffer_path="Temp/Client2Data/")
         mys_client.running = True
-        mys_client.set_client_uid(client_uid="randomsclientids")
-        command = client_patterns.command_pattern("test_redirect", args={"client_id": "some_client_id", "data": 8})
+
+        command = client_patterns.command_pattern(
+            CLIENT_ID,
+            "test_redirect_handler", 
+            target_key="some_client_id", # This is part of the smart redirect mechanism to redirect commands
+            kwargs={"data": 8}
+        )
+
         result = mys_client.send(command, priority=10)
 
         Events_Manager(Unit="Client2", path="Logs").Set_Event(
@@ -42,7 +50,7 @@ class Receivers:
         else:
             return None
         
-        if data["status"] == "success":
+        if data["status"] == "Success":
             pass
         else:
             return None
@@ -60,11 +68,9 @@ class MyClient:
 
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client2Data/", log_level=self.debug_level)
+        mys_client = MysceliumClient(client_uid=CLIENT_ID, buffer_path="Temp/Client2Data/", log_level=self.debug_level)
 
         self.mys_client = mys_client
-
-        mys_client.set_client_uid(client_uid="randomsclientids")
 
         receivers = Receivers()
 
@@ -115,7 +121,7 @@ class MyClient:
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
-        time.sleep(5)
+   
         t2.start()
         t3.start()
 

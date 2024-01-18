@@ -103,7 +103,7 @@ pub fn handle_redirect(m: &CommandInstructions, client_id: &mut String, parity_i
     // }
 
     // -> Filter not allowed cases:
-    match m.target {
+    let redirect_to = match &m.target {
         CommandTarget::Host => {
             logger.warn("Error! Cont redirect from origin to host, this is a Origin to Host direct case!".to_string());
             return create_error_response_and_return!("Error! Cont redirect from origin to host, this is a Origin to Host direct case!");
@@ -112,14 +112,12 @@ pub fn handle_redirect(m: &CommandInstructions, client_id: &mut String, parity_i
             logger.warn("Error! Cont redirect from host to origin, this is a host to origin direct case!".to_string());
             return create_error_response_and_return!("Error! Cont redirect from host to origin, this is a Origin to Host direct case!");
         },
-        CommandTarget::ClientKey(_) => {},
-    }
+        CommandTarget::ClientKey(c) => c.clone(),
+    };
 
-    let redirect_to: String = m.target.to_string();
-
-    if !check_if_client_key_exists(redirect_to.to_string()) {
-        logger.warn(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
-        return create_error_response_and_return!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
+    if !check_if_client_key_exists(redirect_to.clone()) {
+        logger.warn(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to));
+        return create_error_response_and_return!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to));
         // return error_response!(format!("Error! request to redirect to client_id: {} failed, client doesn't exist!", redirect_to.to_string()));
     }
 
@@ -146,7 +144,7 @@ pub fn handle_redirect(m: &CommandInstructions, client_id: &mut String, parity_i
         "".to_string(),
     );
 
-    *client_id = redirect_to.to_string(); // > Update the client id that it will send to
+    *client_id = redirect_to; // > Update the client id that it will send to
 
     return new_command_instructions;
 }

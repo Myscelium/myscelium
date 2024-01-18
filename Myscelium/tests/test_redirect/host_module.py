@@ -34,9 +34,8 @@ class Handlers:
 
         host_patterns = HostPatterns()
         response = host_patterns.response_pattern(
-            response_mode='to_origin',
-            response_activation_function="test_handler",
-            response={"data": 'hello!'}
+            "test_handler",
+            kwargs={"data": 'hello!'}
         )
 
         match age:
@@ -79,30 +78,6 @@ class Handlers:
         #                                                            (callback name) - Receive Data: [Data received list for comparison]
 
         return response
-
-    @staticmethod
-    def test_redirect(client_id:str, data:int):
-        if isinstance(client_id, str):
-            print(f"Redirecting data: {data} to client: {client_id}")
-            host_patterns = HostPatterns()
-
-            response_data = {'data':data}
-
-            response = host_patterns.response_pattern(
-                response=response_data,
-                response_mode='redirect',
-                redirect_to_client_id=client_id,
-                response_activation_function="test_redirect_handler"
-            )
-
-            print(f"Response Before send to engine: {response}")
-
-            Events_Manager(Unit="Host", path="Logs").Set_Event(step="Active Host Redirect Callback") # This doesn't have a event_key because it is on the destine
-            
-            return response
-        else:
-            print("Client id isn't a string, failed to redirect data!")
-            return None
 
 class MyHost:
 
@@ -159,7 +134,6 @@ class MyHost:
 
         callbacks = [
             self.host_patterns.callback_pattern(callback=handlers.python_function),
-            self.host_patterns.callback_pattern(callback=handlers.test_redirect),
         ]
 
         allowed_clients = [
