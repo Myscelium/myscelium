@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
-use crate::common::structs::avaliable_commands::CommandPatterns;
+use crate::common::structs::available_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
 use crate::socket_client::transposer::ProcessError;
 
