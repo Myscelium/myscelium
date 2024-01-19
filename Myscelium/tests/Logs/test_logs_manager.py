@@ -127,6 +127,7 @@ class Events_Manager:
 
         event_type: str - can be:
             - Default
+            - Exception
             - Send
             - Receive
         
@@ -136,6 +137,11 @@ class Events_Manager:
         helper `gen_valid_event_key.py` at Myscelium/tests/Logs/gen_valid_event_key.py
 
         """
+
+        if event_type in ["Default", "Exception", "Send", "Receive"]:
+            pass
+        else:
+            raise ValueError("Event type can only be one of those: 'Default, Exception, Send, Receive'")
 
         events = pd.DataFrame.from_dict(self.List_Events())   
 
@@ -150,7 +156,6 @@ class Events_Manager:
         self.AutoId.Update_registered(registered = self.List_Events())
 
         ID = self.AutoId.Gen()
-
 
         ts = time.time()
 

@@ -153,7 +153,7 @@ class MyClient:
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
-        time.sleep(5)
+        time.sleep(15)
         # t2.start()
         t3.start()
 

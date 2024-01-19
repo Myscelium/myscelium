@@ -15,21 +15,36 @@ class Senders:
     @staticmethod
     def send_some_data_to_redirect():
 
-        time.sleep(20)
-        mys_client = MysceliumClient(client_uid=CLIENT_ID, buffer_path="Temp/Client2Data/")
-        mys_client.running = True
+                
+        Events_Manager(Unit="Client2", path="Logs").Set_Event(
+            "Try To Schedule Data To Redirect", 
+            event_type="Default", 
+        )
+        
+        print("Try to schedule!1")
 
-        command = client_patterns.command_pattern(
-            CLIENT_ID,
-            "test_redirect_handler", 
-            target_key="some_client_id", # This is part of the smart redirect mechanism to redirect commands
-            kwargs={"data": 8}
+        
+        try:
+            mys_client = MysceliumClient(client_uid=CLIENT_ID, buffer_path="Temp/Client2Data/")
+            mys_client.running = True
+
+            command = client_patterns.command_pattern(
+                CLIENT_ID,
+                "test_redirect_handler", 
+                target_key="some_client_id", # This is part of the smart redirect mechanism to redirect commands
+                kwargs={"data": 8}
+            )
+
+            result = mys_client.send(command, priority=10)
+        except e as e:
+            Events_Manager(Unit="Client2", path="Logs").Set_Event(
+            f"{e}", 
+            event_type="Exception", 
         )
 
-        result = mys_client.send(command, priority=10)
 
         Events_Manager(Unit="Client2", path="Logs").Set_Event(
-            "Data To Redirect Sended", 
+            "Data To Redirect Scheduled", 
             event_type="Send", 
             event_key="02V0P37Dz09zR3fL"
         )
@@ -88,13 +103,13 @@ class MyClient:
         return 
     
     def monitor_stop_event(self):
-        
-        time.sleep(20)
 
         System_Status(path="Logs").change_unit_status(
             Unit="Client2", 
             Status=True
         )
+        
+        time.sleep(30)
 
         while True:
 
@@ -121,9 +136,12 @@ class MyClient:
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
-   
-        t2.start()
+
         t3.start()
+        
+        time.sleep(15)
+
+        t2.start()
 
         t2.join()
         t3.join()  
