@@ -1,4 +1,4 @@
-use crate::common::structs::avaliable_commands::CommandPatterns;
+use crate::common::structs::available_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
 use crate::socket_client::socket_client::COMMAND_PATTERNS;
 use crate::socket_client::transposer::ProcessError;
@@ -7,7 +7,7 @@ use serde_json::{to_string, Value};
 use std::collections::HashMap;
 
 use crate::socket_client::client_logger::log_handler::Logger;
-use crate::CLIENT_LOG_LEVEL;
+use crate::{CLIENT_IS_SYNC, CLIENT_LOG_LEVEL};
 
 use crate::socket_client::transposer::HOST_ALLOWED_COMMANDS;
 
@@ -18,6 +18,10 @@ use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::converters::convert_value_map_to_resulttype_map;
 use crate::common::functions::converters::ConversionError;
 use crate::socket_client::functions::direct_functions::enhanced_buffer::buffer_up_manager::UpCommand;
+
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
@@ -67,7 +71,7 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
                 println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
 
-                logger.info(format!("Lock In Host Commnd Patterns!"));
+                logger.info(format!("Lock In Host Command Patterns!"));
 
                 actual_patterns = command_patterns.extract_all_commands().clone();
             }
@@ -78,25 +82,34 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
             let mut filtered_commands_map = HashMap::new();
             filtered_commands_map.insert("client_handlers".to_string(), Value::Object(serde_json::Map::from_iter(actual_patterns)));
 
-            let new_command_instructions = CommandInstructions::new(
-                CommandMode::Function,
-                CommandType::DirectFunction,
-                CommandTarget::Host,
-                CommandStatus::Success,
-                CommandOrigin::ClientKey(client_key.clone()),
-                "update_client_commands_ref".to_string(),
-                filtered_commands_map,
-                "".to_string(),
-            );
+            //> VERIFY IF IS CLIENT FIRST SYNC
+            if !CLIENT_IS_SYNC.load(Ordering::SeqCst) {
+                // -> Only return this 'update_client_commands_ref' in case that is the first sync of the client
 
-            // > This need to be scheduled this way since this is a new command and need a new parity id, if return this will use the parity id received
-            // TODO >>> A possible way to do this is by call the schedule instead of schedule by hand, mybe is a better option to avoid code repetition
+                // TODO >>> Maybe change this to return the command instead of schedule it manually to send to host
+                let new_command_instructions = CommandInstructions::new(
+                    CommandMode::Function,
+                    CommandType::DirectFunction,
+                    CommandTarget::Host,
+                    CommandStatus::Success,
+                    CommandOrigin::ClientKey(client_key.clone()),
+                    "update_client_commands_ref".to_string(),
+                    filtered_commands_map,
+                    "".to_string(),
+                );
 
-            let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
-            let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &to_string(&new_command_instructions).unwrap());
-            enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+                // > This need to be scheduled this way since this is a new command and need a new parity id, if return this will use the parity id received
+                // TODO >>> A possible way to do this is by call the schedule instead of schedule by hand, maybe is a better option to avoid code repetition
+
+                let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
+                let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &to_string(&new_command_instructions).unwrap());
+                enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+            }
+
+            //> TURN CLIENT SYNC STATUS TO TRUE
+            CLIENT_IS_SYNC.store(true, Ordering::SeqCst);
+
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-
             return Ok(ProcessResult::Empty);
         },
         "get_socket_client_available_handlers" => {
@@ -130,14 +143,13 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
                 "update_client_commands_ref".to_string(),
                 filtered_commands_map,
                 "".to_string(),
-            );
+            ); // TODO >>> Maybe change this to return the command instead of schedule it manually to send to host
 
             let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
             let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &to_string(&new_command_instructions).unwrap());
             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
-            // TODO >>> See if need to remove this, this needs to be in the end of the thing, not here
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
             return Ok(ProcessResult::Empty);

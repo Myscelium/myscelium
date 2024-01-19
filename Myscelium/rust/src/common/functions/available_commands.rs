@@ -1,4 +1,4 @@
-use crate::common::structs::avaliable_commands::{Command, CommandPatterns};
+use crate::common::structs::available_commands::{Command, CommandPatterns};
 
 use serde_json::Value;
 use std::collections::HashMap;

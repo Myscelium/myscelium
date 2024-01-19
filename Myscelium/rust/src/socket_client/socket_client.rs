@@ -46,7 +46,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-use crate::common::structs::avaliable_commands::CommandPatterns;
+use crate::common::structs::available_commands::CommandPatterns;
 // use crate::CLIENT_ID;
 
 lazy_static! {
