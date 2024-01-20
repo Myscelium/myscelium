@@ -877,7 +877,7 @@ fn handle_connection(stream: &mut TcpStream) {
             } else {
                 // -> None of above
 
-                let command: Command = create_error_command_response!(command.client_key.clone(), command.parity_id, format!("Function: {}, Doesn't exist!", command.command.actf));
+                let command: Command = create_error_command_response!(command.client_key.clone(), command.parity_id, format!("Function: {}, Doesn't exist in host callbacks nor in any client!", command.command.actf));
 
                 logger.debug(format!("Sending back: {:?}", &command));
 
