@@ -15,6 +15,7 @@ class Senders:
     @staticmethod
     def send_some_data_to_redirect():
 
+        time.sleep(15)
                 
         Events_Manager(Unit="Client2", path="Logs").Set_Event(
             "Try To Schedule Data To Redirect", 
@@ -137,11 +138,10 @@ class MyClient:
 
         t1.start()
 
-        t3.start()
-        
-        time.sleep(15)
-
         t2.start()
+        
+        t3.start()
+
 
         t2.join()
         t3.join()  

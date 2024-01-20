@@ -230,10 +230,16 @@ impl CommandInstructions {
             Some("Origin") => CommandTarget::Origin,
             Some(c) => {
                 if c != "" {
+                    // Check if the string matches the format "ClientKey(some_client_id)"
+                    if c.starts_with("ClientKey(") && c.ends_with(")") {
+                        let client_id = &c["ClientKey(".len()..c.len() - 1];
+                        CommandTarget::ClientKey(client_id.to_string())
+                    } else {
+                        return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
+                    }
+                } else {
                     return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
                 }
-
-                CommandTarget::ClientKey(c.to_string())
             },
             None => {
                 return Err(CommandError::InvalidCommand("Invalid or missing target".to_string()));
@@ -248,7 +254,15 @@ impl CommandInstructions {
 
         let origin = match map.get("origin").map(String::as_str) {
             Some("Host") => CommandOrigin::Host,
-            Some(client_id) => CommandOrigin::ClientKey(client_id.to_string()),
+            Some(client_id) => {
+                // Check if the string matches the format "ClientKey(some_client_id)"
+                if client_id.starts_with("ClientKey(") && client_id.ends_with(")") {
+                    let client_key = &client_id["ClientKey(".len()..client_id.len() - 1];
+                    CommandOrigin::ClientKey(client_key.to_string())
+                } else {
+                    return Err(CommandError::InvalidCommand("Invalid or missing origin".to_string()));
+                }
+            },
             _ => return Err(CommandError::InvalidCommand("Invalid or missing origin".to_string())),
         };
 

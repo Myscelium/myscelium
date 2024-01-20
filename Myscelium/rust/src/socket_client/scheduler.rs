@@ -97,6 +97,8 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
 
     // TODO >>> Add mecanisms to check the structure of the command that we are trying to registry
 
+    println!("[CLIENT] - Scheduling: {:?}", command);
+
     let parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
 
     let command_instructions = CommandInstructions::from_string_hashmap(command).unwrap();
