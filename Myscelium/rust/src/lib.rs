@@ -21,6 +21,8 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+use common::client_network_controller::availability_controller::AllowedNetWorkController;
+
 extern crate chrono;
 use crate::chrono::TimeZone;
 
@@ -31,12 +33,14 @@ lazy_static! {
     pub static ref CLIENT_IS_SYNC: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     pub static ref CLIENT_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+    pub static ref CLIENT_IS_READY: Arc<AtomicBool> = Arc::new(AtomicBool::new(false)); // TODO >>> Finish the impl of this
+    pub static ref CLIENT_NETWORK_CONTROLER: Arc<Mutex<AllowedNetWorkController>> = Arc::new(Mutex::new(AllowedNetWorkController::new()));
 
     // HOST:
     pub static ref HOST_IS_RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref HOST_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref HOST_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
-
+    pub static ref HOST_IS_READY: Arc<AtomicBool> = Arc::new(AtomicBool::new(false)); // TODO >>> Finish the impl of this
 }
 
 // #[pyfunction]
