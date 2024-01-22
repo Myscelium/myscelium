@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NodeStatus {
     Online,
     Idle,
@@ -7,16 +10,11 @@ pub enum NodeStatus {
     Offline,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RemoteNode {
     node_key: String,
     node_status: NodeStatus,
     remote_handlers_allowed: HashMap<String, serde_json::Value>,
-}
-
-// TODO >>> Add a way to remember nodes expected, when client restarts for exemple to remember things that was removed and be able to see if the dependence expected was removed
-
-pub struct AllowedNetWorkController {
-    remote_nodes: Vec<RemoteNode>,
 }
 
 impl RemoteNode {
@@ -29,6 +27,14 @@ impl RemoteNode {
     }
 }
 
+// TODO >>> Add a way to remember nodes expected, when client restarts for exemple to remember things that was removed and be able to see if the dependence expected was removed
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AllowedNetWorkController {
+    remote_nodes: Vec<RemoteNode>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NetworkControllerError {
     RemoteHandlerDoesntExists,
     TargetIsOffline,
@@ -46,33 +52,31 @@ impl AllowedNetWorkController {
         self.remote_nodes.push(remote_node);
     }
 
-    pub fn update_from_pattern(&mut self, node_pattern: Vec<HashMap<String, serde_json::Value>>) -> Result<(), NetworkControllerError> {
+    pub fn update_from_pattern(&mut self, node_pattern: Vec<RemoteNode>) -> Result<(), NetworkControllerError> {
         for new_node in node_pattern {
             self.update_node_from_pattern(&new_node)?;
         }
         Ok(())
     }
 
-    fn update_node_from_pattern(&mut self, new_node: &HashMap<String, serde_json::Value>) -> Result<(), NetworkControllerError> {
-        let new_node_key = new_node.get("node_key").and_then(|v| v.as_str()).ok_or(NetworkControllerError::InvalidPattern("New node missing key!".to_string()))?;
-
+    /// Used to update the node from a `HashMap<String, Value>`, the pattern required are:
+    /// ```Json
+    /// Map(
+    ///     node_key: String(""),
+    ///     node_status: String(""),
+    ///     node_handlers: Map(),
+    /// )
+    /// ```
+    fn update_node_from_pattern(&mut self, new_node: &RemoteNode) -> Result<(), NetworkControllerError> {
         // > Update Node Status Helper
-        fn update_node_status(node: &mut RemoteNode, new_node: &HashMap<String, serde_json::Value>) -> Result<(), NetworkControllerError> {
-            let new_node_status = new_node.get("node_status").and_then(|v| v.as_str()).ok_or(NetworkControllerError::InvalidPattern("New node missing status!".to_string()))?;
-
-            node.node_status = match new_node_status {
-                "Online" => NodeStatus::Online,
-                "Idle" => NodeStatus::Idle,
-                "NotSync" => NodeStatus::NotSync,
-                "Offline" => NodeStatus::Offline,
-                _ => return Err(NetworkControllerError::InvalidPattern("New node has an invalid status!".to_string())),
-            };
+        fn update_node_status(node: &mut RemoteNode, new_node: &RemoteNode) -> Result<(), NetworkControllerError> {
+            let new_node_status = node.node_status = new_node.node_status.clone();
             Ok(())
         }
 
         // > Update Node Helper
-        fn update_node_handlers(node: &mut RemoteNode, new_node: &HashMap<String, serde_json::Value>) -> Result<(), NetworkControllerError> {
-            let node_handlers = new_node.get("node_handlers").and_then(|v| v.as_object()).ok_or(NetworkControllerError::InvalidPattern("New node missing handlers!".to_string()))?;
+        fn update_node_handlers(node: &mut RemoteNode, new_node: &RemoteNode) -> Result<(), NetworkControllerError> {
+            let node_handlers = new_node.remote_handlers_allowed.clone();
 
             for (handler_name, handler_value) in node_handlers {
                 node.remote_handlers_allowed.insert(handler_name.clone(), handler_value.clone());
@@ -82,7 +86,7 @@ impl AllowedNetWorkController {
 
         // > UPDATE NODES
         for node in &mut self.remote_nodes {
-            if &node.node_key != new_node_key {
+            if &node.node_key != &new_node.node_key {
                 continue;
             }
 
@@ -93,7 +97,7 @@ impl AllowedNetWorkController {
         Ok(())
     }
 
-    pub fn remote_handler_is_reachable(&self, target_key: &String, remote_handler_expected: &String) -> Result<(), NetworkControllerError> {
+    pub fn check_if_remote_handler_is_reachable(&self, target_key: &String, remote_handler_expected: &String) -> Result<(), NetworkControllerError> {
         for c in &self.remote_nodes {
             if &c.node_key == target_key {
                 match c.node_status {

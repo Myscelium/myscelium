@@ -1,3 +1,4 @@
+pub mod client_network_controller;
 pub mod communication;
 pub mod custom_thread_pool;
 pub mod enhanced_buffer;
