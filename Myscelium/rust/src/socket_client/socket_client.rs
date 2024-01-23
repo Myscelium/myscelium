@@ -1,38 +1,27 @@
-use crate::common::communication::decoders::read_json_from_stream;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
-
 use crate::common::enhanced_buffer::utilities::{Command, CommandError, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
-use lazy_static::lazy_static;
+
+use super::client_logger::log_handler::Logger;
+
+use serde_json::json;
 use serde_json::{from_str, Value};
+
 use std::collections::HashMap;
-use std::sync::{mpsc, Arc};
-use std::thread;
-
-use serde_json::to_string;
-
-use crate::common::functions::converters::value_to_resulttype;
-
+use std::io::Read;
+use std::io::Write;
+use std::net::TcpStream;
 use std::sync::atomic::Ordering;
-
+use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
 
 use crate::CLIENT_IS_RUNNING;
-
-use std::net::TcpStream;
-
-use std::io::Read;
-use std::io::Write;
-
-use serde_json::json;
-
-use super::client_logger::log_handler::Logger;
 use crate::CLIENT_LOG_LEVEL;
-
 use crate::CLIENT_NODE_NAME;
 
+use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use std::sync;
 // use std::sync::Mutex;
 
 macro_rules! acquire_logger {

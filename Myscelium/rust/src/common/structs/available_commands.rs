@@ -21,6 +21,16 @@ pub enum CommandStatus {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommandPatterns {
+    //> Structure:
+
+    //> "owner": {
+    //>     "command_name": Comamnd {
+    //>         "parameters": HashMap<String, String>,
+    //>         "status": CommandStatus,
+    //>     }
+    //> }
+
+    // -> Wrap patterns
     patterns: HashMap<String, HashMap<String, Command>>,
 }
 

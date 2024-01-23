@@ -41,6 +41,8 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
     // TODO >>> Change this for a mathc
 
+    // -> SESSION SYNCHRONIZATION
+
     match c.actf.as_str() {
         "update_available_host_commands" => {
             logger.info(format!("Receive Host Allowed Commands"));
@@ -155,6 +157,10 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
             return Ok(ProcessResult::Empty);
         },
 
+        // -> VITAL NETWORK COMPONENTS
+        "update_client_network_rechable" => {},
+
+        // -> GENERAL OUT OF SCOPE CASES:
         _ => {
             return Err(ProcessError::CommandNotRegistered(c.actf.clone()));
         },
