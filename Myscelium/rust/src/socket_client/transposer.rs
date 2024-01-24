@@ -4,6 +4,7 @@ use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
+use crate::common::structs::available_commands::NetworkMap;
 use crate::common::structs::results_structs::ResultType;
 
 use crate::socket_client::functions::direct_functions::handle_direct_function;
@@ -51,12 +52,12 @@ macro_rules! acquire_logger {
     }};
 }
 
-// use crate::common::structs::available_commands::CommandPatterns;
+use crate::common::structs::available_commands::CommandPatterns;
 use crate::CLIENT_NODE_NAME;
 
 lazy_static! {
     pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
-    pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
+    pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<NetworkMap>> = Arc::new(Mutex::new(NetworkMap::new(Vec::new())));
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))

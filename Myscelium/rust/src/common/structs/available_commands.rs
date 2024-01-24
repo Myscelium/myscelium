@@ -2,18 +2,10 @@ use crate::common::enhanced_buffer::utilities::CommandType;
 use crate::common::structs::results_structs::ResultType;
 
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
-use std::ops::Index;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use serde_json::{Map, Value};
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Command {
-    parameters: HashMap<String, String>,
-    status: CommandStatus,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HandlerStatus {
@@ -124,6 +116,14 @@ impl NetworkMap {
         return Err(NetworkMapError::NodeDoNotExists(key.clone()));
     }
 
+    pub fn convert_to_value_map(&self) -> HashMap<String, Value> {
+        // TODO >>> Add the necessary code to make this case work as intended
+    }
+
+    pub fn update_from_value_map(&self, map: HashMap<String, Value>) {
+        // TODO >>> Add the necessary code to make this case work as intended
+    }
+
     /// The idea of the update NetworkMap are to update the network
     /// by passing a Vec<Node> a vec of nodes, this allows to iterate in the
     /// current network map and update nodes based in the nodes contained in
@@ -206,241 +206,254 @@ impl NetworkMap {
     }
 }
 
-// #[derive(Debug, Serialize, Deserialize, Clone)]
-// pub struct CommandPatterns {
-//     //> Structure:
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Command {
+    parameters: HashMap<String, String>,
+    status: CommandStatus,
+}
 
-//     //> "owner": {
-//     //>     "command_name": Comamnd {
-//     //>         "parameters": HashMap<String, String>,
-//     //>         "status": CommandStatus,
-//     //>     }
-//     //> }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum CommandStatus {
+    Active,
+    Inactive,
+    // Add more status types as needed
+}
 
-//     // -> Wrap patterns
-//     patterns: HashMap<String, HashMap<String, Command>>,
-// }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CommandPatterns {
+    //> Structure:
 
-// impl CommandPatterns {
-//     pub fn new() -> Self {
-//         CommandPatterns { patterns: HashMap::new() }
-//     }
+    //> "owner": {
+    //>     "command_name": Comamnd {
+    //>         "parameters": HashMap<String, String>,
+    //>         "status": CommandStatus,
+    //>     }
+    //> }
 
-//     pub fn command_exists(&self, owner: &str, command_name: &str) -> bool {
-//         self.patterns.get(owner).and_then(|commands| commands.get(command_name)).is_some()
-//     }
+    // -> Wrap patterns
+    patterns: HashMap<String, HashMap<String, Command>>,
+}
 
-//     pub fn add_command(&mut self, owner: String, command_name: String, command: Command) {
-//         self.patterns.entry(owner).or_insert_with(HashMap::new).insert(command_name, command);
-//     }
+impl CommandPatterns {
+    pub fn new() -> Self {
+        CommandPatterns { patterns: HashMap::new() }
+    }
 
-//     // Function to parse the JSON and integrate it into CommandPatterns
-//     pub fn add_json(&mut self, owner: &str, json_str: &str) -> Result<(), serde_json::Error> {
-//         // Parse the JSON string
-//         let parsed: HashMap<String, Value> = serde_json::from_str(json_str)?;
+    pub fn command_exists(&self, owner: &str, command_name: &str) -> bool {
+        self.patterns.get(owner).and_then(|commands| commands.get(command_name)).is_some()
+    }
 
-//         // Iterate over the parsed data and integrate it into CommandPatterns
-//         for (command_name, params) in parsed {
-//             let mut command_params = HashMap::new();
+    pub fn add_command(&mut self, owner: String, command_name: String, command: Command) {
+        self.patterns.entry(owner).or_insert_with(HashMap::new).insert(command_name, command);
+    }
 
-//             match params {
-//                 Value::Object(obj) => {
-//                     for (param_name, param_type) in obj {
-//                         if let Value::String(type_str) = param_type {
-//                             command_params.insert(param_name, type_str);
-//                         }
-//                     }
-//                 },
-//                 _ => (), // Handle other types like Array, if necessary
-//             }
+    // Function to parse the JSON and integrate it into CommandPatterns
+    pub fn add_json(&mut self, owner: &str, json_str: &str) -> Result<(), serde_json::Error> {
+        // Parse the JSON string
+        let parsed: HashMap<String, Value> = serde_json::from_str(json_str)?;
 
-//             let command = Command {
-//                 parameters: command_params,
-//                 status: CommandStatus::Active, // Assuming default status as Active
-//             };
+        // Iterate over the parsed data and integrate it into CommandPatterns
+        for (command_name, params) in parsed {
+            let mut command_params = HashMap::new();
 
-//             self.add_command(owner.to_string(), command_name, command);
-//         }
+            match params {
+                Value::Object(obj) => {
+                    for (param_name, param_type) in obj {
+                        if let Value::String(type_str) = param_type {
+                            command_params.insert(param_name, type_str);
+                        }
+                    }
+                },
+                _ => (), // Handle other types like Array, if necessary
+            }
 
-//         Ok(())
-//     }
+            let command = Command {
+                parameters: command_params,
+                status: CommandStatus::Active, // Assuming default status as Active
+            };
 
-//     // Function to integrate a HashMap<String, Value> as commands for a client
-//     pub fn add_commands_from_map(&mut self, client: &str, commands_map: HashMap<String, Value>) {
-//         let client_commands = self.patterns.entry(client.to_string()).or_insert_with(HashMap::new);
+            self.add_command(owner.to_string(), command_name, command);
+        }
 
-//         for (command_name, params) in commands_map {
-//             let mut command_params = HashMap::new();
+        Ok(())
+    }
 
-//             match params {
-//                 Value::Object(obj) => {
-//                     for (param_name, param_type) in obj {
-//                         if let Value::String(type_str) = param_type {
-//                             command_params.insert(param_name, type_str);
-//                         }
-//                         // Handle other Value types if necessary
-//                     }
-//                 },
-//                 _ => (), // Handle non-Object types if necessary
-//             }
+    // Function to integrate a HashMap<String, Value> as commands for a client
+    pub fn add_commands_from_map(&mut self, client: &str, commands_map: HashMap<String, Value>) {
+        let client_commands = self.patterns.entry(client.to_string()).or_insert_with(HashMap::new);
 
-//             let command = Command {
-//                 parameters: command_params,
-//                 status: CommandStatus::Active, // Assuming default status as Active
-//             };
+        for (command_name, params) in commands_map {
+            let mut command_params = HashMap::new();
 
-//             // Add or update the command
-//             client_commands.insert(command_name, command);
-//         }
-//     }
+            match params {
+                Value::Object(obj) => {
+                    for (param_name, param_type) in obj {
+                        if let Value::String(type_str) = param_type {
+                            command_params.insert(param_name, type_str);
+                        }
+                        // Handle other Value types if necessary
+                    }
+                },
+                _ => (), // Handle non-Object types if necessary
+            }
 
-//     // Function to add or update commands for a client
-//     pub fn add_or_update_if_exists(&mut self, client: &str, commands_map: HashMap<String, Value>) {
-//         if self.patterns.contains_key(client) {
-//             // If the client already exists, update its commands
-//             // You might need additional logic here to properly merge or update the commands
-//             self.add_commands_from_map(client, commands_map);
-//         } else {
-//             // If the client does not exist, add it
-//             self.patterns.insert(client.to_string(), HashMap::new());
-//             self.add_commands_from_map(client, commands_map);
-//         }
-//     }
+            let command = Command {
+                parameters: command_params,
+                status: CommandStatus::Active, // Assuming default status as Active
+            };
 
-//     pub fn extract_command_params_for_client(&self, client: &str, command_name: &str) -> Option<HashMap<String, Value>> {
-//         // Attempt to retrieve the command for the specified client
-//         if let Some(client_commands) = &self.patterns.get(client) {
-//             if let Some(command) = client_commands.get(command_name) {
-//                 let mut params_map = HashMap::new();
+            // Add or update the command
+            client_commands.insert(command_name, command);
+        }
+    }
 
-//                 // Iterate over the command parameters and convert them to Value
-//                 for (param_name, param_type) in &command.parameters {
-//                     params_map.insert(param_name.clone(), Value::String(param_type.clone()));
-//                 }
+    // Function to add or update commands for a client
+    pub fn add_or_update_if_exists(&mut self, client: &str, commands_map: HashMap<String, Value>) {
+        if self.patterns.contains_key(client) {
+            // If the client already exists, update its commands
+            // You might need additional logic here to properly merge or update the commands
+            self.add_commands_from_map(client, commands_map);
+        } else {
+            // If the client does not exist, add it
+            self.patterns.insert(client.to_string(), HashMap::new());
+            self.add_commands_from_map(client, commands_map);
+        }
+    }
 
-//                 return Some(params_map);
-//             }
-//         }
-//         None
-//     }
+    pub fn extract_command_params_for_client(&self, client: &str, command_name: &str) -> Option<HashMap<String, Value>> {
+        // Attempt to retrieve the command for the specified client
+        if let Some(client_commands) = &self.patterns.get(client) {
+            if let Some(command) = client_commands.get(command_name) {
+                let mut params_map = HashMap::new();
 
-//     // Function to extract a HashMap of all clients, each with their own commands and parameters
-//     pub fn extract_all_commands(&self) -> HashMap<String, Value> {
-//         let mut all_clients_commands = HashMap::new();
+                // Iterate over the command parameters and convert them to Value
+                for (param_name, param_type) in &command.parameters {
+                    params_map.insert(param_name.clone(), Value::String(param_type.clone()));
+                }
 
-//         // Iterate over all clients
-//         for (client_name, client_commands) in &self.patterns {
-//             let mut client_commands_map = serde_json::Map::new();
+                return Some(params_map);
+            }
+        }
+        None
+    }
 
-//             // Iterate over each command for the client
-//             for (command_name, command) in client_commands {
-//                 let params_value = command.parameters.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect::<serde_json::Map<_, _>>();
+    // Function to extract a HashMap of all clients, each with their own commands and parameters
+    pub fn extract_all_commands(&self) -> HashMap<String, Value> {
+        let mut all_clients_commands = HashMap::new();
 
-//                 client_commands_map.insert(command_name.clone(), Value::Object(params_value));
-//             }
+        // Iterate over all clients
+        for (client_name, client_commands) in &self.patterns {
+            let mut client_commands_map = serde_json::Map::new();
 
-//             all_clients_commands.insert(client_name.clone(), Value::Object(client_commands_map));
-//         }
+            // Iterate over each command for the client
+            for (command_name, command) in client_commands {
+                let params_value = command.parameters.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect::<serde_json::Map<_, _>>();
 
-//         all_clients_commands
-//     }
+                client_commands_map.insert(command_name.clone(), Value::Object(params_value));
+            }
 
-//     // Function to get all commands except for those of a specified client, formatted as a HashMap<String, Value>
-//     pub fn get_all_commands_except_for_client(&self, excluded_client: &str) -> HashMap<String, Value> {
-//         let mut filtered_commands = HashMap::new();
+            all_clients_commands.insert(client_name.clone(), Value::Object(client_commands_map));
+        }
 
-//         for (client_name, client_commands) in &self.patterns {
-//             if client_name != excluded_client {
-//                 let mut client_commands_map = Map::new();
+        all_clients_commands
+    }
 
-//                 // Iterate over each command for the client
-//                 for (command_name, command) in client_commands {
-//                     let params_value = command.parameters.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect::<Map<_, _>>();
+    // Function to get all commands except for those of a specified client, formatted as a HashMap<String, Value>
+    pub fn get_all_commands_except_for_client(&self, excluded_client: &str) -> HashMap<String, Value> {
+        let mut filtered_commands = HashMap::new();
 
-//                     client_commands_map.insert(command_name.clone(), Value::Object(params_value));
-//                 }
+        for (client_name, client_commands) in &self.patterns {
+            if client_name != excluded_client {
+                let mut client_commands_map = Map::new();
 
-//                 filtered_commands.insert(client_name.clone(), Value::Object(client_commands_map));
-//             }
-//         }
+                // Iterate over each command for the client
+                for (command_name, command) in client_commands {
+                    let params_value = command.parameters.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect::<Map<_, _>>();
 
-//         filtered_commands
-//     }
+                    client_commands_map.insert(command_name.clone(), Value::Object(params_value));
+                }
 
-//     pub fn remove_command(&mut self, owner: &str, command_name: &str) {
-//         if let Some(commands) = self.patterns.get_mut(owner) {
-//             commands.remove(command_name);
-//         }
-//     }
+                filtered_commands.insert(client_name.clone(), Value::Object(client_commands_map));
+            }
+        }
 
-//     // Function to create a new CommandPatterns struct from a HashMap<String, Value>
-//     pub fn create_command_patterns_from_map(commands_map: HashMap<String, Value>) -> Self {
-//         let mut command_patterns = Self::new();
+        filtered_commands
+    }
 
-//         // Iterate over the outer map, where each key is a client name
-//         for (client_name, client_commands_value) in commands_map {
-//             if let Value::Object(client_commands_map) = client_commands_value {
-//                 // Iterate over each command for the client
-//                 for (command_name, params_value) in client_commands_map {
-//                     if let Value::Object(params_map) = params_value {
-//                         let command_params = params_map
-//                             .into_iter()
-//                             .filter_map(|(k, v)| {
-//                                 if let Value::String(value_str) = v {
-//                                     Some((k, value_str))
-//                                 } else {
-//                                     None // Filter out non-string values
-//                                 }
-//                             })
-//                             .collect::<HashMap<String, String>>();
+    pub fn remove_command(&mut self, owner: &str, command_name: &str) {
+        if let Some(commands) = self.patterns.get_mut(owner) {
+            commands.remove(command_name);
+        }
+    }
 
-//                         let command = Command {
-//                             parameters: command_params,
-//                             status: CommandStatus::Active, // Default status, can be adjusted as needed
-//                         };
+    // Function to create a new CommandPatterns struct from a HashMap<String, Value>
+    pub fn create_command_patterns_from_map(commands_map: HashMap<String, Value>) -> Self {
+        let mut command_patterns = Self::new();
 
-//                         command_patterns.add_command(client_name.clone(), command_name, command);
-//                     }
-//                 }
-//             }
-//         }
+        // Iterate over the outer map, where each key is a client name
+        for (client_name, client_commands_value) in commands_map {
+            if let Value::Object(client_commands_map) = client_commands_value {
+                // Iterate over each command for the client
+                for (command_name, params_value) in client_commands_map {
+                    if let Value::Object(params_map) = params_value {
+                        let command_params = params_map
+                            .into_iter()
+                            .filter_map(|(k, v)| {
+                                if let Value::String(value_str) = v {
+                                    Some((k, value_str))
+                                } else {
+                                    None // Filter out non-string values
+                                }
+                            })
+                            .collect::<HashMap<String, String>>();
 
-//         command_patterns
-//     }
+                        let command = Command {
+                            parameters: command_params,
+                            status: CommandStatus::Active, // Default status, can be adjusted as needed
+                        };
 
-//     // Function to create a new CommandPatterns struct from a HashMap<String, Value>
-//     pub fn add_from_map(&mut self, commands_map: HashMap<String, Value>) -> Self {
-//         // Iterate over the outer map, where each key is a client name
-//         for (client_name, client_commands_value) in commands_map {
-//             if let Value::Object(client_commands_map) = client_commands_value {
-//                 // Iterate over each command for the client
-//                 for (command_name, params_value) in client_commands_map {
-//                     if let Value::Object(params_map) = params_value {
-//                         let command_params = params_map
-//                             .into_iter()
-//                             .filter_map(|(k, v)| {
-//                                 if let Value::String(value_str) = v {
-//                                     Some((k, value_str))
-//                                 } else {
-//                                     None // Filter out non-string values
-//                                 }
-//                             })
-//                             .collect::<HashMap<String, String>>();
+                        command_patterns.add_command(client_name.clone(), command_name, command);
+                    }
+                }
+            }
+        }
 
-//                         let command = Command {
-//                             parameters: command_params,
-//                             status: CommandStatus::Active, // Default status, can be adjusted as needed
-//                         };
+        command_patterns
+    }
 
-//                         &self.add_command(client_name.clone(), command_name, command);
-//                     }
-//                 }
-//             }
-//         }
+    // Function to create a new CommandPatterns struct from a HashMap<String, Value>
+    pub fn add_from_map(&mut self, commands_map: HashMap<String, Value>) -> Self {
+        // Iterate over the outer map, where each key is a client name
+        for (client_name, client_commands_value) in commands_map {
+            if let Value::Object(client_commands_map) = client_commands_value {
+                // Iterate over each command for the client
+                for (command_name, params_value) in client_commands_map {
+                    if let Value::Object(params_map) = params_value {
+                        let command_params = params_map
+                            .into_iter()
+                            .filter_map(|(k, v)| {
+                                if let Value::String(value_str) = v {
+                                    Some((k, value_str))
+                                } else {
+                                    None // Filter out non-string values
+                                }
+                            })
+                            .collect::<HashMap<String, String>>();
 
-//         self.clone()
-//     }
-// }
+                        let command = Command {
+                            parameters: command_params,
+                            status: CommandStatus::Active, // Default status, can be adjusted as needed
+                        };
+
+                        &self.add_command(client_name.clone(), command_name, command);
+                    }
+                }
+            }
+        }
+
+        self.clone()
+    }
+}
 
 /*
 -> Example of usage:

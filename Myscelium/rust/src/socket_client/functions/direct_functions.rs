@@ -158,7 +158,11 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
         },
 
         // -> VITAL NETWORK COMPONENTS
-        "update_client_network_rechable" => {},
+        "update_client_network_rechable" => {
+            // TODO >>> Implement the mechanism to allow update the Client Notion about the remote handlers
+
+            return Ok(ProcessResult::Empty);
+        },
 
         // -> GENERAL OUT OF SCOPE CASES:
         _ => {

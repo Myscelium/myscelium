@@ -17,7 +17,7 @@ use crate::socket_host::transposer::COMMAND_PATTERNS;
 use serde_json::Error;
 
 use crate::common::functions::advanced_lockers::smart_lock;
-// use crate::common::structs::available_commands::CommandPatterns;
+use crate::common::structs::available_commands::CommandPatterns;
 
 use super::host_logger::log_handler::Logger;
 use crate::socket_host::transposer::process_map_result;

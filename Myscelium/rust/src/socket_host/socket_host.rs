@@ -46,7 +46,7 @@ use crate::HOST_LOG_LEVEL;
 
 use crate::common::functions::advanced_lockers::smart_lock;
 
-// use crate::common::structs::available_commands::CommandPatterns;
+use crate::common::structs::available_commands::CommandPatterns;
 
 use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
 
