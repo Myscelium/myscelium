@@ -1,7 +1,8 @@
 use crate::common::structs::results_structs::ResultType;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::ops::Index;
 use std::sync::{Arc, Mutex};
 
 use serde_json::{Map, Value};
@@ -12,14 +13,156 @@ pub struct Command {
     status: CommandStatus,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum CommandStatus {
-    Active,
-    Inactive,
-    // Add more status types as needed
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum HandlerStatus {
+    Working,
+    NotImplemented,
+    NotTested,
 }
 
-pub struct NetworkMap {}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NodeHandler {
+    name: String,
+    parameters: HashMap<String, Value>,
+    status: HandlerStatus,
+    response_structure: HashMap<String, Value>,
+    description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NodeVersion {
+    marjor: u32,
+    minor: u32,
+    patch: u32,
+    identifier: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Node {
+    name: String,
+    key: String,
+    status: NodeStatus,
+    description: String,
+    version: NodeVersion,
+    handlers: NodeHandler,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum NodeStatus {
+    Online,
+    Idle,
+    NotSync,
+    NotImplemented,
+    Offline,
+}
+
+impl Node {
+    pub fn new(name: String, key: String, status: NodeStatus, description: String, version: NodeVersion, handlers: NodeHandler) -> Self {
+        Self {
+            name,
+            key,
+            status,
+            description,
+            version,
+            handlers,
+        }
+    }
+
+    pub fn change_node_status(&mut self, new_status: NodeStatus) {
+        self.status = new_status;
+    }
+
+    pub fn update(&mut self, name: String, key: String, description: String, version: NodeVersion, handlers: NodeHandler) {
+        self.name = name;
+        self.key = key;
+        self.description = description;
+        self.version = version;
+        self.handlers = handlers;
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkMap {
+    nodes: Vec<Node>,
+}
+
+pub enum NetworkMapError {
+    NodeDoNotExists(String),
+}
+
+impl NetworkMap {
+    pub fn new(nodes: Vec<Node>) -> Self {
+        Self { nodes }
+    }
+
+    pub fn get_node_keys(&self) -> HashMap<String, String> {
+        let mut valid_keys = HashMap::new();
+        for node in &self.nodes {
+            valid_keys.insert(node.name.clone(), node.key.clone());
+        }
+        return valid_keys;
+    }
+
+    pub fn get_node_by_key(&self, key: &String) -> Result<&Node, NetworkMapError> {
+        for node in &self.nodes {
+            if &node.key == key {
+                return Ok(node);
+            }
+        }
+        return Err(NetworkMapError::NodeDoNotExists(key.clone()));
+    }
+
+    /// The idea of the update NetworkMap are to update the network
+    /// by passing a Vec<Node> a vec of nodes, this allows to iterate in the
+    /// current network map and update nodes based in the nodes contained in
+    /// the vec of updated nodes, if a node exists then it will be updated
+    /// with the values or the variables contained in this vec.
+    pub fn update(&mut self, updated_nodes: &Vec<Node>) -> Result<(), NetworkMapError> {
+        // TODO >>> Add a better mechanism that can see if a node or function isn't implemented anymore in relation to the previous expectation
+
+        let nnl = updated_nodes.len();
+        let mut not_seen_nodes: Vec<String> = Vec::new();
+
+        let registred_node_keys: Vec<String> = self.get_node_keys().values().cloned().collect();
+        let mut not_implemented_nodes: Vec<String> = Vec::new();
+
+        let mut new_nodes: HashMap<String, Node> = HashMap::new();
+        let mut new_nodes_keys: Vec<String> = Vec::new();
+
+        for nn in updated_nodes {
+            new_nodes.insert(nn.key, nn.clone());
+            new_nodes_keys.push(nn.key);
+        }
+
+        not_seen_nodes = new_nodes_keys.clone();
+
+        // -> UPDATE EXISTING NODES:
+
+        for node in &self.nodes {
+            if new_nodes_keys.contains(&node.key) {
+                //> UPDATE NODES THAT STILL EXISTING
+                let new_node = new_nodes[&node.key];
+                *node = new_node;
+
+                if let Some(index) = not_seen_nodes.iter().position(|x| x == &node.key) {
+                    not_seen_nodes.remove(index); // remove seen nodes
+                }
+            } else {
+                //> UPDATE NODES THAT DON'T EXISTS ANYMORE
+                node.status = NodeStatus::NotImplemented;
+            };
+        }
+
+        // -> CREATE NEW NODES:
+
+        for key in not_seen_nodes {
+            let new_node = new_nodes[&key];
+            self.nodes.push(Node::new(new_node.name, new_node.key, new_node.status, new_node.description, new_node.version, new_node.handlers))
+        }
+
+        return Ok(());
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommandPatterns {
