@@ -29,6 +29,8 @@ use crate::HOST_LOG_LEVEL;
 
 use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
 
+use crate::HOST_COMMAND_PATTERNS;
+
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let host_log_level;
@@ -40,7 +42,6 @@ macro_rules! acquire_logger {
 }
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -117,7 +118,7 @@ pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
 ///
 pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
     //TODO >>> Add the smart lock mechanism
-    let mut global_command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
     global_command_patterns.add_commands_from_map("host", commands_patterns);
 
     let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
@@ -365,7 +366,7 @@ fn process_response_and_schedule(resulttype_command: ProcessResult, mut client_k
 ///
 /// # Notes
 ///
-/// The function heavily relies on global patterns (`COMMAND_PATTERNS` and `CALLBACK_PATTERNS`)
+/// The function heavily relies on global patterns (`HOST_COMMAND_PATTERNS` and `CALLBACK_PATTERNS`)
 /// which determine how commands are processed and which callbacks are executed.
 ///
 /// The function can handle various response types including maps, strings, integers, floats, and booleans.
@@ -439,7 +440,7 @@ fn process(py: Python, down_command: DownCommand) {
     } else {
         // -> VERIFY IF THE COMMAND EXIST:
         {
-            let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+            let global_command_patterns = HOST_COMMAND_PATTERNS.lock().clone();
 
             // -> Remove command from schedule if it isn't on the patterns
             if !global_command_patterns.command_exists("host", &translated_command.command.actf) {
@@ -548,7 +549,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
 
     thread::sleep(Duration::from_millis(100));
 
-    // let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    // let mut command_patterns = HOST_COMMAND_PATTERNS.lock().unwrap();
 
     return;
 

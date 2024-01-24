@@ -84,6 +84,7 @@ pub struct NetworkMap {
 pub enum NetworkMapError {
     NodeDoNotExists(String),
     IncorrectValueMapPattern(String),
+    IncorrectValuePattern,
 }
 
 impl NetworkMap {
@@ -121,6 +122,32 @@ impl NetworkMap {
         let mut value_map = HashMap::new();
         value_map.insert("network_map".to_string(), serde_json::to_value(&self).unwrap());
         return value_map;
+    }
+
+    pub fn extract_to_value(&self) -> serde_json::Value {
+        serde_json::to_value(&self).unwrap()
+    }
+
+    fn decode_value(value_object: Value) -> Result<NetworkMap, NetworkMapError> {
+        let new_network_map: NetworkMap = match serde_json::from_value(value_object) {
+            Ok(n) => n,
+            Err(e) => {
+                println!("Error creating network map from value: {:?}", e);
+                return Err(NetworkMapError::IncorrectValuePattern);
+            },
+        };
+
+        return Ok(new_network_map);
+    }
+
+    pub fn update_from_value(&mut self, value_object: Value) -> Result<(), NetworkMapError> {
+        let new_network_map: NetworkMap = NetworkMap::decode_value(value_object)?;
+        self.mass_update_all_nodes(&new_network_map.nodes);
+        return Ok(());
+    }
+
+    pub fn gen_from_value(value_object: Value) -> Result<Self, NetworkMapError> {
+        Ok(NetworkMap::decode_value(value_object)?)
     }
 
     pub fn update_from_value_map(&mut self, map: HashMap<String, Value>) -> Result<(), NetworkMapError> {

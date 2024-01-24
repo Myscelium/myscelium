@@ -4,6 +4,8 @@ use crate::common::enhanced_buffer::utilities::{Command, CommandError, CommandIn
 
 use super::client_logger::log_handler::Logger;
 
+use crate::CLIENT_COMMAND_PATTERNS;
+
 use serde_json::json;
 use serde_json::{from_str, Value};
 
@@ -39,7 +41,6 @@ use crate::common::structs::available_commands::CommandPatterns;
 // use crate::CLIENT_ID;
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
     static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
             "get_symbols_data": {
@@ -84,14 +85,14 @@ pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, 
         println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
 
         {
-            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
-            let mut command_patterns = COMMAND_PATTERNS.lock();
-            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
+            let mut command_patterns = CLIENT_COMMAND_PATTERNS.lock();
+            println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
 
             {
                 command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
             }
-            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
         }
     }
     println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
@@ -148,12 +149,12 @@ pub fn get_available_handlers_registered() -> HashMap<String, Value> {
     let global_command_patterns: HashMap<String, Value>;
 
     {
-        println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
-        let command_patterns = COMMAND_PATTERNS.lock();
-        println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
+        let command_patterns = CLIENT_COMMAND_PATTERNS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
         global_command_patterns = command_patterns.extract_all_commands().clone();
     }
-    println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
 
     return global_command_patterns;
 }
@@ -576,7 +577,7 @@ pub fn set_client_uid(client_key: String) {
 /// - If the received command is of an unknown type, a warning is logged.
 ///
 /// # Notes
-/// - This function uses the `COMMAND_PATTERNS` global lock to access and modify the command patterns.
+/// - This function uses the `CLIENT_COMMAND_PATTERNS` global lock to access and modify the command patterns.
 /// - The function also accesses the `CLIENT_IS_RUNNING` global flag to control the client's running state.
 // fn handle_response(received: &Response) -> Received {
 //     let logger = acquire_logger!("Core");

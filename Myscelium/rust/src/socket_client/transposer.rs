@@ -56,7 +56,7 @@ use crate::common::structs::available_commands::CommandPatterns;
 use crate::CLIENT_NODE_NAME;
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
+    pub static ref CLIENT_COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
     pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<NetworkMap>> = Arc::new(Mutex::new(NetworkMap::new(Vec::new())));
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
@@ -103,13 +103,13 @@ pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String,
         println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
 
         {
-            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
-            let mut global_command_patterns = COMMAND_PATTERNS.lock();
-            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
+            let mut global_command_patterns = CLIENT_COMMAND_PATTERNS.lock();
+            println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
 
             global_command_patterns.add_commands_from_map(client_name.as_str(), commands_patterns);
         }
-        println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+        println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
         {
             println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
             let mut callback_patterns = CALLBACK_PATTERNS.lock();

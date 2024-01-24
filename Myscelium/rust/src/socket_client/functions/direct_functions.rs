@@ -1,6 +1,8 @@
 use crate::common::structs::available_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
-use crate::socket_client::socket_client::COMMAND_PATTERNS;
+
+use crate::CLIENT_COMMAND_PATTERNS;
+
 use crate::socket_client::transposer::ProcessError;
 use crate::socket_host::transposer_functions::handle_direct_function::ProcessResult;
 use serde_json::{to_string, Value};
@@ -68,20 +70,21 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             let actual_patterns: HashMap<String, Value>;
 
-            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
             {
-                let command_patterns = COMMAND_PATTERNS.lock();
+                let command_patterns = CLIENT_COMMAND_PATTERNS.lock();
 
-                println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+                println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
 
                 logger.info(format!("Lock In Host Command Patterns!"));
 
                 actual_patterns = command_patterns.extract_all_commands().clone();
             }
-            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
+            // TODO >>> Change this to use NetworkMap instead of commands
             let mut filtered_commands_map = HashMap::new();
             filtered_commands_map.insert("client_handlers".to_string(), Value::Object(serde_json::Map::from_iter(actual_patterns)));
 
@@ -118,17 +121,17 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
         "get_socket_client_available_handlers" => {
             logger.info(format!("Receive Available Handlers Request"));
 
-            // Lock the COMMAND_PATTERNS and insert the new map
+            // Lock the CLIENT_COMMAND_PATTERNS and insert the new map
 
             let actual_patterns: HashMap<String, Value>;
 
-            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
             {
-                let command_patterns = COMMAND_PATTERNS.lock();
-                println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+                let command_patterns = CLIENT_COMMAND_PATTERNS.lock();
+                println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
                 actual_patterns = command_patterns.extract_all_commands().clone();
             }
-            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
 
             logger.info(format!("Successfully actualize the host available commands!"));
 

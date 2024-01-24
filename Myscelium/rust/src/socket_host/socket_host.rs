@@ -53,7 +53,7 @@ use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Cli
 use crate::CLIENTS_SYNC_CONTROLLER;
 
 lazy_static! {
-    static ref COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
+    static ref HOST_COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
     // static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
@@ -234,14 +234,14 @@ pub fn set_max_conns(n_max_conns: u32) {
 
 /// Update the socket host callback patterns.
 ///
-/// This function updates the global `COMMAND_PATTERNS` hashmap with the new provided callback patterns.
+/// This function updates the global `HOST_COMMAND_PATTERNS` hashmap with the new provided callback patterns.
 ///
 /// # Parameters
 /// - `callbacks_patterns`: A `HashMap` containing the new callback patterns to be set.
 pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
     println!("Set Socket Host Callbacks: {:?}", callbacks_patterns);
 
-    let mut global_command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock().unwrap();
     global_command_patterns.add_commands_from_map("host", callbacks_patterns);
 
     println!("Seted Socket Host Callbacks: {:?}", global_command_patterns.extract_all_commands());
@@ -331,12 +331,12 @@ pub fn initialize_host(address: String, client_key: String) {
 
 /// Fetches all available registered command patterns.
 ///
-/// This function retrieves and returns a clone of the global `COMMAND_PATTERNS` hashmap, which contains the registered command patterns.
+/// This function retrieves and returns a clone of the global `HOST_COMMAND_PATTERNS` hashmap, which contains the registered command patterns.
 ///
 /// # Returns
 /// - A `HashMap<String, Value>` representing the cloned command patterns.
 pub fn get_available_commands_registered() -> HashMap<String, Value> {
-    let global_command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+    let global_command_patterns = HOST_COMMAND_PATTERNS.lock().unwrap().clone();
 
     return global_command_patterns.extract_all_commands();
 }
@@ -783,7 +783,7 @@ fn handle_connection(stream: &mut TcpStream) {
         // ! WE CAN'T USE THIS PY AQUIRE UNTIL THE PYTHON POOL IS FINISHED !
 
         {
-            let command_patterns = COMMAND_PATTERNS.lock().unwrap();
+            let command_patterns = HOST_COMMAND_PATTERNS.lock().unwrap();
 
             println!("\nCommand.Command: {:?}", command.command);
             println!("\nCommand.Command.function: {:?}", command.command.actf);
