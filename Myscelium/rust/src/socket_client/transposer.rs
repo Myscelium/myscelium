@@ -51,7 +51,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-use crate::common::structs::available_commands::CommandPatterns;
+// use crate::common::structs::available_commands::CommandPatterns;
 use crate::CLIENT_NODE_NAME;
 
 lazy_static! {
@@ -240,9 +240,9 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
         {
             // logger.debug("Try lock in command patterns".to_string());
 
-            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
             let callback_patterns = CALLBACK_PATTERNS.lock();
-            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Lock] - CALLBACK_PATTERNS");
 
             if !callback_patterns.contains_key(&translated_command.command.actf) {
                 // If the command is not in the patterns, remove it from the schedule and return an error
@@ -253,7 +253,7 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
             }
 
             drop(callback_patterns);
-            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
             // logger.debug("release command patterns".to_string());
         }
 
