@@ -19,6 +19,8 @@ pub enum CommandStatus {
     // Add more status types as needed
 }
 
+pub struct NetworkMap {}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommandPatterns {
     //> Structure:
