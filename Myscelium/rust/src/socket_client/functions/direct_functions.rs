@@ -52,16 +52,17 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             // TODO >>> Maybe create a mechanism to validate the new_patterns received, maybe using regex, idk...
 
-            // Lock the COMMAND_PATTERNS and insert the new map
-            let mut new_patterns = CommandPatterns::new();
-            new_patterns.add_from_map(response_map);
-
             println!("[CLIENT][GLOBAL][Try Lock] - HOST_ALLOWED_COMMANDS");
 
             {
                 let mut host_allowed_commands = HOST_ALLOWED_COMMANDS.lock();
                 println!("[CLIENT][GLOBAL][Lock] - HOST_ALLOWED_COMMANDS");
-                *host_allowed_commands = new_patterns.clone();
+                match host_allowed_commands.update_from_value_map(response_map) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        // TODO >>> Better threat this error case
+                    },
+                }
             }
             println!("[CLIENT][GLOBAL][Release] - HOST_ALLOWED_COMMANDS");
 

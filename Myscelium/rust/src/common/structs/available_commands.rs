@@ -83,6 +83,7 @@ pub struct NetworkMap {
 
 pub enum NetworkMapError {
     NodeDoNotExists(String),
+    IncorrectValueMapPattern(String),
 }
 
 impl NetworkMap {
@@ -117,11 +118,26 @@ impl NetworkMap {
     }
 
     pub fn convert_to_value_map(&self) -> HashMap<String, Value> {
-        // TODO >>> Add the necessary code to make this case work as intended
+        let mut value_map = HashMap::new();
+        value_map.insert("network_map".to_string(), serde_json::to_value(&self).unwrap());
+        return value_map;
     }
 
-    pub fn update_from_value_map(&self, map: HashMap<String, Value>) {
-        // TODO >>> Add the necessary code to make this case work as intended
+    pub fn update_from_value_map(&mut self, map: HashMap<String, Value>) -> Result<(), NetworkMapError> {
+        if !map.contains_key("network_map") {
+            return Err(NetworkMapError::IncorrectValueMapPattern("network map key not found in the map provided".to_string()));
+        };
+
+        let value_network_map = &map["network_map"];
+
+        let network_map: NetworkMap = match serde_json::from_value(value_network_map.clone()) {
+            Ok(n) => n,
+            Err(e) => return Err(NetworkMapError::IncorrectValueMapPattern(e.to_string())),
+        };
+
+        self.mass_update_all_nodes(&network_map.nodes);
+
+        return Ok(());
     }
 
     /// The idea of the update NetworkMap are to update the network
@@ -142,19 +158,19 @@ impl NetworkMap {
         let mut new_nodes_keys: Vec<String> = Vec::new();
 
         for nn in updated_nodes {
-            new_nodes.insert(nn.key, nn.clone());
-            new_nodes_keys.push(nn.key);
+            new_nodes.insert(nn.key.clone(), nn.clone());
+            new_nodes_keys.push(nn.key.clone());
         }
 
         not_seen_nodes = new_nodes_keys.clone();
 
         // -> UPDATE EXISTING NODES:
 
-        for node in &self.nodes {
+        for node in &mut self.nodes {
             if new_nodes_keys.contains(&node.key) {
                 //> UPDATE NODES THAT STILL EXISTING
-                let new_node = new_nodes[&node.key];
-                *node = new_node;
+                let new_node = &new_nodes[&node.key];
+                *node = new_node.clone();
 
                 if let Some(index) = not_seen_nodes.iter().position(|x| x == &node.key) {
                     not_seen_nodes.remove(index); // remove seen nodes
@@ -168,7 +184,7 @@ impl NetworkMap {
         // -> CREATE NEW NODES:
 
         for key in not_seen_nodes {
-            let new_node = new_nodes[&key];
+            let new_node = new_nodes[&key].clone();
             self.nodes.push(Node::new(new_node.name, new_node.key, new_node.status, new_node.description, new_node.version, new_node.handlers))
         }
 
@@ -182,7 +198,7 @@ impl NetworkMap {
                 return false;
             },
         };
-        for handler in node.handlers {
+        for handler in &node.handlers {
             if handler.name == command_name {
                 return true;
             }
@@ -192,7 +208,7 @@ impl NetworkMap {
 
     pub fn add_or_update_if_exists(&mut self, new_node: Node) {
         // -> UPDATE EXISTING NODE:
-        for node in &self.nodes {
+        for node in &mut self.nodes {
             if new_node.key == node.key {
                 *node = new_node;
                 return;
