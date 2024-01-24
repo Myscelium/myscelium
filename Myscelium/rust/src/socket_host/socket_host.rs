@@ -44,8 +44,6 @@ use super::host_logger;
 use super::host_logger::log_handler::Logger;
 use crate::HOST_LOG_LEVEL;
 
-use crate::common::functions::advanced_lockers::smart_lock;
-
 use crate::common::structs::available_commands::CommandPatterns;
 
 use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
@@ -708,25 +706,24 @@ fn handle_connection(stream: &mut TcpStream) {
         let mut client_sync_status: Option<bool> = Some(false);
         let mut client_last_sync: Option<DateTime<Utc>> = None;
 
-        let controller = &CLIENTS_SYNC_CONTROLLER;
-        smart_lock(&*controller, |clients: &mut Clients| {
-            println!("Clients In Sync Controler: {:?}", clients);
-
-            client_sync_status = match clients.get_sync_status(&command.client_key.clone()) {
+        {
+            let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
+            client_sync_status = match controller.get_sync_status(&command.client_key.clone()) {
                 Ok(s) => Some(s),
                 Err(e) => {
                     handle_client_controler_error!(e, &command.client_key, logger);
                     None
                 },
             };
-            client_last_sync = match clients.get_last_sync(&command.client_key.clone()) {
+            client_last_sync = match controller.get_last_sync(&command.client_key.clone()) {
                 Ok(last_sync) => Some(last_sync),
                 Err(e) => {
                     handle_client_controler_error!(e, &command.client_key, logger);
                     None
                 },
-            }
-        });
+            };
+            println!("Clients In Sync Controler: {:?}", controller);
+        }
 
         update_last_contact(command.client_key.clone());
 
@@ -741,15 +738,15 @@ fn handle_connection(stream: &mut TcpStream) {
                         // The time to try sinc again needs to be the same time that the db refreshs or multiple of that
                         send_network_available_commands(command.client_key.clone());
 
-                        let controller = &CLIENTS_SYNC_CONTROLLER;
-                        smart_lock(&*controller, |clients: &mut Clients| {
-                            let _ = match clients.update_client_sync_attempt(&command.client_key.clone()) {
+                        {
+                            let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
+                            let _ = match controller.update_client_sync_attempt(&command.client_key.clone()) {
                                 Ok(c) => c,
                                 Err(e) => {
                                     handle_client_controler_error!(e, &command.client_key, logger);
                                 },
                             };
-                        })
+                        }
                     } else {
                         logger.warn(format!(
                             "WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!",
@@ -763,15 +760,15 @@ fn handle_connection(stream: &mut TcpStream) {
                     // -> case of be the first sync attempt
                     send_network_available_commands(command.client_key.clone()); //TODO >>> Make this send directly withoput schedule in buffer via the send function
 
-                    let controller = &CLIENTS_SYNC_CONTROLLER;
-                    smart_lock(&*controller, |clients: &mut Clients| {
-                        let _ = match clients.update_client_sync_attempt(&command.client_key.clone()) {
+                    {
+                        let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
+                        let _ = match controller.update_client_sync_attempt(&command.client_key.clone()) {
                             Ok(_) => (),
                             Err(e) => {
                                 handle_client_controler_error!(e, &command.client_key, logger);
                             },
                         };
-                    });
+                    }
                 }
             } else {
                 println!("\nClient: {:?} is sync!\n", &command.client_key);

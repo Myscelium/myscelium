@@ -9,7 +9,7 @@ use crate::socket_client::transposer::ProcessError;
 
 use serde::{Deserialize, Serialize};
 
-use crate::socket_host::transposer::COMMAND_PATTERNS;
+use crate::HOST_COMMAND_PATTERNS;
 
 use crate::socket_host::client_manager::manager::get_all_clients;
 
@@ -20,7 +20,6 @@ use crate::socket_host::client_manager::manager::{check_if_client_key_exists, Cl
 
 use crate::common::functions::converters::{convert_json_map_to_hash_map, convert_value_map_to_resulttype_map, ConversionError};
 
-use crate::common::functions::advanced_lockers::smart_lock;
 use crate::CLIENTS_SYNC_CONTROLLER;
 
 use crate::handle_client_error;
@@ -65,12 +64,12 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         "get_registered_commands" => {
             logger.info(format!("Receive get_registered_commands in host!"));
 
-            // Lock the COMMAND_PATTERNS and insert the new map
+            // Lock the HOST_COMMAND_PATTERNS and insert the new map
 
             let actual_patterns;
 
             {
-                actual_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+                actual_patterns = HOST_COMMAND_PATTERNS.lock().unwrap().clone();
             }
 
             // -> get the client by the client key
@@ -140,16 +139,16 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
             let client_name: String = client.get_client_name();
 
-            let actual_patterns = &COMMAND_PATTERNS;
-            smart_lock(&*actual_patterns, |patterns: &mut CommandPatterns| {
-                patterns.add_or_update_if_exists(client_name.as_str(), convert_json_map_to_hash_map(client_handlers))
-            });
+            {
+                let mut actual_patterns = &HOST_COMMAND_PATTERNS;
+                *actual_patterns.add_or_update_if_exists(client_name.as_str(), convert_json_map_to_hash_map(client_handlers))
+            }
 
-            let controller = &CLIENTS_SYNC_CONTROLLER;
-            smart_lock(&*controller, |clients: &mut Clients| {
-                let status = clients.update_client_sync_status(client_key, true);
+            {
+                let controller = &CLIENTS_SYNC_CONTROLLER;
+                let status = controller.update_client_sync_status(client_key, true);
                 // TODO >>> Add a mechanism to set all the other clients state to sync = false
-            });
+            }
 
             // -> Try to get the clients registred in the database
             let mut clients = match get_all_clients() {
@@ -223,10 +222,10 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
                 // TODO >>> Add a mechanism to see what handlers the client will ahve permission to activate
                 //* Any mechanism that will see the client permissions to each command may be placed here
 
-                let actual_patterns = &COMMAND_PATTERNS;
-                smart_lock(&*actual_patterns, |patterns: &mut CommandPatterns| {
-                    filtered_commands = patterns.get_all_commands_except_for_client(client_name.as_str());
-                });
+                {
+                    let actual_patterns = HOST_COMMAND_PATTERNS.lock();
+                    filtered_commands = actual_patterns.get_all_commands_except_for_client(client_name.as_str());
+                }
 
                 // > Schedule a redirect to the other clients
                 let client_key_to_redirect: String = client.client_key.clone();

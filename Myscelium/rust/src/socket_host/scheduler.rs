@@ -16,7 +16,6 @@ use crate::HOST_COMMAND_PATTERNS;
 
 use serde_json::Error;
 
-use crate::common::functions::advanced_lockers::smart_lock;
 use crate::common::structs::available_commands::{CommandPatterns, NetworkMap};
 
 use super::host_logger::log_handler::Logger;
@@ -76,8 +75,11 @@ pub fn send_network_available_commands(client_key: String) {
     // Lock the HOST_COMMAND_PATTERNS and insert the new map
 
     let mut actual_patterns: NetworkMap = NetworkMap::new(Vec::new());
-    let command_patterns = &HOST_COMMAND_PATTERNS;
-    smart_lock(&*command_patterns, |patterns: &mut NetworkMap| actual_patterns = patterns.clone());
+
+    {
+        let command_patterns = HOST_COMMAND_PATTERNS.lock();
+        actual_patterns = command_patterns.clone()
+    }
 
     // -> get the client by the client key
     let client = match Client::get_by_key(&client_key) {

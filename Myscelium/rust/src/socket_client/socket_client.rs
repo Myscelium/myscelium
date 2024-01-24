@@ -89,6 +89,8 @@ pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, 
             let mut command_patterns = CLIENT_COMMAND_PATTERNS.lock();
             println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
 
+            // TODO >>> Add the new way to add commands using the new NetworkMap struct
+
             {
                 command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
             }
@@ -709,25 +711,6 @@ pub fn initialize_client(address: String) {
             logger.info(format!("running is set to false, shutdown socket client main process!"));
             break;
         }
-
-        // if !client_key_was_seted {
-        //     let mut client_key: String = " ".to_string();
-
-        //     let client_key_storage = &CLIENT_ID;
-        //     smart_lock(&*client_key_storage, |key: &mut String| {
-        //         client_key = key.clone();
-        //     });
-
-        //     // TODO >>> Maybe add a mechanism taht when this is seted it don't verify again to reduce complexity, maybe a boolean
-
-        //     if client_key == " " {
-        //         // Whait untill client id was seted!
-        //         thread::sleep(Duration::from_millis(200));
-        //         continue;
-        //     } else {
-        //         client_key_was_seted = true;
-        //     }
-        // }
 
         let up_schedule = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule();
 

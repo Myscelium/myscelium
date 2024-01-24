@@ -15,7 +15,6 @@ use crate::socket_client::transposer::HOST_ALLOWED_COMMANDS;
 
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
-use crate::common::functions::advanced_lockers::smart_lock;
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::converters::convert_value_map_to_resulttype_map;
 use crate::common::functions::converters::ConversionError;
@@ -68,7 +67,7 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
             }
             println!("[CLIENT][GLOBAL][Release] - HOST_ALLOWED_COMMANDS");
 
-            let actual_patterns: HashMap<String, Value>;
+            let actual_patterns: Value;
 
             println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
             {
@@ -78,7 +77,7 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
                 logger.info(format!("Lock In Host Command Patterns!"));
 
-                actual_patterns = command_patterns.extract_all_commands().clone();
+                actual_patterns = command_patterns.extract_to_value().clone();
             }
             println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
 
@@ -86,7 +85,7 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             // TODO >>> Change this to use NetworkMap instead of commands
             let mut filtered_commands_map = HashMap::new();
-            filtered_commands_map.insert("client_handlers".to_string(), Value::Object(serde_json::Map::from_iter(actual_patterns)));
+            filtered_commands_map.insert("client_handlers".to_string(), actual_patterns);
 
             //> VERIFY IF IS CLIENT FIRST SYNC
             if !CLIENT_IS_SYNC.load(Ordering::SeqCst) {
@@ -123,13 +122,13 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             // Lock the CLIENT_COMMAND_PATTERNS and insert the new map
 
-            let actual_patterns: HashMap<String, Value>;
+            let actual_patterns: Value;
 
             println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
             {
                 let command_patterns = CLIENT_COMMAND_PATTERNS.lock();
                 println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
-                actual_patterns = command_patterns.extract_all_commands().clone();
+                actual_patterns = command_patterns.extract_to_value();
             }
             println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
 
@@ -138,7 +137,7 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
             let mut filtered_commands_map: HashMap<String, Value> = HashMap::new();
-            filtered_commands_map.insert("client_handlers".to_string(), Value::Object(serde_json::Map::from_iter(actual_patterns)));
+            filtered_commands_map.insert("client_handlers".to_string(), actual_patterns);
 
             let new_command_instructions = CommandInstructions::new(
                 CommandMode::Response,

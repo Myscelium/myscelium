@@ -35,8 +35,6 @@ lazy_static! {
     pub static ref CLIENT_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref CLIENT_IS_READY: Arc<AtomicBool> = Arc::new(AtomicBool::new(false)); // TODO >>> Finish the impl of this
-    pub static ref CLIENT_NETWORK_CONTROLER: Arc<Mutex<AllowedNetWorkController>> = Arc::new(Mutex::new(AllowedNetWorkController::new()));
-
     pub static ref CLIENT_COMMAND_PATTERNS: Arc<Mutex<NetworkMap>> = Arc::new(Mutex::new(NetworkMap::new(Vec::new())));
 
     // HOST:
