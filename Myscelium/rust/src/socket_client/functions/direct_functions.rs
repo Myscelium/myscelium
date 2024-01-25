@@ -1,7 +1,7 @@
 use crate::common::structs::available_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
 
-use crate::CLIENT_COMMAND_PATTERNS;
+use crate::CLIENT_NODE_CONFIGS;
 
 use crate::socket_client::transposer::ProcessError;
 use crate::socket_host::transposer_functions::handle_direct_function::ProcessResult;
@@ -69,17 +69,17 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             let actual_patterns: Value;
 
-            println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
             {
-                let command_patterns = CLIENT_COMMAND_PATTERNS.lock();
+                let command_patterns = CLIENT_NODE_CONFIGS.lock();
 
-                println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
+                println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
 
                 logger.info(format!("Lock In Host Command Patterns!"));
 
-                actual_patterns = command_patterns.extract_to_value().clone();
+                actual_patterns = command_patterns.to_value();
             }
-            println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
@@ -120,17 +120,17 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
         "get_socket_client_available_handlers" => {
             logger.info(format!("Receive Available Handlers Request"));
 
-            // Lock the CLIENT_COMMAND_PATTERNS and insert the new map
+            // Lock the CLIENT_NODE_CONFIGS and insert the new map
 
             let actual_patterns: Value;
 
-            println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
             {
-                let command_patterns = CLIENT_COMMAND_PATTERNS.lock();
-                println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
-                actual_patterns = command_patterns.extract_to_value();
+                let command_patterns = CLIENT_NODE_CONFIGS.lock();
+                println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
+                actual_patterns = command_patterns.to_value();
             }
-            println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
 
             logger.info(format!("Successfully actualize the host available commands!"));
 

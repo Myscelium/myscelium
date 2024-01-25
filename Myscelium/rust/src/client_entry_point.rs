@@ -22,7 +22,7 @@ use std::thread;
 
 use std::time::Duration;
 
-use crate::{CLIENT_COMMAND_PATTERNS, CLIENT_IS_RUNNING, CLIENT_NODE_KEY, CLIENT_NODE_NAME};
+use crate::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY, CLIENT_NODE_NAME};
 
 // -> Socket Client main-points:
 
@@ -393,15 +393,15 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
     }
 
     {
-        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
-        let mut command_patterns = CLIENT_COMMAND_PATTERNS.lock();
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
+        let mut command_patterns = CLIENT_NODE_CONFIGS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
 
         let client_version: NodeVersion = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
         let client_node = Node::new(client_name, client_key, "".to_string(), client_version, client_handlers);
-        command_patterns.add_or_update_if_exists(client_node);
+        *command_patterns = client_node;
 
-        println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
+        println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
     }
 
     // TODO >>> Add the new mechanism of Network Commands here

@@ -55,8 +55,9 @@ macro_rules! acquire_logger {
 use crate::common::structs::available_commands::CommandPatterns;
 use crate::CLIENT_NODE_KEY;
 
+use crate::CLIENT_NODE_CONFIGS;
+
 lazy_static! {
-    pub static ref CLIENT_COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
     pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<NetworkMap>> = Arc::new(Mutex::new(NetworkMap::new(Vec::new())));
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();

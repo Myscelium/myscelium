@@ -64,16 +64,17 @@ impl NodeVersion {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NodeError {
     InvalidValue,
+    NodeNotInitializedYet,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
-    name: String,
-    key: String,
-    status: NodeStatus,
-    description: String,
-    version: NodeVersion,
-    handlers: Vec<NodeHandler>,
+    name: Option<String>,
+    key: Option<String>,
+    status: Option<NodeStatus>,
+    description: Option<String>,
+    version: Option<NodeVersion>,
+    handlers: Option<Vec<NodeHandler>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -86,6 +87,17 @@ pub enum NodeStatus {
 }
 
 impl Node {
+    pub fn empty_node() -> Self {
+        Self {
+            name: None,
+            key: None,
+            status: None,
+            description: None,
+            version: None,
+            handlers: None,
+        }
+    }
+
     pub fn new(name: String, key: String, description: String, version: NodeVersion, handlers: Vec<NodeHandler>) -> Self {
         let mut status: NodeStatus;
 
@@ -96,12 +108,12 @@ impl Node {
         }
 
         Self {
-            name,
-            key,
-            status,
-            description,
-            version,
-            handlers,
+            name: Some(name),
+            key: Some(key),
+            status: Some(status),
+            description: Some(description),
+            version: Some(version),
+            handlers: Some(handlers),
         }
     }
 
@@ -117,16 +129,30 @@ impl Node {
         serde_json::to_value(&self).unwrap()
     }
 
+    pub fn get_node_handlers(&self) -> Result<HashMap<String, Value>, NodeError> {
+        let mut node_handlers: HashMap<String, Value> = HashMap::new();
+
+        if let Some(handlers) = &self.handlers {
+            for handler in handlers {
+                node_handlers.insert(handler.name.clone(), handler.parameters.clone());
+            }
+        } else {
+            return Err(NodeError::NodeNotInitializedYet);
+        }
+
+        return Ok(node_handlers);
+    }
+
     pub fn change_node_status(&mut self, new_status: NodeStatus) {
-        self.status = new_status;
+        self.status = Some(new_status);
     }
 
     pub fn update(&mut self, name: String, key: String, description: String, version: NodeVersion, handlers: Vec<NodeHandler>) {
-        self.name = name;
-        self.key = key;
-        self.description = description;
-        self.version = version;
-        self.handlers = handlers;
+        self.name = Some(name);
+        self.key = Some(key);
+        self.description = Some(description);
+        self.version = Some(version);
+        self.handlers = Some(handlers);
     }
 }
 
@@ -135,10 +161,12 @@ pub struct NetworkMap {
     nodes: Vec<Node>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NetworkMapError {
     NodeDoNotExists(String),
     IncorrectValueMapPattern(String),
     IncorrectValuePattern,
+    NodeNotInitialized(String),
 }
 
 impl NetworkMap {
@@ -146,46 +174,58 @@ impl NetworkMap {
         Self { nodes }
     }
 
-    pub fn extract_all_commands(&self) -> HashMap<String, Value> {
+    pub fn extract_all_commands(&self) -> Result<HashMap<String, Value>, NetworkMapError> {
         let mut available_commands: HashMap<String, Value> = HashMap::new();
 
         for node in &self.nodes {
-            for handler in &node.handlers {
-                available_commands.insert(handler.name.clone(), handler.parameters.clone());
+            if let Some(handlers) = node.handlers {
+                for handler in handlers {
+                    available_commands.insert(handler.name.clone(), handler.parameters.clone());
+                }
+            } else {
+                return Err(NetworkMapError::NodeNotInitialized("".to_string()));
             }
         }
 
-        return available_commands;
+        return Ok(available_commands);
     }
 
     pub fn get_all_nodes_except_node_with_name(&self, name: String) -> Vec<Node> {
         let mut nodes_mirror = self.nodes.clone();
-        if let Some(index) = nodes_mirror.iter().position(|x| x.name == name) {
+        if let Some(index) = nodes_mirror.iter().position(|x| x.name == Some(name)) {
             nodes_mirror.remove(index); // remove especific node
         }
         return nodes_mirror;
     }
 
-    pub fn get_node_keys(&self) -> HashMap<String, String> {
+    pub fn get_node_keys(&self) -> Result<HashMap<String, String>, NetworkMapError> {
         let mut valid_keys = HashMap::new();
         for node in &self.nodes {
-            valid_keys.insert(node.name.clone(), node.key.clone());
+            if let Some(node_name) = node.name {
+                if let Some(node_key) = node.key {
+                    valid_keys.insert(node_name.clone(), node_key.clone());
+                } else {
+                    return Err(NetworkMapError::NodeNotInitialized(node_name));
+                }
+            } else {
+                return Err(NetworkMapError::NodeNotInitialized("".to_string()));
+            }
         }
-        return valid_keys;
+        return Ok(valid_keys);
     }
 
-    pub fn get_node_by_name(&mut self, name: &String) -> Result<&mut Node, NetworkMapError> {
+    pub fn get_node_by_name(&mut self, name: String) -> Result<&mut Node, NetworkMapError> {
         for node in &mut self.nodes {
-            if &node.name == name {
+            if &node.name == &Some(name) {
                 return Ok(node);
             }
         }
         return Err(NetworkMapError::NodeDoNotExists(name.clone()));
     }
 
-    pub fn get_node_by_key(&mut self, key: &String) -> Result<&mut Node, NetworkMapError> {
+    pub fn get_node_by_key(&mut self, key: String) -> Result<&mut Node, NetworkMapError> {
         for node in &mut self.nodes {
-            if &node.key == key {
+            if &node.key == &Some(key) {
                 return Ok(node);
             }
         }
@@ -225,18 +265,18 @@ impl NetworkMap {
     }
 
     pub fn update_from_value_map(&mut self, map: HashMap<String, Value>) -> Result<(), NetworkMapError> {
-        if !map.contains_key("network_map") {
+        if !map.contains_key("network_nodes") {
             return Err(NetworkMapError::IncorrectValueMapPattern("network map key not found in the map provided".to_string()));
         };
 
-        let value_network_map = &map["network_map"];
+        let value_network_map = &map["network_nodes"];
 
-        let network_map: NetworkMap = match serde_json::from_value(value_network_map.clone()) {
+        let network_map: Vec<Node> = match serde_json::from_value(value_network_map.clone()) {
             Ok(n) => n,
             Err(e) => return Err(NetworkMapError::IncorrectValueMapPattern(e.to_string())),
         };
 
-        self.mass_update_all_nodes(&network_map.nodes);
+        self.mass_update_all_nodes(&network_map).unwrap();
 
         return Ok(());
     }
@@ -252,15 +292,19 @@ impl NetworkMap {
         let nnl = updated_nodes.len();
         let mut not_seen_nodes: Vec<String> = Vec::new();
 
-        let registred_node_keys: Vec<String> = self.get_node_keys().values().cloned().collect();
+        let registred_node_keys: Vec<String> = self.get_node_keys()?.values().cloned().collect();
         let mut not_implemented_nodes: Vec<String> = Vec::new();
 
         let mut new_nodes: HashMap<String, Node> = HashMap::new();
         let mut new_nodes_keys: Vec<String> = Vec::new();
 
         for nn in updated_nodes {
-            new_nodes.insert(nn.key.clone(), nn.clone());
-            new_nodes_keys.push(nn.key.clone());
+            if let Some(nn_key) = nn.key {
+                new_nodes.insert(nn_key.clone(), nn.clone());
+                new_nodes_keys.push(nn_key.clone());
+            } else {
+                return Err(NetworkMapError::NodeNotInitialized("".to_string()));
+            }
         }
 
         not_seen_nodes = new_nodes_keys.clone();
@@ -268,42 +312,50 @@ impl NetworkMap {
         // -> UPDATE EXISTING NODES:
 
         for node in &mut self.nodes {
-            if new_nodes_keys.contains(&node.key) {
-                //> UPDATE NODES THAT STILL EXISTING
-                let new_node = &new_nodes[&node.key];
-                *node = new_node.clone();
+            if let Some(node_key) = &node.key {
+                if new_nodes_keys.contains(node_key) {
+                    //> UPDATE NODES THAT STILL EXISTING
+                    let new_node = &new_nodes[node_key];
+                    *node = new_node.clone();
 
-                if let Some(index) = not_seen_nodes.iter().position(|x| x == &node.key) {
-                    not_seen_nodes.remove(index); // remove seen nodes
-                }
-            } else {
-                //> UPDATE NODES THAT DON'T EXISTS ANYMORE
-                node.status = NodeStatus::NotImplemented;
-            };
+                    if let Some(index) = not_seen_nodes.iter().position(|x| x == node_key) {
+                        not_seen_nodes.remove(index); // remove seen nodes
+                    }
+                } else {
+                    //> UPDATE NODES THAT DON'T EXISTS ANYMORE
+                    node.status = Some(NodeStatus::NotImplemented);
+                };
+            }
         }
 
         // -> CREATE NEW NODES:
 
         for key in not_seen_nodes {
             let new_node = new_nodes[&key].clone();
-            self.nodes.push(Node::new(new_node.name, new_node.key, new_node.description, new_node.version, new_node.handlers))
+
+            self.nodes
+                .push(Node::new(new_node.name.unwrap(), new_node.key.unwrap(), new_node.description.unwrap(), new_node.version.unwrap(), new_node.handlers.unwrap()))
         }
 
         return Ok(());
     }
 
     pub fn command_exists(&mut self, owner: &str, command_name: &str) -> bool {
-        let node = match self.get_node_by_name(&owner.to_string()) {
+        let node = match self.get_node_by_name(owner.to_string()) {
             Ok(n) => n,
             Err(_) => {
                 return false;
             },
         };
-        for handler in &node.handlers {
-            if handler.name == command_name {
-                return true;
+
+        if let Some(node_handlers) = &node.handlers {
+            for handler in node_handlers {
+                if handler.name == command_name {
+                    return true;
+                }
             }
         }
+
         return false;
     }
 
@@ -319,7 +371,8 @@ impl NetworkMap {
         }
 
         // -> CREATE NEW NODE:
-        self.nodes.push(Node::new(new_node.name, new_node.key, new_node.description, new_node.version, new_node.handlers))
+        self.nodes
+            .push(Node::new(new_node.name.unwrap(), new_node.key.unwrap(), new_node.description.unwrap(), new_node.version.unwrap(), new_node.handlers.unwrap()))
     }
 }
 

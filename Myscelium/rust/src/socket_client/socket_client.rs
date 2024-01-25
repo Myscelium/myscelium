@@ -4,7 +4,7 @@ use crate::common::enhanced_buffer::utilities::{Command, CommandError, CommandIn
 
 use super::client_logger::log_handler::Logger;
 
-use crate::CLIENT_COMMAND_PATTERNS;
+use crate::CLIENT_NODE_CONFIGS;
 
 use serde_json::json;
 use serde_json::{from_str, Value};
@@ -122,12 +122,12 @@ pub fn get_available_handlers_registered() -> HashMap<String, Value> {
     let global_command_patterns: HashMap<String, Value>;
 
     {
-        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
-        let command_patterns = CLIENT_COMMAND_PATTERNS.lock();
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
-        global_command_patterns = command_patterns.extract_all_commands();
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
+        let command_patterns = CLIENT_NODE_CONFIGS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
+        global_command_patterns = command_patterns.get_node_handlers();
     }
-    println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
 
     return global_command_patterns;
 }
@@ -550,7 +550,7 @@ pub fn set_client_uid(client_key: String) {
 /// - If the received command is of an unknown type, a warning is logged.
 ///
 /// # Notes
-/// - This function uses the `CLIENT_COMMAND_PATTERNS` global lock to access and modify the command patterns.
+/// - This function uses the `CLIENT_NODE_CONFIGS` global lock to access and modify the command patterns.
 /// - The function also accesses the `CLIENT_IS_RUNNING` global flag to control the client's running state.
 // fn handle_response(received: &Response) -> Received {
 //     let logger = acquire_logger!("Core");
