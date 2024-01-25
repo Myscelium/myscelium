@@ -146,6 +146,18 @@ impl NetworkMap {
         Self { nodes }
     }
 
+    pub fn extract_all_commands(&self) -> HashMap<String, Value> {
+        let mut available_commands: HashMap<String, Value> = HashMap::new();
+
+        for node in &self.nodes {
+            for handler in &node.handlers {
+                available_commands.insert(handler.name.clone(), handler.parameters.clone());
+            }
+        }
+
+        return available_commands;
+    }
+
     pub fn get_all_nodes_except_node_with_name(&self, name: String) -> Vec<Node> {
         let mut nodes_mirror = self.nodes.clone();
         if let Some(index) = nodes_mirror.iter().position(|x| x.name == name) {
@@ -162,8 +174,8 @@ impl NetworkMap {
         return valid_keys;
     }
 
-    pub fn get_node_by_name(&self, name: &String) -> Result<&Node, NetworkMapError> {
-        for node in &self.nodes {
+    pub fn get_node_by_name(&mut self, name: &String) -> Result<&mut Node, NetworkMapError> {
+        for node in &mut self.nodes {
             if &node.name == name {
                 return Ok(node);
             }
@@ -171,8 +183,8 @@ impl NetworkMap {
         return Err(NetworkMapError::NodeDoNotExists(name.clone()));
     }
 
-    pub fn get_node_by_key(&self, key: &String) -> Result<&Node, NetworkMapError> {
-        for node in &self.nodes {
+    pub fn get_node_by_key(&mut self, key: &String) -> Result<&mut Node, NetworkMapError> {
+        for node in &mut self.nodes {
             if &node.key == key {
                 return Ok(node);
             }
@@ -280,7 +292,7 @@ impl NetworkMap {
         return Ok(());
     }
 
-    pub fn command_exists(&self, owner: &str, command_name: &str) -> bool {
+    pub fn command_exists(&mut self, owner: &str, command_name: &str) -> bool {
         let node = match self.get_node_by_name(&owner.to_string()) {
             Ok(n) => n,
             Err(_) => {

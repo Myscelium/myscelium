@@ -436,7 +436,7 @@ fn process(py: Python, down_command: DownCommand) {
     } else {
         // -> VERIFY IF THE COMMAND EXIST:
         {
-            let global_command_patterns = HOST_COMMAND_PATTERNS.lock().clone();
+            let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
 
             // -> Remove command from schedule if it isn't on the patterns
             if !global_command_patterns.command_exists("host", &translated_command.command.actf) {

@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use crate::CLIENT_IS_RUNNING;
 use crate::CLIENT_LOG_LEVEL;
-use crate::CLIENT_NODE_NAME;
+use crate::CLIENT_NODE_KEY;
 
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
@@ -37,7 +37,7 @@ macro_rules! acquire_logger {
     }};
 }
 
-use crate::common::structs::available_commands::CommandPatterns;
+use crate::common::structs::available_commands::{CommandPatterns, Node};
 // use crate::CLIENT_ID;
 
 lazy_static! {
@@ -70,35 +70,6 @@ lazy_static! {
 // >-------------------------------------------------------------------------------------------------------------------------------------------
 
 // -> Socket Interactive Functions:
-
-/// Sets the callback patterns for the socket client.
-///
-/// This function allows the user to define the command patterns that dictate
-/// how commands are recognized and processed by the socket client.
-///
-/// # Arguments
-/// - `callbacks_patterns`: A `HashMap` containing the desired command patterns.
-pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
-    {
-        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
-        let client_name = CLIENT_NODE_NAME.lock().clone();
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
-
-        {
-            println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
-            let mut command_patterns = CLIENT_COMMAND_PATTERNS.lock();
-            println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
-
-            // TODO >>> Add the new way to add commands using the new NetworkMap struct
-
-            {
-                command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
-            }
-            println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
-        }
-    }
-    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
-}
 
 use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
 
@@ -154,7 +125,7 @@ pub fn get_available_handlers_registered() -> HashMap<String, Value> {
         println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
         let command_patterns = CLIENT_COMMAND_PATTERNS.lock();
         println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
-        global_command_patterns = command_patterns.extract_all_commands().clone();
+        global_command_patterns = command_patterns.extract_all_commands();
     }
     println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
 

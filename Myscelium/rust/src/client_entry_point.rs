@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
+use crate::common::enhanced_buffer::utilities::CommandType;
 use crate::common::functions::advanced_lockers::smart_lock;
+use crate::common::structs::available_commands::{HandlerStatus, Node, NodeHandler, NodeVersion, VersionIndentifier};
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_database_dir, set_client_log_level};
 
 use pyo3::prelude::*;
@@ -20,13 +22,13 @@ use std::thread;
 
 use std::time::Duration;
 
-use crate::CLIENT_IS_RUNNING;
+use crate::{CLIENT_COMMAND_PATTERNS, CLIENT_IS_RUNNING, CLIENT_NODE_KEY, CLIENT_NODE_NAME};
 
 // -> Socket Client main-points:
 
 use crate::socket_client::scheduler::{self, schedule};
 use crate::socket_client::socket_client;
-use crate::socket_client::socket_client::{get_available_handlers_registered, set_socket_client_callbacks_patterns};
+use crate::socket_client::socket_client::get_available_handlers_registered;
 use crate::socket_client::socket_client::{initialize_client, initialize_client_buffer};
 use crate::socket_client::transposer::{initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num};
 
@@ -331,7 +333,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
     // }, ]
     //
 
-    let mut command_patterns = HashMap::new();
+    let mut client_handlers: Vec<NodeHandler> = Vec::new();
 
     let mut callbacks_patterns = HashMap::new();
 
@@ -367,38 +369,44 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
             args_types_value = Value::Array(Vec::new()); // or whatever default value you want to use
         }
 
-        // Store the function name and argument types in the command patterns
-        command_patterns.insert(function_name.to_string(), args_types_value.clone());
-
-        // Here command_patterns is a list of:
-        //
-        // {
-        //     "function1": {
-        //         "arg1": "int",
-        //         "arg2": "str"
-        //     },
-        //     "function2": "None"
-        // }
+        let handler: NodeHandler = NodeHandler::new(function_name.to_string(), args_types_value.clone(), CommandType::ExternalFunction, HandlerStatus::NotTested, HashMap::new(), "".to_string());
+        client_handlers.push(handler);
 
         let function = function.downcast::<PyFunction>()?.clone();
 
         let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
         callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
-
-        // Callback patterns is a list of:
-        //
-        // {
-        //     "function1": (PyFunctionObject1, {
-        //         "arg1": "int",
-        //         "arg2": "str"
-        //     }),
-        //     "function2": (PyFunctionObject2, "None")
-        // }
     }
 
-    // Now you can use the command_patterns
-    set_socket_client_callbacks_patterns(command_patterns.clone());
-    set_socket_client_transposer_callbacks(command_patterns.clone(), callbacks_patterns);
+    let mut client_name: String = "".to_string();
+
+    {
+        let name = CLIENT_NODE_NAME.lock();
+        client_name = name.clone();
+    }
+
+    let mut client_key: String = "".to_string();
+
+    {
+        let key = CLIENT_NODE_KEY.lock();
+        let client_key: String = key.clone();
+    }
+
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_COMMAND_PATTERNS");
+        let mut command_patterns = CLIENT_COMMAND_PATTERNS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_COMMAND_PATTERNS");
+
+        let client_version: NodeVersion = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
+        let client_node = Node::new(client_name, client_key, "".to_string(), client_version, client_handlers);
+        command_patterns.add_or_update_if_exists(client_node);
+
+        println!("[CLIENT][GLOBAL][Release] - CLIENT_COMMAND_PATTERNS");
+    }
+
+    // TODO >>> Add the new mechanism of Network Commands here
+
+    set_socket_client_transposer_callbacks(callbacks_patterns);
 
     Ok(())
 }
