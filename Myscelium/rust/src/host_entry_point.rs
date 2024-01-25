@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
-use crate::socket_host::socket_host::{get_available_commands_registered, initialize_host, set_socket_host_callbacks};
+use crate::common::enhanced_buffer::utilities::CommandType;
+use crate::common::structs::available_commands::{HandlerStatus, Node, NodeHandler, NodeVersion, VersionIndentifier};
+use crate::socket_host::socket_host::{get_available_commands_registered, initialize_host};
 use crate::socket_host::socket_host::{initialize_host_buffer, set_heartbeat_callback, set_max_conns};
 use crate::socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
 
@@ -29,7 +31,7 @@ use std::time::Duration;
 use crate::common::functions::python_functions::extract_arg_types;
 
 use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
-use crate::HOST_IS_RUNNING;
+use crate::{HOST_COMMAND_PATTERNS, HOST_IS_RUNNING};
 use std::sync;
 use std::sync::MutexGuard;
 
@@ -217,7 +219,7 @@ fn stop_socket_host() {
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
-    let mut command_patterns = HashMap::new();
+    let mut host_node_handlers: Vec<NodeHandler> = Vec::new();
 
     let mut callbacks_patterns = HashMap::new();
 
@@ -254,7 +256,9 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
         }
 
         // Store the function name and argument types in the command patterns
-        command_patterns.insert(function_name.to_string(), args_types_value.clone());
+        let host_handler: NodeHandler = NodeHandler::new(function_name.to_string(), args_types_value.clone(), CommandType::ExternalFunction, HandlerStatus::NotTested, HashMap::new(), "".to_string());
+
+        host_node_handlers.push(host_handler);
 
         let function = function.downcast::<PyFunction>()?.clone();
 
@@ -263,8 +267,12 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
     }
 
     // Now you can use the command_patterns
-    set_socket_host_callbacks(command_patterns.clone());
-    set_socket_host_transposer_callbacks(command_patterns.clone(), callbacks_patterns);
+    set_socket_host_transposer_callbacks(callbacks_patterns);
+
+    let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
+    let node_version = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
+    let host_node: Node = Node::new("host".to_string(), "host".to_string(), "".to_string(), node_version, host_node_handlers);
+    global_command_patterns.add_or_update_if_exists(host_node);
 
     Ok(())
 }

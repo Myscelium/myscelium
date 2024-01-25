@@ -230,21 +230,6 @@ pub fn set_max_conns(n_max_conns: u32) {
     *default_max_conns = n_max_conns;
 }
 
-/// Update the socket host callback patterns.
-///
-/// This function updates the global `HOST_COMMAND_PATTERNS` hashmap with the new provided callback patterns.
-///
-/// # Parameters
-/// - `callbacks_patterns`: A `HashMap` containing the new callback patterns to be set.
-pub fn set_socket_host_callbacks(callbacks_patterns: HashMap<String, Value>) {
-    println!("Set Socket Host Callbacks: {:?}", callbacks_patterns);
-
-    let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock().unwrap();
-    global_command_patterns.add_commands_from_map("host", callbacks_patterns);
-
-    println!("Seted Socket Host Callbacks: {:?}", global_command_patterns.extract_all_commands());
-}
-
 use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
 
 /// Initializes the host buffer databases.

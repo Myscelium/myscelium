@@ -116,16 +116,7 @@ pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
 /// set_socket_host_transposer_callbacks(commands_patterns, callbacks_patterns);
 /// ```
 ///
-pub fn set_socket_host_transposer_callbacks(handlers: Vec<NodeHandler>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
-    //TODO >>> Add the smart lock mechanism
-    let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
-
-    let node_version = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
-
-    let host_node: Node = Node::new("host".to_string(), "host".to_string(), "".to_string(), node_version, handlers);
-
-    global_command_patterns.add_or_update_if_exists(host_node);
-
+pub fn set_socket_host_transposer_callbacks(callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
     let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     *callback_patterns = callbacks_patterns;
 }

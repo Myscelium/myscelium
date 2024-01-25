@@ -17,7 +17,7 @@ pub enum HandlerStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeHandler {
     name: String,
-    parameters: HashMap<String, Value>,
+    parameters: Value,
     handler_type: CommandType,
     status: HandlerStatus,
     response_structure: HashMap<String, Value>,
@@ -25,7 +25,7 @@ pub struct NodeHandler {
 }
 
 impl NodeHandler {
-    pub fn new(name: String, parameters: HashMap<String, Value>, handler_type: CommandType, status: HandlerStatus, response_structure: HashMap<String, Value>, description: String) -> Self {
+    pub fn new(name: String, parameters: Value, handler_type: CommandType, status: HandlerStatus, response_structure: HashMap<String, Value>, description: String) -> Self {
         Self {
             name,
             parameters,
