@@ -178,7 +178,7 @@ impl NetworkMap {
         let mut available_commands: HashMap<String, Value> = HashMap::new();
 
         for node in &self.nodes {
-            if let Some(handlers) = node.handlers {
+            if let Some(handlers) = node.handlers.clone() {
                 for handler in handlers {
                     available_commands.insert(handler.name.clone(), handler.parameters.clone());
                 }
@@ -192,7 +192,7 @@ impl NetworkMap {
 
     pub fn get_all_nodes_except_node_with_name(&self, name: String) -> Vec<Node> {
         let mut nodes_mirror = self.nodes.clone();
-        if let Some(index) = nodes_mirror.iter().position(|x| x.name == Some(name)) {
+        if let Some(index) = nodes_mirror.iter().position(|x| x.name == Some(name.clone())) {
             nodes_mirror.remove(index); // remove especific node
         }
         return nodes_mirror;
@@ -201,8 +201,8 @@ impl NetworkMap {
     pub fn get_node_keys(&self) -> Result<HashMap<String, String>, NetworkMapError> {
         let mut valid_keys = HashMap::new();
         for node in &self.nodes {
-            if let Some(node_name) = node.name {
-                if let Some(node_key) = node.key {
+            if let Some(node_name) = node.name.clone() {
+                if let Some(node_key) = node.key.clone() {
                     valid_keys.insert(node_name.clone(), node_key.clone());
                 } else {
                     return Err(NetworkMapError::NodeNotInitialized(node_name));
@@ -216,20 +216,20 @@ impl NetworkMap {
 
     pub fn get_node_by_name(&mut self, name: String) -> Result<&mut Node, NetworkMapError> {
         for node in &mut self.nodes {
-            if &node.name == &Some(name) {
+            if &node.name == &Some(name.clone()) {
                 return Ok(node);
             }
         }
-        return Err(NetworkMapError::NodeDoNotExists(name.clone()));
+        return Err(NetworkMapError::NodeDoNotExists(name));
     }
 
     pub fn get_node_by_key(&mut self, key: String) -> Result<&mut Node, NetworkMapError> {
         for node in &mut self.nodes {
-            if &node.key == &Some(key) {
+            if &node.key == &Some(key.clone()) {
                 return Ok(node);
             }
         }
-        return Err(NetworkMapError::NodeDoNotExists(key.clone()));
+        return Err(NetworkMapError::NodeDoNotExists(key));
     }
 
     pub fn convert_to_value_map(&self) -> HashMap<String, Value> {
@@ -299,7 +299,7 @@ impl NetworkMap {
         let mut new_nodes_keys: Vec<String> = Vec::new();
 
         for nn in updated_nodes {
-            if let Some(nn_key) = nn.key {
+            if let Some(nn_key) = nn.key.clone() {
                 new_nodes.insert(nn_key.clone(), nn.clone());
                 new_nodes_keys.push(nn_key.clone());
             } else {
@@ -312,7 +312,7 @@ impl NetworkMap {
         // -> UPDATE EXISTING NODES:
 
         for node in &mut self.nodes {
-            if let Some(node_key) = &node.key {
+            if let Some(node_key) = &node.key.clone() {
                 if new_nodes_keys.contains(node_key) {
                     //> UPDATE NODES THAT STILL EXISTING
                     let new_node = &new_nodes[node_key];
