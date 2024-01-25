@@ -50,8 +50,9 @@ use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Cli
 
 use crate::CLIENTS_SYNC_CONTROLLER;
 
+use crate::HOST_COMMAND_PATTERNS;
+
 lazy_static! {
-    static ref HOST_COMMAND_PATTERNS: Mutex<CommandPatterns> = Mutex::new(CommandPatterns::new());
     static ref MAX_CONS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
     static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
     // static ref CLIENTS_ALLOWED: Arc<Mutex<HashMap<String, Client>>> = Arc::new(Mutex::new(HashMap::new()));
@@ -319,9 +320,8 @@ pub fn initialize_host(address: String, client_key: String) {
 /// # Returns
 /// - A `HashMap<String, Value>` representing the cloned command patterns.
 pub fn get_available_commands_registered() -> HashMap<String, Value> {
-    let global_command_patterns = HOST_COMMAND_PATTERNS.lock().unwrap().clone();
-
-    return global_command_patterns.extract_all_commands();
+    let global_command_patterns = HOST_COMMAND_PATTERNS.lock().clone();
+    return global_command_patterns.extract_all_commands().unwrap();
 }
 
 // > Socket main structure:
@@ -765,7 +765,7 @@ fn handle_connection(stream: &mut TcpStream) {
         // ! WE CAN'T USE THIS PY AQUIRE UNTIL THE PYTHON POOL IS FINISHED !
 
         {
-            let command_patterns = HOST_COMMAND_PATTERNS.lock().unwrap();
+            let mut command_patterns = HOST_COMMAND_PATTERNS.lock();
 
             println!("\nCommand.Command: {:?}", command.command);
             println!("\nCommand.Command.function: {:?}", command.command.actf);
