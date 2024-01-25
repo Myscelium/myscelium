@@ -31,7 +31,6 @@ use crate::socket_client::socket_client::{initialize_client, initialize_client_b
 use crate::socket_client::transposer::{initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num};
 
 use crate::common::functions::python_functions::extract_arg_types;
-
 use crate::common::functions::python_functions::translate_value_to_py;
 
 /// Sets the number of worker threads for the socket client transposer.
