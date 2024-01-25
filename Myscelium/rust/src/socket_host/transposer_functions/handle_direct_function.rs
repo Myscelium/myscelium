@@ -88,7 +88,9 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
             let client_name: String = client.get_client_name();
 
-            let filtered_commands = actual_patterns.get_all_commands_except_for_client(client_name.as_str());
+            let nodes: Vec<Node> = actual_patterns.get_all_nodes_except_node_with_name(client_name);
+            let mut filtered_commands: HashMap<String, Value> = HashMap::new();
+            filtered_commands.insert("network_nodes".to_string(), serde_json::to_value(nodes).unwrap());
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
@@ -154,7 +156,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             }
 
             {
-                let controller = CLIENTS_SYNC_CONTROLLER.lock();
+                let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
                 let status = controller.update_client_sync_status(client_key, true);
                 // TODO >>> Add a mechanism to set all the other clients state to sync = false
             }

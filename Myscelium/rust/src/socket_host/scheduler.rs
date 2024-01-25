@@ -16,7 +16,7 @@ use crate::HOST_COMMAND_PATTERNS;
 
 use serde_json::Error;
 
-use crate::common::structs::available_commands::{CommandPatterns, NetworkMap};
+use crate::common::structs::available_commands::{CommandPatterns, NetworkMap, Node};
 
 use super::host_logger::log_handler::Logger;
 use crate::socket_host::transposer::process_map_result;
@@ -98,7 +98,9 @@ pub fn send_network_available_commands(client_key: String) {
 
     let client_name: String = client.get_client_name();
 
-    let filtered_commands: HashMap<String, Value> = actual_patterns.get_all_commands_except_for_client(client_name.as_str());
+    let nodes: Vec<Node> = actual_patterns.get_all_nodes_except_node_with_name(client_name);
+    let mut filtered_commands: HashMap<String, Value> = HashMap::new();
+    filtered_commands.insert("network_nodes".to_string(), serde_json::to_value(nodes).unwrap());
 
     // logger.info(format!("Successfully actualize the host available commands!"));
 

@@ -10,10 +10,10 @@ use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, extract_pyobject};
-use crate::common::structs::available_commands::CommandPatterns;
+use crate::common::structs::available_commands::VersionIndentifier;
+use crate::common::structs::available_commands::{CommandPatterns, Node, NodeHandler, NodeVersion};
 use crate::common::structs::results_structs::ResultType;
 use serde_json::to_string;
-
 use serde_json::Error;
 
 use pyo3::types::PyFunction;
@@ -116,10 +116,15 @@ pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
 /// set_socket_host_transposer_callbacks(commands_patterns, callbacks_patterns);
 /// ```
 ///
-pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
+pub fn set_socket_host_transposer_callbacks(handlers: Vec<NodeHandler>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
     //TODO >>> Add the smart lock mechanism
     let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
-    global_command_patterns.add_commands_from_map("host", commands_patterns);
+
+    let node_version = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
+
+    let host_node: Node = Node::new("host".to_string(), "host".to_string(), "".to_string(), node_version, handlers);
+
+    global_command_patterns.add_or_update_if_exists(host_node);
 
     let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     *callback_patterns = callbacks_patterns;

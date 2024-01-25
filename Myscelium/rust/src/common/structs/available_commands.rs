@@ -24,12 +24,41 @@ pub struct NodeHandler {
     description: String,
 }
 
+impl NodeHandler {
+    pub fn new(name: String, parameters: HashMap<String, Value>, handler_type: CommandType, status: HandlerStatus, response_structure: HashMap<String, Value>, description: String) -> Self {
+        Self {
+            name,
+            parameters,
+            handler_type,
+            status,
+            response_structure,
+            description,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum VersionIndentifier {
+    ReleaseCandidate,
+    Alpha,
+    PreAlpha,
+    Beta,
+    PreBeta,
+    Release,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeVersion {
-    marjor: u32,
+    major: u32,
     minor: u32,
     patch: u32,
-    identifier: String,
+    identifier: VersionIndentifier,
+}
+
+impl NodeVersion {
+    pub fn cast_version(major: u32, minor: u32, patch: u32, identifier: VersionIndentifier) -> Self {
+        Self { major, minor, patch, identifier }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -51,13 +80,21 @@ pub struct Node {
 pub enum NodeStatus {
     Online,
     Idle,
-    NotSync,
+    NotSyncYet,
     NotImplemented,
     Offline,
 }
 
 impl Node {
-    pub fn new(name: String, key: String, status: NodeStatus, description: String, version: NodeVersion, handlers: Vec<NodeHandler>) -> Self {
+    pub fn new(name: String, key: String, description: String, version: NodeVersion, handlers: Vec<NodeHandler>) -> Self {
+        let mut status: NodeStatus;
+
+        if name == "host".to_string() {
+            status = NodeStatus::Online
+        } else {
+            status = NodeStatus::NotSyncYet
+        }
+
         Self {
             name,
             key,
@@ -237,7 +274,7 @@ impl NetworkMap {
 
         for key in not_seen_nodes {
             let new_node = new_nodes[&key].clone();
-            self.nodes.push(Node::new(new_node.name, new_node.key, new_node.status, new_node.description, new_node.version, new_node.handlers))
+            self.nodes.push(Node::new(new_node.name, new_node.key, new_node.description, new_node.version, new_node.handlers))
         }
 
         return Ok(());
@@ -270,7 +307,7 @@ impl NetworkMap {
         }
 
         // -> CREATE NEW NODE:
-        self.nodes.push(Node::new(new_node.name, new_node.key, new_node.status, new_node.description, new_node.version, new_node.handlers))
+        self.nodes.push(Node::new(new_node.name, new_node.key, new_node.description, new_node.version, new_node.handlers))
     }
 }
 
