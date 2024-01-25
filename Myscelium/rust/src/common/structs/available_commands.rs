@@ -32,6 +32,11 @@ pub struct NodeVersion {
     identifier: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum NodeError {
+    InvalidValue,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
     name: String,
@@ -63,6 +68,18 @@ impl Node {
         }
     }
 
+    pub fn from_value(value: Value) -> Result<Self, NodeError> {
+        let node: Node = match serde_json::from_value(value) {
+            Ok(n) => n,
+            Err(_) => return Err(NodeError::InvalidValue),
+        };
+        return Ok(node);
+    }
+
+    pub fn to_value(&self) -> Value {
+        serde_json::to_value(&self).unwrap()
+    }
+
     pub fn change_node_status(&mut self, new_status: NodeStatus) {
         self.status = new_status;
     }
@@ -90,6 +107,14 @@ pub enum NetworkMapError {
 impl NetworkMap {
     pub fn new(nodes: Vec<Node>) -> Self {
         Self { nodes }
+    }
+
+    pub fn get_all_nodes_except_node_with_name(&self, name: String) -> Vec<Node> {
+        let mut nodes_mirror = self.nodes.clone();
+        if let Some(index) = nodes_mirror.iter().position(|x| x.name == name) {
+            nodes_mirror.remove(index); // remove especific node
+        }
+        return nodes_mirror;
     }
 
     pub fn get_node_keys(&self) -> HashMap<String, String> {
