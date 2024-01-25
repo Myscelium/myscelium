@@ -125,7 +125,13 @@ pub fn get_available_handlers_registered() -> HashMap<String, Value> {
         println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
         let command_patterns = CLIENT_NODE_CONFIGS.lock();
         println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
-        global_command_patterns = command_patterns.get_node_handlers();
+        global_command_patterns = match command_patterns.get_node_handlers() {
+            Ok(h) => h,
+            Err(e) => {
+                println!("Get a error while trying to get the client node handlers!");
+                panic!("Get a error while trying to get the client node handlers!");
+            },
+        };
     }
     println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
 
