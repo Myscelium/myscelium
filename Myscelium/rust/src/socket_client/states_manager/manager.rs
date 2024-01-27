@@ -21,6 +21,7 @@ lazy_static! {
     static ref STATES_BUFFER_POOL: Mutex<SQLiteConnectionPool> = Mutex::new(SQLiteConnectionPool::empty());
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientState {
     name: Option<String>,
     key: Option<String>,
@@ -62,7 +63,7 @@ pub fn initialize_client_status_table_table(status_db_spath: String) {
 
     with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
         let result = conn.execute(
-            "CREATE TABLE IF NOT EXISTS ClientStatusControler (ID INT PRIMARY KEY, Name TEXT, Key TEXT, NetMap TEXT, ClientNodeConfigs TEXT, IsInitialized BOOL, IsReady BOOL, IsConnected BOOL, IsSync BOOL, LastChange NUMBER)",
+            "CREATE TABLE IF NOT EXISTS ClientStates (ID INT PRIMARY KEY, Name TEXT, Key TEXT, NetMap TEXT, ClientNodeConfigs TEXT, IsInitialized BOOL, IsReady BOOL, IsConnected BOOL, IsSync BOOL, LastChange NUMBER)",
             params![],
         );
 
@@ -133,7 +134,7 @@ impl ClientState {
             let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
             let result = conn.execute(
-                "INSERT INTO ClientCommandsTosend (ID, Name, Key, NetMap, ClientNodeConfigs, IsInitialized, IsReady, IsConnected, IsSync, LastChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                "INSERT INTO ClientStates (ID, Name, Key, NetMap, ClientNodeConfigs, IsInitialized, IsReady, IsConnected, IsSync, LastChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                 params![
                     0,
                     self.name.clone().unwrap(),
@@ -165,56 +166,44 @@ impl ClientState {
     pub fn load_from_storage() -> Self {
         // TODO >>> Finish the impl of this method
 
-        with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
-            let mut ids: Vec<Result<String, _>> = Vec::new();
+        with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
+            let state: ClientState;
 
             {
-                let mut smtp = conn.prepare("SELECT * FROM ClientCommandsReceived").unwrap();
+                let mut smtp = conn.prepare("SELECT * FROM ClientStates WHERE ID = ?").unwrap();
                 let commands_iter = smtp
-                    .query_map(params![], |row| {
-                        let id: String = row.get(2).unwrap();
-                        Ok(id)
+                    .query_map(params![0], |row| {
+                        let network: String = row.get(3).unwrap();
+                        let client_node: String = row.get(4).unwrap();
+
+                        Ok(Self {
+                            name: Some(row.get(1).unwrap()),
+                            key: Some(row.get(2).unwrap()),
+                            network_map: Some(serde_json::from_str(network.as_str()).unwrap()),
+                            client_node_configs: Some(serde_json::from_str::<Node>(client_node.as_str()).unwrap()),
+                            is_initialized: Some(row.get(5).unwrap()),
+                            is_ready: Some(row.get(6).unwrap()),
+                            is_connected: Some(row.get(7).unwrap()),
+                            is_sync: Some(row.get(8).unwrap()),
+                            last_change: Some(row.get(9).unwrap()),
+                        })
                     })
                     .unwrap();
 
-                for id in commands_iter {
-                    ids.push(id);
+                for cs in commands_iter {
+                    state = cs.unwrap();
+                    break;
                 }
             }
 
-            for id in ids {
-                match id {
-                    Ok(id) => {
-                        if parity_id == &id {
-                            return false;
-                        }
-                    },
-                    Err(e) => {
-                        eprintln!("An error occurred while check if parity_id is registred in the ClientCommandsReceived table: {}", e);
-                    },
-                }
-            }
-
-            Self {
-                name: None,
-                key: None,
-                network_map: None,
-                client_node_configs: None,
-                is_initialized: None,
-                is_ready: None,
-                is_connected: None,
-                is_sync: None,
-                last_change: None,
-            }
-
-            return true;
+            return state;
         })
     }
 
     pub fn buffer_down_update_schedule(id: i32, client_key: String, parity_id: String, priority: i32, command: String) {
         with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
             let result = conn.execute(
-                "Update ClientCommandsReceived set Clientkey = ?, ParityId = ?, Priority = ?, Command = ? where ID = ?",
+                "UPDATE ClientStates SET Clientkey = ?, ParityId = ?, Priority = ?, Command = ? WHERE ID = ?",
                 params![client_key, parity_id, priority, command, id],
             );
 
