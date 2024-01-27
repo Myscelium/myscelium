@@ -123,9 +123,10 @@ impl ClientState {
             // let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
             // This on top isn't necessary since here will only have one client per per db in each
             // client states table.
-
-            if !self.is_fully_initialized() {
-                return Err(StateManagerError::NotFullyInitialized);
+            {
+                if !&self.is_fully_initialized() {
+                    return Err(StateManagerError::NotFullyInitialized);
+                }
             }
 
             let now = Utc::now();
@@ -135,14 +136,14 @@ impl ClientState {
                 "INSERT INTO ClientCommandsTosend (ID, Name, Key, NetMap, ClientNodeConfigs, IsInitialized, IsReady, IsConnected, IsSync, LastChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                 params![
                     0,
-                    &self.name.unwrap(),
-                    &self.key.unwrap(),
-                    serde_json::to_string(&self.network_map.unwrap()).unwrap(),
-                    serde_json::to_string(&self.network_map.unwrap()).unwrap(),
-                    &self.is_initialized.unwrap(),
-                    &self.is_ready.unwrap(),
-                    &self.is_connected.unwrap(),
-                    &self.is_sync.unwrap(),
+                    self.name.clone().unwrap(),
+                    self.key.clone().unwrap(),
+                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap(),
+                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap(),
+                    self.is_initialized.unwrap(),
+                    self.is_ready.unwrap(),
+                    self.is_connected.unwrap(),
+                    self.is_sync.unwrap(),
                     timestamp
                 ], // TODO >>> Add the remaining commands that need to be impl here
             );
@@ -155,6 +156,7 @@ impl ClientState {
                     eprintln!("An error occurred while scheduling the command in the ClientCommandsTosend table: {}", e);
                 },
             };
+            Ok(())
         });
 
         Ok(())
