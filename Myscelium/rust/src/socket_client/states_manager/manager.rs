@@ -4,6 +4,7 @@ use chrono::Utc;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use rusqlite::params;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     common::structs::available_commands::{NetworkMap, Node},
@@ -76,6 +77,11 @@ pub fn initialize_client_status_table_table(status_db_spath: String) {
     });
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StateManagerError {
+    NotFullyInitialized,
+}
+
 impl ClientState {
     pub fn new(name: String, key: String, network_map: NetworkMap, client_node_configs: Node, is_initialized: bool, is_ready: bool, is_connected: bool, is_sync: bool, last_change: f64) -> Self {
         Self {
@@ -105,7 +111,11 @@ impl ClientState {
         }
     }
 
-    pub fn save_in_storage(&self) {
+    pub fn is_fully_initialized(&self) -> bool {
+        self.name.is_some() && self.key.is_some() && self.network_map.is_some() && self.client_node_configs.is_some() && self.is_initialized.is_some() && self.is_connected.is_some() && self.is_sync.is_some() && self.last_change.is_some()
+    }
+
+    pub fn save_in_storage(&self) -> Result<(), StateManagerError> {
         // TODO >>> Finish this method;
 
         with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
@@ -114,12 +124,27 @@ impl ClientState {
             // This on top isn't necessary since here will only have one client per per db in each
             // client states table.
 
+            if !self.is_fully_initialized() {
+                return Err(StateManagerError::NotFullyInitialized);
+            }
+
             let now = Utc::now();
             let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
 
             let result = conn.execute(
                 "INSERT INTO ClientCommandsTosend (ID, Name, Key, NetMap, ClientNodeConfigs, IsInitialized, IsReady, IsConnected, IsSync, LastChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-                params![0], // TODO >>> Add the remaining commands that need to be impl here
+                params![
+                    0,
+                    &self.name.unwrap(),
+                    &self.key.unwrap(),
+                    serde_json::to_string(&self.network_map.unwrap()).unwrap(),
+                    serde_json::to_string(&self.network_map.unwrap()).unwrap(),
+                    &self.is_initialized.unwrap(),
+                    &self.is_ready.unwrap(),
+                    &self.is_connected.unwrap(),
+                    &self.is_sync.unwrap(),
+                    timestamp
+                ], // TODO >>> Add the remaining commands that need to be impl here
             );
 
             match result {
@@ -131,6 +156,8 @@ impl ClientState {
                 },
             };
         });
+
+        Ok(())
     }
 
     pub fn load_from_storage(&self) -> Self {
