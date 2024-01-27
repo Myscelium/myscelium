@@ -7,7 +7,10 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    common::structs::available_commands::{NetworkMap, Node},
+    common::{
+        client_network_controller::availability_controller::NetworkControllerError,
+        structs::available_commands::{NetworkMap, Node},
+    },
     set_new_path_to_buffer_db, with_connection,
 };
 
@@ -81,6 +84,7 @@ pub fn initialize_client_status_table_table(status_db_spath: String) {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StateManagerError {
     NotFullyInitialized,
+    CantgetStateFromDb(String),
 }
 
 impl ClientState {
@@ -163,15 +167,15 @@ impl ClientState {
         Ok(())
     }
 
-    pub fn load_from_storage() -> Self {
+    pub fn load_from_storage() -> Result<Self, StateManagerError> {
         // TODO >>> Finish the impl of this method
 
         with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
-            let state: ClientState;
+            let mut state: ClientState = ClientState::empty();
 
             {
                 let mut smtp = conn.prepare("SELECT * FROM ClientStates WHERE ID = ?").unwrap();
-                let commands_iter = smtp
+                let mut commands_iter = smtp
                     .query_map(params![0], |row| {
                         let network: String = row.get(3).unwrap();
                         let client_node: String = row.get(4).unwrap();
@@ -189,24 +193,42 @@ impl ClientState {
                         })
                     })
                     .unwrap();
-
-                for cs in commands_iter {
-                    state = cs.unwrap();
-                    break;
+                if let Some(s) = commands_iter.next() {
+                    state = s.unwrap();
+                } else {
+                    return Err(StateManagerError::CantgetStateFromDb("".to_string()));
                 }
             }
 
-            return state;
+            return Ok(state);
         })
     }
 
-    pub fn buffer_down_update_schedule(id: i32, client_key: String, parity_id: String, priority: i32, command: String) {
-        with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
-            let result = conn.execute(
-                "UPDATE ClientStates SET Clientkey = ?, ParityId = ?, Priority = ?, Command = ? WHERE ID = ?",
-                params![client_key, parity_id, priority, command, id],
-            );
+    pub fn update_schedule_with_this(&self) -> Result<(), StateManagerError> {
+        with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
+            // TODO >>> Add the correct parameters here
 
+            if !self.is_fully_initialized() {
+                return Err(StateManagerError::NotFullyInitialized);
+            };
+
+            let now = Utc::now();
+            let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+            let result = conn.execute(
+                "UPDATE ClientStateso SET Name = ?, Key = ?, NetMap = ?, ClientNodeConfigs = ?, IsInitialized = ?, IsReady = ?, IsConnected = ?, IsSync = ?, LastChange = ? WHERE ID = ?",
+                params![
+                    &self.name.clone().unwrap(),
+                    &self.key.clone().unwrap(),
+                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap(),
+                    serde_json::to_string(&self.client_node_configs.clone().unwrap()).unwrap(),
+                    &self.is_initialized.unwrap(),
+                    &self.is_ready.unwrap(),
+                    &self.is_connected.unwrap(),
+                    &self.is_sync.unwrap(),
+                    timestamp,
+                    0
+                ],
+            );
             match result {
                 Ok(_) => {
                     println!("Successfully update Command in ClientCommandsReceived");
@@ -215,6 +237,8 @@ impl ClientState {
                     eprintln!("An error occurred while update the command in the ClientCommandsReceived table: {}", e);
                 },
             };
+            Ok(())
         });
+        Ok(())
     }
 }
