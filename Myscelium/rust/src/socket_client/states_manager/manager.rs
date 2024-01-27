@@ -162,17 +162,70 @@ impl ClientState {
         Ok(())
     }
 
-    pub fn load_from_storage(&self) -> Self {
-        Self {
-            name: None,
-            key: None,
-            network_map: None,
-            client_node_configs: None,
-            is_initialized: None,
-            is_ready: None,
-            is_connected: None,
-            is_sync: None,
-            last_change: None,
-        }
+    pub fn load_from_storage() -> Self {
+        // TODO >>> Finish the impl of this method
+
+        with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
+            let mut ids: Vec<Result<String, _>> = Vec::new();
+
+            {
+                let mut smtp = conn.prepare("SELECT * FROM ClientCommandsReceived").unwrap();
+                let commands_iter = smtp
+                    .query_map(params![], |row| {
+                        let id: String = row.get(2).unwrap();
+                        Ok(id)
+                    })
+                    .unwrap();
+
+                for id in commands_iter {
+                    ids.push(id);
+                }
+            }
+
+            for id in ids {
+                match id {
+                    Ok(id) => {
+                        if parity_id == &id {
+                            return false;
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("An error occurred while check if parity_id is registred in the ClientCommandsReceived table: {}", e);
+                    },
+                }
+            }
+
+            Self {
+                name: None,
+                key: None,
+                network_map: None,
+                client_node_configs: None,
+                is_initialized: None,
+                is_ready: None,
+                is_connected: None,
+                is_sync: None,
+                last_change: None,
+            }
+
+            return true;
+        })
+    }
+
+    pub fn buffer_down_update_schedule(id: i32, client_key: String, parity_id: String, priority: i32, command: String) {
+        with_connection!(BUFFER_POOL, |conn: &rusqlite::Connection| {
+            let result = conn.execute(
+                "Update ClientCommandsReceived set Clientkey = ?, ParityId = ?, Priority = ?, Command = ? where ID = ?",
+                params![client_key, parity_id, priority, command, id],
+            );
+
+            match result {
+                Ok(_) => {
+                    println!("Successfully update Command in ClientCommandsReceived");
+                },
+                Err(e) => {
+                    eprintln!("An error occurred while update the command in the ClientCommandsReceived table: {}", e);
+                },
+            };
+        });
     }
 }
