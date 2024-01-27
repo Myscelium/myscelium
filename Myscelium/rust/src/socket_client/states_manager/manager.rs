@@ -1,12 +1,23 @@
-use std::sync::Arc;
+use std::{sync::Arc, thread, time::Duration};
 
+use chrono::Utc;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
+use rusqlite::params;
 
-use crate::common::structs::available_commands::{NetworkMap, Node};
+use crate::{
+    common::structs::available_commands::{NetworkMap, Node},
+    set_new_path_to_buffer_db, with_connection,
+};
+
+use crate::common::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator};
 
 lazy_static! {
     static ref CLIENT_STATE_MANAGER: Arc<Mutex<ClientState>> = Arc::new(Mutex::new(ClientState::empty()));
+    static ref STATES_BUFFER_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
+    static ref STATES_BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
+    static ref STATES_NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
+    static ref STATES_BUFFER_POOL: Mutex<SQLiteConnectionPool> = Mutex::new(SQLiteConnectionPool::empty());
 }
 
 pub struct ClientState {
@@ -19,6 +30,50 @@ pub struct ClientState {
     is_connected: Option<bool>,
     is_sync: Option<bool>,
     last_change: Option<f64>,
+}
+
+pub fn initialize_client_status_table_table(status_db_spath: String) {
+    // Create a global Mutex for demonstration
+    let mutex1 = Mutex::new(0);
+    let mutex2 = Mutex::new(0);
+
+    // Spawn a thread to periodically check for deadlocks
+    thread::spawn(|| {
+        loop {
+            thread::sleep(Duration::from_secs(5)); // Check every 5 seconds
+            let deadlocks = parking_lot::deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
+            }
+
+            println!("{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                println!("Deadlock #{}", i);
+                for t in threads {
+                    println!("Thread Id {:?}", t.thread_id());
+                    println!("{:?}", t.backtrace());
+                }
+            }
+        }
+    });
+
+    set_new_path_to_buffer_db!(STATES_BUFFER_POOL, STATES_NUM_WORKERS, status_db_spath, STATES_BUFFER_NAME);
+
+    with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
+        let result = conn.execute(
+            "CREATE TABLE IF NOT EXISTS ClientStatusControler (ID INT PRIMARY KEY, Name TEXT, Key TEXT, NetMap TEXT, ClientNodeConfigs TEXT, IsInitialized BOOL, IsReady BOOL, IsConnected BOOL, IsSync BOOL, LastChange NUMBER)",
+            params![],
+        );
+
+        match result {
+            Ok(_) => {
+                println!("Successfully initialize ClientCommandsReceived table!");
+            },
+            Err(e) => {
+                eprintln!("An error occurred while scheduling the command in the ClientCommandsReceived table: {}", e);
+            },
+        };
+    });
 }
 
 impl ClientState {
@@ -52,6 +107,30 @@ impl ClientState {
 
     pub fn save_in_storage(&self) {
         // TODO >>> Finish this method;
+
+        with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
+            //let registered_ids = get_registred_ids(conn);
+            // let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
+            // This on top isn't necessary since here will only have one client per per db in each
+            // client states table.
+
+            let now = Utc::now();
+            let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
+
+            let result = conn.execute(
+                "INSERT INTO ClientCommandsTosend (ID, Name, Key, NetMap, ClientNodeConfigs, IsInitialized, IsReady, IsConnected, IsSync, LastChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                params![0], // TODO >>> Add the remaining commands that need to be impl here
+            );
+
+            match result {
+                Ok(_) => {
+                    println!("Successfully schedule Command in ClientCommandsTosend");
+                },
+                Err(e) => {
+                    eprintln!("An error occurred while scheduling the command in the ClientCommandsTosend table: {}", e);
+                },
+            };
+        });
     }
 
     pub fn load_from_storage(&self) -> Self {
