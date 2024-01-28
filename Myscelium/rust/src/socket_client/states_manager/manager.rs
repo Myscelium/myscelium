@@ -107,7 +107,7 @@ impl ClientState {
         // TODO >>> Finish this method;
 
         with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
-            let result = conn.execute("DELETE * FROM ClientStates;", params![]);
+            let result = conn.execute("DELETE FROM ClientStates;", params![]);
 
             match result {
                 Ok(_) => {
