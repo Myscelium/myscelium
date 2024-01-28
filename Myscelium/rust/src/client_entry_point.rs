@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use crate::common::enhanced_buffer::utilities::CommandType;
 use crate::common::functions::advanced_lockers::smart_lock;
-use crate::common::structs::available_commands::{HandlerStatus, Node, NodeHandler, NodeVersion, VersionIndentifier};
+use crate::common::structs::available_commands::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeVersion, VersionIndentifier};
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_database_dir, set_client_log_level};
-use crate::socket_client::states_manager::manager::inialize_client_status_table_table;
+use crate::socket_client::states_manager::manager::{inialize_client_status_table_table, ClientState};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
@@ -406,11 +406,9 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         {
             let mut client_state = CLIENT_STATE_MANAGER.lock();
             client_state.clean_storage(); // remove any old state
-            client_state.name = Some(client_name.clone());
-            client_state.client_node_configs = Some(client_node.clone());
-            client_state.key = Some(client_key.clone());
-            client_state.is_initialized = Some(true); // Just redundancy
-            client_state.save_in_storage();
+            let new_client_state = ClientState::new(client_name.clone(), client_key.clone(), NetworkMap::empty(), client_node.clone(), Some(true), Some(false), Some(false), Some(false), None);
+            new_client_state.save_in_storage();
+            *client_state = new_client_state.clone();
         }
 
         println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");

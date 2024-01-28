@@ -3,6 +3,7 @@ use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandType};
 use crate::common::functions::advanced_lockers::smart_lock;
+use crate::socket_client::states_manager::manager::ClientState;
 
 use lazy_static::lazy_static;
 
@@ -10,15 +11,15 @@ use serde_json::{from_str, Value};
 use std::collections::HashMap;
 
 use super::client_logger::log_handler::Logger;
-use crate::CLIENT_LOG_LEVEL;
+use crate::{CLIENT_LOG_LEVEL, CLIENT_STATE_MANAGER};
 
 use parking_lot::Mutex;
 
 use std::sync::Arc;
 
-lazy_static! {
-    static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
-}
+// lazy_static! {
+//    static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new(' '.to_string()));
+// }
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
@@ -37,22 +38,22 @@ macro_rules! acquire_logger {
 ///
 /// # Arguments
 /// - `client_uid`: The new client ID to be set.
-pub fn set_client_id(client_uid: String) {
-    println!("Setting client_id to: {:?}", client_uid.clone());
-
-    // let client_key_storage = &CLIENT_ID;
-    // smart_lock(client_key_storage, |key: &mut String| {
-    //     *key = client_uid;
-    // });
-
-    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
-    {
-        let mut key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
-        *key = client_uid
-    }
-    println!("[CLIENT][GLOBAL][Release] -  CLIENT_ID");
-}
+//pub fn set_client_id(client_uid: String) {
+//    println!("Setting client_id to: {:?}", client_uid.clone());
+//
+//    // let client_key_storage = &CLIENT_ID;
+//    // smart_lock(client_key_storage, |key: &mut String| {
+//    //     *key = client_uid;
+//    // });
+//
+//    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
+//    {
+//        let mut key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
+//        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
+//        *key = client_uid
+//    }
+//    println!("[CLIENT][GLOBAL][Release] -  CLIENT_ID");
+//}
 
 /// Requests the available commands that are registered on the host.
 ///
@@ -67,6 +68,11 @@ pub fn set_client_id(client_uid: String) {
 //     schedule(request_host_commands, 11)
 // }
 
+pub enum SchedulingError {
+    ClientIsntFullyInitialized,
+    CantReadStates,
+}
+
 /// Schedules a command for processing.
 ///
 /// The function takes in a command and its priority, then schedules it for processing
@@ -77,7 +83,7 @@ pub fn set_client_id(client_uid: String) {
 /// - `command`: A map representing the command to be scheduled.
 /// - `priority`: The priority level of the command. Commands with higher priority values
 ///               are processed before those with lower priority values.
-pub fn schedule(command: HashMap<String, String>, priority: u8) {
+pub fn schedule(command: HashMap<String, String>, priority: u8) -> Result<(), SchedulingError> {
     let logger: Logger = acquire_logger!("Core - Scheduler");
 
     logger.debug("Enter Scheduler".to_string());
@@ -85,12 +91,23 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) {
     let client_key: String;
 
     println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
-    {
-        let key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
-        client_key = key.clone();
-        drop(key)
+
+    let state_manager = match ClientState::load_from_storage() {
+        Ok(s) => s,
+        Err(e) => return Err(SchedulingError::CantReadStates),
+    };
+
+    if !state_manager.is_fully_initialized() {
+        return Err(SchedulingError::ClientIsntFullyInitialized);
     }
+
+    // {
+    //    let key = CLIENT_ID.lock(); // TODO > This is using parking lot, see if need to change to smart-lock
+    //    println!("[CLIENT][GLOBAL][Lock] - CLIENT_ID");
+    //    client_key = key.clone();
+    //    drop(key)
+    // }
+
     println!("[CLIENT][GLOBAL][Release] - CLIENT_ID");
 
     logger.debug(format!("Client id is: {:?}", client_key));
