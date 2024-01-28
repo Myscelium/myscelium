@@ -89,7 +89,7 @@ pub enum StateManagerError {
 }
 
 impl ClientState {
-    pub fn new(name: String, key: String, network_map: NetworkMap, client_node_configs: Node, is_initialized: bool, is_ready: bool, is_connected: bool, is_sync: bool, last_change: f64) -> Self {
+    pub fn new(name: String, key: String, network_map: NetworkMap, client_node_configs: Node, is_initialized: bool, is_ready: bool, is_connected: bool, is_sync: bool) -> Self {
         Self {
             name: Some(name),
             key: Some(key),
@@ -99,7 +99,7 @@ impl ClientState {
             is_ready: Some(is_ready),
             is_connected: Some(is_connected),
             is_sync: Some(is_sync),
-            last_change: Some(last_change),
+            last_change: None,
         }
     }
 

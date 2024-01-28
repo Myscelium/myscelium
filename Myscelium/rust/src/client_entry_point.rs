@@ -6,7 +6,7 @@ use crate::common::enhanced_buffer::utilities::CommandType;
 use crate::common::functions::advanced_lockers::smart_lock;
 use crate::common::structs::available_commands::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeVersion, VersionIndentifier};
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_database_dir, set_client_log_level};
-use crate::socket_client::states_manager::manager::{inialize_client_status_table_table, ClientState};
+use crate::socket_client::states_manager::manager::{inialize_client_status_table_table, ClientState, StateManagerError};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
@@ -179,13 +179,22 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 
 #[pyfunction]
 pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
-    let client_status = ClientState::load_from_storage();
+    let client_status = match ClientState::load_from_storage() {
+        Ok(c) => c,
+        Err(e) => {
+            return Ok(PyBool::new(py, true).into());
+        },
+    };
 
     if !client_status.is_fully_initialized() {
         return Ok(PyBool::new(py, false).into());
     }
 
-    if !client_status.is_sync() {
+    if let Some(sync_state) = client_status.is_sync {
+        if !sync_state {
+            return Ok(PyBool::new(py, false).into());
+        };
+    } else {
         return Ok(PyBool::new(py, false).into());
     }
 
@@ -431,9 +440,9 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         {
             let mut client_state = CLIENT_STATE_MANAGER.lock();
             client_state.clean_storage(); // remove any old state
-            let new_client_state = ClientState::new(client_name.clone(), client_key.clone(), NetworkMap::empty(), client_node.clone(), Some(true), Some(false), Some(false), Some(false), None);
+            let new_client_state = ClientState::new(client_name.clone(), client_key.clone(), NetworkMap::new(Vec::new()), client_node.clone(), true, false, false, false);
             new_client_state.save_in_storage();
-            *client_state = new_client_state.lone();
+            *client_state = new_client_state.clone();
         }
 
         println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
@@ -457,7 +466,6 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
 
 #[pyfunction]
 pub fn set_client_key(client_key: String) {
-    scheduler::set_client_id(client_key.clone());
     socket_client::set_client_uid(client_key);
 }
 

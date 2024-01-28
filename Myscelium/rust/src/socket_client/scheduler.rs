@@ -127,4 +127,6 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) -> Result<(), Sc
     enhanced_buffer::buffer_up_manager::buffer_up_schedule(command_to_schedule.clone());
 
     logger.info(format!("Command: {:?} scheduled!", command_to_schedule));
+
+    Ok(())
 }
