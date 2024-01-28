@@ -157,7 +157,7 @@ impl ClientState {
                     self.name.clone().unwrap_or("".to_string()),
                     self.key.clone().unwrap_or("".to_string()),
                     serde_json::to_string(&self.network_map.clone().unwrap()).unwrap_or("".to_string()),
-                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap_or("".to_string()),
+                    serde_json::to_string(&self.client_node_configs.clone().unwrap()).unwrap_or("".to_string()),
                     self.is_initialized.unwrap_or(false),
                     self.is_ready.unwrap_or(false),
                     self.is_connected.unwrap_or(false),
@@ -174,7 +174,6 @@ impl ClientState {
                     eprintln!("An error occurred while saving a cient sate in ClientStates table: {}", e);
                 },
             };
-            Ok(())
         });
 
         Ok(())
@@ -228,12 +227,12 @@ impl ClientState {
             let now = Utc::now();
             let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
             let result = conn.execute(
-                "UPDATE ClientStateso SET Name = ?, Key = ?, NetMap = ?, ClientNodeConfigs = ?, IsInitialized = ?, IsReady = ?, IsConnected = ?, IsSync = ?, LastChange = ? WHERE ID = ?",
+                "UPDATE ClientStates SET Name = ?, Key = ?, NetMap = ?, ClientNodeConfigs = ?, IsInitialized = ?, IsReady = ?, IsConnected = ?, IsSync = ?, LastChange = ? WHERE ID = ?",
                 params![
                     self.name.clone().unwrap_or("".to_string()),
                     self.key.clone().unwrap_or("".to_string()),
                     serde_json::to_string(&self.network_map.clone().unwrap()).unwrap_or("".to_string()),
-                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap_or("".to_string()),
+                    serde_json::to_string(&self.client_node_configs.clone().unwrap()).unwrap_or("".to_string()),
                     self.is_initialized.unwrap_or(false),
                     self.is_ready.unwrap_or(false),
                     self.is_connected.unwrap_or(false),

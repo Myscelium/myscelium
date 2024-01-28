@@ -170,9 +170,9 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
 
             let parity_id = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_parity_id(client_key.clone());
             let up_command: UpCommand = UpCommand::new(client_key, &parity_id, 11u8, &to_string(&new_command_instructions).unwrap());
+
             enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-
             enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
 
             return Ok(ProcessResult::Empty);

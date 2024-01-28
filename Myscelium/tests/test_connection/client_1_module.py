@@ -22,8 +22,13 @@ class Senders:
 
         mys_client.running = True
 
+        max_attempts = 10
+        attemtps = 0
         while not mys_client.is_client_ready():
-            time.sleep(0.2)
+            time.sleep(1)
+            attemtps += 1
+            if attemtps >= max_attempts:
+                assert False, "Take too long to client be ready"
             continue
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
