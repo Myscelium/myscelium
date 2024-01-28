@@ -1,6 +1,7 @@
 use crate::common::structs::available_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
 
+use crate::socket_client::states_manager::manager::ClientState;
 use crate::CLIENT_NODE_CONFIGS;
 
 use crate::socket_client::transposer::ProcessError;
@@ -64,21 +65,25 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
                         // TODO >>> Better threat this error case
                     },
                 }
+
+                // -> CLIENT STATE NETWORK MAP LOADING
+                let mut client_state = ClientState::load_from_storage().unwrap();
+                client_state.network_map = Some(host_allowed_commands.clone());
+                client_state.is_sync = Some(true);
+                client_state.update_schedule_with_this();
             }
+
             println!("[CLIENT][GLOBAL][Release] - HOST_ALLOWED_COMMANDS");
-
             let actual_patterns: Value;
-
             println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
+
             {
                 let command_patterns = CLIENT_NODE_CONFIGS.lock();
-
                 println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
-
                 logger.info(format!("Lock In Host Command Patterns!"));
-
                 actual_patterns = command_patterns.to_value();
             }
+
             println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
 
             logger.info(format!("Successfully actualize the host available commands!"));
