@@ -177,7 +177,22 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     ResultType::Empty
 }
 
-/// Sends a command from the client.
+#[pyfunction]
+pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
+    let client_status = ClientState::load_from_storage();
+
+    if !client_status.is_fully_initialized() {
+        return Ok(PyBool::new(py, false).into());
+    }
+
+    if !client_status.is_sync() {
+        return Ok(PyBool::new(py, false).into());
+    }
+
+    return Ok(PyBool::new(py, true).into());
+}
+
+/// Sends a c:ommand from the client.
 ///
 /// # Parameters
 ///
@@ -216,7 +231,17 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
     match converted_command {
         ResultType::Map(m) => {
             println!("Scheduling to send {:?}", m);
-            schedule(m, priority);
+            let outcome = match schedule(m, priority) {
+                Ok(o) => o,
+                Err(e) => match e {
+                    scheduler::SchedulingError::CantReadStates => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't read client states, maybe not ready yet!")));
+                    },
+                    scheduler::SchedulingError::ClientIsntFullyInitialized => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client isn't fully initialized yet, pls wait!")));
+                    },
+                },
+            };
         },
         ResultType::Empty => {
             return Err(PyErr::new::<exceptions::PyValueError, _>("Command to send is empty!"));
@@ -408,7 +433,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
             client_state.clean_storage(); // remove any old state
             let new_client_state = ClientState::new(client_name.clone(), client_key.clone(), NetworkMap::empty(), client_node.clone(), Some(true), Some(false), Some(false), Some(false), None);
             new_client_state.save_in_storage();
-            *client_state = new_client_state.clone();
+            *client_state = new_client_state.lone();
         }
 
         println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
