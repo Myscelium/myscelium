@@ -88,13 +88,13 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) -> Result<(), Sc
 
     logger.debug("Enter Scheduler".to_string());
 
-    let client_key: String;
+    let mut client_key: String = "".to_string();
 
     println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
 
     let state_manager = match ClientState::load_from_storage() {
         Ok(s) => s,
-        Err(e) => return Err(SchedulingError::CantReadStates),
+        Err(_) => return Err(SchedulingError::CantReadStates),
     };
 
     if !state_manager.is_fully_initialized() {
