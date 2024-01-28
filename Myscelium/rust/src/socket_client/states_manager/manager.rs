@@ -146,11 +146,6 @@ impl ClientState {
             // let mut id_generator = UniqueIdGenerator { registered_ids: registered_ids };
             // This on top isn't necessary since here will only have one client per per db in each
             // client states table.
-            {
-                if !&self.is_fully_initialized() {
-                    return Err(StateManagerError::NotFullyInitialized);
-                }
-            }
 
             let now = Utc::now();
             let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
@@ -159,14 +154,14 @@ impl ClientState {
                 "INSERT INTO ClientStates (ID, Name, Key, NetMap, ClientNodeConfigs, IsInitialized, IsReady, IsConnected, IsSync, LastChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                 params![
                     0,
-                    self.name.clone().unwrap(),
-                    self.key.clone().unwrap(),
-                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap(),
-                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap(),
-                    self.is_initialized.unwrap(),
-                    self.is_ready.unwrap(),
-                    self.is_connected.unwrap(),
-                    self.is_sync.unwrap(),
+                    self.name.clone().unwrap_or("".to_string()),
+                    self.key.clone().unwrap_or("".to_string()),
+                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap_or("".to_string()),
+                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap_or("".to_string()),
+                    self.is_initialized.unwrap_or(false),
+                    self.is_ready.unwrap_or(false),
+                    self.is_connected.unwrap_or(false),
+                    self.is_sync.unwrap_or(false),
                     timestamp
                 ],
             );
@@ -235,14 +230,14 @@ impl ClientState {
             let result = conn.execute(
                 "UPDATE ClientStateso SET Name = ?, Key = ?, NetMap = ?, ClientNodeConfigs = ?, IsInitialized = ?, IsReady = ?, IsConnected = ?, IsSync = ?, LastChange = ? WHERE ID = ?",
                 params![
-                    &self.name.clone().unwrap(),
-                    &self.key.clone().unwrap(),
-                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap(),
-                    serde_json::to_string(&self.client_node_configs.clone().unwrap()).unwrap(),
-                    &self.is_initialized.unwrap(),
-                    &self.is_ready.unwrap(),
-                    &self.is_connected.unwrap(),
-                    &self.is_sync.unwrap(),
+                    self.name.clone().unwrap_or("".to_string()),
+                    self.key.clone().unwrap_or("".to_string()),
+                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap_or("".to_string()),
+                    serde_json::to_string(&self.network_map.clone().unwrap()).unwrap_or("".to_string()),
+                    self.is_initialized.unwrap_or(false),
+                    self.is_ready.unwrap_or(false),
+                    self.is_connected.unwrap_or(false),
+                    self.is_sync.unwrap_or(false),
                     timestamp,
                     0
                 ],
