@@ -517,11 +517,6 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
 
     CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
 
-    {
-        let mut state_manager = CLIENT_STATE_MANAGER.lock();
-        state_manager.is_initialized = Some(true);
-    }
-
     // let mut client_key: String = "".to_string();
 
     // {
