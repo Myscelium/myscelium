@@ -16,8 +16,9 @@ use crate::{
 
 use crate::common::sql_pool::pool::{SQLiteConnectionPool, UniqueIdGenerator};
 
+use crate::CLIENT_STATE_MANAGER;
+
 lazy_static! {
-    static ref CLIENT_STATE_MANAGER: Arc<Mutex<ClientState>> = Arc::new(Mutex::new(ClientState::empty()));
     static ref STATES_BUFFER_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
     static ref STATES_BUFFER_PATH: Arc<Mutex<String>> = Arc::new(Mutex::new("buffer.db".to_string()));
     static ref STATES_NUM_WORKERS: Arc<Mutex<u32>> = Arc::new(Mutex::new(5));
@@ -26,18 +27,18 @@ lazy_static! {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientState {
-    name: Option<String>,
-    key: Option<String>,
-    network_map: Option<NetworkMap>,
-    client_node_configs: Option<Node>,
-    is_initialized: Option<bool>,
-    is_ready: Option<bool>,
-    is_connected: Option<bool>,
-    is_sync: Option<bool>,
-    last_change: Option<f64>,
+    pub name: Option<String>,
+    pub key: Option<String>,
+    pub network_map: Option<NetworkMap>,
+    pub client_node_configs: Option<Node>,
+    pub is_initialized: Option<bool>,
+    pub is_ready: Option<bool>,
+    pub is_connected: Option<bool>,
+    pub is_sync: Option<bool>,
+    pub last_change: Option<f64>,
 }
 
-pub fn initialize_client_status_table_table(status_db_spath: String) {
+pub fn inialize_client_status_table_table(status_db_spath: String) {
     // Create a global Mutex for demonstration
     let mutex1 = Mutex::new(0);
     let mutex2 = Mutex::new(0);
@@ -72,10 +73,10 @@ pub fn initialize_client_status_table_table(status_db_spath: String) {
 
         match result {
             Ok(_) => {
-                println!("Successfully initialize ClientCommandsReceived table!");
+                println!("Successfully initialize ClientStates table!");
             },
             Err(e) => {
-                eprintln!("An error occurred while scheduling the command in the ClientCommandsReceived table: {}", e);
+                eprintln!("An error occurred while initializing the ClientState table, the error was: {}", e);
             },
         };
     });
@@ -100,6 +101,23 @@ impl ClientState {
             is_sync: Some(is_sync),
             last_change: Some(last_change),
         }
+    }
+
+    pub fn clean_storage(&self) {
+        // TODO >>> Finish this method;
+
+        with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
+            let result = conn.execute("DELETE * FROM ClientStates;", params![]);
+
+            match result {
+                Ok(_) => {
+                    println!("Successfully clean ClientStates table");
+                },
+                Err(e) => {
+                    eprintln!("An error occurred while cleaning the ClientStates table: {}", e);
+                },
+            };
+        });
     }
 
     pub fn empty() -> Self {
@@ -150,15 +168,15 @@ impl ClientState {
                     self.is_connected.unwrap(),
                     self.is_sync.unwrap(),
                     timestamp
-                ], // TODO >>> Add the remaining commands that need to be impl here
+                ],
             );
 
             match result {
                 Ok(_) => {
-                    println!("Successfully schedule Command in ClientCommandsTosend");
+                    println!("Successfully saved state in ClientStates table");
                 },
                 Err(e) => {
-                    eprintln!("An error occurred while scheduling the command in the ClientCommandsTosend table: {}", e);
+                    eprintln!("An error occurred while saving a cient sate in ClientStates table: {}", e);
                 },
             };
             Ok(())
@@ -231,10 +249,10 @@ impl ClientState {
             );
             match result {
                 Ok(_) => {
-                    println!("Successfully update Command in ClientCommandsReceived");
+                    println!("Successfully update client state in ClientStates table");
                 },
                 Err(e) => {
-                    eprintln!("An error occurred while update the command in the ClientCommandsReceived table: {}", e);
+                    eprintln!("An error occurred while update the client state in the ClientStates table: {}", e);
                 },
             };
             Ok(())

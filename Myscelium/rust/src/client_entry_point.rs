@@ -6,6 +6,7 @@ use crate::common::enhanced_buffer::utilities::CommandType;
 use crate::common::functions::advanced_lockers::smart_lock;
 use crate::common::structs::available_commands::{HandlerStatus, Node, NodeHandler, NodeVersion, VersionIndentifier};
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_database_dir, set_client_log_level};
+use crate::socket_client::states_manager::manager::inialize_client_status_table_table;
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
@@ -22,7 +23,7 @@ use std::thread;
 
 use std::time::Duration;
 
-use crate::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY, CLIENT_NODE_NAME};
+use crate::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY, CLIENT_NODE_NAME, CLIENT_STATE_MANAGER};
 
 // -> Socket Client main-points:
 
@@ -86,6 +87,7 @@ pub fn initialize_client_buffer_tables(path: &PyString) {
 
     initialize_client_logs_database_dir(buffer_path.clone());
     initialize_client_buffer(buffer_path.clone());
+    inialize_client_status_table_table(buffer_path.clone());
 
     return;
 }
@@ -398,8 +400,18 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
 
         let client_version: NodeVersion = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
-        let client_node = Node::new(client_name, client_key, "".to_string(), client_version, client_handlers);
-        *command_patterns = client_node;
+        let client_node = Node::new(client_name.clone(), client_key.clone(), "".to_string(), client_version, client_handlers);
+        *command_patterns = client_node.clone();
+
+        {
+            let mut client_state = CLIENT_STATE_MANAGER.lock();
+            client_state.clean_storage(); // remove any old state
+            client_state.name = Some(client_name.clone());
+            client_state.client_node_configs = Some(client_node.clone());
+            client_state.key = Some(client_key.clone());
+            client_state.is_initialized = Some(true); // Just redundancy
+            client_state.save_in_storage();
+        }
 
         println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
     }
@@ -473,6 +485,11 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
     });
 
     CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
+
+    {
+        let mut state_manager = CLIENT_STATE_MANAGER.lock();
+        state_manager.is_initialized = Some(true);
+    }
 
     // let mut client_key: String = "".to_string();
 

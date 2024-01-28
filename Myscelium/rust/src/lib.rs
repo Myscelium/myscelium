@@ -27,6 +27,7 @@ use common::client_network_controller::availability_controller::AllowedNetWorkCo
 extern crate chrono;
 use crate::chrono::TimeZone;
 use crate::common::structs::available_commands::NetworkMap;
+use crate::socket_client::states_manager::manager::ClientState;
 
 lazy_static! {
 
@@ -38,6 +39,7 @@ lazy_static! {
     pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref CLIENT_IS_READY: Arc<AtomicBool> = Arc::new(AtomicBool::new(false)); // TODO >>> Finish the impl of this
     pub static ref CLIENT_NODE_CONFIGS: Arc<Mutex<Node>> = Arc::new(Mutex::new(Node::empty_node()));
+    pub static ref CLIENT_STATE_MANAGER: Arc<Mutex<ClientState>> = Arc::new(Mutex::new(ClientState::empty()));
 
     // HOST:
     pub static ref HOST_IS_RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
