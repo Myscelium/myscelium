@@ -19,11 +19,12 @@ class Senders:
         mys_client = MysceliumClient(
             client_uid="some_client_id", buffer_path="Temp/Client1Data/"
         )
+
         mys_client.running = True
 
         while not mys_client.is_client_ready:
             time.sleep(0.2)
-            pass
+            continue
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
         command = client_patterns.command_pattern(

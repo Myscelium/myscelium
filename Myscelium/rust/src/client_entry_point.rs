@@ -182,7 +182,7 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
     let client_status = match ClientState::load_from_storage() {
         Ok(c) => c,
         Err(e) => {
-            return Ok(PyBool::new(py, true).into());
+            return Ok(PyBool::new(py, false).into());
         },
     };
 

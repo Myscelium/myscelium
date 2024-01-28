@@ -1,8 +1,8 @@
 use crate::common::structs::available_commands::CommandPatterns;
 use crate::common::structs::results_structs::ResultType;
 
-use crate::socket_client::states_manager::manager::ClientState;
-use crate::CLIENT_NODE_CONFIGS;
+use crate::socket_client::states_manager::manager::{ClientState, StateManagerError};
+use crate::{CLIENT_NODE_CONFIGS, CLIENT_STATE_MANAGER};
 
 use crate::socket_client::transposer::ProcessError;
 use crate::socket_host::transposer_functions::handle_direct_function::ProcessResult;
@@ -67,10 +67,20 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
                 }
 
                 // -> CLIENT STATE NETWORK MAP LOADING
-                let mut client_state = ClientState::load_from_storage().unwrap();
+                let mut client_state = CLIENT_STATE_MANAGER.lock();
                 client_state.network_map = Some(host_allowed_commands.clone());
                 client_state.is_sync = Some(true);
-                client_state.update_schedule_with_this();
+                match client_state.update_schedule_with_this() {
+                    Ok(_) => {},
+                    Err(e) => match e {
+                        StateManagerError::NotFullyInitialized => {
+                            println!("Error trying to update client states in direct_functions, not fully initialized!");
+                        },
+                        StateManagerError::CantgetStateFromDb(e) => {
+                            println!("Error trying to load client state from db, the error was: {:?}", e);
+                        },
+                    },
+                };
             }
 
             println!("[CLIENT][GLOBAL][Release] - HOST_ALLOWED_COMMANDS");
