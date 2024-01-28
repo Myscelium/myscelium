@@ -181,7 +181,7 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
     let client_status = match ClientState::load_from_storage() {
         Ok(c) => c,
-        Err(e) => {
+        Err(_) => {
             return Ok(PyBool::new(py, false).into());
         },
     };

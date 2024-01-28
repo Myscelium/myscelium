@@ -72,12 +72,15 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
                 client_state.is_sync = Some(true);
                 match client_state.update_schedule_with_this() {
                     Ok(_) => {},
-                    Err(e) => match e {
-                        StateManagerError::NotFullyInitialized => {
-                            println!("Error trying to update client states in direct_functions, not fully initialized!");
-                        },
-                        StateManagerError::CantgetStateFromDb(e) => {
-                            println!("Error trying to load client state from db, the error was: {:?}", e);
+                    Err(e) => match client_state.save_in_storage() {
+                        Ok(_) => {},
+                        Err(e) => match e {
+                            StateManagerError::NotFullyInitialized => {
+                                println!("Error trying to update client states in direct_functions, not fully initialized!");
+                            },
+                            StateManagerError::CantgetStateFromDb(e) => {
+                                println!("Error trying to load client state from db, the error was: {:?}", e);
+                            },
                         },
                     },
                 };

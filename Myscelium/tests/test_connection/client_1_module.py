@@ -22,7 +22,7 @@ class Senders:
 
         mys_client.running = True
 
-        while not mys_client.is_client_ready:
+        while not mys_client.is_client_ready():
             time.sleep(0.2)
             continue
 
