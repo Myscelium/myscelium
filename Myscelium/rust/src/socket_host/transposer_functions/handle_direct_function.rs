@@ -4,6 +4,7 @@ use std::hash::Hash;
 
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
+use crate::common::structs::available_commands::NodeStatus;
 use crate::common::structs::available_commands::{CommandPatterns, Node};
 use crate::common::structs::results_structs::ResultType;
 use crate::socket_client::transposer::ProcessError;
@@ -138,17 +139,19 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             //     return ResultType::Error(format!("update_client_commands_ref command doesn't have kwargs in it!"));
             // }
 
-            let client_name: String = client.get_client_name();
+            let mut client_name: String = client.get_client_name();
 
             {
                 let mut actual_patterns = HOST_COMMAND_PATTERNS.lock();
 
-                let client_node = match Node::from_value(client_handlers.clone()) {
+                let mut client_node = match Node::from_value(client_handlers.clone()) {
                     Ok(n) => n,
                     Err(e) => {
                         return ProcessResult::Error(format!("Error creating node, the error was: {:?}", e));
                     },
                 };
+
+                client_node.change_node_status(NodeStatus::NotSyncYet);
 
                 actual_patterns.add_or_update_if_exists(client_node);
             }
@@ -231,18 +234,17 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
                 // TODO >>> Add a mechanism to see what handlers the client will ahve permission to activate
                 //* Any mechanism that will see the client permissions to each command may be placed here
 
+                // > Schedule a redirect to the other clients
+                let client_key_to_redirect: String = client.client_key.clone();
+
                 {
                     let actual_patterns = HOST_COMMAND_PATTERNS.lock();
                     // TODO >>> Change to get all nodes except for node x
-                    nodes = actual_patterns.get_all_nodes_except_node_with_key(client_key);
+                    nodes = actual_patterns.get_all_nodes_except_node_with_key(&client_key_to_redirect);
                 }
 
                 let mut filtered_commands: HashMap<String, Value> = HashMap::new();
                 filtered_commands.insert("network_nodes".to_string(), serde_json::to_value(nodes).unwrap());
-
-                // > Schedule a redirect to the other clients
-                let client_key_to_redirect: String = client.client_key.clone();
-
                 let new_command_instructions = CommandInstructions::new(
                     CommandMode::Response,
                     CommandType::DirectFunction,
