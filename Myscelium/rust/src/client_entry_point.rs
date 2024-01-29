@@ -414,18 +414,18 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
     }
 
-    let mut client_name: String = "".to_string();
+    let client_name: String;
 
     {
         let name = CLIENT_NODE_NAME.lock();
         client_name = name.clone();
     }
 
-    let mut client_key: String = "".to_string();
+    let client_key: String;
 
     {
         let key = CLIENT_NODE_KEY.lock();
-        let client_key: String = key.clone();
+        client_key = key.clone();
     }
 
     {
