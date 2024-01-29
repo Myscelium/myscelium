@@ -74,21 +74,19 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             }
 
             // -> get the client by the client key
-            let client = match Client::get_by_key(client_key) {
-                Ok(c) => c,
-                Err(e) => match e {
-                    ClientError::ClientDoesNotExist(_) => {
-                        return ProcessResult::Error(format!("Unknow client_key: {:?}", client_key));
-                    },
-                    _ => {
-                        return ProcessResult::Error(format!("Get a error {:?}, obtaining client: {:?}", e, client_key));
-                    },
-                },
-            };
+            //let client = match Client::get_by_key(client_key) {
+            //    Ok(c) => c,
+            //    Err(e) => match e {
+            //        ClientError::ClientDoesNotExist(_) => {
+            //            return ProcessResult::Error(format!("Unknow client_key: {:?}", client_key));
+            //        },
+            //        _ => {
+            //            return ProcessResult::Error(format!("Get a error {:?}, obtaining client: {:?}", e, client_key));
+            //        },
+            //    },
+            //};
 
-            let client_name: String = client.get_client_name();
-
-            let nodes: Vec<Node> = actual_patterns.get_all_nodes_except_node_with_name(client_name);
+            let nodes: Vec<Node> = actual_patterns.get_all_nodes_except_node_with_key(client_key);
             let mut filtered_commands: HashMap<String, Value> = HashMap::new();
             filtered_commands.insert("network_nodes".to_string(), serde_json::to_value(nodes).unwrap());
 

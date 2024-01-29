@@ -190,6 +190,14 @@ impl NetworkMap {
         return Ok(available_commands);
     }
 
+    pub fn get_all_nodes_except_node_with_key(&self, key: &String) -> Vec<Node> {
+        let mut nodes_mirror = self.nodes.clone();
+        if let Some(index) = nodes_mirror.iter().position(|x| x.key == Some(key.clone())) {
+            nodes_mirror.remove(index); // Remove the specific node by key
+        }
+        return nodes_mirror;
+    }
+
     pub fn get_all_nodes_except_node_with_name(&self, name: String) -> Vec<Node> {
         let mut nodes_mirror = self.nodes.clone();
         if let Some(index) = nodes_mirror.iter().position(|x| x.name == Some(name.clone())) {
@@ -278,11 +286,11 @@ impl NetworkMap {
 
         self.mass_update_all_nodes(&network_map).unwrap();
 
-        return Ok(());
+        Ok(())
     }
 
     pub fn target_is_reachable(&mut self, node_key: &String) -> Result<bool, NetworkMapError> {
-        let node = &self.get_node_by_key(node_key)?;
+        let _ = &self.get_node_by_key(node_key)?;
         return Ok(true); //> if node isn't in the network the the error will be returned above
     }
 
