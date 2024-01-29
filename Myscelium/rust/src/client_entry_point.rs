@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::common::enhanced_buffer::utilities::CommandType;
 use crate::common::functions::advanced_lockers::smart_lock;
-use crate::common::structs::available_commands::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeVersion, VersionIndentifier};
+use crate::common::structs::available_commands::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_database_dir, set_client_log_level};
 use crate::socket_client::states_manager::manager::{inialize_client_status_table_table, ClientState, StateManagerError};
 
@@ -483,7 +483,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
 
         let client_version: NodeVersion = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
-        let client_node = Node::new(client_name.clone(), client_key.clone(), "".to_string(), client_version, client_handlers);
+        let client_node = Node::new(client_name.clone(), client_key.clone(), "".to_string(), client_version, client_handlers, NodeStatus::NotSyncYet);
         *command_patterns = client_node.clone();
 
         {

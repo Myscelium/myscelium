@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::common::enhanced_buffer::utilities::CommandType;
-use crate::common::structs::available_commands::{HandlerStatus, Node, NodeHandler, NodeVersion, VersionIndentifier};
+use crate::common::structs::available_commands::{HandlerStatus, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 use crate::socket_host::socket_host::{get_available_commands_registered, initialize_host};
 use crate::socket_host::socket_host::{initialize_host_buffer, set_heartbeat_callback, set_max_conns};
 use crate::socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
@@ -271,7 +271,7 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
 
     let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
     let node_version = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
-    let host_node: Node = Node::new("host".to_string(), "host".to_string(), "".to_string(), node_version, host_node_handlers);
+    let host_node: Node = Node::new("host".to_string(), "host".to_string(), "".to_string(), node_version, host_node_handlers, NodeStatus::Online);
     global_command_patterns.add_or_update_if_exists(host_node);
 
     Ok(())
