@@ -14,8 +14,6 @@ CLIENT_ID = "randomsclientids"
 class Senders:
     @staticmethod
     def send_some_data_to_redirect():
-        time.sleep(15)
-
         Events_Manager(Unit="Client2", path="Logs").Set_Event(
             "Try To Schedule Data To Redirect",
             event_type="Default",
@@ -29,7 +27,7 @@ class Senders:
             )
             mys_client.running = True
 
-            max_attempts = 10
+            max_attempts = 25
             attemtps = 0
             while True:
                 if mys_client.is_client_ready():

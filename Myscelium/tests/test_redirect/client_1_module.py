@@ -23,7 +23,7 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
+        max_attempts = 20
         attemtps = 0
         while not mys_client.is_client_ready():
             time.sleep(1)
@@ -132,7 +132,7 @@ class MyClient:
         return
 
     def monitor_stop_event(self):
-        time.sleep(25)  # needs to be a little more to wait to client 2 initialize
+        time.sleep(35)  # needs to be a little more to wait to client 2 initialize
 
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
 
@@ -160,7 +160,7 @@ class MyClient:
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
-        time.sleep(15)
+
         t2.start()
         t3.start()
 
