@@ -88,8 +88,6 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) -> Result<(), Sc
 
     logger.debug("Enter Scheduler".to_string());
 
-    let mut client_key: String = "".to_string();
-
     println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_ID");
 
     let state_manager = match ClientState::load_from_storage() {
@@ -109,6 +107,12 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) -> Result<(), Sc
     // }
 
     println!("[CLIENT][GLOBAL][Release] - CLIENT_ID");
+
+    let client_key = state_manager.key.clone().unwrap();
+
+    if client_key == "".to_string() {
+        return Err(SchedulingError::ClientIsntFullyInitialized);
+    }
 
     logger.debug(format!("Client id is: {:?}", client_key));
 

@@ -424,7 +424,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
     let client_key: String;
 
     {
-        let key = CLIENT_NODE_KEY.lock();
+        let mut key = CLIENT_NODE_KEY.lock();
         client_key = key.clone();
     }
 
@@ -466,7 +466,11 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
 
 #[pyfunction]
 pub fn set_client_key(client_key: String) {
-    socket_client::set_client_uid(client_key);
+    socket_client::set_client_uid(client_key.clone());
+    {
+        let mut key = CLIENT_NODE_KEY.lock();
+        *key = client_key.clone();
+    }
 }
 
 /// Initializes the socket client, sets up deadlock detection, and starts the main processing loop.
@@ -519,10 +523,10 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
 
     // let mut client_key: String = "".to_string();
 
-    // {
-    //     let mut key = CLIENT_ID.lock();
-    //     *key = client_id;
-    // }
+    {
+        let mut key = CLIENT_NODE_KEY.lock();
+        *key = client_key.clone();
+    }
 
     // let client_key_storage = CLIENT_ID;
     // smart_lock(&*client_key_storage, |key: &mut String| {
