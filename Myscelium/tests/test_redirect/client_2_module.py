@@ -31,21 +31,31 @@ class Senders:
 
             max_attempts = 10
             attemtps = 0
-            while not mys_client.is_client_ready():
-                time.sleep(1)
-                attemtps += 1
+            while True:
+                if mys_client.is_client_ready():
+                    break
+
                 if attemtps >= max_attempts:
                     assert False, "Take too long to client be ready"
+
+                time.sleep(1)
+                attemtps += 1
                 continue
 
             TARGET_KEY = "test_redirect_handler"
 
             target_attempts = 0
-            while not mys_client.is_target_ready(TARGET_KEY):
-                if target_attempts >= 5:  # 25s
+            while True:
+                if mys_client.is_target_ready(TARGET_KEY):
+                    break
+
+                if target_attempts >= 10:  # 25s
                     assert False, "Take too long to target be ready!"
+
                 print("target isn't ready, so trying again in 5 secs")
+
                 time.sleep(5)
+
                 target_attempts += 1
                 continue
 

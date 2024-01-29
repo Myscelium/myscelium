@@ -82,6 +82,8 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
                     },
                 };
                 client_state.network_map = Some(host_allowed_commands.clone());
+                client_state.is_ready = Some(true);
+                client_state.is_connected = Some(true);
                 client_state.is_sync = Some(true);
                 match &client_state.update_schedule_with_this() {
                     Ok(_) => {},
