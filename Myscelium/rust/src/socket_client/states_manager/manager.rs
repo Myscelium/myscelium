@@ -249,7 +249,6 @@ impl ClientState {
                     eprintln!("An error occurred while update the client state in the ClientStates table: {}", e);
                 },
             };
-            Ok(())
         });
         Ok(())
     }
