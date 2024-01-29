@@ -67,7 +67,20 @@ pub fn handle_direct_function(c: &CommandInstructions, client_key: &String, comm
                 }
 
                 // -> CLIENT STATE NETWORK MAP LOADING
-                let mut client_state = CLIENT_STATE_MANAGER.lock();
+                let mut client_state = match ClientState::load_from_storage() {
+                    Ok(c) => c,
+                    Err(e) => {
+                        match e {
+                            StateManagerError::NotFullyInitialized => {
+                                logger.exception(format!("Error trying to update client states in direct_functions, not fully initialized!"));
+                            },
+                            StateManagerError::CantgetStateFromDb(e) => {
+                                logger.exception(format!("Error trying to load client state from db, the error was: {:?}", e));
+                            },
+                        };
+                        CLIENT_STATE_MANAGER.lock().clone()
+                    },
+                };
                 client_state.network_map = Some(host_allowed_commands.clone());
                 client_state.is_sync = Some(true);
                 match &client_state.update_schedule_with_this() {

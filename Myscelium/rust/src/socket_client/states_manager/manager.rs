@@ -220,9 +220,9 @@ impl ClientState {
         with_connection!(STATES_BUFFER_POOL, |conn: &rusqlite::Connection| {
             // TODO >>> Add the correct parameters here
 
-            if !self.is_fully_initialized() {
-                return Err(StateManagerError::NotFullyInitialized);
-            };
+            //if !self.is_fully_initialized() {
+            //    return Err(StateManagerError::NotFullyInitialized);
+            //};
 
             let now = Utc::now();
             let timestamp = now.timestamp() as f64 + (now.timestamp_subsec_millis() as f64 / 1000.0);
