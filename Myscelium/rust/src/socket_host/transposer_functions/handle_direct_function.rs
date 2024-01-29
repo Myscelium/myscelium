@@ -234,7 +234,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
                 {
                     let actual_patterns = HOST_COMMAND_PATTERNS.lock();
                     // TODO >>> Change to get all nodes except for node x
-                    nodes = actual_patterns.get_all_nodes_except_node_with_name(client_name);
+                    nodes = actual_patterns.get_all_nodes_except_node_with_key(client_key);
                 }
 
                 let mut filtered_commands: HashMap<String, Value> = HashMap::new();
