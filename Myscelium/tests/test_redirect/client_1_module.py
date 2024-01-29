@@ -137,7 +137,7 @@ class MyClient:
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
 
         while True:
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
+            client_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
             host_status = System_Status(path="Logs").get_unit_status(Unit="Host")
 
             if (not client_status) or (not host_status):
@@ -156,15 +156,15 @@ class MyClient:
     def run(self):
         t1 = Process(target=self.initializer, args=())
 
-        # t2 = Process(target=senders.send_some_data, args=())
+        t2 = Process(target=Senders().send_some_data, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
         time.sleep(15)
-        # t2.start()
+        t2.start()
         t3.start()
 
-        # t2.join()
+        t2.join()
         t3.join()
 
         time.sleep(5)
