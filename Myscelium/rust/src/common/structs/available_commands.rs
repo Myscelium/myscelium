@@ -283,13 +283,13 @@ impl NetworkMap {
 
     pub fn target_is_reachable(&self, node_key: String) -> Result<bool, NetworkMapError> {
         let node = &self.get_node_by_key(node_key)?;
-        return Ok(bool); //> if node isn't in the network the the error will be returned above
+        return Ok(true); //> if node isn't in the network the the error will be returned above
     }
 
-    pub fn target_is_ready(&self, node_key: String) -> Result<bool, NetworkMapError> {
-        let node = &self.get_node_by_key(node_key)?;
+    pub fn target_is_ready(&mut self, node_key: &String) -> Result<bool, NetworkMapError> {
+        let node = self.get_node_by_key(*node_key)?;
 
-        if let Some(status) = node.status {
+        if let Some(status) = node.status.clone() {
             match status {
                 NodeStatus::NotImplemented => {
                     return Ok(false);

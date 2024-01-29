@@ -181,7 +181,9 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 pub fn is_target_ready(py: Python, target_key: &PyString) -> PyResult<Py<PyBool>> {
     let node_key: String;
     if let Ok(string) = target_key.extract::<Vec<String>>() {
-        node_key = string[0]
+        node_key = string[0].clone()
+    } else {
+        return Err(PyErr::new::<exceptions::PyValueError, _>("Target key needs to be a valid string value!"));
     }
 
     let client_status = match ClientState::load_from_storage() {
@@ -192,27 +194,31 @@ pub fn is_target_ready(py: Python, target_key: &PyString) -> PyResult<Py<PyBool>
     };
 
     if let Some(net_map) = client_status.network_map {
-        match net_map.target_is_ready(node_key) {
-            Ok(s) => {
-                if !s {
+        let mut net_map = net_map;
+        {
+            match net_map.target_is_reachable(node_key.clone()) {
+                Ok(s) => {
+                    if !s {
+                        return Ok(PyBool::new(py, false).into());
+                    }
+                },
+                Err(_) => {
                     return Ok(PyBool::new(py, false).into());
-                }
-            },
-            Err(_) => {
-                return Ok(PyBool::new(py, false).into());
-            },
-        };
-
-        match net_map.target_is_ready(node_key) {
-            Ok(s) => {
-                if !s {
+                },
+            };
+        }
+        {
+            match net_map.target_is_ready(&node_key) {
+                Ok(s) => {
+                    if !s {
+                        return Ok(PyBool::new(py, false).into());
+                    }
+                },
+                Err(_) => {
                     return Ok(PyBool::new(py, false).into());
-                }
-            },
-            Err(_) => {
-                return Ok(PyBool::new(py, false).into());
-            },
-        };
+                },
+            };
+        }
     } else {
         return Ok(PyBool::new(py, false).into());
     }
