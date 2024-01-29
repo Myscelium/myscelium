@@ -178,6 +178,49 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 }
 
 #[pyfunction]
+pub fn is_target_ready(py: Python, target_key: &PyString) -> PyResult<Py<PyBool>> {
+    let node_key: String;
+    if let Ok(string) = target_key.extract::<Vec<String>>() {
+        node_key = string[0]
+    }
+
+    let client_status = match ClientState::load_from_storage() {
+        Ok(c) => c,
+        Err(_) => {
+            return Ok(PyBool::new(py, false).into());
+        },
+    };
+
+    if let Some(net_map) = client_status.network_map {
+        match net_map.target_is_ready(node_key) {
+            Ok(s) => {
+                if !s {
+                    return Ok(PyBool::new(py, false).into());
+                }
+            },
+            Err(_) => {
+                return Ok(PyBool::new(py, false).into());
+            },
+        };
+
+        match net_map.target_is_ready(node_key) {
+            Ok(s) => {
+                if !s {
+                    return Ok(PyBool::new(py, false).into());
+                }
+            },
+            Err(_) => {
+                return Ok(PyBool::new(py, false).into());
+            },
+        };
+    } else {
+        return Ok(PyBool::new(py, false).into());
+    }
+
+    return Ok(PyBool::new(py, true).into());
+}
+
+#[pyfunction]
 pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
     let client_status = match ClientState::load_from_storage() {
         Ok(c) => c,

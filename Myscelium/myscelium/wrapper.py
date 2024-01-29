@@ -1334,6 +1334,9 @@ class MysceliumClient:
     def is_client_ready(self):
         return mys.is_client_ready()
 
+    def is_target_ready(self, target_key: str):
+        return mys.is_target_ready(target_key)
+
     def set_workers_num(self, n_workers=2):
         """
         Set the number of workers for the client.

@@ -281,6 +281,41 @@ impl NetworkMap {
         return Ok(());
     }
 
+    pub fn target_is_reachable(&self, node_key: String) -> Result<bool, NetworkMapError> {
+        let node = &self.get_node_by_key(node_key)?;
+        return Ok(bool); //> if node isn't in the network the the error will be returned above
+    }
+
+    pub fn target_is_ready(&self, node_key: String) -> Result<bool, NetworkMapError> {
+        let node = &self.get_node_by_key(node_key)?;
+
+        if let Some(status) = node.status {
+            match status {
+                NodeStatus::NotImplemented => {
+                    return Ok(false);
+                },
+                NodeStatus::Online => {
+                    return Ok(true);
+                },
+                NodeStatus::Offline => {
+                    return Ok(false);
+                },
+                NodeStatus::NotSyncYet => {
+                    return Ok(false);
+                },
+                NodeStatus::Idle => {
+                    return Ok(true); // This represent the cases that node is restarting
+                },
+            }
+            // TODO >> Maybe create a new case where the status can be InShutdown
+            // This will allow to make the client now that the target is turning Offline
+            // and return this previously without have to send the information to the host
+            // redirect and then return the error
+        } else {
+            return Ok(false);
+        }
+    }
+
     /// The idea of the update NetworkMap are to update the network
     /// by passing a Vec<Node> a vec of nodes, this allows to iterate in the
     /// current network map and update nodes based in the nodes contained in

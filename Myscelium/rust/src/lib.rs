@@ -138,6 +138,7 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_client_key, m)?)?;
     m.add_function(wrap_pyfunction!(is_client_ready, m)?)?;
     // m.add_function(wrap_pyfunction!(registry_client_logs_handler, m)?)?;
+    m.add_function(wrap_pyfunction!(is_target_ready, m)?)?;
 
     Ok(())
 }
