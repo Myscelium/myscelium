@@ -196,7 +196,7 @@ pub fn is_target_ready(py: Python, target_key: &PyString) -> PyResult<Py<PyBool>
     if let Some(net_map) = client_status.network_map {
         let mut net_map = net_map;
         {
-            match net_map.target_is_reachable(node_key.clone()) {
+            match net_map.target_is_reachable(&node_key) {
                 Ok(s) => {
                     if !s {
                         return Ok(PyBool::new(py, false).into());

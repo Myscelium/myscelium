@@ -223,13 +223,13 @@ impl NetworkMap {
         return Err(NetworkMapError::NodeDoNotExists(name));
     }
 
-    pub fn get_node_by_key(&mut self, key: String) -> Result<&mut Node, NetworkMapError> {
+    pub fn get_node_by_key(&mut self, key: &String) -> Result<&mut Node, NetworkMapError> {
         for node in &mut self.nodes {
             if &node.key == &Some(key.clone()) {
                 return Ok(node);
             }
         }
-        return Err(NetworkMapError::NodeDoNotExists(key));
+        return Err(NetworkMapError::NodeDoNotExists(key.clone()));
     }
 
     pub fn convert_to_value_map(&self) -> HashMap<String, Value> {
@@ -281,13 +281,13 @@ impl NetworkMap {
         return Ok(());
     }
 
-    pub fn target_is_reachable(&self, node_key: String) -> Result<bool, NetworkMapError> {
+    pub fn target_is_reachable(&mut self, node_key: &String) -> Result<bool, NetworkMapError> {
         let node = &self.get_node_by_key(node_key)?;
         return Ok(true); //> if node isn't in the network the the error will be returned above
     }
 
     pub fn target_is_ready(&mut self, node_key: &String) -> Result<bool, NetworkMapError> {
-        let node = self.get_node_by_key(*node_key)?;
+        let node = self.get_node_by_key(node_key)?;
 
         if let Some(status) = node.status.clone() {
             match status {
