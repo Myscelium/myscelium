@@ -152,8 +152,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
                 };
 
                 client_node.change_node_status(NodeStatus::Online);
-
-                actual_patterns.add_or_update_if_exists(client_node);
+                client_nade.actual_patterns.add_or_update_if_exists(client_node);
             }
 
             {

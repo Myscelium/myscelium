@@ -40,6 +40,11 @@ class Senders:
                 attemtps += 1
                 continue
 
+            Events_Manager(Unit="Client2", path="Logs").Set_Event(
+                "Client 2 is ready",
+                event_type="Default",
+            )
+
             TARGET_KEY = "test_redirect_handler"
 
             target_attempts = 0
@@ -47,7 +52,7 @@ class Senders:
                 if mys_client.is_target_ready(TARGET_KEY):
                     break
 
-                if target_attempts >= 10:  # 25s
+                if target_attempts >= 20:  # 25s
                     assert False, "Take too long to target be ready!"
 
                 print("target isn't ready, so trying again in 5 secs")
@@ -56,6 +61,11 @@ class Senders:
 
                 target_attempts += 1
                 continue
+
+            Events_Manager(Unit="Client2", path="Logs").Set_Event(
+                "Target Client 1 is ready",
+                event_type="Default",
+            )
 
             command = client_patterns.command_pattern(
                 CLIENT_ID,

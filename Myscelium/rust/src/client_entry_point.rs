@@ -547,7 +547,7 @@ pub fn set_client_key(client_key: String) {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_key: String) {
+pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_key: String, client_name: String) {
     // Spawn a thread to periodically check for deadlocks
     thread::spawn(|| {
         loop {
@@ -567,6 +567,13 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
             }
         }
     });
+
+    // -> SET CLIENT NAME IN CLIENT STATE MANAGER MEMORY SO WHEN THE CALLBACKS BE REGISTRED IT CAN
+    // BE APLIED
+    {
+        let mut client_state = CLIENT_STATE_MANAGER.lock();
+        client_state.name = Some(client_name.clone())
+    }
 
     CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
 

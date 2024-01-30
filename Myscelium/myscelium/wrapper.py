@@ -1272,11 +1272,14 @@ class HostPatterns:
 class MysceliumClient:
     _instance = None  # Singleton instance
 
-    def __init__(self, client_uid: int, buffer_path: str, log_level: str = "DEBUG"):
+    def __init__(
+        self, name: str, client_uid: int, buffer_path: str, log_level: str = "DEBUG"
+    ):
         """
         Initialize the MysceliumClient.
 
         Parameters:
+        - name: The client name, doesn't need to be unique
         - client_uid: Unique identifier for the client.
         - buffer_path: Path to the buffer.
         - log_level: Logging level.
@@ -1289,6 +1292,7 @@ class MysceliumClient:
 
         time.sleep(5)
 
+        self.name = name
         self.host_thread = None
         self.initialized = True
 
@@ -1395,7 +1399,7 @@ class MysceliumClient:
         """
 
         self.running = True
-        mys.initialize_socket_client(ip, port, self.client_uid)
+        mys.initialize_socket_client(ip, port, self.client_uid, self.name)
 
     def stop_client(self, signal, frame):
         """
