@@ -114,7 +114,7 @@ impl Node {
             Ok(n) => n,
             Err(_) => return Err(NodeError::InvalidValue),
         };
-        return Ok(node);
+        Ok(node)
     }
 
     pub fn to_value(&self) -> Value {
@@ -132,7 +132,7 @@ impl Node {
             return Err(NodeError::NodeNotInitializedYet);
         }
 
-        return Ok(node_handlers);
+        Ok(node_handlers)
     }
 
     pub fn change_node_status(&mut self, new_status: NodeStatus) {
@@ -179,7 +179,7 @@ impl NetworkMap {
             }
         }
 
-        return Ok(available_commands);
+        Ok(available_commands)
     }
 
     pub fn get_all_nodes_except_node_with_key(&self, key: &String) -> Vec<Node> {
@@ -187,7 +187,7 @@ impl NetworkMap {
         if let Some(index) = nodes_mirror.iter().position(|x| x.key == Some(key.clone())) {
             nodes_mirror.remove(index); // Remove the specific node by key
         }
-        return nodes_mirror;
+        nodes_mirror
     }
 
     pub fn get_all_nodes_except_node_with_name(&self, name: String) -> Vec<Node> {
@@ -195,7 +195,7 @@ impl NetworkMap {
         if let Some(index) = nodes_mirror.iter().position(|x| x.name == Some(name.clone())) {
             nodes_mirror.remove(index); // remove especific node
         }
-        return nodes_mirror;
+        nodes_mirror
     }
 
     pub fn get_node_keys(&self) -> Result<HashMap<String, String>, NetworkMapError> {
@@ -220,7 +220,7 @@ impl NetworkMap {
                 return Ok(node);
             }
         }
-        return Err(NetworkMapError::NodeDoNotExists(name));
+        Err(NetworkMapError::NodeDoNotExists(name))
     }
 
     pub fn get_node_by_key(&mut self, key: &String) -> Result<&mut Node, NetworkMapError> {
@@ -229,13 +229,13 @@ impl NetworkMap {
                 return Ok(node);
             }
         }
-        return Err(NetworkMapError::NodeDoNotExists(key.clone()));
+        Err(NetworkMapError::NodeDoNotExists(key.clone()))
     }
 
     pub fn convert_to_value_map(&self) -> HashMap<String, Value> {
         let mut value_map = HashMap::new();
         value_map.insert("network_map".to_string(), serde_json::to_value(&self).unwrap());
-        return value_map;
+        value_map
     }
 
     pub fn extract_to_value(&self) -> serde_json::Value {
@@ -251,13 +251,13 @@ impl NetworkMap {
             },
         };
 
-        return Ok(new_network_map);
+        Ok(new_network_map)
     }
 
     pub fn update_from_value(&mut self, value_object: Value) -> Result<(), NetworkMapError> {
         let new_network_map: NetworkMap = NetworkMap::decode_value(value_object)?;
         self.mass_update_all_nodes(&new_network_map.nodes);
-        return Ok(());
+        Ok(())
     }
 
     pub fn gen_from_value(value_object: Value) -> Result<Self, NetworkMapError> {
@@ -313,7 +313,7 @@ impl NetworkMap {
             // redirect and then return the error
         } else {
             return Ok(false);
-        }
+        };
     }
 
     /// The idea of the update NetworkMap are to update the network

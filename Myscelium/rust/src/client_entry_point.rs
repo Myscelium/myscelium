@@ -197,8 +197,8 @@ pub fn is_target_ready(py: Python, target_key: &PyString) -> PyResult<Py<PyBool>
         let mut net_map = net_map;
         {
             match net_map.target_is_reachable(&node_key) {
-                Ok(s) => {
-                    if !s {
+                Ok(reachable) => {
+                    if !reachable {
                         return Ok(PyBool::new(py, false).into());
                     }
                 },
@@ -209,8 +209,8 @@ pub fn is_target_ready(py: Python, target_key: &PyString) -> PyResult<Py<PyBool>
         }
         {
             match net_map.target_is_ready(&node_key) {
-                Ok(s) => {
-                    if !s {
+                Ok(redy) => {
+                    if !redy {
                         return Ok(PyBool::new(py, false).into());
                     }
                 },
@@ -250,9 +250,9 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
     if let Some(ready) = client_status.is_ready {
         if !ready {
             return Ok(PyBool::new(py, false).into());
-        } else {
-            return Ok(PyBool::new(py, false).into());
         }
+    } else {
+        return Ok(PyBool::new(py, false).into());
     }
 
     return Ok(PyBool::new(py, true).into());
