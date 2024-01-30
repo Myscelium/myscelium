@@ -95,8 +95,20 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) -> Result<(), Sc
         Err(_) => return Err(SchedulingError::CantReadStates),
     };
 
-    if !state_manager.is_fully_initialized() {
-        return Err(SchedulingError::ClientIsntFullyInitialized);
+    // if !state_manager.is_fully_initialized() {
+    //    return Err(SchedulingError::ClientIsntFullyInitialized);
+    //}
+
+    if let Some(ready) = state_manager.is_ready {
+        if !ready {
+            return Err(SchedulingError::ClientIsntFullyInitialized);
+        }
+    }
+
+    if let Some(sync) = state_manager.is_sync {
+        if !sync {
+            return Err(SchedulingError::ClientIsntFullyInitialized);
+        }
     }
 
     // {
