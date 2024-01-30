@@ -46,19 +46,40 @@ class Senders:
                 event_type="Default",
             )
 
-            TARGET_KEY = "test_redirect_handler"
+            TARGET_KEY = "some_client_id"
 
             target_attempts = 0
             while True:
-                if mys_client.is_target_ready(TARGET_KEY):
-                    break
+                try:
+                    ready = mys_client.is_target_ready(target_key=TARGET_KEY)
+                    print(f"Target is ready? {ready}")
+                    if ready:
+                        break
+                except e as e:
+                    Events_Manager(Unit="Client2", path="Logs").Set_Event(
+                        f"Error trying to verify if target Client 2 is ready, error was: {e}",
+                        event_type="Default",
+                    )
+                    pass
 
-                if target_attempts >= 20:  # 25s
+                else:
+                    pass
+
+                if target_attempts >= 120:
+                    Events_Manager(Unit="Client2", path="Logs").Set_Event(
+                        f"Take too long to target be ready!",
+                        event_type="Default",
+                    )
                     assert False, "Take too long to target be ready!"
+
+                Events_Manager(Unit="Client2", path="Logs").Set_Event(
+                    "target isn't ready, so trying again in 5 secs",
+                    event_type="Default",
+                )
 
                 print("target isn't ready, so trying again in 5 secs")
 
-                time.sleep(5)
+                time.sleep(1)
 
                 target_attempts += 1
                 continue
@@ -70,8 +91,8 @@ class Senders:
 
             command = client_patterns.command_pattern(
                 CLIENT_ID,
-                TARGET_KEY,
-                target_key="some_client_id",  # This is part of the smart redirect mechanism to redirect commands
+                "test_redirect_handler",
+                target_key=TARGET_KEY,  # This is part of the smart redirect mechanism to redirect commands
                 kwargs={"data": 8},
             )
 

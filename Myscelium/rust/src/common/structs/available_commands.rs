@@ -216,7 +216,7 @@ impl NetworkMap {
 
     pub fn get_node_by_name(&mut self, name: String) -> Result<&mut Node, NetworkMapError> {
         for node in &mut self.nodes {
-            if &node.name == &Some(name.clone()) {
+            if node.name == Some(name.clone()) {
                 return Ok(node);
             }
         }
@@ -225,7 +225,7 @@ impl NetworkMap {
 
     pub fn get_node_by_key(&mut self, key: &String) -> Result<&mut Node, NetworkMapError> {
         for node in &mut self.nodes {
-            if &node.key == &Some(key.clone()) {
+            if node.key == Some(key.clone()) {
                 return Ok(node);
             }
         }
