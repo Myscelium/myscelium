@@ -178,14 +178,7 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 }
 
 #[pyfunction]
-pub fn is_target_ready(py: Python, target_key: &PyString) -> PyResult<Py<PyBool>> {
-    let node_key: String;
-    if let Ok(string) = target_key.extract::<Vec<String>>() {
-        node_key = string[0].clone()
-    } else {
-        return Err(PyErr::new::<exceptions::PyValueError, _>("Target key needs to be a valid string value!"));
-    }
-
+pub fn is_target_ready(py: Python, node_key: String) -> PyResult<Py<PyBool>> {
     let client_status = match ClientState::load_from_storage() {
         Ok(c) => c,
         Err(_) => {
