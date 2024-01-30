@@ -235,16 +235,24 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
         },
     };
 
-    if !client_status.is_fully_initialized() {
-        return Ok(PyBool::new(py, false).into());
-    }
+    //if !client_status.is_fully_initialized() {
+    //    return Ok(PyBool::new(py, false).into());
+    //}
 
-    if let Some(sync_state) = client_status.is_sync {
-        if !sync_state {
+    if let Some(sync) = client_status.is_sync {
+        if !sync {
             return Ok(PyBool::new(py, false).into());
         };
     } else {
         return Ok(PyBool::new(py, false).into());
+    }
+
+    if let Some(ready) = client_status.is_ready {
+        if !ready {
+            return Ok(PyBool::new(py, false).into());
+        } else {
+            return Ok(PyBool::new(py, false).into());
+        }
     }
 
     return Ok(PyBool::new(py, true).into());

@@ -103,12 +103,16 @@ pub fn schedule(command: HashMap<String, String>, priority: u8) -> Result<(), Sc
         if !ready {
             return Err(SchedulingError::ClientIsntFullyInitialized);
         }
+    } else {
+        return Err(SchedulingError::ClientIsntFullyInitialized);
     }
 
     if let Some(sync) = state_manager.is_sync {
         if !sync {
             return Err(SchedulingError::ClientIsntFullyInitialized);
         }
+    } else {
+        return Err(SchedulingError::ClientIsntFullyInitialized);
     }
 
     // {
