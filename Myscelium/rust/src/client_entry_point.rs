@@ -571,8 +571,11 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
     // -> SET CLIENT NAME IN CLIENT STATE MANAGER MEMORY SO WHEN THE CALLBACKS BE REGISTRED IT CAN
     // BE APLIED
     {
-        let mut client_state = CLIENT_STATE_MANAGER.lock();
-        client_state.name = Some(client_name.clone())
+        let mut name = CLIENT_NODE_NAME.lock();
+        *name = client_name.clone();
+        let mut client_states = ClientState::load_from_storage().unwrap();
+        client_states.name = Some(name.clone());
+        client_states.update_schedule_with_this().unwrap();
     }
 
     CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
