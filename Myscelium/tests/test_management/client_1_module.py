@@ -95,7 +95,9 @@ class Senders:
     @staticmethod
     def test_add_client():
         mys_client = MysceliumClient(
-            client_uid="some_client_id", buffer_path="Temp/Client1Data/"
+            name="TestClient1",
+            client_uid="some_client_id",
+            buffer_path="Temp/Client1Data/",
         )
         mys_client.running = True
 
@@ -131,7 +133,9 @@ class Senders:
     @staticmethod
     def test_update_client():
         mys_client = MysceliumClient(
-            client_uid="some_client_id", buffer_path="Temp/Client1Data/"
+            name="TestClient1",
+            client_uid="some_client_id",
+            buffer_path="Temp/Client1Data/",
         )
         mys_client.running = True
 
@@ -170,7 +174,9 @@ class Senders:
     @staticmethod
     def test_remove_client():
         mys_client = MysceliumClient(
-            client_uid="some_client_id", buffer_path="Temp/Client1Data/"
+            name="TestClient1",
+            client_uid="some_client_id",
+            buffer_path="Temp/Client1Data/",
         )
         mys_client.running = True
 
@@ -199,7 +205,9 @@ class Senders:
     @staticmethod
     def test_add_client_from_response():
         mys_client = MysceliumClient(
-            client_uid="some_client_id", buffer_path="Temp/Client1Data/"
+            name="TestClient1",
+            client_uid="some_client_id",
+            buffer_path="Temp/Client1Data/",
         )
         mys_client.running = True
 
@@ -235,7 +243,9 @@ class Senders:
     @staticmethod
     def test_update_client_from_response():
         mys_client = MysceliumClient(
-            client_uid="some_client_id", buffer_path="Temp/Client1Data/"
+            name="TestClient1",
+            client_uid="some_client_id",
+            buffer_path="Temp/Client1Data/",
         )
         mys_client.running = True
 
@@ -272,7 +282,9 @@ class Senders:
     @staticmethod
     def test_remove_client_from_response():
         mys_client = MysceliumClient(
-            client_uid="some_client_id", buffer_path="Temp/Client1Data/"
+            name="TestClient1",
+            client_uid="some_client_id",
+            buffer_path="Temp/Client1Data/",
         )
 
         mys_client.running = True
@@ -303,6 +315,7 @@ class MyClient:
 
     def initializer(self):
         mys_client = MysceliumClient(
+            name="TestCient1",
             client_uid=CLIENT_ID,
             buffer_path="Temp/Client1Data/",
             log_level=self.debug_level,

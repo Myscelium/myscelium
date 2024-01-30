@@ -9,6 +9,7 @@ from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 
 CLIENT_ID = "randomsclientids"
+CLIENT_NAME = "TestClient2"
 
 
 class Senders:
@@ -23,7 +24,7 @@ class Senders:
 
         try:
             mys_client = MysceliumClient(
-                client_uid=CLIENT_ID, buffer_path="Temp/Client2Data/"
+                name=CLIENT_NAME, client_uid=CLIENT_ID, buffer_path="Temp/Client2Data/"
             )
             mys_client.running = True
 
@@ -120,6 +121,7 @@ class MyClient:
 
     def initializer(self):
         mys_client = MysceliumClient(
+            name=CLIENT_NAME,
             client_uid=CLIENT_ID,
             buffer_path="Temp/Client2Data/",
             log_level=self.debug_level,

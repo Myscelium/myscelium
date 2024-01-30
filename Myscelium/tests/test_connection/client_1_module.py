@@ -17,7 +17,9 @@ class Senders:
         time.sleep(25)
 
         mys_client = MysceliumClient(
-            client_uid="some_client_id", buffer_path="Temp/Client1Data/"
+            name="TestClient1",
+            client_uid="some_client_id",
+            buffer_path="Temp/Client1Data/",
         )
 
         mys_client.running = True
@@ -83,6 +85,7 @@ class MyClient:
         receivers = Receivers()
 
         mys_client = MysceliumClient(
+            name="TestClien1",
             client_uid=CLIENT_KEY,
             buffer_path="Temp/Client1Data/",
             log_level=self.debug_level,
