@@ -439,7 +439,7 @@ fn process(py: Python, down_command: DownCommand) {
             let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
 
             // -> Remove command from schedule if it isn't on the patterns
-            if !global_command_patterns.command_exists("host", &translated_command.command.actf) {
+            if !global_command_patterns.handler_exists_in("host", &translated_command.command.actf) {
                 // TODO >>> Add a mecanism to check if the command exist for the target client
                 // TODO >>> Also adda mecanism to commands have a target by default, and if target is host then target is host
                 logger.warn(format!("Command isn't registered in the patterns"));
