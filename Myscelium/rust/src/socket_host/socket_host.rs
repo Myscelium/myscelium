@@ -861,7 +861,7 @@ fn handle_connection(stream: &mut TcpStream) {
                         },
                         CommandTarget::Host => {
                             //> CHECK IF HANDLER DON'T EXIST AND RETURN & SEND ERROR MESSAGE IF NOT
-                            if !command_patterns.handler_exists_in("host", command.command.actf.as_str()) || !direct_functions.contains(&command.command.actf) {
+                            if !command_patterns.handler_exists_in("host", command.command.actf.as_str()) && !direct_functions.contains(&command.command.actf) {
                                 let command: Command = create_error_command_response!(command.client_key.clone(), command.parity_id, format!("Function: {}, Doesn't exist in host callbacks nor in any client!", command.command.actf));
                                 logger.debug(format!("Sending back: {:?}", &command));
                                 let client_key = command.client_key.clone();
