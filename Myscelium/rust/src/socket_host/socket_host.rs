@@ -18,6 +18,7 @@ use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
+use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
 use serde_json::to_string;
 
 use crate::handle_client_error;
@@ -535,13 +536,9 @@ fn get_response(command: Command) -> Response {
     }
 
     let command_response = &up_schedule[0];
-
     let command_response_command = serde_json::from_str(command_response.command.as_str()).unwrap();
-
     let response_command = create_response_command!(command_response.client_key, command_response.parity_id, command_response.priority, command_response_command);
-
     enhanced_buffer::buffer_up_manager::buffer_up_remove_schedule_by_parity_id(&command.client_key, &response_command.parity_id);
-
     return Response::Command(response_command);
 }
 
@@ -754,10 +751,6 @@ fn handle_connection(stream: &mut TcpStream) {
                 .map(|s| s.to_string())
                 .collect();
 
-            // TODO >>> ADD A MECHANISM TO BE ABLE TO SEE IF THE TARGET IS READY WHEN THE COMMAND HAS A TARGET DIFFERENT THAN HOST
-            // TODO >>> ADD A MECHANISM TO VERIFY IF TARGE HAS THE FUNCTION
-            // TODO >>> WHEN ADD THE PERMISSIONS ADD A MECHANISM TO CHECK IF THE CLIENT HAS PERMISSION TO ACCESS THIS ENDPOINTS
-
             match &command.command_type() {
                 CommandType::SpecialFunction => {
                     // -> HANDLE SPECIAL FUNCTION CASES:
@@ -773,53 +766,80 @@ fn handle_connection(stream: &mut TcpStream) {
                 },
                 _ => {
                     // -> HANDLE HOST FUNCTIONS - DIRECT AND EXTERNAL FUNCTION:
-                    if command_patterns.handler_exists_in("host", command.command.actf.as_str()) || direct_functions.contains(&command.command.actf) {
-                        // ! TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
 
-                        // > VERIFY IF ALREADY PROCESSED:
-                        logger.debug("Command is in command patterns!".to_string());
-                        let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(command.parity_id.clone(), command.client_key.clone());
-                        let response: Command;
+                    match &command.command.target {
+                        CommandTarget::ClientKey(target) => {
+                            // ! TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
 
-                        //> HANDLE COMMANDS WITH RESPONSE:
-                        if !command_is_not_registry {
-                            logger.warn(format!("Command {}, already have a response!", command.parity_id.clone()));
-                            match get_response(command.clone()) {
-                                Response::Command(c) => {
-                                    if c.client_key == command.client_key {
-                                        response = c;
-                                    } else {
+                            // TODO >>> ADD A MECHANISM TO BE ABLE TO SEE IF THE TARGET IS READY WHEN THE COMMAND HAS A TARGET DIFFERENT THAN HOST
+                            // TODO >>> ADD A MECHANISM TO VERIFY IF TARGE HAS THE FUNCTION
+                            // TODO >>> WHEN ADD THE PERMISSIONS ADD A MECHANISM TO CHECK IF THE CLIENT HAS PERMISSION TO ACCESS THIS ENDPOINTS
+
+                            let command_to_schedule = handle_redirect();
+                        },
+                        CommandTarget::Host => {
+                            //> CHECK IF HANDLER DON'T EXIST AND RETURN & SEND ERROR MESSAGE IF NOT
+                            if !command_patterns.handler_exists_in("host", command.command.actf.as_str()) || !direct_functions.contains(&command.command.actf) {
+                                let command: Command = create_error_command_response!(command.client_key.clone(), command.parity_id, format!("Function: {}, Doesn't exist in host callbacks nor in any client!", command.command.actf));
+                                logger.debug(format!("Sending back: {:?}", &command));
+                                let client_key = command.client_key.clone();
+                                match send(stream, command) {
+                                    Ok(_) => {},
+                                    Err(e) => handle_send_error!(e, logger, client_key),
+                                };
+                                return;
+                            };
+
+                            // > VERIFY IF ALREADY PROCESSED:
+                            logger.debug("Command is in command patterns!".to_string());
+                            let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(command.parity_id.clone(), command.client_key.clone());
+                            let response: Command;
+
+                            //> HANDLE COMMANDS WITH RESPONSE:
+                            if !command_is_not_registry {
+                                logger.warn(format!("Command {}, already have a response!", command.parity_id.clone()));
+                                match get_response(command.clone()) {
+                                    Response::Command(c) => {
+                                        if c.client_key == command.client_key {
+                                            response = c;
+                                        } else {
+                                            logger.info("Response is None!".to_string());
+                                            response = create_special_command_response!(command.client_key, "C210");
+                                        }
+                                    },
+                                    Response::None => {
                                         logger.info("Response is None!".to_string());
                                         response = create_special_command_response!(command.client_key, "C210");
-                                    }
-                                },
-                                Response::None => {
-                                    logger.info("Response is None!".to_string());
-                                    response = create_special_command_response!(command.client_key, "C210");
-                                },
+                                    },
+                                }
+
+                            //> HANDLE COMMANDS WITHOUT RESPONSES:
+                            } else {
+                                response = handle_common_function(&command);
                             }
 
-                        //> HANDLE COMMANDS WITHOUT RESPONSES:
-                        } else {
-                            response = handle_common_function(&command);
-                        }
-
-                        //> SEND RESPONSE BACK - HERE IT CAN BE COMMAND RESPONSES OR CONFIRMATIONS
-                        logger.debug(format!("Sending back: {:?}", response));
-                        match send(stream, response) {
-                            Ok(_) => {},
-                            Err(e) => handle_send_error!(e, logger, command.client_key),
-                        };
-
-                        // -> HANDLE THE CASE WERE A COMMAND DOES EXISTS HERE IN HOST NOR IN ANY NODE THAT CLIENT HAS PERMISSION
-                    } else {
-                        let command: Command = create_error_command_response!(command.client_key.clone(), command.parity_id, format!("Function: {}, Doesn't exist in host callbacks nor in any client!", command.command.actf));
-                        logger.debug(format!("Sending back: {:?}", &command));
-                        let client_key = command.client_key.clone();
-                        match send(stream, command) {
-                            Ok(_) => {},
-                            Err(e) => handle_send_error!(e, logger, client_key),
-                        };
+                            //> SEND RESPONSE BACK - HERE IT CAN BE COMMAND RESPONSES OR CONFIRMATIONS
+                            logger.debug(format!("Sending back: {:?}", response));
+                            match send(stream, response) {
+                                Ok(_) => {},
+                                Err(e) => handle_send_error!(e, logger, command.client_key),
+                            };
+                        },
+                        _ => {
+                            // -> HANDLE THE CASE WERE A COMMAND DOES EXISTS HERE IN HOST NOR IN ANY NODE THAT CLIENT HAS PERMISSION
+                            let command: Command = create_error_command_response!(
+                                command.client_key.clone(),
+                                command.parity_id,
+                                format!("Command: {:?}, isn't valid, you cant send a command to host with a target origin, this isn't allowed!", command.command)
+                            );
+                            logger.debug(format!("Sending back: {:?}", &command));
+                            let client_key = command.client_key.clone();
+                            match send(stream, command) {
+                                Ok(_) => {},
+                                Err(e) => handle_send_error!(e, logger, client_key),
+                            };
+                            return;
+                        },
                     }
                 },
             }
