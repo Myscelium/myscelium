@@ -770,6 +770,7 @@ fn handle_connection(stream: &mut TcpStream) {
                         CommandTarget::ClientKey(target) => {
                             // TODO >>> WHEN ADD THE PERMISSIONS ADD A MECHANISM TO CHECK IF THE CLIENT HAS PERMISSION TO ACCESS THIS ENDPOINTS
 
+                            //> PREVIOUSLY CHECK REQUIREMENTS BEFORE REDIRECT
                             if !command_patterns.target_is_reachable(target).unwrap() {
                                 let command: Command = create_error_command_response!(
                                     command.client_key.clone(),
