@@ -169,17 +169,14 @@ macro_rules! handle_send_error {
         match $error {
             StreamError::ConnectionClosed => {
                 $logger.warn(format!("[HOST][SOCKET][CLOSE CONNECTION] - {}", $client_key));
-                break;
             },
             StreamError::WriteError(e) => {
                 $logger.exception(format!("[HOST][SOCKET][WRITE ERROR] - {:?}", e));
                 $logger.exception(format!("[HOST][SOCKET][CLOSE CONNECTION] - {}", $client_key));
-                break;
             },
             StreamError::WriteSizeError(e) => {
                 $logger.exception(format!("[HOST][SOCKET][WRITE SIZE ERROR] - {:?}", e));
                 $logger.exception(format!("[HOST][SOCKET][CLOSE CONNECTION] - {}", $client_key));
-                break;
             },
         }
     };
@@ -623,7 +620,10 @@ fn handle_connection(stream: &mut TcpStream) {
 
             match send(stream, response) {
                 Ok(_) => {},
-                Err(e) => handle_send_error!(e, logger, command.client_key),
+                Err(e) => {
+                    handle_send_error!(e, logger, command.client_key);
+                    break;
+                },
             };
 
             break;
@@ -639,7 +639,10 @@ fn handle_connection(stream: &mut TcpStream) {
 
                     match send(stream, response) {
                         Ok(_) => {},
-                        Err(e) => handle_send_error!(e, logger, command.client_key),
+                        Err(e) => {
+                            handle_send_error!(e, logger, command.client_key);
+                            break;
+                        },
                     };
 
                     break;
@@ -651,7 +654,10 @@ fn handle_connection(stream: &mut TcpStream) {
 
                     match send(stream, response) {
                         Ok(_) => {},
-                        Err(e) => handle_send_error!(e, logger, command.client_key),
+                        Err(e) => {
+                            handle_send_error!(e, logger, command.client_key);
+                            break;
+                        },
                     };
 
                     break;
@@ -684,46 +690,72 @@ fn handle_connection(stream: &mut TcpStream) {
 
         update_last_contact(command.client_key.clone());
 
-        // -> SYNC CONTROLLER:
+        // // -> SYNC CONTROLLER:
+        // if let Some(sync) = client_sync_status {
+        //     if !sync {
+        //         println!("\nClient: {:?} isn't sync\n", &command.client_key);
+        //         if let Some(last_sync) = client_last_sync {
+        //             let current_time = Utc::now();
+        //             // > TRY TO SYNC IF LAST TRY WAS AT MORE THAN 30s AGO:
+        //             if current_time - last_sync > Duration::seconds(30) {
+        //                 // The time to try sync again needs to be the same time that the db refresh or multiple of that
+        //                 send_network_available_commands(command.client_key.clone());
+        //                 {
+        //                     let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
+        //                     let _ = match controller.update_client_sync_attempt(&command.client_key.clone()) {
+        //                         Ok(c) => c,
+        //                         Err(e) => {
+        //                             handle_client_controller_error!(e, &command.client_key, logger);
+        //                         },
+        //                     };
+        //                 }
+        //             // > WAIT 30 SECONDS BEFORE TRY TO SYNC AGAIN:
+        //             } else {
+        //                 logger.warn(format!(
+        //                     "WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!",
+        //                     &command.client_key,
+        //                     (Duration::seconds(30) - (current_time - last_sync)).num_seconds()
+        //                 ));
+        //             }
+        //         } else {
+        //             println!("Try to sync with: {}", command.client_key);
+        //             // -> case of be the first sync attempt
+        //             send_network_available_commands(command.client_key.clone());
+        //             {
+        //                 let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
+        //                 let _ = match controller.update_client_sync_attempt(&command.client_key.clone()) {
+        //                     Ok(_) => (),
+        //                     Err(e) => {
+        //                         handle_client_controller_error!(e, &command.client_key, logger);
+        //                     },
+        //                 };
+        //             }
+        //         }
+        //     } else {
+        //         println!("\nClient: {:?} is sync!\n", &command.client_key);
+        //     }
+        // } else {
+        //     break;
+        // }
+
+        // -> Refactored SYNC CONTROLLER:
         if let Some(sync) = client_sync_status {
             if !sync {
                 println!("\nClient: {:?} isn't sync\n", &command.client_key);
-                if let Some(last_sync) = client_last_sync {
-                    let current_time = Utc::now();
-                    // > TRY TO SYNC IF LAST TRY WAS AT MORE THAN 30s AGO:
-                    if current_time - last_sync > Duration::seconds(30) {
-                        // The time to try sync again needs to be the same time that the db refresh or multiple of that
-                        send_network_available_commands(command.client_key.clone());
-                        {
-                            let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
-                            let _ = match controller.update_client_sync_attempt(&command.client_key.clone()) {
-                                Ok(c) => c,
-                                Err(e) => {
-                                    handle_client_controller_error!(e, &command.client_key, logger);
-                                },
-                            };
-                        }
-                    // > WAIT 30 SECONDS BEFORE TRY TO SYNC AGAIN:
-                    } else {
-                        logger.warn(format!(
-                            "WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!",
-                            &command.client_key,
-                            (Duration::seconds(30) - (current_time - last_sync)).num_seconds()
-                        ));
-                    }
-                } else {
+
+                let current_time = Utc::now();
+                let should_attempt_sync = client_last_sync.map_or(true, |last_sync| current_time - last_sync > Duration::seconds(30));
+
+                if should_attempt_sync {
                     println!("Try to sync with: {}", command.client_key);
-                    // -> case of be the first sync attempt
                     send_network_available_commands(command.client_key.clone());
-                    {
-                        let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
-                        let _ = match controller.update_client_sync_attempt(&command.client_key.clone()) {
-                            Ok(_) => (),
-                            Err(e) => {
-                                handle_client_controller_error!(e, &command.client_key, logger);
-                            },
-                        };
-                    }
+                    update_client_sync_attempt(&command.client_key, &logger);
+                } else if let Some(last_sync) = client_last_sync {
+                    logger.warn(format!(
+                        "WARNING: Client: {:?} not sync yet, trying again in: {:?} seconds!",
+                        &command.client_key,
+                        (Duration::seconds(30) - (current_time - last_sync)).num_seconds()
+                    ));
                 }
             } else {
                 println!("\nClient: {:?} is sync!\n", &command.client_key);
@@ -732,7 +764,16 @@ fn handle_connection(stream: &mut TcpStream) {
             break;
         }
 
+        // Helper function to update client sync attempt
+        fn update_client_sync_attempt(client_key: &String, logger: &Logger) {
+            let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
+            if let Err(e) = controller.update_client_sync_attempt(client_key) {
+                handle_client_controller_error!(e, client_key, logger);
+            }
+        }
+
         // ! WE CAN'T USE THIS PY AQUIRE UNTIL THE PYTHON POOL IS FINISHED !
+
         // -> ---------------------------------------------------------------------------------------------------------------------
         // -> HOST FUNCTION VERIFICATION
         {
