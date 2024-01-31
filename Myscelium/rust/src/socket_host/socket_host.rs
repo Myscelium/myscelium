@@ -194,6 +194,48 @@ macro_rules! create_response_command {
     }};
 }
 
+/// Handles client errors by sending an appropriate error response.
+///
+/// # Arguments
+/// * `$error` - The client error that occurred.
+/// * `$stream` - The stream to send the response through.
+/// * `$command` - The command related to the error.
+/// * `$logger` - The logger for logging the error.
+/// * `$default_message` - The default error message to use for unexpected errors.
+macro_rules! handle_client_manager_error {
+    ($error:expr, $stream:expr, $command:expr, $logger:expr, $default_message:expr) => {
+        match $error {
+            ClientError::ClientDoesNotExist(_) => {
+                let message = "Your client isn't registered in the whitelist!";
+                send_error_response!($stream, $command, $logger, message);
+            },
+            _ => {
+                send_error_response!($stream, $command, $logger, $default_message);
+            },
+        }
+    };
+}
+/// Sends an error response back to the client.
+///
+/// # Arguments
+/// * `$stream` - The stream to send the response through.
+/// * `$command` - The command related to the error.
+/// * `$logger` - The logger for logging the error.
+/// * `$message` - The error message to include in the response.
+macro_rules! send_error_response {
+    ($stream:expr, $command:expr, $logger:expr, $message:expr) => {
+        let response = create_error_command_response!($command.client_key, $command.parity_id, $message);
+        $logger.exception(format!("WARNING: {}, sending back: {:?}", $message, response));
+        match send($stream, response) {
+            Ok(_) => {},
+            Err(e) => {
+                handle_send_error!(e, $logger, $command.client_key);
+                break;
+            },
+        }
+    };
+}
+
 pub fn set_heartbeat_callback(callback_pattern: HashMap<String, (Py<PyFunction>, Value)>) {
     {
         let mut heart_beat_callback = HEARTBEAT_CALLBACK.lock().unwrap();
@@ -631,37 +673,9 @@ fn handle_connection(stream: &mut TcpStream) {
 
         client = Some(match Client::get_by_key(&command.client_key) {
             Ok(c) => c,
-            Err(e) => match e {
-                ClientError::ClientDoesNotExist(_) => {
-                    let response = create_error_command_response!(command.client_key, command.parity_id, "Your client isn't registered in the whitelist!");
-
-                    logger.exception(format!("WARNING: Client isn't registered, sending back: {:?}", response));
-
-                    match send(stream, response) {
-                        Ok(_) => {},
-                        Err(e) => {
-                            handle_send_error!(e, logger, command.client_key);
-                            break;
-                        },
-                    };
-
-                    break;
-                },
-                _ => {
-                    let response = create_error_command_response!(command.client_key, command.parity_id, "Unexpected error getting your client");
-
-                    logger.exception(format!("WARNING: Unexpected error getting client: {:?}", command.client_key));
-
-                    match send(stream, response) {
-                        Ok(_) => {},
-                        Err(e) => {
-                            handle_send_error!(e, logger, command.client_key);
-                            break;
-                        },
-                    };
-
-                    break;
-                },
+            Err(e) => {
+                handle_client_manager_error!(e, stream, command, logger, "Unexpected error getting your client");
+                break;
             },
         });
 
