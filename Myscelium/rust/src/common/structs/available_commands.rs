@@ -382,7 +382,7 @@ impl NetworkMap {
     }
 
     pub fn handler_exists_in(&mut self, owner: &str, command_name: &str) -> bool {
-        let node = match self.get_node_by_name(owner.to_string()) {
+        let node = match self.get_node_by_key(&owner.to_string()) {
             Ok(n) => n,
             Err(_) => {
                 return false;

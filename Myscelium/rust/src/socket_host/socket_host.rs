@@ -802,7 +802,7 @@ fn handle_connection(stream: &mut TcpStream) {
                             }
 
                             if !command_patterns.handler_exists_in(target.as_str(), command.command.actf.as_str()) {
-                                let command: Command = create_error_command_response!(command.client_key.clone(), command.parity_id, format!("Function: {}, Doesn't exist in target client!", command.command.actf));
+                                let command: Command = create_error_command_response!(command.client_key.clone(), command.parity_id, format!("Function: {}, Doesn't exist in target client: {}!", command.command.actf, target));
                                 logger.debug(format!("Sending back: {:?}", &command));
                                 let client_key = command.client_key.clone();
                                 match send(stream, command) {
