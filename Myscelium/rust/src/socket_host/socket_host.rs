@@ -818,7 +818,7 @@ fn handle_connection(stream: &mut TcpStream) {
 
                             //> CAST COMMAND TO REDIRECT
                             let command_to_redirect: Command = Command {
-                                client_key: command.client_key.to_string().clone(),
+                                client_key: target.to_string().clone(),
                                 parity_id: command.parity_id.to_string().clone(),
                                 priority: 11,
                                 command: command_instructions_to_schedule,
