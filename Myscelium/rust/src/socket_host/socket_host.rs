@@ -607,7 +607,6 @@ fn handle_connection(stream: &mut TcpStream) {
     let logger = acquire_logger!("Core");
 
     // -> Before join in the loop, schedule a request of the client commands
-
     let mut client: Option<Client> = None;
 
     loop {
@@ -775,7 +774,52 @@ fn handle_connection(stream: &mut TcpStream) {
                             // TODO >>> ADD A MECHANISM TO VERIFY IF TARGE HAS THE FUNCTION
                             // TODO >>> WHEN ADD THE PERMISSIONS ADD A MECHANISM TO CHECK IF THE CLIENT HAS PERMISSION TO ACCESS THIS ENDPOINTS
 
-                            let command_to_schedule = handle_redirect();
+                            logger.debug(format!("Redirecting command to target: {}", target));
+
+                            let command_instructions_to_schedule: CommandInstructions = handle_redirect(&command.command.clone(), &mut command.client_key.clone(), command.parity_id.clone(), command.priority.clone());
+
+                            //> CAST COMMAND TO REDIRECT
+                            let command_to_redirect: Command = Command {
+                                client_key: command.client_key.to_string().clone(),
+                                parity_id: command.parity_id.to_string().clone(),
+                                priority: 11,
+                                command: command_instructions_to_schedule,
+                            };
+
+                            // > VERIFY IF ALREADY PROCESSED:
+                            logger.debug("Command is in command patterns!".to_string());
+                            let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(command_to_redirect.parity_id.clone(), command_to_redirect.client_key.clone());
+                            let response: Command;
+
+                            //> HANDLE COMMANDS WITH RESPONSE:
+                            if !command_is_not_registry {
+                                logger.warn(format!("Command {}, already have a response!", command_to_redirect.parity_id.clone()));
+                                match get_response(command_to_redirect.clone()) {
+                                    Response::Command(c) => {
+                                        if c.client_key == command_to_redirect.client_key {
+                                            response = c;
+                                        } else {
+                                            logger.info("Response is None!".to_string());
+                                            response = create_special_command_response!(command_to_redirect.client_key, "C210");
+                                        }
+                                    },
+                                    Response::None => {
+                                        logger.info("Response is None!".to_string());
+                                        response = create_special_command_response!(command_to_redirect.client_key, "C210");
+                                    },
+                                }
+
+                            //> HANDLE COMMANDS WITHOUT RESPONSES:
+                            } else {
+                                response = handle_common_function(&command_to_redirect);
+                            }
+
+                            //> SEND RESPONSE BACK - HERE IT CAN BE COMMAND RESPONSES OR CONFIRMATIONS
+                            logger.debug(format!("Sending back: {:?}", response));
+                            match send(stream, response) {
+                                Ok(_) => {},
+                                Err(e) => handle_send_error!(e, logger, command_to_redirect.client_key),
+                            };
                         },
                         CommandTarget::Host => {
                             //> CHECK IF HANDLER DON'T EXIST AND RETURN & SEND ERROR MESSAGE IF NOT
