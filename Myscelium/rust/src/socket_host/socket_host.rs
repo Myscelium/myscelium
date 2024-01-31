@@ -768,11 +768,48 @@ fn handle_connection(stream: &mut TcpStream) {
 
                     match &command.command.target {
                         CommandTarget::ClientKey(target) => {
-                            // ! TODO >>> Add the target in the client commands to allow see if the function exist for the defined target
-
-                            // TODO >>> ADD A MECHANISM TO BE ABLE TO SEE IF THE TARGET IS READY WHEN THE COMMAND HAS A TARGET DIFFERENT THAN HOST
-                            // TODO >>> ADD A MECHANISM TO VERIFY IF TARGE HAS THE FUNCTION
                             // TODO >>> WHEN ADD THE PERMISSIONS ADD A MECHANISM TO CHECK IF THE CLIENT HAS PERMISSION TO ACCESS THIS ENDPOINTS
+
+                            if !command_patterns.target_is_reachable(target).unwrap() {
+                                let command: Command = create_error_command_response!(
+                                    command.client_key.clone(),
+                                    command.parity_id,
+                                    format!("Function: {}, can be redirected because target: {} isn't reachable", command.command.actf, target)
+                                );
+                                logger.debug(format!("Sending back: {:?}", &command));
+                                let client_key = command.client_key.clone();
+                                match send(stream, command) {
+                                    Ok(_) => {},
+                                    Err(e) => handle_send_error!(e, logger, client_key),
+                                };
+                                return;
+                            }
+
+                            if !command_patterns.target_is_ready(target).unwrap() {
+                                let command: Command = create_error_command_response!(
+                                    command.client_key.clone(),
+                                    command.parity_id,
+                                    format!("Function: {}, can be redirected because target: {} isn't ready", command.command.actf, target)
+                                );
+                                logger.debug(format!("Sending back: {:?}", &command));
+                                let client_key = command.client_key.clone();
+                                match send(stream, command) {
+                                    Ok(_) => {},
+                                    Err(e) => handle_send_error!(e, logger, client_key),
+                                };
+                                return;
+                            }
+
+                            if !command_patterns.handler_exists_in(target.as_str(), command.command.actf.as_str()) {
+                                let command: Command = create_error_command_response!(command.client_key.clone(), command.parity_id, format!("Function: {}, Doesn't exist in target client!", command.command.actf));
+                                logger.debug(format!("Sending back: {:?}", &command));
+                                let client_key = command.client_key.clone();
+                                match send(stream, command) {
+                                    Ok(_) => {},
+                                    Err(e) => handle_send_error!(e, logger, client_key),
+                                };
+                                return;
+                            };
 
                             logger.debug(format!("Redirecting command to target: {}", target));
 
