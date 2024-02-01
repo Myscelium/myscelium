@@ -124,6 +124,29 @@ macro_rules! acquire_logger {
         Logger::new(host_log_level, $section_name)
     }};
 }
+macro_rules! create_special_command_confirmation {
+    ($client_key:expr, $command_parity_id:expr) => {{
+        let conf_instruction = CommandInstructions::new(
+            CommandMode::Response,
+            CommandType::SpecialFunction,
+            CommandTarget::Origin,
+            CommandStatus::Success,
+            CommandOrigin::Host,
+            "C210".to_string(),
+            HashMap::new(),
+            "".to_string(),
+        );
+
+        let resp = Command {
+            client_key: $client_key.to_string(),
+            parity_id: $command_parity_id.to_string(),
+            priority: 11,
+            command: conf_instruction,
+        };
+
+        resp
+    }};
+}
 
 macro_rules! create_special_command_response {
     ($client_key:expr, $special_command:expr) => {{
@@ -841,12 +864,12 @@ fn handle_connection(stream: &mut TcpStream) {
                                             response = c;
                                         } else {
                                             logger.info("Response is None!".to_string());
-                                            response = create_special_command_response!(command.client_key, "C210");
+                                            response = create_special_command_confirmation!(command.client_key.clone(), command.parity_id.clone());
                                         }
                                     },
                                     Response::None => {
                                         logger.info("Response is None!".to_string());
-                                        response = create_special_command_response!(command.client_key, "C210");
+                                        response = create_special_command_confirmation!(command.client_key.clone(), command.parity_id.clone());
                                     },
                                 }
 
@@ -855,7 +878,7 @@ fn handle_connection(stream: &mut TcpStream) {
                                 // _ = handle_common_function(&command_to_redirect);
                                 let up_command = UpCommand::from_command(command_to_redirect.clone());
                                 enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
-                                response = create_special_command_response!(command.client_key, "C210");
+                                response = create_special_command_confirmation!(command.client_key.clone(), command.parity_id.clone());
                             }
 
                             //> SEND RESPONSE BACK - HERE IT CAN BE COMMAND RESPONSES OR CONFIRMATIONS
@@ -892,12 +915,12 @@ fn handle_connection(stream: &mut TcpStream) {
                                             response = c;
                                         } else {
                                             logger.info("Response is None!".to_string());
-                                            response = create_special_command_response!(command.client_key, "C210");
+                                            response = create_special_command_confirmation!(command.client_key.clone(), command.parity_id.clone());
                                         }
                                     },
                                     Response::None => {
                                         logger.info("Response is None!".to_string());
-                                        response = create_special_command_response!(command.client_key, "C210");
+                                        response = create_special_command_confirmation!(command.client_key.clone(), command.parity_id.clone());
                                     },
                                 }
 
