@@ -831,25 +831,26 @@ fn handle_connection(stream: &mut TcpStream) {
 
                             //> HANDLE COMMANDS WITH RESPONSE:
                             if !command_is_not_registry {
-                                logger.warn(format!("Command {}, already have a response!", command_to_redirect.parity_id.clone()));
-                                match get_response(command_to_redirect.clone()) {
+                                logger.warn(format!("Command {}, already have a response!", command.parity_id.clone()));
+                                match get_response(command.clone()) {
                                     Response::Command(c) => {
-                                        if c.client_key == command_to_redirect.client_key {
+                                        if c.client_key == command.client_key {
                                             response = c;
                                         } else {
                                             logger.info("Response is None!".to_string());
-                                            response = create_special_command_response!(command_to_redirect.client_key, "C210");
+                                            response = create_special_command_response!(command.client_key, "C210");
                                         }
                                     },
                                     Response::None => {
                                         logger.info("Response is None!".to_string());
-                                        response = create_special_command_response!(command_to_redirect.client_key, "C210");
+                                        response = create_special_command_response!(command.client_key, "C210");
                                     },
                                 }
 
                             //> HANDLE COMMANDS WITHOUT RESPONSES:
                             } else {
-                                response = handle_common_function(&command_to_redirect);
+                                _ = handle_common_function(&command_to_redirect);
+                                response = create_special_command_response!(command.client_key, "C210");
                             }
 
                             //> SEND RESPONSE BACK - HERE IT CAN BE COMMAND RESPONSES OR CONFIRMATIONS
