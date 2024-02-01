@@ -1,38 +1,29 @@
-use crate::common::communication::decoders::read_json_from_stream;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
-
 use crate::common::enhanced_buffer::utilities::{Command, CommandError, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
-use lazy_static::lazy_static;
+
+use super::client_logger::log_handler::Logger;
+
+use crate::CLIENT_NODE_CONFIGS;
+
+use serde_json::json;
 use serde_json::{from_str, Value};
+
 use std::collections::HashMap;
-use std::sync::{mpsc, Arc};
-use std::thread;
-
-use serde_json::to_string;
-
-use crate::common::functions::converters::value_to_resulttype;
-
+use std::io::Read;
+use std::io::Write;
+use std::net::TcpStream;
 use std::sync::atomic::Ordering;
-
+use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
 
 use crate::CLIENT_IS_RUNNING;
-
-use std::net::TcpStream;
-
-use std::io::Read;
-use std::io::Write;
-
-use serde_json::json;
-
-use super::client_logger::log_handler::Logger;
 use crate::CLIENT_LOG_LEVEL;
+use crate::CLIENT_NODE_KEY;
 
-use crate::CLIENT_NODE_NAME;
-
+use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use std::sync;
 // use std::sync::Mutex;
 
 macro_rules! acquire_logger {
@@ -46,11 +37,10 @@ macro_rules! acquire_logger {
     }};
 }
 
-use crate::common::structs::available_commands::CommandPatterns;
+use crate::common::structs::available_commands::{CommandPatterns, Node};
 // use crate::CLIENT_ID;
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
     static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
         let json_str = r#"{
             "get_symbols_data": {
@@ -80,33 +70,6 @@ lazy_static! {
 // >-------------------------------------------------------------------------------------------------------------------------------------------
 
 // -> Socket Interactive Functions:
-
-/// Sets the callback patterns for the socket client.
-///
-/// This function allows the user to define the command patterns that dictate
-/// how commands are recognized and processed by the socket client.
-///
-/// # Arguments
-/// - `callbacks_patterns`: A `HashMap` containing the desired command patterns.
-pub fn set_socket_client_callbacks_patterns(callbacks_patterns: HashMap<String, Value>) {
-    {
-        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
-        let client_name = CLIENT_NODE_NAME.lock().clone();
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
-
-        {
-            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
-            let mut command_patterns = COMMAND_PATTERNS.lock();
-            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
-
-            {
-                command_patterns.add_commands_from_map(client_name.as_str(), callbacks_patterns);
-            }
-            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
-        }
-    }
-    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
-}
 
 use crate::common::enhanced_buffer::history::register::register::initialize_buffer_history;
 
@@ -159,12 +122,18 @@ pub fn get_available_handlers_registered() -> HashMap<String, Value> {
     let global_command_patterns: HashMap<String, Value>;
 
     {
-        println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
-        let command_patterns = COMMAND_PATTERNS.lock();
-        println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
-        global_command_patterns = command_patterns.extract_all_commands().clone();
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
+        let command_patterns = CLIENT_NODE_CONFIGS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
+        global_command_patterns = match command_patterns.get_node_handlers() {
+            Ok(h) => h,
+            Err(e) => {
+                println!("Get a error while trying to get the client node handlers!");
+                panic!("Get a error while trying to get the client node handlers!");
+            },
+        };
     }
-    println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
 
     return global_command_patterns;
 }
@@ -587,7 +556,7 @@ pub fn set_client_uid(client_key: String) {
 /// - If the received command is of an unknown type, a warning is logged.
 ///
 /// # Notes
-/// - This function uses the `COMMAND_PATTERNS` global lock to access and modify the command patterns.
+/// - This function uses the `CLIENT_NODE_CONFIGS` global lock to access and modify the command patterns.
 /// - The function also accesses the `CLIENT_IS_RUNNING` global flag to control the client's running state.
 // fn handle_response(received: &Response) -> Received {
 //     let logger = acquire_logger!("Core");
@@ -719,25 +688,6 @@ pub fn initialize_client(address: String) {
             logger.info(format!("running is set to false, shutdown socket client main process!"));
             break;
         }
-
-        // if !client_key_was_seted {
-        //     let mut client_key: String = " ".to_string();
-
-        //     let client_key_storage = &CLIENT_ID;
-        //     smart_lock(&*client_key_storage, |key: &mut String| {
-        //         client_key = key.clone();
-        //     });
-
-        //     // TODO >>> Maybe add a mechanism taht when this is seted it don't verify again to reduce complexity, maybe a boolean
-
-        //     if client_key == " " {
-        //         // Whait untill client id was seted!
-        //         thread::sleep(Duration::from_millis(200));
-        //         continue;
-        //     } else {
-        //         client_key_was_seted = true;
-        //     }
-        // }
 
         let up_schedule = enhanced_buffer::buffer_up_manager::buffer_up_list_schedule();
 

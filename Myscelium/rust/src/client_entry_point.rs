@@ -2,8 +2,11 @@
 
 use std::collections::HashMap;
 
+use crate::common::enhanced_buffer::utilities::CommandType;
 use crate::common::functions::advanced_lockers::smart_lock;
+use crate::common::structs::available_commands::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 use crate::socket_client::client_logger::log_handler::{initialize_client_logs_database_dir, set_client_log_level};
+use crate::socket_client::states_manager::manager::{inialize_client_status_table_table, ClientState, StateManagerError};
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
@@ -20,18 +23,17 @@ use std::thread;
 
 use std::time::Duration;
 
-use crate::CLIENT_IS_RUNNING;
+use crate::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY, CLIENT_NODE_NAME, CLIENT_STATE_MANAGER};
 
 // -> Socket Client main-points:
 
 use crate::socket_client::scheduler::{self, schedule};
 use crate::socket_client::socket_client;
-use crate::socket_client::socket_client::{get_available_handlers_registered, set_socket_client_callbacks_patterns};
+use crate::socket_client::socket_client::get_available_handlers_registered;
 use crate::socket_client::socket_client::{initialize_client, initialize_client_buffer};
 use crate::socket_client::transposer::{initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num};
 
 use crate::common::functions::python_functions::extract_arg_types;
-
 use crate::common::functions::python_functions::translate_value_to_py;
 
 /// Sets the number of worker threads for the socket client transposer.
@@ -85,6 +87,7 @@ pub fn initialize_client_buffer_tables(path: &PyString) {
 
     initialize_client_logs_database_dir(buffer_path.clone());
     initialize_client_buffer(buffer_path.clone());
+    inialize_client_status_table_table(buffer_path.clone());
 
     return;
 }
@@ -174,7 +177,81 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
     ResultType::Empty
 }
 
-/// Sends a command from the client.
+#[pyfunction]
+pub fn is_target_ready(py: Python, node_key: String) -> PyResult<Py<PyBool>> {
+    let client_status = match ClientState::load_from_storage() {
+        Ok(c) => c,
+        Err(_) => {
+            return Ok(PyBool::new(py, false).into());
+        },
+    };
+
+    if let Some(net_map) = client_status.network_map {
+        let mut net_map = net_map;
+        {
+            match net_map.target_is_reachable(&node_key) {
+                Ok(reachable) => {
+                    if !reachable {
+                        return Ok(PyBool::new(py, false).into());
+                    }
+                },
+                Err(_) => {
+                    return Ok(PyBool::new(py, false).into());
+                },
+            };
+        }
+        {
+            match net_map.target_is_ready(&node_key) {
+                Ok(redy) => {
+                    if !redy {
+                        return Ok(PyBool::new(py, false).into());
+                    }
+                },
+                Err(_) => {
+                    return Ok(PyBool::new(py, false).into());
+                },
+            };
+        }
+    } else {
+        return Ok(PyBool::new(py, false).into());
+    }
+
+    return Ok(PyBool::new(py, true).into());
+}
+
+#[pyfunction]
+pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
+    let client_status = match ClientState::load_from_storage() {
+        Ok(c) => c,
+        Err(_) => {
+            return Ok(PyBool::new(py, false).into());
+        },
+    };
+
+    //if !client_status.is_fully_initialized() {
+    //    return Ok(PyBool::new(py, false).into());
+    //}
+
+    if let Some(sync) = client_status.is_sync {
+        if !sync {
+            return Ok(PyBool::new(py, false).into());
+        };
+    } else {
+        return Ok(PyBool::new(py, false).into());
+    }
+
+    if let Some(ready) = client_status.is_ready {
+        if !ready {
+            return Ok(PyBool::new(py, false).into());
+        }
+    } else {
+        return Ok(PyBool::new(py, false).into());
+    }
+
+    return Ok(PyBool::new(py, true).into());
+}
+
+/// Sends a c:ommand from the client.
 ///
 /// # Parameters
 ///
@@ -213,7 +290,17 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
     match converted_command {
         ResultType::Map(m) => {
             println!("Scheduling to send {:?}", m);
-            schedule(m, priority);
+            let outcome = match schedule(m, priority) {
+                Ok(o) => o,
+                Err(e) => match e {
+                    scheduler::SchedulingError::CantReadStates => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't read client states, maybe not ready yet!")));
+                    },
+                    scheduler::SchedulingError::ClientIsntFullyInitialized => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client isn't fully initialized yet, pls wait!")));
+                    },
+                },
+            };
         },
         ResultType::Empty => {
             return Err(PyErr::new::<exceptions::PyValueError, _>("Command to send is empty!"));
@@ -332,7 +419,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
     // }, ]
     //
 
-    let mut command_patterns = HashMap::new();
+    let mut client_handlers: Vec<NodeHandler> = Vec::new();
 
     let mut callbacks_patterns = HashMap::new();
 
@@ -368,38 +455,52 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
             args_types_value = Value::Array(Vec::new()); // or whatever default value you want to use
         }
 
-        // Store the function name and argument types in the command patterns
-        command_patterns.insert(function_name.to_string(), args_types_value.clone());
-
-        // Here command_patterns is a list of:
-        //
-        // {
-        //     "function1": {
-        //         "arg1": "int",
-        //         "arg2": "str"
-        //     },
-        //     "function2": "None"
-        // }
+        let handler: NodeHandler = NodeHandler::new(function_name.to_string(), args_types_value.clone(), CommandType::ExternalFunction, HandlerStatus::NotTested, HashMap::new(), "".to_string());
+        client_handlers.push(handler);
 
         let function = function.downcast::<PyFunction>()?.clone();
 
         let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
         callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
-
-        // Callback patterns is a list of:
-        //
-        // {
-        //     "function1": (PyFunctionObject1, {
-        //         "arg1": "int",
-        //         "arg2": "str"
-        //     }),
-        //     "function2": (PyFunctionObject2, "None")
-        // }
     }
 
-    // Now you can use the command_patterns
-    set_socket_client_callbacks_patterns(command_patterns.clone());
-    set_socket_client_transposer_callbacks(command_patterns.clone(), callbacks_patterns);
+    let client_name: String;
+
+    {
+        let name = CLIENT_NODE_NAME.lock();
+        client_name = name.clone();
+    }
+
+    let client_key: String;
+
+    {
+        let mut key = CLIENT_NODE_KEY.lock();
+        client_key = key.clone();
+    }
+
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
+        let mut command_patterns = CLIENT_NODE_CONFIGS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
+
+        let client_version: NodeVersion = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
+        let client_node = Node::new(client_name.clone(), client_key.clone(), "".to_string(), client_version, client_handlers, NodeStatus::NotSyncYet);
+        *command_patterns = client_node.clone();
+
+        {
+            let mut client_state = CLIENT_STATE_MANAGER.lock();
+            client_state.clean_storage(); // remove any old state
+            let new_client_state = ClientState::new(client_name.clone(), client_key.clone(), NetworkMap::new(Vec::new()), client_node.clone(), true, false, false, false);
+            new_client_state.save_in_storage();
+            *client_state = new_client_state.clone();
+        }
+
+        println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
+    }
+
+    // TODO >>> Add the new mechanism of Network Commands here
+
+    set_socket_client_transposer_callbacks(callbacks_patterns);
 
     Ok(())
 }
@@ -415,8 +516,11 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
 
 #[pyfunction]
 pub fn set_client_key(client_key: String) {
-    scheduler::set_client_id(client_key.clone());
-    socket_client::set_client_uid(client_key);
+    socket_client::set_client_uid(client_key.clone());
+    {
+        let mut key = CLIENT_NODE_KEY.lock();
+        *key = client_key.clone();
+    }
 }
 
 /// Initializes the socket client, sets up deadlock detection, and starts the main processing loop.
@@ -444,7 +548,7 @@ pub fn set_client_key(client_key: String) {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_key: String) {
+pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_key: String, client_name: String) {
     // Spawn a thread to periodically check for deadlocks
     thread::spawn(|| {
         loop {
@@ -465,14 +569,24 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
         }
     });
 
+    // -> SET CLIENT NAME IN CLIENT STATE MANAGER MEMORY SO WHEN THE CALLBACKS BE REGISTRED IT CAN
+    // BE APLIED
+    {
+        let mut name = CLIENT_NODE_NAME.lock();
+        *name = client_name.clone();
+        let mut client_states = ClientState::load_from_storage().unwrap();
+        client_states.name = Some(name.clone());
+        client_states.update_schedule_with_this().unwrap();
+    }
+
     CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
 
     // let mut client_key: String = "".to_string();
 
-    // {
-    //     let mut key = CLIENT_ID.lock();
-    //     *key = client_id;
-    // }
+    {
+        let mut key = CLIENT_NODE_KEY.lock();
+        *key = client_key.clone();
+    }
 
     // let client_key_storage = CLIENT_ID;
     // smart_lock(&*client_key_storage, |key: &mut String| {

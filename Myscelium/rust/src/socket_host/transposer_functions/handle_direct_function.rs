@@ -1,15 +1,17 @@
 use serde_json::Value;
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
-use crate::common::structs::available_commands::CommandPatterns;
+use crate::common::structs::available_commands::NodeStatus;
+use crate::common::structs::available_commands::{CommandPatterns, Node};
 use crate::common::structs::results_structs::ResultType;
 use crate::socket_client::transposer::ProcessError;
 
 use serde::{Deserialize, Serialize};
 
-use crate::socket_host::transposer::COMMAND_PATTERNS;
+use crate::HOST_COMMAND_PATTERNS;
 
 use crate::socket_host::client_manager::manager::get_all_clients;
 
@@ -20,7 +22,6 @@ use crate::socket_host::client_manager::manager::{check_if_client_key_exists, Cl
 
 use crate::common::functions::converters::{convert_json_map_to_hash_map, convert_value_map_to_resulttype_map, ConversionError};
 
-use crate::common::functions::advanced_lockers::smart_lock;
 use crate::CLIENTS_SYNC_CONTROLLER;
 
 use crate::handle_client_error;
@@ -65,30 +66,30 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
         "get_registered_commands" => {
             logger.info(format!("Receive get_registered_commands in host!"));
 
-            // Lock the COMMAND_PATTERNS and insert the new map
+            // Lock the HOST_COMMAND_PATTERNS and insert the new map
 
             let actual_patterns;
 
             {
-                actual_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
+                actual_patterns = HOST_COMMAND_PATTERNS.lock().clone();
             }
 
             // -> get the client by the client key
-            let client = match Client::get_by_key(client_key) {
-                Ok(c) => c,
-                Err(e) => match e {
-                    ClientError::ClientDoesNotExist(_) => {
-                        return ProcessResult::Error(format!("Unknow client_key: {:?}", client_key));
-                    },
-                    _ => {
-                        return ProcessResult::Error(format!("Get a error {:?}, obtaining client: {:?}", e, client_key));
-                    },
-                },
-            };
+            //let client = match Client::get_by_key(client_key) {
+            //    Ok(c) => c,
+            //    Err(e) => match e {
+            //        ClientError::ClientDoesNotExist(_) => {
+            //            return ProcessResult::Error(format!("Unknow client_key: {:?}", client_key));
+            //        },
+            //        _ => {
+            //            return ProcessResult::Error(format!("Get a error {:?}, obtaining client: {:?}", e, client_key));
+            //        },
+            //    },
+            //};
 
-            let client_name: String = client.get_client_name();
-
-            let filtered_commands = actual_patterns.get_all_commands_except_for_client(client_name.as_str());
+            let nodes: Vec<Node> = actual_patterns.get_all_nodes_except_node_with_key(client_key);
+            let mut filtered_commands: HashMap<String, Value> = HashMap::new();
+            filtered_commands.insert("network_nodes".to_string(), serde_json::to_value(nodes).unwrap());
 
             logger.info(format!("Successfully actualize the host available commands!"));
 
@@ -128,7 +129,7 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             let client_handlers;
 
             // Check if 'client_handlers' exists within 'kwargs'
-            if let Some(Value::Object(handlers)) = command.kwargs.get("client_handlers") {
+            if let Some(handlers) = command.kwargs.get("client_handlers") {
                 client_handlers = handlers;
             } else {
                 return ProcessResult::Error(format!("update_client_commands_ref give the followign error: The 'client_handlers' key does not exist within 'kwargs'."));
@@ -138,18 +139,27 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
             //     return ResultType::Error(format!("update_client_commands_ref command doesn't have kwargs in it!"));
             // }
 
-            let client_name: String = client.get_client_name();
+            let mut client_name: String = client.get_client_name();
 
-            let actual_patterns = &COMMAND_PATTERNS;
-            smart_lock(&*actual_patterns, |patterns: &mut CommandPatterns| {
-                patterns.add_or_update_if_exists(client_name.as_str(), convert_json_map_to_hash_map(client_handlers))
-            });
+            {
+                let mut actual_patterns = HOST_COMMAND_PATTERNS.lock();
 
-            let controller = &CLIENTS_SYNC_CONTROLLER;
-            smart_lock(&*controller, |clients: &mut Clients| {
-                let status = clients.update_client_sync_status(client_key, true);
+                let mut client_node = match Node::from_value(client_handlers.clone()) {
+                    Ok(n) => n,
+                    Err(e) => {
+                        return ProcessResult::Error(format!("Error creating node, the error was: {:?}", e));
+                    },
+                };
+
+                client_node.change_node_status(NodeStatus::Online);
+                actual_patterns.add_or_update_if_exists(client_node);
+            }
+
+            {
+                let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
+                let status = controller.update_client_sync_status(client_key, true);
                 // TODO >>> Add a mechanism to set all the other clients state to sync = false
-            });
+            }
 
             // -> Try to get the clients registred in the database
             let mut clients = match get_all_clients() {
@@ -218,19 +228,22 @@ pub fn handle_direct_function(client_key: &String, activation_key: &String, comm
 
                 //> Redirect new commands to client if changed:
 
-                let mut filtered_commands: HashMap<String, Value> = HashMap::new();
+                let mut nodes: Vec<Node> = Vec::new();
 
                 // TODO >>> Add a mechanism to see what handlers the client will ahve permission to activate
                 //* Any mechanism that will see the client permissions to each command may be placed here
 
-                let actual_patterns = &COMMAND_PATTERNS;
-                smart_lock(&*actual_patterns, |patterns: &mut CommandPatterns| {
-                    filtered_commands = patterns.get_all_commands_except_for_client(client_name.as_str());
-                });
-
                 // > Schedule a redirect to the other clients
                 let client_key_to_redirect: String = client.client_key.clone();
 
+                {
+                    let actual_patterns = HOST_COMMAND_PATTERNS.lock();
+                    // TODO >>> Change to get all nodes except for node x
+                    nodes = actual_patterns.get_all_nodes_except_node_with_key(&client_key_to_redirect);
+                }
+
+                let mut filtered_commands: HashMap<String, Value> = HashMap::new();
+                filtered_commands.insert("network_nodes".to_string(), serde_json::to_value(nodes).unwrap());
                 let new_command_instructions = CommandInstructions::new(
                     CommandMode::Response,
                     CommandType::DirectFunction,

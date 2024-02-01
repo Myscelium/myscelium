@@ -12,12 +12,11 @@ use lazy_static::lazy_static;
 use serde_json::{from_str, Value};
 use std::collections::HashMap;
 
-use crate::socket_host::transposer::COMMAND_PATTERNS;
+use crate::HOST_COMMAND_PATTERNS;
 
 use serde_json::Error;
 
-use crate::common::functions::advanced_lockers::smart_lock;
-use crate::common::structs::available_commands::CommandPatterns;
+use crate::common::structs::available_commands::{CommandPatterns, NetworkMap, Node};
 
 use super::host_logger::log_handler::Logger;
 use crate::socket_host::transposer::process_map_result;
@@ -73,11 +72,14 @@ pub fn send_network_available_commands(client_key: String) {
 
     logger.info(format!("Send update_available_host_commands to client trying to sync!"));
 
-    // Lock the COMMAND_PATTERNS and insert the new map
+    // Lock the HOST_COMMAND_PATTERNS and insert the new map
 
-    let mut actual_patterns: CommandPatterns = CommandPatterns::new();
-    let command_patterns = &COMMAND_PATTERNS;
-    smart_lock(&*command_patterns, |patterns: &mut CommandPatterns| actual_patterns = patterns.clone());
+    let mut actual_patterns: NetworkMap = NetworkMap::new(Vec::new());
+
+    {
+        let command_patterns = HOST_COMMAND_PATTERNS.lock();
+        actual_patterns = command_patterns.clone()
+    }
 
     // -> get the client by the client key
     let client = match Client::get_by_key(&client_key) {
@@ -96,7 +98,9 @@ pub fn send_network_available_commands(client_key: String) {
 
     let client_name: String = client.get_client_name();
 
-    let filtered_commands: HashMap<String, Value> = actual_patterns.get_all_commands_except_for_client(client_name.as_str());
+    let nodes: Vec<Node> = actual_patterns.get_all_nodes_except_node_with_name(client_name);
+    let mut filtered_commands: HashMap<String, Value> = HashMap::new();
+    filtered_commands.insert("network_nodes".to_string(), serde_json::to_value(nodes).unwrap());
 
     // logger.info(format!("Successfully actualize the host available commands!"));
 

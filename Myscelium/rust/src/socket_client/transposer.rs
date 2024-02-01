@@ -4,6 +4,7 @@ use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
 use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
+use crate::common::structs::available_commands::NetworkMap;
 use crate::common::structs::results_structs::ResultType;
 
 use crate::socket_client::functions::direct_functions::handle_direct_function;
@@ -52,11 +53,12 @@ macro_rules! acquire_logger {
 }
 
 use crate::common::structs::available_commands::CommandPatterns;
-use crate::CLIENT_NODE_NAME;
+use crate::CLIENT_NODE_KEY;
+
+use crate::CLIENT_NODE_CONFIGS;
 
 lazy_static! {
-    pub static ref COMMAND_PATTERNS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
-    pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<CommandPatterns>> = Arc::new(Mutex::new(CommandPatterns::new()));
+    pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<NetworkMap>> = Arc::new(Mutex::new(NetworkMap::new(Vec::new())));
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -95,20 +97,12 @@ pub fn set_socket_client_transposer_workers_num(n_workers: u32) {
 /// # Arguments
 /// - `commands_patterns`: A map of recognized command patterns.
 /// - `callbacks_patterns`: A map of associated Python functions and arguments for each recognized command.
-pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
+pub fn set_socket_client_transposer_callbacks(callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
     {
-        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
-        let client_name = CLIENT_NODE_NAME.lock().clone();
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_KEY");
+        let client_name = CLIENT_NODE_KEY.lock().clone();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_KEY");
 
-        {
-            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
-            let mut global_command_patterns = COMMAND_PATTERNS.lock();
-            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
-
-            global_command_patterns.add_commands_from_map(client_name.as_str(), commands_patterns);
-        }
-        println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
         {
             println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
             let mut callback_patterns = CALLBACK_PATTERNS.lock();
@@ -117,7 +111,7 @@ pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String,
             println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
         }
     }
-    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_KEY");
 }
 
 // Transposer:
@@ -240,9 +234,9 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
         {
             // logger.debug("Try lock in command patterns".to_string());
 
-            println!("[CLIENT][GLOBAL][Try Lock] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
             let callback_patterns = CALLBACK_PATTERNS.lock();
-            println!("[CLIENT][GLOBAL][Lock] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Lock] - CALLBACK_PATTERNS");
 
             if !callback_patterns.contains_key(&translated_command.command.actf) {
                 // If the command is not in the patterns, remove it from the schedule and return an error
@@ -253,7 +247,7 @@ fn process(py: Python, down_command: &DownCommand, client_key: &String, callback
             }
 
             drop(callback_patterns);
-            println!("[CLIENT][GLOBAL][Release] - COMMAND_PATTERNS");
+            println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
             // logger.debug("release command patterns".to_string());
         }
 
@@ -411,13 +405,13 @@ pub fn initialize_socket_client_transposer() {
     // Validate the command against known command patterns
     let client_key;
 
-    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_NAME");
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_KEY");
     {
-        let client_n = CLIENT_NODE_NAME.lock();
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_NAME");
+        let client_n = CLIENT_NODE_KEY.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_KEY");
         client_key = client_n.clone();
     }
-    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_NAME");
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_KEY");
 
     let callbacks_patterns;
 
