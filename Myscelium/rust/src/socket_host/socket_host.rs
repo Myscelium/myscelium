@@ -849,7 +849,9 @@ fn handle_connection(stream: &mut TcpStream) {
 
                             //> HANDLE COMMANDS WITHOUT RESPONSES:
                             } else {
-                                _ = handle_common_function(&command_to_redirect);
+                                // _ = handle_common_function(&command_to_redirect);
+                                let up_command = UpCommand::from_command(command_to_redirect.clone());
+                                enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
                                 response = create_special_command_response!(command.client_key, "C210");
                             }
 
