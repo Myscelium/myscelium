@@ -104,7 +104,7 @@ class Senders:
             )
 
         Events_Manager(Unit="Client2", path="Logs").Set_Event(
-            "Data To Redirect Scheduled",
+            "Data To Redirect Sended",
             event_type="Send",
             event_key="02V0P37Dz09zR3fL",
         )
