@@ -7,10 +7,14 @@ use std::thread;
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
-use crate::common::enhanced_buffer::utilities::Command;
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
 use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, extract_pyobject};
+use crate::common::structs::available_commands::VersionIndentifier;
+use crate::common::structs::available_commands::{CommandPatterns, Node, NodeHandler, NodeVersion};
 use crate::common::structs::results_structs::ResultType;
+use serde_json::to_string;
+use serde_json::Error;
 
 use pyo3::types::PyFunction;
 use pyo3::Py;
@@ -20,7 +24,12 @@ use std::time::Duration;
 
 use super::host_logger;
 use super::host_logger::log_handler::Logger;
+use super::transposer_functions::handle_direct_function::ProcessResult;
 use crate::HOST_LOG_LEVEL;
+
+use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
+
+use crate::HOST_COMMAND_PATTERNS;
 
 macro_rules! acquire_logger {
     ($section_name:expr) => {{
@@ -33,29 +42,6 @@ macro_rules! acquire_logger {
 }
 
 lazy_static! {
-    static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
-        let json_str = r#"{
-            "get_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            },
-            "get_other_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            }
-        }"#;
-
-        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
-        Arc::new(Mutex::new(command_patterns))
-    };
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -130,26 +116,223 @@ pub fn set_socket_host_transposer_workers_num(n_workers: u32) {
 /// set_socket_host_transposer_callbacks(commands_patterns, callbacks_patterns);
 /// ```
 ///
-pub fn set_socket_host_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    *command_patterns = commands_patterns;
-
+pub fn set_socket_host_transposer_callbacks(callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
     let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
     *callback_patterns = callbacks_patterns;
 }
 
 // > Transposer:
 
-macro_rules! error_response {
-    ($msg:expr) => {{
-        println!("{:?}", $msg);
-        let mut error_map = HashMap::new();
-        error_map.insert("Error".to_string(), $msg.to_string());
-        serde_json::to_string(&error_map)
+macro_rules! create_special_command_instruction_response {
+    ($special_command:expr) => {{
+        let new_command_instructions = CommandInstructions::new(
+            CommandMode::Response,
+            CommandType::SpecialFunction,
+            CommandTarget::Origin,
+            CommandStatus::Success,
+            CommandOrigin::Host,
+            $special_command.to_string(),
+            HashMap::new(),
+            "".to_string(),
+        );
+
+        new_command_instructions.to_value_map()
     }};
 }
 
-use crate::socket_host::functions::process::{handle_internal_management, handle_redirect};
+macro_rules! error_response {
+    ($msg:expr) => {{
+        let new_command_instructions = CommandInstructions::new(
+            CommandMode::Response,
+            CommandType::DirectFunction,
+            CommandTarget::Origin,
+            CommandStatus::Failure,
+            CommandOrigin::Host,
+            "error_handler".to_string(),
+            HashMap::new(),
+            $msg.to_string(),
+        );
+
+        new_command_instructions.to_value_map()
+    }};
+}
+
+use crate::socket_host::transposer_functions::handle_direct_function::handle_direct_function;
+// use crate::socket_host::transposer_functions::handle_internal_management::handle_internal_management;
+use crate::socket_host::transposer_functions::handle_redirect::handle_redirect;
+
+/// Processes a map result and generates a response based on the specified mode.
+///
+/// This function takes a map containing `ResultType` values, a client key, and a `DownCommand`.
+/// It identifies the response mode from the map and processes the map accordingly. The function
+/// supports different modes such as 'to_origin', 'redirect', and 'internal_management'. Each mode
+/// dictates a different way of handling the map and preparing the response. The function also
+/// handles cases where the response mode is not specified or does not match known modes.
+///
+/// # Arguments
+/// * `m` - A HashMap with String keys and `ResultType` values representing the result to process.
+/// * `client_key` - A reference to a String representing the client key.
+/// * `down_command` - A reference to a `DownCommand` providing additional command context.
+///
+/// # Returns
+/// Returns a tuple containing:
+/// - `Result<String, Error>`: A `Result` object which is Ok if processing is successful, containing
+///   the processed response as a JSON string, or an `Error` if processing fails.
+/// - `String`: The client key, potentially modified during processing.
+///
+/// # Examples
+/// ```
+/// // Assuming HashMap, ResultType, DownCommand, and related types are defined and available
+/// let mut result_map = HashMap::new();
+/// result_map.insert("response_mode".to_string(), ResultType::Str("to_origin".to_string()));
+/// // ... populate result_map as needed ...
+///
+/// let client_key = "client123".to_string();
+/// let down_command = DownCommand::new(...); // Construct a DownCommand
+///
+/// let (response, client_key) = process_map_result(result_map, &client_key, &down_command);
+/// // Handle the response and client_key as needed
+/// ```
+/// // TODO >>> Remake this Doc string!
+pub fn process_map_result(m: &CommandInstructions, client_key: &String, parity_id: &String, priority: &u8, command_id: &Option<u32>) -> (Value, String) {
+    let logger = acquire_logger!("Transposer - Process");
+
+    let mut client_to_send: String = client_key.clone();
+
+    let response: Value = match &m.target {
+        CommandTarget::Host => {
+            // -> THIS IS DESIGNED TO ALLOW HOST SEND COMMANDS TO ITSELF
+
+            // TODO >>> IMPLEMENT SECURITY EMASURES HERE OR GIVE IT AS A USER RESPONSIBILITY
+
+            // let resp: CommandInstructions = handle_internal_management(&m, &mut client_to_send);
+
+            // -> HANDLE DIRECT FUNCTIONS:
+
+            let mut result: ProcessResult = ProcessResult::Empty;
+
+            if let Some(id) = command_id {
+                result = handle_direct_function(client_key, &m.actf, m.clone(), Some(*id));
+
+                match result {
+                    ProcessResult::CommandInstructions(c) => c.to_value_map(),
+                    ProcessResult::List(l) => {
+                        // TODO >>> Handle this case maybe create a generalized function for all places that uses this
+                        println!("Reeive a unimplemented case in process_map_result!");
+                        create_special_command_instruction_response!("C210".to_string())
+                    },
+                    ProcessResult::Empty => create_special_command_instruction_response!("C210".to_string()),
+                    ProcessResult::Error(e) => {
+                        logger.warn(format!("An error occurred in process_map_result. The error was: {:?}", e));
+                        error_response!(format!("An error occurred in process_map_result. The error was: {:?}", e))
+                    },
+                }
+            } else {
+                logger.warn(format!("An error occurred in process_map_result. The error was: this cases require command_id to be some and not none"));
+                error_response!(format!("An error occurred in process_map_result. The error was: this cases require command_id to be some and not none"))
+            }
+        },
+        CommandTarget::Origin => m.to_value_map(),
+        CommandTarget::ClientKey(key) => {
+            // TODO >>> Implement the handle redirect
+            let resp: CommandInstructions = handle_redirect(&m, &mut client_to_send, parity_id.clone(), priority.clone());
+            resp.to_value_map()
+        },
+    };
+
+    logger.debug(format!("Converted to Value: {:?}", &response));
+
+    return (response, client_to_send);
+}
+
+/// Processes a `ResultType` command and schedules appropriate actions based on its type.
+///
+/// This function orchestrates the processing of various `ResultType` commands, including handling
+/// maps, strings, integers, floats, booleans, lists, and other types. It leverages `process_map_result`
+/// for handling `Map` types, specifically dealing with different response modes and other map-specific
+/// logic. The function also manages errors, logs information, and schedules 'up' commands using an
+/// enhanced buffer management system. It handles the removal of processed 'down' commands and generates
+/// responses for each input type.
+///
+/// # Arguments
+/// * `resulttype_command` - A command of type `ResultType` to be processed.
+/// * `client_key` - A mutable string representing the client key.
+/// * `down_command` - A `DownCommand` instance containing command-related information.
+///
+/// # Returns
+/// This function does not return a value but orchestrates the processing of the result type command,
+/// handles logging, and schedules upstream commands based on the processed results.
+///
+/// # Examples
+/// ```
+/// // Assuming ResultType, DownCommand, and related types are defined and available
+/// let resulttype_command = ResultType::Map(...); // Construct a ResultType::Map
+/// let mut client_key = "client123".to_string();
+/// let down_command = DownCommand::new(...); // Construct a DownCommand
+/// process_response_and_schedule(resulttype_command, client_key, down_command);
+/// ```
+// TODO >>> Remake this doc string
+fn process_response_and_schedule(resulttype_command: ProcessResult, mut client_key: String, parity_id: &String, priority: &u8, command_id: u32) {
+    let logger = acquire_logger!("Transposer - Process");
+
+    let response: Value; // Errors are attached in the response and sent in the same way
+
+    let mut client_to_send_back: String;
+
+    // TODO >>> Change from ResultType to ProcessResult
+
+    match resulttype_command {
+        // TODO >>> Implement change of response here
+        ProcessResult::CommandInstructions(m) => {
+            (response, client_key) = process_map_result(&m, &client_key, parity_id, priority, &Some(command_id));
+        },
+        ProcessResult::List(l) => {
+            let mut counter: u64 = 0;
+            for res in l {
+                match res {
+                    ProcessResult::CommandInstructions(m) => {
+                        if counter == 0 {
+                            let (processed_resp, client_to_send_back) = process_map_result(&m, &client_key, parity_id, priority, &Some(command_id));
+                            let up_command = UpCommand::new(&client_to_send_back, &parity_id, priority.clone(), &to_string(&processed_resp).unwrap());
+                            enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+                        } else {
+                            // -> Send to clients based in the target id
+                            // -> Gen 20 digits parity id based on client
+                            let special_parity_id: String = enhanced_buffer::buffer_up_manager::buffer_up_gen_valid_special_parity_id(&client_key);
+
+                            let (processed_resp, client_to_send_back) = process_map_result(&m, &client_key, parity_id, priority, &Some(command_id));
+                            let up_command = UpCommand::new(&client_to_send_back, &special_parity_id, priority.clone(), &to_string(&processed_resp).unwrap());
+                            enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+                        }
+                    },
+                    _ => {
+                        response = error_response!(format!("Error! Receive {:?} when expecting a Command_Instruction!", res));
+                        let up_command = UpCommand::new(&client_key, &parity_id, priority.clone(), &to_string(&response).unwrap());
+                        enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+                        break;
+                    },
+                }
+            }
+            // -> Remove the buffer down command that generated these responses since he is alwready processed
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+            return;
+        },
+        ProcessResult::Empty => response = create_special_command_instruction_response!("C210".to_string()),
+        ProcessResult::Error(e) => {
+            logger.warn(format!("An error occurred while converting the callback response. The error was: {:?}", e));
+            response = error_response!(format!("An error occurred while converting the callback response. The error was: {:?}", e));
+        },
+    }
+
+    // TODO >>> Made a better handler to the response errors
+
+    logger.debug(format!("Function returned: {:?}", response));
+    logger.info(format!("Command: {:?}, processed!", parity_id.clone()));
+
+    let up_command = UpCommand::new(&client_key, &parity_id, priority.clone(), &to_string(&response).unwrap());
+
+    enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+}
 
 /// Processes a given `DownCommand`, executing the corresponding logic and handling redirection.
 ///
@@ -179,7 +362,7 @@ use crate::socket_host::functions::process::{handle_internal_management, handle_
 ///
 /// # Notes
 ///
-/// The function heavily relies on global patterns (`COMMAND_PATTERNS` and `CALLBACK_PATTERNS`)
+/// The function heavily relies on global patterns (`HOST_COMMAND_PATTERNS` and `CALLBACK_PATTERNS`)
 /// which determine how commands are processed and which callbacks are executed.
 ///
 /// The function can handle various response types including maps, strings, integers, floats, and booleans.
@@ -204,7 +387,7 @@ fn process(py: Python, down_command: DownCommand) {
 
     logger.debug(format!("Initializing processing!"));
 
-    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_id.clone());
+    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_key.clone());
     let command_id: u32 = down_command.command_id.clone().unwrap();
 
     if !command_is_not_registry {
@@ -220,139 +403,101 @@ fn process(py: Python, down_command: DownCommand) {
     // >    - same as origin
     // >    - redirect
 
-    // > if it is redirect one extra kwarg is necessary that have the client_id to redirect
+    // > if it is redirect one extra kwarg is necessary that have the client_key to redirect
     // * This will create a need to have a local database in the host to store the clients
     // * and to store when is the last contact of some client, if it is some threshold value
     // * more it will remove the registered client, if it have a contact recent, this will redirect the message
     // * however if the message is becomes too old before the client the message is redirected catches it
     // * The system have to remove this old message from the buffer too.
 
-    let translated_command: Command = Command::from_down_command(down_command.clone());
-
-    logger.debug(format!("Translated command: {:?}", translated_command));
-
-    let function = match translated_command.command.get("function") {
-        Some(Value::String(function)) => function,
-        _ => {
-            logger.warn(format!("The function name is not found or not a string."));
+    let translated_command: Command = match Command::from_down_command(&down_command) {
+        Ok(c) => c,
+        Err(_) => {
+            // TODO >>> handle this erro case
+            println!("Error converting COMMAND from down_command.");
+            logger.warn(format!("Error converting COMMAND from down_command."));
             return;
         },
     };
 
-    let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-    let patterns = command_patterns;
+    logger.debug(format!("Translated command: {:?}", translated_command));
 
-    // -> Remove command from schedule if it isn't on the patterns
-    if !patterns.contains_key(function) {
-        logger.warn(format!("Command isn't registered in the patterns"));
-        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-        logger.warn(format!("command skipped and removed from schedule"));
-        return;
+    // TODO >>> Add a direct way to verify if it is a direct function by use the command.commandinstruction.commandtype
+    let direct_functions: Vec<String> = vec!["get_registered_commands", "update_client_commands_ref", "add_client", "update_client", "remove_client"]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
+
+    let result: ProcessResult;
+
+    if direct_functions.contains(&translated_command.command.actf) {
+        // -> HANDLE DIRECT FUNCTIONS:
+        result = handle_direct_function(&translated_command.client_key, &translated_command.command.actf, translated_command.command.clone(), Some(command_id));
+    } else {
+        // -> VERIFY IF THE COMMAND EXIST:
+        {
+            let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
+
+            // -> Remove command from schedule if it isn't on the patterns
+            if !global_command_patterns.handler_exists_in("host", &translated_command.command.actf) {
+                // TODO >>> Add a mecanism to check if the command exist for the target client
+                // TODO >>> Also adda mecanism to commands have a target by default, and if target is host then target is host
+                logger.warn(format!("Command isn't registered in the patterns"));
+                enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+                logger.warn(format!("command skipped and removed from schedule"));
+                return;
+            }
+        }
+
+        // -> CALL PYTHON CALLBACK:
+        let response;
+
+        {
+            let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
+            response = call_callback(py, translated_command.clone(), callback_patterns);
+        }
+
+        // -> PROCESS CALLBACK RESPONSE:
+        result = match response {
+            Ok(r) => {
+                let value: Value = extract_pyobject(py, r);
+
+                println!("Value map extracted from callback response: {:?}", value);
+
+                // Check if the Value is an object and convert it to HashMap
+                if let Some(obj) = value.as_object() {
+                    match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
+                        Ok(c) => ProcessResult::CommandInstructions(c),
+                        Err(e) => {
+                            // TODO >>> Handle this error case
+                            ProcessResult::Error("callback return a non valid response!".to_string())
+                        },
+                    }
+                } else {
+                    // TODO >>> Handle this error case
+                    ProcessResult::Error("The value is not a JSON object!".to_string())
+                }
+            },
+            Err(e) => {
+                // Handle the error or log it
+                logger.exception(format!("Python error: {:?}", e));
+                // You can return a default value or propagate the error further
+                ProcessResult::Error(format!("{:?}", e))
+            },
+        };
     }
-
-    let response;
-
-    {
-        let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
-        response = call_callback(py, translated_command.clone(), callback_patterns);
-    }
-
-    let result = match response {
-        Ok(r) => extract_pyobject(py, r),
-        Err(e) => {
-            // Handle the error or log it
-            logger.exception(format!("Python error: {:?}", e));
-            // You can return a default value or propagate the error further
-            ResultType::Error(format!("{:?}", e))
-        },
-    };
 
     logger.debug(format!("Callback call response converted to rust: {:?}", result));
 
-    let mut client_id = down_command.client_id.clone();
+    let client_key = down_command.client_key.clone();
 
-    let response;
-
-    match result {
-        // TODO >>> Implement change of response here
-        ResultType::Map(m) => {
-            if m.contains_key("response_mode") {
-                let response_mode = m.get("response_mode").unwrap();
-
-                if *response_mode == ResultType::Str("to_origin".to_string()) {
-                    let converted_to_value = convert_to_value_map(&m);
-                    logger.debug(format!("Converted to Value: {:?}", &converted_to_value));
-                    response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-                    // Response at this point is like this: Map({
-                    //      "command_type":String("function"),
-                    //      "response_mode":String("to_origin"),
-                    //      "status": String("success"),
-                    //      "response_activation_function":String(response_activation_function),
-                    //      "message":String(_),
-                    //      "kwargs":Map(response)
-                    // })
-                } else if *response_mode == ResultType::Str("redirect".to_string()) {
-                    logger.debug(format!("Response: {:?}", m));
-                    let resp = handle_redirect(m, &mut client_id, down_command.clone());
-                    let converted_to_value = convert_to_value_map(&resp);
-                    response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-                    // Response at this point is like this: Map({
-                    //      "command_type":String("function"),
-                    //      "response_mode":String("redirect"),
-                    //      "status": String("success"),
-                    //      "response_activation_function":String(response_activation_function),
-                    //      "message":String(_),
-                    //      "kwargs":Map(response),
-                    //      "redirect_to":String(redirect_to_client_id)
-                    //  })
-                } else if *response_mode == ResultType::Str("internal_management".to_string()) {
-                    let resp = handle_internal_management(m, &mut client_id);
-                    let converted_to_value = convert_to_value_map(&resp);
-                    response = Ok(serde_json::to_string(&converted_to_value).unwrap());
-                } else {
-                    logger.warn("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!".to_string());
-                    response = error_response!("Error! Response mode doesn't match any known mode. Please use one of: ('to_origin', 'redirect')!");
-                }
-            } else {
-                logger.warn("Error! Callback doesn't implement response mode!".to_string());
-                response = error_response!("Error! Callback doesn't implement response mode!");
-            }
-        },
-        ResultType::Str(s) => {
-            response = Ok(s.clone());
-        },
-        ResultType::Int(i) => {
-            response = Ok(i.to_string());
-        },
-        ResultType::Float(fl) => {
-            response = Ok(fl.to_string());
-        },
-        ResultType::Bool(b) => {
-            response = Ok(b.to_string());
-        },
-        ResultType::List(_) => {
-            response = error_response!("Error! Received a list, but expected a map!");
-        },
-        ResultType::Empty => {
-            let mut command_map = HashMap::new();
-            command_map.insert("command_type".to_string(), Value::String("special_function".to_string()));
-            command_map.insert("function".to_string(), Value::String("C210".to_string()));
-            response = Ok(serde_json::to_string(&command_map).unwrap());
-        },
-        ResultType::Error(e) => {
-            logger.warn(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
-            response = error_response!(format!("An error occurred while converting the Python callback response. The error was: {:?}", e));
-        },
+    if let Some(c_id) = down_command.command_id {
+        process_response_and_schedule(result, client_key, &down_command.parity_id, &down_command.priority, c_id);
+    } else {
+        logger.warn("Can't process a command that doesn't have command id".to_string())
     }
 
-    logger.debug(format!("Function returned: {:?}", response));
-    logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
-
     enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-
-    let up_command = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response.unwrap());
-
-    enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
 }
 
 fn clear_old_data() {
@@ -400,7 +545,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
 
     thread::sleep(Duration::from_millis(100));
 
-    // let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
+    // let mut command_patterns = HOST_COMMAND_PATTERNS.lock().unwrap();
 
     return;
 

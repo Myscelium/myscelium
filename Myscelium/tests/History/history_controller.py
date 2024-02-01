@@ -140,25 +140,25 @@ class History_Manager:
         self.AutoId.Update_registered_ids(registered_ids = self.list_history())
 
         if not isinstance(test_name, str):
-            raise "test_name needs to be a string with the test name!"
+            raise ValueError("test_name needs to be a string with the test name!")
 
         if not isinstance(communications_speed, float):
-            raise "communications_speed needs to be a float!"
+            raise ValueError("communications_speed needs to be a float!")
         
         if not isinstance(test_speed, float):
-            raise "test_speed needs to be a float!"
+            raise ValueError("test_speed needs to be a float!")
         
         if not isinstance(test_status, str):
-            raise "test_status needs to be a str!"
+            raise ValueError("test_status needs to be a str!")
         
         if not (test_status in ['PASSED', 'FAILED']):
-            raise "test_status needs to be a str 'PASSED' or 'FAILED'!"
+            raise ValueError("test_status needs to be a str 'PASSED' or 'FAILED'!")
         
         if not isinstance(log_level, str):
-            raise "log_level needs to be a str!"
+            raise ValueError("log_level needs to be a str!")
         
         if not (log_level in ['EXCEPTION', 'WARN', 'INFO', 'DEBUG']):
-            raise "test_status needs to be a str like: 'EXCEPTION', 'WARN', 'INFO' or 'DEBUG'!"
+            raise ValueError("test_status needs to be a str like: 'EXCEPTION', 'WARN', 'INFO' or 'DEBUG'!")
 
         ID = self.AutoId.Gen() 
         ts = datetime.datetime.now()

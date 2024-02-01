@@ -1,14 +1,20 @@
 use crate::common::enhanced_buffer;
 use crate::common::enhanced_buffer::buffer_down_manager::DownCommand;
 use crate::common::enhanced_buffer::buffer_up_manager::UpCommand;
-use crate::common::enhanced_buffer::utilities::{Command, CommandType};
+use crate::common::enhanced_buffer::utilities::{Command, CommandInstructions, CommandMode, CommandOrigin, CommandStatus, CommandTarget, CommandType};
+use crate::common::functions::converters::convert_to_value_map;
 use crate::common::functions::python_functions::{call_callback, client_call_callback, dict_to_kwargs, extract_pyobject};
+use crate::common::structs::available_commands::NetworkMap;
 use crate::common::structs::results_structs::ResultType;
 
+use crate::socket_client::functions::direct_functions::handle_direct_function;
+use crate::socket_host::transposer_functions::handle_direct_function::ProcessResult;
+
 use lazy_static::lazy_static;
-use serde_json::{from_str, Value};
+use serde_json::{from_str, to_string, Value};
 use std::collections::HashMap;
-use std::sync::{mpsc, Arc, Mutex};
+use std::ops::Deref;
+use std::sync::{mpsc, Arc};
 use std::thread;
 
 use serde::{Deserialize, Serialize};
@@ -28,6 +34,8 @@ use pyo3::Py;
 
 use std::time::Duration;
 
+use parking_lot::Mutex;
+
 use crate::CLIENT_IS_RUNNING;
 
 use super::client_logger::log_handler::Logger;
@@ -37,59 +45,20 @@ macro_rules! acquire_logger {
     ($section_name:expr) => {{
         let client_log_level;
         {
-            client_log_level = CLIENT_LOG_LEVEL.lock().clone();
+            let log_level = CLIENT_LOG_LEVEL.lock().clone();
+            client_log_level = log_level.clone();
         }
         Logger::new(client_log_level, $section_name)
     }};
 }
 
+use crate::common::structs::available_commands::CommandPatterns;
+use crate::CLIENT_NODE_KEY;
+
+use crate::CLIENT_NODE_CONFIGS;
+
 lazy_static! {
-    static ref COMMAND_PATTERNS: Arc<Mutex<HashMap<String, Value>>> = {
-        let json_str = r#"{
-            "get_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            },
-            "get_other_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            }
-        }"#;
-
-        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
-        Arc::new(Mutex::new(command_patterns))
-    };
-    static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<HashMap<String, Value>>> = {
-        let json_str = r#"{
-            "get_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            },
-            "get_other_symbols_data": {
-                "symbols_data": {
-                    "data-type": "str",
-                    "symbols": "str",
-                    "start-ts": "float",
-                    "end-ts": "float"
-                }
-            }
-        }"#;
-
-        let command_patterns: HashMap<String, Value> = from_str(json_str).unwrap();
-        Arc::new(Mutex::new(command_patterns))
-    };
+    pub static ref HOST_ALLOWED_COMMANDS: Arc<Mutex<NetworkMap>> = Arc::new(Mutex::new(NetworkMap::new(Vec::new())));
     static ref CALLBACK_PATTERNS: Arc<Mutex<HashMap<String, (Py<PyFunction>, Value)>>> = {
         let command_patterns: HashMap<String, (Py<PyFunction>, Value)> = HashMap::new();
         Arc::new(Mutex::new(command_patterns))
@@ -106,9 +75,14 @@ lazy_static! {
 /// # Arguments
 /// - `n_workers`: The desired number of worker threads for the transposer.
 pub fn set_socket_client_transposer_workers_num(n_workers: u32) {
-    let mut default_num_of_workers = NUM_WORKERS.lock().unwrap();
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - NUM_WORKERS");
+        let mut default_num_of_workers = NUM_WORKERS.lock();
+        println!("[CLIENT][GLOBAL][Lock] - NUM_WORKERS");
+        *default_num_of_workers = n_workers;
+    }
 
-    *default_num_of_workers = n_workers;
+    println!("[CLIENT][GLOBAL][Release] - NUM_WORKERS");
 
     enhanced_buffer::buffer_down_manager::set_workers_num(n_workers);
     enhanced_buffer::buffer_up_manager::set_workers_num(n_workers);
@@ -123,12 +97,21 @@ pub fn set_socket_client_transposer_workers_num(n_workers: u32) {
 /// # Arguments
 /// - `commands_patterns`: A map of recognized command patterns.
 /// - `callbacks_patterns`: A map of associated Python functions and arguments for each recognized command.
-pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String, Value>, callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
-    let mut command_patterns = COMMAND_PATTERNS.lock().unwrap();
-    *command_patterns = commands_patterns;
+pub fn set_socket_client_transposer_callbacks(callbacks_patterns: HashMap<String, (Py<PyFunction>, Value)>) {
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_KEY");
+        let client_name = CLIENT_NODE_KEY.lock().clone();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_KEY");
 
-    let mut callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
-    *callback_patterns = callbacks_patterns;
+        {
+            println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
+            let mut callback_patterns = CALLBACK_PATTERNS.lock();
+            println!("[CLIENT][GLOBAL][Lock] - CALLBACK_PATTERNS");
+            *callback_patterns = callbacks_patterns;
+            println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
+        }
+    }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_KEY");
 }
 
 // Transposer:
@@ -137,7 +120,7 @@ pub fn set_socket_client_transposer_callbacks(commands_patterns: HashMap<String,
 ///
 /// This enumeration is used to categorize and communicate specific error conditions
 /// that can arise when the transposer attempts to process a command.
-enum ProcessError {
+pub enum ProcessError {
     /// Indicates that the command has already been processed.
     CommandAlreadyProcessed(String),
 
@@ -168,7 +151,7 @@ enum ProcessError {
 // >    - same as origin
 // >    - redirect
 
-// > if it is redirect one extra kwarg is necessary that have the client_id to redirect
+// > if it is redirect one extra kwarg is necessary that have the client_key to redirect
 // * This will create a need to have a local database in the host to store the clients
 // * and to store when is the last contact of some client, if it is some threshold value
 // * more it will remove the registered client, if it have a contact recent, this will redirect the message
@@ -194,211 +177,171 @@ enum ProcessError {
 /// # Returns
 /// - `Ok(())` if the command was processed successfully.
 /// - `Err(ProcessError)` if an error occurred during processing.
-fn process(py: Python, down_command: DownCommand) -> Result<(), ProcessError> {
+fn process(py: Python, down_command: &DownCommand, client_key: &String, callbacks_patterns: &HashMap<String, (Py<PyFunction>, Value)>) -> Result<(), ProcessError> {
     let logger = acquire_logger!("Transposer - Process");
 
     logger.info(format!("Initializing processing!"));
 
     // Check if the command has already been registered in the up buffer
-    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_id.clone());
+    let command_is_not_registry: bool = enhanced_buffer::buffer_up_manager::check_if_parity_id_is_registered(down_command.parity_id.clone(), down_command.client_key.clone());
     let command_id: u32 = down_command.command_id.unwrap().clone();
 
-    if !command_is_not_registry {
-        // If command is already registered, remove it from the down buffer schedule
-        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id);
-        return Err(ProcessError::CommandAlreadyProcessed(down_command.parity_id.clone()));
+    {
+        if !command_is_not_registry {
+            // If command is already registered, remove it from the down buffer schedule
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id);
+            return Err(ProcessError::CommandAlreadyProcessed(down_command.parity_id.clone()));
+        }
     }
 
     // TODO >>> Use the command.command or create a require type field to redirect the command to another client
 
     // Convert the down command to a more general command structure for further processing
-    let translated_command: Command = Command::from_down_command(down_command.clone());
-
-    logger.debug(format!("Translated command: {:?}", translated_command));
-
-    let activation_key;
-
-    // Determine the type of the command
-    match translated_command.command_type() {
-        CommandType::SpecialFunction(_) => {
-            if let Some(Value::Object(function_obj)) = translated_command.command.get("function") {
-                activation_key = match function_obj.get("function") {
-                    // Replace "desired_inner_key" with the key you want to access
-                    Some(Value::String(activation_key)) => activation_key,
-                    _ => {
-                        return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
-                    },
-                };
-            } else {
-                return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
-            }
-        },
-
-        CommandType::Function(_) => {
-            activation_key = match translated_command.command.get("function") {
-                // Replace "desired_inner_key" with the key you want to access
-                Some(Value::String(activation_key)) => activation_key,
-                _ => {
-                    return Err(ProcessError::MissingCommandFunction(format!("{:?}", translated_command.clone())));
-                },
-            };
-        },
-
-        CommandType::Response(_) => {
-            activation_key = match translated_command.command.get("response_activation_function") {
-                Some(Value::String(activation_key)) => activation_key,
-                _ => {
-                    return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
-                },
-            };
-        },
-        CommandType::Error(e) => {
-            activation_key = match translated_command.command.get("response_activation_function") {
-                Some(Value::String(activation_key)) => activation_key,
-                _ => {
-                    return Err(ProcessError::MissingResponseKey(format!("{:?}", translated_command.clone())));
-                },
-            };
-        },
-        CommandType::Redirect(_) => {
-            return Err(ProcessError::UnknownCommandType);
-        },
-        CommandType::Unknown => {
-            return Err(ProcessError::UnknownCommandType);
-        },
-    }
-
-    println!("Resolved Activation Key are: {:?}", activation_key);
-
-    // Special handling for "update available host commands" command
-    if activation_key == &"update_available_host_commands".to_string() {
-        logger.info(format!("Receive Host Allowed Commands"));
-
-        if let Some(Value::Object(response_obj)) = translated_command.command.get("kwargs") {
-            // Clone the object to get a HashMap<String, Value>
-            let response_map: HashMap<String, Value> = response_obj.clone().into_iter().collect();
-
-            // Lock the COMMAND_PATTERNS and insert the new map
-
-            {
-                let mut actual_patterns = HOST_ALLOWED_COMMANDS.lock().unwrap();
-                *actual_patterns = response_map;
-            }
-
-            logger.info(format!("Successfully actualize the host available commands!"));
-
-            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-
-            return Ok(());
-        } else {
-            return Err(ProcessError::MissingKwargsKey(format!("{:?}", translated_command.clone())));
-        }
-    }
-
-    // Validate the command against known command patterns
-    let patterns;
-    {
-        let command_patterns = COMMAND_PATTERNS.lock().unwrap().clone();
-        patterns = command_patterns;
-    }
-
-    if !patterns.contains_key(activation_key) {
-        // If the command is not in the patterns, remove it from the schedule and return an error
-        logger.warn(format!("Command isn't registered in the patterns"));
-        enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-        logger.info(format!("command skipped and removed from schedule"));
-        return Err(ProcessError::CommandNotRegistered(activation_key.clone()));
-    }
-
-    logger.info(format!("Command function: {} is a valid function!", activation_key));
-    logger.debug(format!("Calling the callback!\n"));
-    logger.debug(format!("Acquired the GIL"));
-
-    // Execute the associated Python callback for the command
-    let response;
-    {
-        let callback_patterns = CALLBACK_PATTERNS.lock().unwrap();
-        response = client_call_callback(py, translated_command.clone(), callback_patterns);
-    }
-
-    // Process the Python callback's return value
-    let result = match response {
-        Ok(r) => extract_pyobject(py, r),
+    let translated_command: Command = match Command::from_down_command(down_command) {
+        Ok(c) => c.clone(),
         Err(e) => {
-            // Handle the error or log it
-            eprintln!("Python error: {:?}", e);
-            // You can return a default value or propagate the error further
-            ResultType::Error(format!("{:?}", e))
+            println!("error converting down_command into command: {:?}", e);
+            return Err(ProcessError::Error(format!("{:?}", e)));
         },
     };
 
-    let client_id = down_command.client_id.clone();
+    logger.debug(format!("Translated command: {:?}", translated_command));
 
-    let response: String;
+    // let client_name;
 
-    match result {
-        ResultType::Map(m) => {
-            if m.contains_key("response_mode") {
-                let response_mode = m.get("response_mode").unwrap();
+    // TODO >>> Veriy if the problem of random client disconnect isn't here
 
-                if *response_mode == ResultType::Str("to_host".to_string()) {
-                    response = serde_json::to_string(&m).unwrap();
-                } else if *response_mode == ResultType::Str("retransmit".to_string()) {
-                    // TODO >>> Check if retransmit is necessary here
-                    response = serde_json::to_string(&m).unwrap();
-                } else {
-                    enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-                    return Err(ProcessError::InvalidCallbackResponse(
-                        activation_key.clone(),
-                        "Response mode doesn't match any known mode. Please use one of: ('to_host', 'retransmit')!".to_string(),
-                    ));
-                }
-            } else {
+    // logger.info(format!("Command function: {} is a valid function!", activation_key));
+
+    let client_key = translated_command.client_key.clone();
+
+    println!("Client key is: {:?}", client_key);
+
+    // let direct_functions: Vec<String> = vec!["update_available_host_commands", "get_socket_client_available_handlers"].into_iter().map(|s| s.to_string()).collect();
+
+    let mut resp;
+
+    println!("Command is a direct function: {:?}", translated_command.command.command_type == "DirectFunction");
+
+    if translated_command.command.command_type == "DirectFunction" {
+        println!("Command is a direct function!");
+        logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
+        resp = handle_direct_function(&translated_command.command, &client_key, command_id)?.clone(); // This cloen avoids locking
+        println!("Direct Function Result: {:?}", resp);
+    } else {
+        println!("Command isn't a direct function");
+
+        {
+            // logger.debug("Try lock in command patterns".to_string());
+
+            println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
+            let callback_patterns = CALLBACK_PATTERNS.lock();
+            println!("[CLIENT][GLOBAL][Lock] - CALLBACK_PATTERNS");
+
+            if !callback_patterns.contains_key(&translated_command.command.actf) {
+                // If the command is not in the patterns, remove it from the schedule and return an error
+                logger.warn(format!("Command isn't registered in the patterns"));
                 enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-                return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Callback doesn't implement response mode!".to_string()));
+                logger.info(format!("command skipped and removed from schedule"));
+                return Err(ProcessError::CommandNotRegistered(translated_command.command.actf.clone()));
             }
-        },
-        ResultType::Str(s) => {
-            response = s.clone();
-        },
-        ResultType::Int(i) => {
-            response = i.to_string();
-        },
-        ResultType::Float(fl) => {
-            response = fl.to_string();
-        },
-        ResultType::Bool(b) => {
-            response = b.to_string();
-        },
-        ResultType::List(_) => {
-            // eprintln!("Error! Received a list, but expected a map!");
-            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-            return Err(ProcessError::InvalidCallbackResponse(activation_key.clone(), "Received a list, but expected a map!".to_string()));
-        },
-        ResultType::Empty => {
-            logger.info(format!("Response is None!"));
-            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-            return Ok(());
-        },
-        ResultType::Error(e) => {
-            // eprintln!();
-            return Err(ProcessError::InvalidCallbackResponse(
-                activation_key.clone(),
-                format!("An error occurred while converting the Python callback response. The error was: {:?}", e),
-            ));
-        },
+
+            drop(callback_patterns);
+            println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
+            // logger.debug("release command patterns".to_string());
+        }
+
+        println!("Command exists!");
+
+        logger.info(format!("Command function: {} is a valid function!", translated_command.command.actf));
+        logger.debug(format!("Calling the callback!\n"));
+        // Execute the associated Python callback for the command
+
+        // -> CALL PYTHON CALLBACK:
+        let response;
+
+        response = client_call_callback(py, &translated_command, &callbacks_patterns);
+
+        // -> PROCESS CALLBACK RESPONSE:
+        resp = match response {
+            Ok(r) => {
+                let value: Value = extract_pyobject(py, r);
+
+                println!("Value map extracted from callback response: {:?}", value);
+
+                // Check if the Value is None
+                if value == Value::Null {
+                    // Handle the None case
+                    ProcessResult::Empty
+                } else if let Some(obj) = value.as_object() {
+                    // Existing logic to handle the object
+                    match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
+                        Ok(c) => ProcessResult::CommandInstructions(c.clone()),
+                        Err(_) => {
+                            println!("Callback returned a non-valid response!");
+                            return Err(ProcessError::Error("callback returned a non-valid response!".to_string()));
+                        },
+                    }
+                } else {
+                    println!("The value is not a JSON object!");
+                    return Err(ProcessError::Error("The value is not a JSON object!".to_string()));
+                }
+            },
+            Err(e) => {
+                // Existing logic to handle the error
+                logger.exception(format!("Python error: {:?}", e));
+                return Err(ProcessError::Error(format!("{:?}", e)));
+            },
+        };
     }
 
+    let client_key = down_command.client_key.clone();
+
+    // TODO >>> Add a rule to command that the origin isn't host that give a error be redirected to origin
     // TODO >>> Remake the command, in a way that it accept Values instead of only string, to we be able to use Value map instead of a json str
     //> This will allow to easily manage commands, reducing the times that it needs to be parsed from str and allowing convert from value directly.
 
-    logger.debug(format!("Function returned: {:?}", response));
+    logger.debug(format!("Function returned: {:?}", resp));
     logger.info(format!("Command: {:?}, processed!", down_command.parity_id.clone()));
 
-    // Schedule the resulting up command for transmission
-    let up_command: UpCommand = UpCommand::new(client_id, down_command.parity_id.clone(), down_command.priority.clone(), response);
-    enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
-    enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+    match resp {
+        ProcessResult::CommandInstructions(c) => {
+            println!("Received response: {:?}", c);
+            let command: Command = Command::new(client_key.clone(), down_command.parity_id.clone(), down_command.priority.clone(), c);
+            let up_command: UpCommand = UpCommand::from_command(command);
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+            enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+        },
+        ProcessResult::List(l) => {
+            for c in l {
+                match c {
+                    ProcessResult::Error(e) => {
+                        println!("Receive a error: {:?}", e);
+                    },
+                    ProcessResult::Empty => {
+                        println!("Response is empty, continuing!");
+                    },
+                    ProcessResult::List(_) => {
+                        println!("Receive a ilegal process Result List inside a Process Resul List!");
+                    },
+                    ProcessResult::CommandInstructions(c) => {
+                        let command: Command = Command::new(client_key.clone(), down_command.parity_id.clone(), down_command.priority.clone(), c);
+                        let up_command: UpCommand = UpCommand::from_command(command);
+                        enhanced_buffer::buffer_up_manager::buffer_up_schedule(up_command);
+                    },
+                }
+                enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+            }
+        },
+        ProcessResult::Error(e) => {
+            println!("Receive a error: {:?}", e);
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+        },
+        ProcessResult::Empty => {
+            println!("Response is empty, continuing!");
+            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_id(command_id.clone());
+        },
+    }
 
     return Ok(());
 }
@@ -441,15 +384,45 @@ pub fn initialize_socket_client_transposer() {
         return;
     }
 
+    let schedule_len = schedule.len();
+
     // If there are no commands to process, clear old data and sleep
-    if !(schedule.len() > 0) {
+    if !(schedule_len > 0) {
         logger.debug(format!("Nothing in the schedule, skipping >>>"));
         clear_old_data();
         thread::sleep(Duration::from_millis(100));
         return;
+    } else {
+        if schedule_len > 1 {
+            println!("Find {} commands to process", schedule_len)
+        } else {
+            println!("Find {} command to process", 1)
+        }
     }
 
     logger.info(format!("\nData found in schedule!"));
+
+    // Validate the command against known command patterns
+    let client_key;
+
+    println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_KEY");
+    {
+        let client_n = CLIENT_NODE_KEY.lock();
+        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_KEY");
+        client_key = client_n.clone();
+    }
+    println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_KEY");
+
+    let callbacks_patterns;
+
+    {
+        println!("[CLIENT][GLOBAL][Try Lock] - CALLBACK_PATTERNS");
+        let callback_patt = CALLBACK_PATTERNS.lock().clone();
+        println!("[CLIENT][GLOBAL][Lock] - CALLBACK_PATTERNS");
+        callbacks_patterns = callback_patt.clone();
+        println!("[CLIENT][GLOBAL][Release] - CALLBACK_PATTERNS");
+        drop(callback_patt)
+    }
 
     // Process each scheduled command
     for dow_command in schedule {
@@ -466,7 +439,7 @@ pub fn initialize_socket_client_transposer() {
             logger.debug(format!("Acquired Python in a process task!"));
 
             // Process the command and handle potential errors
-            let result = process(py, dow_command).map_err(|e| match e {
+            let result = process(py, &dow_command, &client_key, &callbacks_patterns).map_err(|e| match e {
                 ProcessError::CommandAlreadyProcessed(m) => {
                     format!("Command: {:?} already processed! So skipping", m)
                 },

@@ -14,11 +14,15 @@ macro_rules! set_new_path_to_buffer_db {
         let new_buffer_path;
 
         {
-            let mut default_buffer_path = $buffer_name.lock();
+            let default_name_path;
+            {
+                let default_buffer_path = $buffer_name.lock();
+                default_name_path = default_buffer_path.clone();
+            }
 
-            new_buffer_path = format!("{}{}", $buffer_path, *default_buffer_path);
+            new_buffer_path = format!("{}{}", $buffer_path, default_name_path);
 
-            *default_buffer_path = new_buffer_path.clone();
+            // *default_buffer_path = new_buffer_path.clone();
 
             // Create the directory if it does not exist
             let dir_path = std::path::Path::new(&$buffer_path);

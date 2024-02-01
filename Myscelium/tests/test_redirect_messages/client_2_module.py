@@ -86,7 +86,7 @@ class Receivers:
             response = client_patterns.response_pattern(
                 kwargs={}, 
                 response_mode="retransmit",
-                retransmit_to_client_id=,
+                retransmit_to_client_id="",
             )
 
             # TODO >>> Add incorrect data message to send back through redirect
@@ -119,9 +119,9 @@ class Receivers:
             # )
 
             response =  client_patterns.redirect_error_pattern(
-                error_message=,
-                expected_remote_error_handler=,
-                redirect_to=
+                error_message="incorrect_birth",
+                expected_remote_error_handler="",
+                redirect_to="",
             )
 
 

@@ -6,6 +6,7 @@ mod socket_client;
 mod socket_host;
 
 mod host_entry_point;
+use common::structs::available_commands::Node;
 use host_entry_point::*;
 
 mod client_entry_point;
@@ -21,19 +22,31 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+use common::client_network_controller::availability_controller::AllowedNetWorkController;
+
+extern crate chrono;
+use crate::chrono::TimeZone;
+use crate::common::structs::available_commands::NetworkMap;
+use crate::socket_client::states_manager::manager::ClientState;
+
 lazy_static! {
 
     // CLIENT
     pub static ref CLIENT_IS_RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
-    pub static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+    pub static ref CLIENT_IS_SYNC: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    pub static ref CLIENT_NODE_KEY: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref CLIENT_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
+    pub static ref CLIENT_IS_READY: Arc<AtomicBool> = Arc::new(AtomicBool::new(false)); // TODO >>> Finish the impl of this
+    pub static ref CLIENT_NODE_CONFIGS: Arc<Mutex<Node>> = Arc::new(Mutex::new(Node::empty_node()));
+    pub static ref CLIENT_STATE_MANAGER: Arc<Mutex<ClientState>> = Arc::new(Mutex::new(ClientState::empty()));
 
     // HOST:
     pub static ref HOST_IS_RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
     pub static ref HOST_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
     pub static ref HOST_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
-
+    pub static ref HOST_IS_READY: Arc<AtomicBool> = Arc::new(AtomicBool::new(false)); // TODO >>> Finish the impl of this
+    pub static ref HOST_COMMAND_PATTERNS: Arc<Mutex<NetworkMap>> = Arc::new(Mutex::new(NetworkMap::new(Vec::new())));
 }
 
 // #[pyfunction]
@@ -116,11 +129,16 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(initialize_client_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_client_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_client, m)?)?;
+    m.add_function(wrap_pyfunction!(get_client_state, m)?)?;
+
     m.add_function(wrap_pyfunction!(set_socket_client_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(client_send, m)?)?;
-    m.add_function(wrap_pyfunction!(set_client_uid, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_client_log_level, m)?)?;
+    m.add_function(wrap_pyfunction!(get_socket_client_available_handlers, m)?)?;
+    m.add_function(wrap_pyfunction!(set_client_key, m)?)?;
+    m.add_function(wrap_pyfunction!(is_client_ready, m)?)?;
     // m.add_function(wrap_pyfunction!(registry_client_logs_handler, m)?)?;
+    m.add_function(wrap_pyfunction!(is_target_ready, m)?)?;
 
     Ok(())
 }

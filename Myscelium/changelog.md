@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.3.0 - ReliseCandidate (18/08/2023)
+## v1.3.0 - ReleaseCandidate (18/08/2023)
 
 Certainly! Here's how you might integrate the additional updates into the existing ones:
 
@@ -55,6 +55,7 @@ Certainly! Here's how you might integrate the additional updates into the existi
    - "Added the InternalMannangement handler in the transposer."
    - "Implemented error patterns to send errors back to the client using the new communication method"
    - "Added confirmation messages and error messages to the inner management"
+   - "Client now has a new type of command, the direct_function, this function doeesn't need to be implemented by user, these are functions like `get_socket_client_available_handlers` and `update_available_host_commands`, they are internal functions that do especialized things like sync the host available commands for that client or to get the callbacks that this client has remotelly by host"
 
 7. **Type and Verification:**
    - "Add `type_of` and `fast_verify_kwargs_and_types` to `ResultType` enum, this can facilitate the process of checking a type of a `ResultType` and also recursively check if the Result matches with a predefined pattern in a very fast way by providing a reference target to `fast_verify_kwargs_and_types` that can return an empty Ok() when all is fine and return a enum `ExpectationError` when something isn't correct."
@@ -74,7 +75,7 @@ Certainly! Here's how you might integrate the additional updates into the existi
 - Solve issues in tests of connection
 
 
-## v1.2.0 - ReliseCandidate (18/08/2023)
+## v1.2.0 - ReleaseCandidate (18/08/2023)
 
 ### Updates
 - Add logs buffer
@@ -119,7 +120,7 @@ Certainly! Here's how you might integrate the additional updates into the existi
 - Fix redirect serialization, desserialization and reincoding to redirect
 
 
-## v1.1.0 - ReliseCandidate (08/08/2023)
+## v1.1.0 - ReleaseCandidate (08/08/2023)
 
 ### Updates
 - Add a automatic pytest to test all the lib making connections from client to host and testisng remote function callbacks activationa and client response handlers
