@@ -770,6 +770,9 @@ fn handle_connection(stream: &mut TcpStream) {
                         CommandTarget::ClientKey(target) => {
                             // TODO >>> WHEN ADD THE PERMISSIONS ADD A MECHANISM TO CHECK IF THE CLIENT HAS PERMISSION TO ACCESS THIS ENDPOINTS
 
+                            // > EARLY REMOVE FROM DOWN BUFFER TO AVOID REPETITION ERRORS SINCE THE COMMAND IS ALREADY BEING PROCESSED
+                            enhanced_buffer::buffer_down_manager::buffer_down_remove_schedule_by_parity_id(command.client_key.clone(), command.parity_id.clone());
+
                             //> PREVIOUSLY CHECK REQUIREMENTS BEFORE REDIRECT
                             if !command_patterns.target_is_reachable(target).unwrap() {
                                 let command: Command = create_error_command_response!(
