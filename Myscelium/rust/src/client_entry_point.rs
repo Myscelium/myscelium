@@ -484,7 +484,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
 
     // TODO >>> Add the new mechanism of Network Commands here
 
-    set_socket_client_transposer_callbacks(callbacks_patterns);
+    OxidizedMyscelium::set_client_callbacks(callbacks_patterns);
 
     Ok(())
 }
