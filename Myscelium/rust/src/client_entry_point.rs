@@ -65,7 +65,7 @@ pub fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
 /// Sets the global `CLIENT_IS_RUNNING` atomic flag to `false`.
 ///
 fn stop_socket_client() {
-    CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+    OxidizedMyscelium::CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
 }
 
 /// Initializes the buffer tables for the client.
@@ -84,11 +84,7 @@ fn stop_socket_client() {
 #[pyfunction]
 pub fn initialize_client_buffer_tables(path: &PyString) {
     let buffer_path: String = path.extract().unwrap();
-
-    initialize_client_logs_database_dir(buffer_path.clone());
-    initialize_client_buffer(buffer_path.clone());
-    inialize_client_status_table_table(buffer_path.clone());
-
+    OxidizedMyscelium::initialize_client_buffer_tables(&buffer_path);
     return;
 }
 
@@ -221,34 +217,7 @@ pub fn is_target_ready(py: Python, node_key: String) -> PyResult<Py<PyBool>> {
 
 #[pyfunction]
 pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
-    let client_status = match ClientState::load_from_storage() {
-        Ok(c) => c,
-        Err(_) => {
-            return Ok(PyBool::new(py, false).into());
-        },
-    };
-
-    //if !client_status.is_fully_initialized() {
-    //    return Ok(PyBool::new(py, false).into());
-    //}
-
-    if let Some(sync) = client_status.is_sync {
-        if !sync {
-            return Ok(PyBool::new(py, false).into());
-        };
-    } else {
-        return Ok(PyBool::new(py, false).into());
-    }
-
-    if let Some(ready) = client_status.is_ready {
-        if !ready {
-            return Ok(PyBool::new(py, false).into());
-        }
-    } else {
-        return Ok(PyBool::new(py, false).into());
-    }
-
-    return Ok(PyBool::new(py, true).into());
+    return Ok(PyBool::new(py, OxidizedMyscelium::is_client_ready()).into());
 }
 
 /// Sends a c:ommand from the client.
@@ -268,7 +237,7 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
-    if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
+    if !OxidizedMyscelium::CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
         println!("Error, client isn't running, pls run the client before try to send something!");
         return Err(PyErr::new::<exceptions::PyValueError, _>("Client isn't running! Please start client before try to send something."));
     }
@@ -284,19 +253,21 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
     }
 
     let converted_command = handle_pyobject(py, command);
-
     println!("\nConverted Command to schedule: {:?}\n", converted_command);
 
     match converted_command {
         ResultType::Map(m) => {
             println!("Scheduling to send {:?}", m);
-            let outcome = match schedule(m, priority) {
+            let _ = match OxidizedMyscelium::client_send_hashmap(m, priority) {
                 Ok(o) => o,
                 Err(e) => match e {
-                    scheduler::SchedulingError::CantReadStates => {
+                    OxidizedMyscelium::ClientError::ClientIsNotRunning => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't read client states, maybe not ready yet!")));
                     },
-                    scheduler::SchedulingError::ClientIsntFullyInitialized => {
+                    OxidizedMyscelium::ClientError::ClientNotFullyInitialized => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client isn't fully initialized yet, pls wait!")));
+                    },
+                    OxidizedMyscelium::ClientError::NotAbleToReadClientStates => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client isn't fully initialized yet, pls wait!")));
                     },
                 },
@@ -315,30 +286,6 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
 
     Ok("Sended!".to_string().into_py(py))
 }
-
-/// Sets the target host for the client.
-///
-/// # TODO
-///
-/// This function's implementation is not provided. It needs to be implemented.
-///
-/// # Python Binding
-///
-/// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-fn set_client_host_target() {}
-
-/// Sets the number of worker threads for the client.
-///
-/// # TODO
-///
-/// This function's implementation is not provided. It needs to be implemented.
-///
-/// # Python Binding
-///
-/// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-fn set_client_workers_num() {}
 
 /// Sets the log level for the client.
 ///
