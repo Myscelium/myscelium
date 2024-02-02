@@ -1,5 +1,6 @@
 // use socket_client;
 
+use std::any::Any;
 use std::collections::HashMap;
 
 use crate::common::enhanced_buffer::utilities::CommandType;
@@ -303,23 +304,19 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
 #[pyfunction]
 pub fn set_socket_client_log_level(log_level: &PyString) {
     let log_level: String = log_level.extract().unwrap();
-
-    set_client_log_level(log_level);
-
+    OxidizedMyscelium::set_socket_client_log_level(&log_level);
     return;
 }
 
 #[pyfunction]
 pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject> {
-    let commands = get_available_handlers_registered();
-
+    let commands = OxidizedMyscelium::get_socket_client_available_handlers();
     // Convert the HashMap values to PyObjects
     let py_dict: &PyDict = PyDict::new(py);
     for (key, value) in commands {
         let py_value = translate_value_to_py(py, value)?;
         py_dict.set_item(key, py_value)?;
     }
-
     Ok(py_dict.into())
 }
 
@@ -335,6 +332,29 @@ pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject
 
 //     Ok(())
 // }
+
+fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any + 'static>>) -> Box<dyn Any> + Send + Sync> {
+    Box::new(move |args: Vec<Box<dyn Any + 'static>>| {
+        // Acquire the GIL within the closure
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // Convert Rust arguments to Python arguments as before
+        let py_args: Vec<PyObject> = args
+            .into_iter()
+            .map(|arg| {
+                // Convert arguments to PyObject; adjust conversion logic as needed
+                arg.downcast_ref::<i32>().map_or_else(|| py.None(), |&val| val.into_py(py))
+            })
+            .collect();
+
+        // Call the Python function with the converted arguments
+        let result = py_func.call1(py, (py_args,)).unwrap();
+
+        // Convert the Python function's return value back to Rust
+        Box::new(result) as Box<dyn Any>
+    })
+}
 
 /// Registers Python callback functions for the socket client.
 ///
@@ -367,7 +387,6 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
     //
 
     let mut client_handlers: Vec<NodeHandler> = Vec::new();
-
     let mut callbacks_patterns = HashMap::new();
 
     for command in commands.iter() {
@@ -405,10 +424,14 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         let handler: NodeHandler = NodeHandler::new(function_name.to_string(), args_types_value.clone(), CommandType::ExternalFunction, HandlerStatus::NotTested, HashMap::new(), "".to_string());
         client_handlers.push(handler);
 
-        let function = function.downcast::<PyFunction>()?.clone();
+        // Inside your loop over commands
+        let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
 
-        let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
-        callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
+        // Wrap the Python function to match CallbackClosure signature
+        let wrapped_function = wrap_py_function(function, py);
+
+        // Assuming `my_callbacks` is an instance of MyCallbacks
+        callbacks_patterns.insert(function_name.to_string(), wrapped_function);
     }
 
     let client_name: String;
