@@ -7,6 +7,8 @@ use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::{ClientState, StateManagerError};
 use OxidizedMyscelium::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
+use crate::common::functions::extract_arg_types;
+use crate::common::functions::translate_value_to_py;
 use parking_lot::Mutex;
 use pyo3::exceptions;
 use pyo3::prelude::*;
@@ -492,7 +494,7 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
 
 #[pyfunction]
 pub fn set_client_key(client_key: String) {
-    socket_client::set_client_uid(client_key.clone());
+    OxidizedMyscelium::set_client_key(client_key.clone());
     {
         let mut key = CLIENT_NODE_KEY.lock();
         *key = client_key.clone();
@@ -529,94 +531,7 @@ pub fn set_client_key(client_key: String) {
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_key: String, client_name: String) {
-    // Spawn a thread to periodically check for deadlocks
-    thread::spawn(|| {
-        loop {
-            let deadlocks = parking_lot::deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                thread::sleep(Duration::from_millis(200)); // Check every 200 millis
-                continue;
-            }
-
-            println!("{} deadlocks detected", deadlocks.len());
-            for (i, threads) in deadlocks.iter().enumerate() {
-                println!("Deadlock #{}", i);
-                for t in threads {
-                    println!("Thread Id {:?}", t.thread_id());
-                    println!("{:?}", t.backtrace());
-                }
-            }
-        }
-    });
-    // -> INITIALIZE RustPyNet MODULE
-
-    // // Initialize the Python interpreter
-    // pyo3::prepare_freethreaded_python();
-
-    // // Start processing tasks in a separate thread
-    // std::thread::spawn(move || {
-    //     start_processing_host_python_tasks();
-    // });
-
-    std::thread::sleep(std::time::Duration::from_secs(2)); // for example, wait for 5 seconds
-
-    // -> SET CLIENT NAME IN CLIENT STATE MANAGER MEMORY SO WHEN THE CALLBACKS BE REGISTRED IT CAN
-    // BE APLIED
-    {
-        let mut name = CLIENT_NODE_NAME.lock();
-        *name = client_name.clone();
-        let mut client_states = ClientState::load_from_storage().unwrap();
-        client_states.name = Some(name.clone());
-        client_states.update_schedule_with_this().unwrap();
-    }
-
-    CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
-
-    // let mut client_key: String = "".to_string();
-
-    {
-        let mut key = CLIENT_NODE_KEY.lock();
-        *key = client_key.clone();
-    }
-
-    // let client_key_storage = CLIENT_ID;
-    // smart_lock(&*client_key_storage, |key: &mut String| {
-    //     *key = client_id.clone();
-    // });
-
-    let address = format!("{}:{}", ip, port);
-
-    thread::spawn(|| {
-        ctrlc::set_handler(move || {
-            if CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
-                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                println!("\nreceived Ctrl+C!\n");
-                stop_socket_client();
-            }
-        })
-        .expect("Error setting Ctrl-C handler");
-
-        initialize_client(address);
-
-        println!("Socket host exited successfully!");
-
-        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-    });
-
-    // scheduler::request_host_available_commands();
-
-    loop {
-        println!("➡️ Client status: {}", CLIENT_IS_RUNNING.load(Ordering::SeqCst));
-
-        if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
-            println!("Stop the core!");
-            break;
-        }
-
-        initialize_socket_client_transposer();
-    }
-
-    println!("Socket transposer exited successfully!");
+    OxidizedMyscelium::initialize_socket_client(ip, port, client_key, client_name);
 }
 
 // / Sets the unique identifier (UID) for the client.
