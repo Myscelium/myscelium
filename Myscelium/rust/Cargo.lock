@@ -3,6 +3,25 @@
 version = 3
 
 [[package]]
+name = "OxidizedMyscelium"
+version = "1.3.0"
+dependencies = [
+ "chrono",
+ "cpython",
+ "ctrlc",
+ "lazy_static",
+ "oxidized_myscelium_macros",
+ "parking_lot 0.11.2",
+ "proc-macro2",
+ "quote",
+ "rand",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -345,10 +364,12 @@ dependencies = [
 name = "myscelium_engine"
 version = "1.3.0"
 dependencies = [
+ "OxidizedMyscelium",
  "chrono",
  "cpython",
  "ctrlc",
  "lazy_static",
+ "oxidized_myscelium_macros",
  "parking_lot 0.11.2",
  "pyo3",
  "rand",
@@ -391,6 +412,24 @@ name = "once_cell"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
+
+[[package]]
+name = "oxidized_myscelium_macros"
+version = "1.3.0"
+dependencies = [
+ "chrono",
+ "cpython",
+ "ctrlc",
+ "lazy_static",
+ "parking_lot 0.11.2",
+ "proc-macro2",
+ "quote",
+ "rand",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "parking_lot"
