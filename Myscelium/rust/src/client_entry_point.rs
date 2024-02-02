@@ -36,7 +36,7 @@ use crate::socket_client::transposer::{initialize_socket_client_transposer, set_
 use crate::common::functions::python_functions::extract_arg_types;
 use crate::common::functions::python_functions::translate_value_to_py;
 
-use OxidizedMyscelium::client
+use OxidizedMyscelium;
 
 /// Sets the number of worker threads for the socket client transposer.
 ///
@@ -54,9 +54,7 @@ use OxidizedMyscelium::client
 #[pyfunction]
 pub fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
     let workers_num: u32 = n_workers.extract().unwrap();
-
-    set_socket_client_transposer_workers_num(workers_num);
-
+    OxidizedMyscelium::set_socket_client_transposer_num_of_workers(workers_num);
     return;
 }
 
