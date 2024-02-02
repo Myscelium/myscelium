@@ -507,9 +507,9 @@ pub fn set_client_key(client_key: String) {
     }
 }
 
-use RustPyNet::python_pool::pool::PythonTaskError;
-use RustPyNet::python_pool::pool::PythonTaskQueue;
-use RustPyNet::python_pool::pool::{start_processing_host_python_tasks, PythonTaskResult};
+// use RustPyNet::python_pool::pool::PythonTaskError;
+// use RustPyNet::python_pool::pool::PythonTaskQueue;
+// use RustPyNet::python_pool::pool::{start_processing_host_python_tasks, PythonTaskResult};
 
 /// Initializes the socket client, sets up deadlock detection, and starts the main processing loop.
 ///
@@ -558,13 +558,13 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
     });
     // -> INITIALIZE RustPyNet MODULE
 
-    // Initialize the Python interpreter
-    pyo3::prepare_freethreaded_python();
+    // // Initialize the Python interpreter
+    // pyo3::prepare_freethreaded_python();
 
-    // Start processing tasks in a separate thread
-    std::thread::spawn(move || {
-        start_processing_host_python_tasks();
-    });
+    // // Start processing tasks in a separate thread
+    // std::thread::spawn(move || {
+    //     start_processing_host_python_tasks();
+    // });
 
     std::thread::sleep(std::time::Duration::from_secs(2)); // for example, wait for 5 seconds
 
