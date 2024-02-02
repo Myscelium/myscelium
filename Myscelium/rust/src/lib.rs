@@ -2,32 +2,28 @@
 #[allow(unused_extern_crates)]
 mod common;
 
-mod socket_client;
-mod socket_host;
-
 mod host_entry_point;
-use common::structs::available_commands::Node;
 use host_entry_point::*;
 
 mod client_entry_point;
 use client_entry_point::*;
 
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
+
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-
-use lazy_static::lazy_static;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use parking_lot::Mutex;
-
-use common::client_network_controller::availability_controller::AllowedNetWorkController;
+use OxidizedMyscelium::AllowedNetWorkController;
+use OxidizedMyscelium::ClientState;
+use OxidizedMyscelium::NetworkMap;
+use OxidizedMyscelium::Node;
 
 extern crate chrono;
 use crate::chrono::TimeZone;
-use crate::common::structs::available_commands::NetworkMap;
-use crate::socket_client::states_manager::manager::ClientState;
 
 lazy_static! {
 
