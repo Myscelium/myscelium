@@ -2,43 +2,29 @@
 
 use std::collections::HashMap;
 
-use crate::common::enhanced_buffer::utilities::CommandType;
-use crate::common::structs::available_commands::{HandlerStatus, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
-use crate::socket_host::socket_host::{get_available_commands_registered, initialize_host};
-use crate::socket_host::socket_host::{initialize_host_buffer, set_heartbeat_callback, set_max_conns};
-use crate::socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
+use crate::common::functions::extract_arg_types;
+use crate::common::functions::translate_value_to_py;
+use crate::{HOST_COMMAND_PATTERNS, HOST_IS_RUNNING};
+use OxidizedMyscelium::{ClientStatusPoolError, Clients};
 
-use crate::socket_host::host_logger::log_handler::{initialize_host_logs_database_dir, set_host_log_level};
-
-use crate::socket_host::client_manager::manager::{check_if_client_key_exists, clients_manager_initialize_table, set_host_clients_manager__pool_workers_num};
-use crate::socket_host::client_manager::manager::{Client, ClientError};
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 
-use crate::common::functions::python_functions::translate_value_to_py;
-
 use serde_json::Value;
 
+use std::sync;
 use std::sync::atomic::Ordering;
-
-use parking_lot::Mutex;
-
+use std::sync::Arc;
+use std::sync::MutexGuard;
 use std::thread;
-
 use std::time::Duration;
 
-use crate::common::functions::python_functions::extract_arg_types;
-
-use crate::socket_host::sync_controller::controller::{ClientStatusPoolError, Clients};
-use crate::{HOST_COMMAND_PATTERNS, HOST_IS_RUNNING};
-use std::sync;
-use std::sync::MutexGuard;
-
-use lazy_static::lazy_static;
-use std::sync::Arc;
-
-use crate::common::functions::advanced_lockers::smart_lock;
+use OxidizedMyscelium::CommandType;
+use OxidizedMyscelium::{Client, ClientError};
+use OxidizedMyscelium::{HandlerStatus, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
 lazy_static! {
     pub static ref CLIENTS_SYNC_CONTROLLER: Arc<Mutex<Clients>> = Arc::new(Mutex::new(Clients::new()));
@@ -114,43 +100,53 @@ macro_rules! process_commands {
 }
 
 #[pyfunction]
-pub fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
-    let workers_num: u32 = n_workers.extract().unwrap();
-
-    set_socket_host_transposer_workers_num(workers_num);
-
-    return;
+pub fn setup_socket_host(buffer_path: String, log_level: String, n_workers: u32, n_max_conns: u32) {
+    OxidizedMyscelium::setup_socket_host(&buffer_path, &log_level, &n_workers, &n_max_conns);
 }
 
-#[pyfunction]
-pub fn set_socket_host_max_connections(n_max_conns: &PyInt) {
-    let max_conns: u32 = n_max_conns.extract().unwrap();
+// TODO >>> Chang eset workers num, max conns, buffer initialization, socket host level
 
-    set_host_clients_manager__pool_workers_num(max_conns.clone());
-    set_max_conns(max_conns);
+// #[pyfunction]
+// pub fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
+//     let workers_num: u32 = n_workers.extract().unwrap();
 
-    return;
-}
+//     OxidizedMyscelium::set_socket
 
-#[pyfunction]
-pub fn initialize_host_buffer_tables(path: &PyString) {
-    let buffer_path: String = path.extract().unwrap();
+//     set_socket_host_transposer_workers_num(workers_num);
 
-    initialize_host_logs_database_dir(buffer_path.clone());
-    initialize_host_buffer(buffer_path.clone());
-    clients_manager_initialize_table(buffer_path.clone());
+//     return;
+// }
+// #[pyfunction]
+// pub fn set_socket_host_max_connections(n_max_conns: &PyInt) {
+//     let max_conns: u32 = n_max_conns.extract().unwrap();
 
-    return;
-}
+//     set_host_clients_manager__pool_workers_num(max_conns.clone());
+//     set_max_conns(max_conns);
 
-#[pyfunction]
-pub fn set_socket_host_log_level(log_level: &PyString) {
-    let log_level: String = log_level.extract().unwrap();
+//     return;
+// }
 
-    set_host_log_level(log_level);
+// #[pyfunction]
+// pub fn initialize_host_buffer_tables(path: &PyString) {
+//     let buffer_path: String = path.extract().unwrap();
 
-    return;
-}
+//     initialize_host_logs_database_dir(buffer_path.clone());
+//     initialize_host_buffer(buffer_path.clone());
+//     clients_manager_initialize_table(buffer_path.clone());
+
+//     return;
+// }
+
+// #[pyfunction]
+// pub fn set_socket_host_log_level(log_level: &PyString) {
+//     let log_level: String = log_level.extract().unwrap();
+
+//     set_host_log_level(log_level);
+
+//     return;
+// }
+
+// -> --------------------------------------------------------------------------------------------------------------
 
 // #[pyfunction]
 // fn registry_host_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
@@ -378,7 +374,7 @@ pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> 
 // > --------------------------------------------------------------------------------------------------------
 // > Client Management
 
-use crate::handle_client_error;
+// use crate::handle_client_error;
 
 macro_rules! extract_string {
     ($value:expr, $err_msg:expr) => {
