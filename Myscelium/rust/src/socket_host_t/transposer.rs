@@ -532,9 +532,7 @@ pub fn initialize_socket_host_transposer(py: Python<'_>) {
 
         {
             let getting_py = unsafe { Python::assume_gil_acquired() };
-
             let gil_pool = unsafe { getting_py.clone().new_pool() };
-
             py = gil_pool.python();
 
             logger.debug(format!("Aquired python in a process task!"));
