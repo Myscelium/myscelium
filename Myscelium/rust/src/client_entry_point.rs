@@ -333,26 +333,40 @@ pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject
 //     Ok(())
 // }
 
+/// Wraps a Python function into a Rust closure that can be executed with dynamic parameters.
 fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any + 'static>>) -> Box<dyn Any> + Send + Sync> {
-    Box::new(move |args: Vec<Box<dyn Any + 'static>>| {
-        // Acquire the GIL within the closure
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    Box::new(move |args: Vec<Box<dyn Any + 'static>>| -> Box<dyn Any> {
+        // Convert args to Python objects here. You might need to dynamically check types and convert them accordingly.
+        // This is a placeholder showing the concept, actual implementation may vary based on your specific needs.
 
-        // Convert Rust arguments to Python arguments as before
-        let py_args: Vec<PyObject> = args
-            .into_iter()
-            .map(|arg| {
-                // Convert arguments to PyObject; adjust conversion logic as needed
-                arg.downcast_ref::<i32>().map_or_else(|| py.None(), |&val| val.into_py(py))
-            })
-            .collect();
+        // Assuming `py` context is available or obtained from somewhere
+        Python::with_gil(|py| {
+            // Convert Rust `args` into Python objects. This might involve type checking and conversion.
+            let py_args: Vec<PyObject> = args
+                .into_iter()
+                .map(|arg| {
+                    // Example conversion, implement as needed
+                    // arg.into_py(py)
+                    todo!("Implement conversion from Box<dyn Any> to PyObject")
+                })
+                .collect();
 
-        // Call the Python function with the converted arguments
-        let result = py_func.call1(py, (py_args,)).unwrap();
+            // Call the Python function with the converted arguments
+            let result = py_func.call(py, (py_args,), None);
 
-        // Convert the Python function's return value back to Rust
-        Box::new(result) as Box<dyn Any>
+            match result {
+                Ok(py_result) => {
+                    // Convert the Python result back to Rust
+                    // This is a placeholder, actual conversion logic will depend on the expected result type
+                    Box::new(py_result) as Box<dyn Any>
+                },
+                Err(e) => {
+                    // Handle error, maybe convert to a Rust error type
+                    println!("Error calling Python function: {:?}", e);
+                    Box::new(e) as Box<dyn Any>
+                },
+            }
+        })
     })
 }
 
@@ -428,7 +442,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
 
         // Wrap the Python function to match CallbackClosure signature
-        let wrapped_function = wrap_py_function(function, py);
+        let wrapped_function = wrap_py_function(function);
 
         // Assuming `my_callbacks` is an instance of MyCallbacks
         callbacks_patterns.insert(function_name.to_string(), wrapped_function);
@@ -493,6 +507,10 @@ pub fn set_client_key(client_key: String) {
     }
 }
 
+use RustPyNet::python_pool::pool::PythonTaskError;
+use RustPyNet::python_pool::pool::PythonTaskQueue;
+use RustPyNet::python_pool::pool::{start_processing_host_python_tasks, PythonTaskResult};
+
 /// Initializes the socket client, sets up deadlock detection, and starts the main processing loop.
 ///
 /// This function sets up the socket client to communicate with a server and starts the main loop
@@ -538,6 +556,17 @@ pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_ke
             }
         }
     });
+    // -> INITIALIZE RustPyNet MODULE
+
+    // Initialize the Python interpreter
+    pyo3::prepare_freethreaded_python();
+
+    // Start processing tasks in a separate thread
+    std::thread::spawn(move || {
+        start_processing_host_python_tasks();
+    });
+
+    std::thread::sleep(std::time::Duration::from_secs(2)); // for example, wait for 5 seconds
 
     // -> SET CLIENT NAME IN CLIENT STATE MANAGER MEMORY SO WHEN THE CALLBACKS BE REGISTRED IT CAN
     // BE APLIED
