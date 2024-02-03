@@ -6,7 +6,7 @@ use crate::common::functions::extract_arg_types;
 use crate::common::functions::translate_value_to_py;
 use crate::common::functions::wrap_py_function;
 
-use crate::{HOST_COMMAND_PATTERNS, HOST_IS_RUNNING};
+use OxidizedMyscelium::{HOST_COMMAND_PATTERNS, HOST_IS_RUNNING};
 
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
