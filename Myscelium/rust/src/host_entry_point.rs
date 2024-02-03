@@ -4,8 +4,9 @@ use std::collections::HashMap;
 
 use crate::common::functions::extract_arg_types;
 use crate::common::functions::translate_value_to_py;
+use crate::common::functions::wrap_py_function;
+
 use crate::{HOST_COMMAND_PATTERNS, HOST_IS_RUNNING};
-use OxidizedMyscelium::{ClientStatusPoolError, Clients};
 
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
@@ -21,6 +22,8 @@ use std::sync::Arc;
 use std::sync::MutexGuard;
 use std::thread;
 use std::time::Duration;
+
+use OxidizedMyscelium::{ClientStatusPoolError, Clients};
 
 use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::{Client, ClientError};
@@ -178,16 +181,14 @@ pub fn setup_socket_host(buffer_path: String, log_level: String, n_workers: u32,
 /// # Python Binding
 ///
 /// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-pub fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
-    let mut callback_pattern = HashMap::new();
+// #[pyfunction]
+// pub fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
+//     let mut callback_pattern = HashMap::new();
+//     process_commands!(py, commands, callback_pattern);
+//     OxidizedMyscelium::set_heartbeat_callback(callback_pattern);
 
-    process_commands!(py, commands, callback_pattern);
-
-    set_heartbeat_callback(callback_pattern);
-
-    Ok(())
-}
+//     Ok(())
+// }
 
 /// Stops the socket host.
 ///
@@ -256,14 +257,18 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
 
         host_node_handlers.push(host_handler);
 
-        let function = function.downcast::<PyFunction>()?.clone();
+        // Inside your loop over commands
+        let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
 
-        let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
-        callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
+        // Wrap the Python function to match CallbackClosure signature
+        let wrapped_function = Box::new(wrap_py_function(function));
+
+        // Assuming `my_callbacks` is an instance of MyCallbacks
+        callbacks_patterns.insert(function_name.to_string(), wrapped_function);
     }
 
     // Now you can use the command_patterns
-    set_socket_host_transposer_callbacks(callbacks_patterns);
+    OxidizedMyscelium::set_host_callbacks(callbacks_patterns);
 
     let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
     let node_version = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
@@ -289,56 +294,7 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: String) {
-    // Create a global Mutex for demonstration
-    let mutex1 = Mutex::new(0);
-    let mutex2 = Mutex::new(0);
-
-    // Spawn a thread to periodically check for deadlocks
-    thread::spawn(|| {
-        loop {
-            thread::sleep(Duration::from_secs(5)); // Check every 5 seconds
-            let deadlocks = parking_lot::deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                continue;
-            }
-
-            println!("{} deadlocks detected", deadlocks.len());
-            for (i, threads) in deadlocks.iter().enumerate() {
-                println!("Deadlock #{}", i);
-                for t in threads {
-                    println!("Thread Id {:?}", t.thread_id());
-                    println!("{:?}", t.backtrace());
-                }
-            }
-        }
-    });
-
-    let address = format!("{}:{}", ip, port);
-
-    thread::spawn(|| {
-        ctrlc::set_handler(move || {
-            if HOST_IS_RUNNING.load(Ordering::SeqCst) {
-                println!("\nreceived Ctrl+C!\n");
-                stop_socket_host();
-            }
-        })
-        .expect("Error setting Ctrl-C handler");
-
-        initialize_host(address, client_id);
-        println!("Socket host exited successfully!");
-    });
-
-    loop {
-        initialize_socket_host_transposer(py);
-
-        if !HOST_IS_RUNNING.load(Ordering::SeqCst) {
-            println!("Stop the core!");
-            thread::sleep(Duration::from_secs(7));
-            break;
-        }
-    }
-
-    println!("Socket transposer exited successfully!");
+    OxidizedMyscelium::initialize_socket_host(ip, port, client_id)
 }
 
 /// Fetches the list of available commands that the socket host can recognize.
@@ -359,7 +315,7 @@ pub fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: 
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
-    let commands = get_available_commands_registered();
+    let commands = OxidizedMyscelium::get_socket_host_available_commands();
 
     // Convert the HashMap values to PyObjects
     let py_dict: &PyDict = PyDict::new(py);
@@ -374,7 +330,7 @@ pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> 
 // > --------------------------------------------------------------------------------------------------------
 // > Client Management
 
-// use crate::handle_client_error;
+// use crate::handle_manager_client_error;
 
 macro_rules! extract_string {
     ($value:expr, $err_msg:expr) => {
@@ -405,6 +361,8 @@ macro_rules! extract_boolean {
         $value.extract::<bool>().map_err(|_| PyErr::new::<pyo3::exceptions::PyTypeError, _>($err_msg))?
     };
 }
+
+use OxidizedMyscelium::handle_manager_client_error;
 
 /// Sets the list of clients allowed to connect to the socket host.
 ///
@@ -464,8 +422,8 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
 
         let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 
-        if !check_if_client_key_exists(client_key.clone()) {
-            let client = handle_client_error!(Client::new(
+        if !OxidizedMyscelium::check_if_client_key_exists(client_key.clone()) {
+            let client = Client::new(
                 client_name.clone(),
                 client_key.clone(),
                 client_type,
@@ -474,7 +432,7 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
                 client_handlers,
-            ));
+            );
 
             client.save_into_db();
         }
@@ -516,8 +474,8 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
 
         let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 
-        if !check_if_client_key_exists(client_key.clone()) {
-            let client = handle_client_error!(Client::new(
+        if !OxidizedMyscelium::check_if_client_key_exists(client_key.clone()) {
+            let client = Client::new(
                 client_name.clone(),
                 client_key.clone(),
                 client_type,
@@ -526,9 +484,22 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
                 client_handlers,
-            ));
+            );
 
-            client.save_into_db()
+            match client {
+                Ok(c) => c.save_into_db(),
+                Err(e) => match e {
+                    ClientError::ClientIsNotRunning => {
+                        // TODO >>>  Handle this error case
+                    },
+                    ClientError::ClientNotFullyInitialized => {
+                        // TODO >>>  Handle this error case
+                    },
+                    ClientError::NotAbleToReadClientStates => {
+                        // TODO >>>  Handle this error case
+                    },
+                },
+            }
         }
 
         println!("Successfully created client: {} of key: {}", client_name, client_key)

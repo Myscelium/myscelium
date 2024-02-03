@@ -1,28 +1,59 @@
-use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
-
 use pyo3::exceptions;
-
 use pyo3::exceptions::PyException;
+use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
+use pyo3::wrap_pyfunction;
 use pyo3::IntoPy;
 use pyo3::Py;
 use pyo3::ToPyObject;
 use pyo3::{PyErr, PyObject, PyResult, Python};
-
+use serde_json::Value as JsonValue;
+use serde_json::{json, Value};
+use std::any::Any;
+use std::collections::HashMap;
+use std::result;
+use std::sync::MutexGuard;
+use OxidizedMyscelium::Command;
 use OxidizedMyscelium::CommandInstructions;
 use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::ResultType;
 
-use std::collections::HashMap;
-use std::result;
-use std::sync::MutexGuard;
+/// Wraps a Python function into a Rust closure that can be executed with dynamic parameters.
+pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any + 'static>>) -> Box<dyn Any> + Send + Sync> {
+    Box::new(move |args: Vec<Box<dyn Any + 'static>>| -> Box<dyn Any> {
+        // Convert args to Python objects here. You might need to dynamically check types and convert them accordingly.
+        // This is a placeholder showing the concept, actual implementation may vary based on your specific needs.
 
-use OxidizedMyscelium::Command;
+        // Assuming `py` context is available or obtained from somewhere
+        Python::with_gil(|py| {
+            // Convert Rust `args` into Python objects. This might involve type checking and conversion.
+            let py_args: Vec<PyObject> = args
+                .into_iter()
+                .map(|arg| {
+                    // Example conversion, implement as needed
+                    // arg.into_py(py)
+                    todo!("Implement conversion from Box<dyn Any> to PyObject")
+                })
+                .collect();
 
-use serde_json::{json, Value};
+            // Call the Python function with the converted arguments
+            let result = py_func.call(py, (py_args,), None);
 
-use serde_json::Value as JsonValue;
+            match result {
+                Ok(py_result) => {
+                    // Convert the Python result back to Rust
+                    // This is a placeholder, actual conversion logic will depend on the expected result type
+                    Box::new(py_result) as Box<dyn Any>
+                },
+                Err(e) => {
+                    // Handle error, maybe convert to a Rust error type
+                    println!("Error calling Python function: {:?}", e);
+                    Box::new(e) as Box<dyn Any>
+                },
+            }
+        })
+    })
+}
 
 /// Converts a JSON value to its corresponding Python object.
 ///
