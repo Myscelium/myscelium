@@ -632,11 +632,8 @@ class MysceliumHost:
 
         if not hasattr(self, "initialized"):
             self.logging_level = log_level
-
             self.allowed_clients = allowed_clients
-
             self.host_id = host_id
-
             self.buffer_path = buffer_path
 
             special_functions = [
@@ -1284,8 +1281,7 @@ class MysceliumClient:
 
         self.client_uid = client_uid
 
-        mys.initialize_client_buffer_tables(buffer_path)
-        mys.set_client_key(client_uid)
+        mys.setup_client(name, client_uid, buffer_path, log_level)
 
         time.sleep(5)
 
@@ -1396,7 +1392,7 @@ class MysceliumClient:
         """
 
         self.running = True
-        mys.initialize_socket_client(ip, port, self.client_uid, self.name)
+        mys.initialize_socket_client(ip, port)
 
     def stop_client(self, signal, frame):
         """

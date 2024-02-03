@@ -77,12 +77,12 @@ fn stop_socket_client() {
 /// # Python Binding
 ///
 /// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-pub fn initialize_client_buffer_tables(path: &PyString) {
-    let buffer_path: String = path.extract().unwrap();
-    OxidizedMyscelium::initialize_client_buffer_tables(&buffer_path);
-    return;
-}
+// #[pyfunction]
+// pub fn initialize_client_buffer_tables(path: &PyString) {
+//     let buffer_path: String = path.extract().unwrap();
+//     OxidizedMyscelium::initialize_client_buffer_tables(&buffer_path);
+//     return;
+// }
 
 #[derive(Debug, Clone)]
 enum ResultType {
@@ -216,6 +216,21 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
     return Ok(PyBool::new(py, OxidizedMyscelium::is_client_ready()).into());
 }
 
+#[pyfunction]
+pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String) {
+    OxidizedMyscelium::initialize_client_buffer_tables(&buffer_path);
+    OxidizedMyscelium::set_socket_client_log_level(&log_level);
+    OxidizedMyscelium::set_client_key(client_uid.clone());
+    {
+        let mut key = CLIENT_NODE_KEY.lock();
+        *key = client_uid.clone();
+    }
+    {
+        let mut name = CLIENT_NODE_NAME.lock();
+        *name = client_name.clone();
+    }
+}
+
 /// Sends a c:ommand from the client.
 ///
 /// # Parameters
@@ -302,12 +317,12 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
 /// # Python Binding
 ///
 /// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-pub fn set_socket_client_log_level(log_level: &PyString) {
-    let log_level: String = log_level.extract().unwrap();
-    OxidizedMyscelium::set_socket_client_log_level(&log_level);
-    return;
-}
+// #[pyfunction]
+// pub fn set_socket_client_log_level(log_level: &PyString) {
+//     let log_level: String = log_level.extract().unwrap();
+//     OxidizedMyscelium::set_socket_client_log_level(&log_level);
+//     return;
+// }
 
 #[pyfunction]
 pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject> {
@@ -462,14 +477,14 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
     }
 }
 
-#[pyfunction]
-pub fn set_client_key(client_key: String) {
-    OxidizedMyscelium::set_client_key(client_key.clone());
-    {
-        let mut key = CLIENT_NODE_KEY.lock();
-        *key = client_key.clone();
-    }
-}
+// #[pyfunction]
+// pub fn set_client_key(client_key: String) {
+//     OxidizedMyscelium::set_client_key(client_key.clone());
+//     {
+//         let mut key = CLIENT_NODE_KEY.lock();
+//         *key = client_key.clone();
+//     }
+// }
 
 // use RustPyNet::python_pool::pool::PythonTaskError;
 // use RustPyNet::python_pool::pool::PythonTaskQueue;
@@ -500,8 +515,8 @@ pub fn set_client_key(client_key: String) {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_key: String, client_name: String) {
-    OxidizedMyscelium::initialize_socket_client(ip, port, client_key, client_name);
+pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32) {
+    OxidizedMyscelium::initialize_socket_client(ip, port);
 }
 
 // / Sets the unique identifier (UID) for the client.
