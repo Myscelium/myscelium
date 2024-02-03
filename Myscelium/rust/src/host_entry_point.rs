@@ -423,7 +423,7 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
         let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 
         if !OxidizedMyscelium::check_if_client_key_exists(client_key.clone()) {
-            let client = Client::new(
+            let client = handle_manager_client_error!(Client::new(
                 client_name.clone(),
                 client_key.clone(),
                 client_type,
@@ -432,7 +432,7 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
                 client_handlers,
-            );
+            ));
 
             client.save_into_db();
         }
@@ -475,7 +475,7 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
         let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 
         if !OxidizedMyscelium::check_if_client_key_exists(client_key.clone()) {
-            let client = Client::new(
+            let client = handle_manager_client_error!(Client::new(
                 client_name.clone(),
                 client_key.clone(),
                 client_type,
@@ -484,22 +484,9 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
                 client_handlers,
-            );
+            ));
 
-            match client {
-                Ok(c) => c.save_into_db(),
-                Err(e) => match e {
-                    ClientError::ClientIsNotRunning => {
-                        // TODO >>>  Handle this error case
-                    },
-                    ClientError::ClientNotFullyInitialized => {
-                        // TODO >>>  Handle this error case
-                    },
-                    ClientError::NotAbleToReadClientStates => {
-                        // TODO >>>  Handle this error case
-                    },
-                },
-            }
+            client.save_into_db();
         }
 
         println!("Successfully created client: {} of key: {}", client_name, client_key)
