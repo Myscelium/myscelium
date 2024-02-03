@@ -109,16 +109,17 @@ lazy_static! {
 #[pymodule]
 fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // -> Host
-    m.add_function(wrap_pyfunction!(initialize_host_buffer_tables, m)?)?;
+    // m.add_function(wrap_pyfunction!(initialize_host_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
     m.add_function(wrap_pyfunction!(get_socket_host_available_commands, m)?)?;
-    m.add_function(wrap_pyfunction!(set_socket_host_max_connections, m)?)?;
-    m.add_function(wrap_pyfunction!(set_socket_host_transposer_num_of_workers, m)?)?;
+    // m.add_function(wrap_pyfunction!(set_socket_host_max_connections, m)?)?;
+    // m.add_function(wrap_pyfunction!(set_socket_host_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_host_allowed_clients, m)?)?;
     // m.add_function(wrap_pyfunction!(registry_socket_host_client_heartbeat_contact_callback, m)?)?;
     // m.add_function(wrap_pyfunction!(registry_host_logs_handler, m)?)?;
-    m.add_function(wrap_pyfunction!(set_socket_host_log_level, m)?)?;
+    // m.add_function(wrap_pyfunction!(set_socket_host_log_level, m)?)?;
+    m.add_function(wrap_pyfunction!(setup_socket_host, m)?)?;
     m.add_function(wrap_pyfunction!(registry_new_allowed_clients, m)?)?;
 
     // -> Client
