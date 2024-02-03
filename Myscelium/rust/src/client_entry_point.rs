@@ -266,6 +266,12 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
                     OxidizedMyscelium::ClientError::NotAbleToReadClientStates => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client isn't fully initialized yet, pls wait!")));
                     },
+                    OxidizedMyscelium::ClientError::ClientDoesNotExist(c) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client {} doesn't exists!", c)));
+                    },
+                    _ => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Unexpected error case not covered!")));
+                    },
                 },
             };
         },
