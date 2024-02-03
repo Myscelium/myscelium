@@ -659,14 +659,11 @@ class MysceliumHost:
             else:
                 pass
 
-            mys.initialize_host_buffer_tables(buffer_path)
-
-            mys.set_socket_host_log_level(log_level)
+       
+            mys.setup_socket_host(buffer_path, log_level, n_workers, n_max_conns)
 
             mys.registry_socket_host_callbacks(callbacks)
             mys.set_socket_host_allowed_clients(self.allowed_clients)
-            mys.set_socket_host_transposer_num_of_workers(n_workers)
-            mys.set_socket_host_max_connections(n_max_conns)
 
             self.host_thread = None
 
