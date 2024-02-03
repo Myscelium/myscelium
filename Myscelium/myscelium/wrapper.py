@@ -1281,6 +1281,11 @@ class MysceliumClient:
 
         self.client_uid = client_uid
 
+        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
+            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+        else:
+            pass
+
         mys.setup_client(name, client_uid, buffer_path, log_level)
 
         time.sleep(5)
@@ -1289,12 +1294,9 @@ class MysceliumClient:
         self.host_thread = None
         self.initialized = True
 
-        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
-            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
-        else:
-            pass
+       
 
-        mys.set_socket_client_log_level(log_level)
+        # mys.set_socket_client_log_level(log_level)
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
