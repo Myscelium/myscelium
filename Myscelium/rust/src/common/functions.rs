@@ -18,40 +18,85 @@ use OxidizedMyscelium::CommandInstructions;
 use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::ResultType;
 
+use pyo3::prelude::*;
+
+fn convert_boxed_any_to_pyany(py: Python, boxed_any: &Box<dyn Any>) -> PyResult<PyObject> {
+    if let Some(value) = boxed_any.downcast_ref::<bool>() {
+        Ok(value.into_py(py))
+    } else if let Some(value) = boxed_any.downcast_ref::<f64>() {
+        Ok(value.into_py(py))
+    } else if let Some(value) = boxed_any.downcast_ref::<String>() {
+        Ok(value.into_py(py))
+    } else if let Some(vec) = boxed_any.downcast_ref::<Vec<Box<dyn Any>>>() {
+        let py_list = PyList::empty(py);
+        for item in vec {
+            let py_item = convert_boxed_any_to_pyany(py, item)?;
+            py_list.append(py_item)?;
+        }
+        Ok(py_list.into_py(py))
+    } else if let Some(hash_map) = boxed_any.downcast_ref::<HashMap<String, Box<dyn Any>>>() {
+        let py_dict = PyDict::new(py);
+        for (key, value) in hash_map {
+            let py_value = convert_boxed_any_to_pyany(py, value)?;
+            py_dict.set_item(key, py_value)?;
+        }
+        Ok(py_dict.into_py(py))
+    } else if boxed_any.is::<()>() {
+        Ok(py.None())
+    } else {
+        Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unsupported type: {:?}", boxed_any.type_id())))
+    }
+}
+
+fn convert_boxed_anys_to_pyany_vec(boxed_anys: Vec<Box<dyn Any>>) -> PyResult<Vec<PyObject>> {
+    Python::with_gil(|py| {
+        let mut py_objs: Vec<PyObject> = Vec::new();
+        for boxed_any in boxed_anys {
+            let py_obj = convert_boxed_any_to_pyany(py, &boxed_any)?;
+            py_objs.push(py_obj);
+        }
+        Ok(py_objs)
+    })
+}
+
 /// Wraps a Python function into a Rust closure that can be executed with dynamic parameters.
 pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any + 'static>>) -> Box<dyn Any> + Send + Sync> {
     Box::new(move |args: Vec<Box<dyn Any + 'static>>| -> Box<dyn Any> {
         // Convert args to Python objects here. You might need to dynamically check types and convert them accordingly.
         // This is a placeholder showing the concept, actual implementation may vary based on your specific needs.
 
-        // Assuming `py` context is available or obtained from somewhere
-        Python::with_gil(|py| {
-            // Convert Rust `args` into Python objects. This might involve type checking and conversion.
-            let py_args: Vec<PyObject> = args
-                .into_iter()
-                .map(|arg| {
-                    // Example conversion, implement as needed
-                    // arg.into_py(py)
-                    todo!("Implement conversion from Box<dyn Any> to PyObject")
-                })
-                .collect();
+        // Convert Rust `args` into Python objects. This might involve type checking and conversion.
+        let py_args = match convert_boxed_anys_to_pyany_vec(args) {
+            Ok(r) => r,
+            Err(e) => {
+                // Handle error, maybe convert to a Rust error type
+                println!("Error calling Python function: {:?}", e);
+                return Box::new(e) as Box<dyn Any>;
+            },
+        };
 
-            // Call the Python function with the converted arguments
-            let result = py_func.call(py, (py_args,), None);
+        let result: Result<Py<PyAny>, PyErr>;
 
-            match result {
-                Ok(py_result) => {
-                    // Convert the Python result back to Rust
-                    // This is a placeholder, actual conversion logic will depend on the expected result type
-                    Box::new(py_result) as Box<dyn Any>
-                },
-                Err(e) => {
-                    // Handle error, maybe convert to a Rust error type
-                    println!("Error calling Python function: {:?}", e);
-                    Box::new(e) as Box<dyn Any>
-                },
-            }
-        })
+        {
+            let getting_py = unsafe { Python::assume_gil_acquired() };
+            let gil_pool = unsafe { getting_py.clone().new_pool() };
+            let py = gil_pool.python();
+
+            result = py_func.call(py, (py_args,), None);
+        }
+
+        match result {
+            Ok(py_result) => {
+                // Convert the Python result back to Rust
+                // This is a placeholder, actual conversion logic will depend on the expected result type
+                Box::new(py_result) as Box<dyn Any>
+            },
+            Err(e) => {
+                // Handle error, maybe convert to a Rust error type
+                println!("Error calling Python function: {:?}", e);
+                Box::new(e) as Box<dyn Any>
+            },
+        }
     })
 }
 
