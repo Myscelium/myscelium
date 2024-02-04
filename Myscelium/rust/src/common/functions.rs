@@ -76,6 +76,7 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
         };
 
         let result: Result<Py<PyAny>, PyErr>;
+        let value: Value;
 
         {
             let getting_py = unsafe { Python::assume_gil_acquired() };
@@ -83,27 +84,52 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
             let py = gil_pool.python();
 
             result = py_func.call(py, (py_args,), None);
+
+            let response = match result {
+                Ok(py_result) => {
+                    // Convert the Python result back to Rust
+                    // This is a placeholder, actual conversion logic will depend on the expected result type
+                    py_result
+                },
+                Err(e) => {
+                    // Handle error, maybe convert to a Rust error type
+                    println!("Error calling Python function: {:?}", e);
+                    // TODO >>> Create a better error handling mechanism
+                    return Box::new(e) as Box<dyn Any>;
+                },
+            };
+
+            value = extract_pyobject(py, response);
         }
 
-        let response = match result {
-            Ok(py_result) => {
-                // Convert the Python result back to Rust
-                // This is a placeholder, actual conversion logic will depend on the expected result type
-                Box::new(py_result)
-            },
-            Err(e) => {
-                // Handle error, maybe convert to a Rust error type
-                println!("Error calling Python function: {:?}", e);
-                // TODO >>> Create a better error handling mechanism
-                Box::new(e) as Box<dyn Any>
-            },
+        println!("Value map extracted from callback response: {:?}", value);
+        let instrctions = {
+            // Check if the Value is an object and convert it to HashMap
+            if let Some(obj) = value.as_object() {
+                match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
+                    Ok(c) => c,
+                    Err(_) => {
+                        // TODO >>> Handle this error case
+                        // OxidizedMyscelium::ProcessResult::Error("callback return a non valid response!".to_string())
+                        return Box::new("callback return a non valid response!".to_string()) as Box<dyn Any>;
+                    },
+                }
+            } else {
+                // TODO >>> Handle this error case
+                // OxidizedMyscelium::ProcessResult::Error("The value is not a JSON object!".to_string())
+                return Box::new("The value is not a JSON object!".to_string()) as Box<dyn Any>;
+            }
         };
+
+        return Box::new(instrctions) as Box<dyn Any>;
+
+        // serde_json::to_string(value)instrctions.to_value_map();
 
         // TODO >>> Check if the response contains the correct things to cast a command instruction
         // * The response of python should be the exactly thing necessary to cast a Commandinstruction,
         // * and maybe alwready have a method to do so
 
-        CommandInstructions::new(mode, command_type, target, status, origin, actf, kwargs, message)
+        // CommandInstructions::new(mode, command_type, target, status, origin, actf, kwargs, message)
 
         // TODO >>> After cast the CommandInstruction convert it in json using the internal method of it to do this
     })
