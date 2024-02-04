@@ -65,6 +65,8 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
         // Convert args to Python objects here. You might need to dynamically check types and convert them accordingly.
         // This is a placeholder showing the concept, actual implementation may vary based on your specific needs.
 
+        println!("[MYSCELIUM][HOST][PYTHON BRIDGE] - Callback args: {:?}", args);
+
         // Convert Rust `args` into Python objects. This might involve type checking and conversion.
         let py_args = match convert_boxed_anys_to_pyany_vec(args) {
             Ok(r) => r,
