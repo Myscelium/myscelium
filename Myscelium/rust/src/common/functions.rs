@@ -85,18 +85,27 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
             result = py_func.call(py, (py_args,), None);
         }
 
-        match result {
+        let response = match result {
             Ok(py_result) => {
                 // Convert the Python result back to Rust
                 // This is a placeholder, actual conversion logic will depend on the expected result type
-                Box::new(py_result) as Box<dyn Any>
+                Box::new(py_result)
             },
             Err(e) => {
                 // Handle error, maybe convert to a Rust error type
                 println!("Error calling Python function: {:?}", e);
+                // TODO >>> Create a better error handling mechanism
                 Box::new(e) as Box<dyn Any>
             },
-        }
+        };
+
+        // TODO >>> Check if the response contains the correct things to cast a command instruction
+        // * The response of python should be the exactly thing necessary to cast a Commandinstruction,
+        // * and maybe alwready have a method to do so
+
+        CommandInstructions::new(mode, command_type, target, status, origin, actf, kwargs, message)
+
+        // TODO >>> After cast the CommandInstruction convert it in json using the internal method of it to do this
     })
 }
 
