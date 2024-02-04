@@ -77,6 +77,8 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
             },
         };
 
+        println!("[MYSCELIUM][HOST][PYTHON BRIDGE] - py_args: {:?}", py_args);
+
         let result: Result<Py<PyAny>, PyErr>;
         let value: Value;
 
@@ -85,7 +87,8 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
             let gil_pool = unsafe { getting_py.clone().new_pool() };
             let py = gil_pool.python();
 
-            result = py_func.call(py, (py_args,), None);
+            let py_tuple = PyTuple::new(py, &py_args);
+            result = py_func.call(py, py_tuple, None);
 
             let response = match result {
                 Ok(py_result) => {
