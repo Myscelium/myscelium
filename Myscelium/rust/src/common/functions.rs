@@ -34,10 +34,10 @@ fn convert_boxed_any_to_pyany(py: Python, boxed_any: &Box<dyn Any>) -> PyResult<
             py_list.append(py_item)?;
         }
         Ok(py_list.into_py(py))
-    } else if let Some(hash_map) = boxed_any.downcast_ref::<HashMap<String, Box<dyn Any>>>() {
+    } else if let Some(hash_map) = boxed_any.downcast_ref::<HashMap<String, Value>>() {
         let py_dict = PyDict::new(py);
         for (key, value) in hash_map {
-            let py_value = convert_boxed_any_to_pyany(py, value)?;
+            let py_value = convert_json_value_to_pyobject(py, value)?;
             py_dict.set_item(key, py_value)?;
         }
         Ok(py_dict.into_py(py))
