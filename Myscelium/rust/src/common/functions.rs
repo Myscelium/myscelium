@@ -137,14 +137,35 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
                 Ok(r) => r,
                 Err(e) => {
                     // Handle error, maybe convert to a Rust error type
-                    println!("Error calling Python function: {:?}", e);
+                    println!("Error converting box of anys to py any, the error was: {:?}", e);
                     return Box::new(e) as Box<dyn Any>;
                 },
             };
 
             println!("[MYSCELIUM][HOST][PYTHON BRIDGE] - py_args: {:?}", py_args);
 
-            let args = convert_to_tuple(py, &py_args).unwrap();
+            let args;
+
+            if let Ok(tuple) = py_args.extract::<&PyTuple>(py) {
+                args = tuple;
+            }
+            // If obj is a dict, convert its values to a tuple.
+            else if let Ok(dict) = py_args.extract::<&PyDict>(py) {
+                let values = dict.values().into_iter().map(|v| v.to_object(py)).collect::<Vec<_>>();
+                let tuple = PyTuple::new(py, &values);
+                args = tuple;
+            }
+            // If obj is a list, convert it to a tuple by iterating over its elements.
+            else if let Ok(list) = py_args.extract::<&PyList>(py) {
+                let elements = list.into_iter().map(|item| item.to_object(py)).collect::<Vec<_>>();
+                let tuple = PyTuple::new(py, &elements);
+                args = tuple;
+            } else {
+                // For any other type, wrap the obj in a tuple.
+                args = PyTuple::new(py, &[py_args]);
+            }
+
+            // let args = convert_to_tuple(py, &py_args).unwrap();
 
             // let py_tuple = PyTuple::new(py, &args);
             result = py_func.call(py, args, None);
