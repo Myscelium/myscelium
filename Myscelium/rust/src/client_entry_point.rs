@@ -1,40 +1,38 @@
 // use socket_client;
 
+use std::any::Any;
 use std::collections::HashMap;
 
-use crate::common::enhanced_buffer::utilities::CommandType;
-use crate::common::functions::advanced_lockers::smart_lock;
-use crate::common::structs::available_commands::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
-use crate::socket_client::client_logger::log_handler::{initialize_client_logs_database_dir, set_client_log_level};
-use crate::socket_client::states_manager::manager::{inialize_client_status_table_table, ClientState, StateManagerError};
+use OxidizedMyscelium::CommandType;
+use OxidizedMyscelium::{ClientState, StateManagerError};
+use OxidizedMyscelium::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
+use crate::common::functions::extract_arg_types;
+use crate::common::functions::translate_value_to_py;
+use crate::common::functions::wrap_py_function;
+use parking_lot::Mutex;
+use pyo3::exceptions;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
-
-use pyo3::exceptions;
-
 use serde_json::Value;
-
 use std::sync::atomic::Ordering;
-
-use parking_lot::Mutex;
-
 use std::thread;
-
 use std::time::Duration;
 
-use crate::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY, CLIENT_NODE_NAME, CLIENT_STATE_MANAGER};
+use OxidizedMyscelium::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY, CLIENT_NODE_NAME, CLIENT_STATE_MANAGER};
 
 // -> Socket Client main-points:
 
-use crate::socket_client::scheduler::{self, schedule};
-use crate::socket_client::socket_client;
-use crate::socket_client::socket_client::get_available_handlers_registered;
-use crate::socket_client::socket_client::{initialize_client, initialize_client_buffer};
-use crate::socket_client::transposer::{initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num};
+// use crate::socket_client::scheduler::{self, schedule};
+// use crate::socket_client::socket_client;
+// use crate::socket_client::socket_client::get_available_handlers_registered;
+// use crate::socket_client::socket_client::{initialize_client, initialize_client_buffer};
+// use crate::socket_client::transposer::{initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num};
 
-use crate::common::functions::python_functions::extract_arg_types;
-use crate::common::functions::python_functions::translate_value_to_py;
+// use crate::common::functions::python_functions::extract_arg_types;
+// use crate::common::functions::python_functions::translate_value_to_py;
+
+use OxidizedMyscelium;
 
 /// Sets the number of worker threads for the socket client transposer.
 ///
@@ -52,9 +50,7 @@ use crate::common::functions::python_functions::translate_value_to_py;
 #[pyfunction]
 pub fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
     let workers_num: u32 = n_workers.extract().unwrap();
-
-    set_socket_client_transposer_workers_num(workers_num);
-
+    OxidizedMyscelium::set_socket_client_transposer_num_of_workers(workers_num);
     return;
 }
 
@@ -65,7 +61,7 @@ pub fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
 /// Sets the global `CLIENT_IS_RUNNING` atomic flag to `false`.
 ///
 fn stop_socket_client() {
-    CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
+    OxidizedMyscelium::CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
 }
 
 /// Initializes the buffer tables for the client.
@@ -81,16 +77,12 @@ fn stop_socket_client() {
 /// # Python Binding
 ///
 /// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-pub fn initialize_client_buffer_tables(path: &PyString) {
-    let buffer_path: String = path.extract().unwrap();
-
-    initialize_client_logs_database_dir(buffer_path.clone());
-    initialize_client_buffer(buffer_path.clone());
-    inialize_client_status_table_table(buffer_path.clone());
-
-    return;
-}
+// #[pyfunction]
+// pub fn initialize_client_buffer_tables(path: &PyString) {
+//     let buffer_path: String = path.extract().unwrap();
+//     OxidizedMyscelium::initialize_client_buffer_tables(&buffer_path);
+//     return;
+// }
 
 #[derive(Debug, Clone)]
 enum ResultType {
@@ -221,34 +213,22 @@ pub fn is_target_ready(py: Python, node_key: String) -> PyResult<Py<PyBool>> {
 
 #[pyfunction]
 pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
-    let client_status = match ClientState::load_from_storage() {
-        Ok(c) => c,
-        Err(_) => {
-            return Ok(PyBool::new(py, false).into());
-        },
-    };
+    return Ok(PyBool::new(py, OxidizedMyscelium::is_client_ready()).into());
+}
 
-    //if !client_status.is_fully_initialized() {
-    //    return Ok(PyBool::new(py, false).into());
-    //}
-
-    if let Some(sync) = client_status.is_sync {
-        if !sync {
-            return Ok(PyBool::new(py, false).into());
-        };
-    } else {
-        return Ok(PyBool::new(py, false).into());
+#[pyfunction]
+pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String) {
+    OxidizedMyscelium::initialize_client_buffer_tables(&buffer_path);
+    OxidizedMyscelium::set_socket_client_log_level(&log_level);
+    OxidizedMyscelium::set_client_key(client_uid.clone());
+    {
+        let mut key = CLIENT_NODE_KEY.lock();
+        *key = client_uid.clone();
     }
-
-    if let Some(ready) = client_status.is_ready {
-        if !ready {
-            return Ok(PyBool::new(py, false).into());
-        }
-    } else {
-        return Ok(PyBool::new(py, false).into());
+    {
+        let mut name = CLIENT_NODE_NAME.lock();
+        *name = client_name.clone();
     }
-
-    return Ok(PyBool::new(py, true).into());
 }
 
 /// Sends a c:ommand from the client.
@@ -268,7 +248,7 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
-    if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
+    if !OxidizedMyscelium::CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
         println!("Error, client isn't running, pls run the client before try to send something!");
         return Err(PyErr::new::<exceptions::PyValueError, _>("Client isn't running! Please start client before try to send something."));
     }
@@ -284,20 +264,28 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
     }
 
     let converted_command = handle_pyobject(py, command);
-
     println!("\nConverted Command to schedule: {:?}\n", converted_command);
 
     match converted_command {
         ResultType::Map(m) => {
             println!("Scheduling to send {:?}", m);
-            let outcome = match schedule(m, priority) {
+            let _ = match OxidizedMyscelium::client_send_hashmap(m, priority) {
                 Ok(o) => o,
                 Err(e) => match e {
-                    scheduler::SchedulingError::CantReadStates => {
+                    OxidizedMyscelium::ClientError::ClientIsNotRunning => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't read client states, maybe not ready yet!")));
                     },
-                    scheduler::SchedulingError::ClientIsntFullyInitialized => {
+                    OxidizedMyscelium::ClientError::ClientNotFullyInitialized => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client isn't fully initialized yet, pls wait!")));
+                    },
+                    OxidizedMyscelium::ClientError::NotAbleToReadClientStates => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client isn't fully initialized yet, pls wait!")));
+                    },
+                    OxidizedMyscelium::ClientError::ClientDoesNotExist(c) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client {} doesn't exists!", c)));
+                    },
+                    _ => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Unexpected error case not covered!")));
                     },
                 },
             };
@@ -316,30 +304,6 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
     Ok("Sended!".to_string().into_py(py))
 }
 
-/// Sets the target host for the client.
-///
-/// # TODO
-///
-/// This function's implementation is not provided. It needs to be implemented.
-///
-/// # Python Binding
-///
-/// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-fn set_client_host_target() {}
-
-/// Sets the number of worker threads for the client.
-///
-/// # TODO
-///
-/// This function's implementation is not provided. It needs to be implemented.
-///
-/// # Python Binding
-///
-/// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-fn set_client_workers_num() {}
-
 /// Sets the log level for the client.
 ///
 /// # Parameters
@@ -353,26 +317,22 @@ fn set_client_workers_num() {}
 /// # Python Binding
 ///
 /// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-pub fn set_socket_client_log_level(log_level: &PyString) {
-    let log_level: String = log_level.extract().unwrap();
-
-    set_client_log_level(log_level);
-
-    return;
-}
+// #[pyfunction]
+// pub fn set_socket_client_log_level(log_level: &PyString) {
+//     let log_level: String = log_level.extract().unwrap();
+//     OxidizedMyscelium::set_socket_client_log_level(&log_level);
+//     return;
+// }
 
 #[pyfunction]
 pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject> {
-    let commands = get_available_handlers_registered();
-
+    let commands = OxidizedMyscelium::get_socket_client_available_handlers();
     // Convert the HashMap values to PyObjects
     let py_dict: &PyDict = PyDict::new(py);
     for (key, value) in commands {
         let py_value = translate_value_to_py(py, value)?;
         py_dict.set_item(key, py_value)?;
     }
-
     Ok(py_dict.into())
 }
 
@@ -420,7 +380,6 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
     //
 
     let mut client_handlers: Vec<NodeHandler> = Vec::new();
-
     let mut callbacks_patterns = HashMap::new();
 
     for command in commands.iter() {
@@ -458,10 +417,14 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         let handler: NodeHandler = NodeHandler::new(function_name.to_string(), args_types_value.clone(), CommandType::ExternalFunction, HandlerStatus::NotTested, HashMap::new(), "".to_string());
         client_handlers.push(handler);
 
-        let function = function.downcast::<PyFunction>()?.clone();
+        // Inside your loop over commands
+        let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
 
-        let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
-        callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
+        // Wrap the Python function to match CallbackClosure signature
+        let wrapped_function = Box::new(wrap_py_function(function));
+
+        // Assuming `my_callbacks` is an instance of MyCallbacks
+        callbacks_patterns.insert(function_name.to_string(), wrapped_function);
     }
 
     let client_name: String;
@@ -500,7 +463,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
 
     // TODO >>> Add the new mechanism of Network Commands here
 
-    set_socket_client_transposer_callbacks(callbacks_patterns);
+    OxidizedMyscelium::set_client_callbacks(callbacks_patterns);
 
     Ok(())
 }
@@ -514,14 +477,18 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
     }
 }
 
-#[pyfunction]
-pub fn set_client_key(client_key: String) {
-    socket_client::set_client_uid(client_key.clone());
-    {
-        let mut key = CLIENT_NODE_KEY.lock();
-        *key = client_key.clone();
-    }
-}
+// #[pyfunction]
+// pub fn set_client_key(client_key: String) {
+//     OxidizedMyscelium::set_client_key(client_key.clone());
+//     {
+//         let mut key = CLIENT_NODE_KEY.lock();
+//         *key = client_key.clone();
+//     }
+// }
+
+// use RustPyNet::python_pool::pool::PythonTaskError;
+// use RustPyNet::python_pool::pool::PythonTaskQueue;
+// use RustPyNet::python_pool::pool::{start_processing_host_python_tasks, PythonTaskResult};
 
 /// Initializes the socket client, sets up deadlock detection, and starts the main processing loop.
 ///
@@ -548,84 +515,8 @@ pub fn set_client_key(client_key: String) {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32, client_key: String, client_name: String) {
-    // Spawn a thread to periodically check for deadlocks
-    thread::spawn(|| {
-        loop {
-            let deadlocks = parking_lot::deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                thread::sleep(Duration::from_millis(200)); // Check every 200 millis
-                continue;
-            }
-
-            println!("{} deadlocks detected", deadlocks.len());
-            for (i, threads) in deadlocks.iter().enumerate() {
-                println!("Deadlock #{}", i);
-                for t in threads {
-                    println!("Thread Id {:?}", t.thread_id());
-                    println!("{:?}", t.backtrace());
-                }
-            }
-        }
-    });
-
-    // -> SET CLIENT NAME IN CLIENT STATE MANAGER MEMORY SO WHEN THE CALLBACKS BE REGISTRED IT CAN
-    // BE APLIED
-    {
-        let mut name = CLIENT_NODE_NAME.lock();
-        *name = client_name.clone();
-        let mut client_states = ClientState::load_from_storage().unwrap();
-        client_states.name = Some(name.clone());
-        client_states.update_schedule_with_this().unwrap();
-    }
-
-    CLIENT_IS_RUNNING.store(true, Ordering::SeqCst);
-
-    // let mut client_key: String = "".to_string();
-
-    {
-        let mut key = CLIENT_NODE_KEY.lock();
-        *key = client_key.clone();
-    }
-
-    // let client_key_storage = CLIENT_ID;
-    // smart_lock(&*client_key_storage, |key: &mut String| {
-    //     *key = client_id.clone();
-    // });
-
-    let address = format!("{}:{}", ip, port);
-
-    thread::spawn(|| {
-        ctrlc::set_handler(move || {
-            if CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
-                CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-                println!("\nreceived Ctrl+C!\n");
-                stop_socket_client();
-            }
-        })
-        .expect("Error setting Ctrl-C handler");
-
-        initialize_client(address);
-
-        println!("Socket host exited successfully!");
-
-        CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
-    });
-
-    // scheduler::request_host_available_commands();
-
-    loop {
-        println!("➡️ Client status: {}", CLIENT_IS_RUNNING.load(Ordering::SeqCst));
-
-        if !CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
-            println!("Stop the core!");
-            break;
-        }
-
-        initialize_socket_client_transposer();
-    }
-
-    println!("Socket transposer exited successfully!");
+pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32) {
+    OxidizedMyscelium::initialize_socket_client(ip, port);
 }
 
 // / Sets the unique identifier (UID) for the client.

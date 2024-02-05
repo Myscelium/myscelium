@@ -632,11 +632,8 @@ class MysceliumHost:
 
         if not hasattr(self, "initialized"):
             self.logging_level = log_level
-
             self.allowed_clients = allowed_clients
-
             self.host_id = host_id
-
             self.buffer_path = buffer_path
 
             special_functions = [
@@ -659,14 +656,11 @@ class MysceliumHost:
             else:
                 pass
 
-            mys.initialize_host_buffer_tables(buffer_path)
-
-            mys.set_socket_host_log_level(log_level)
+       
+            mys.setup_socket_host(buffer_path, log_level, n_workers, n_max_conns)
 
             mys.registry_socket_host_callbacks(callbacks)
             mys.set_socket_host_allowed_clients(self.allowed_clients)
-            mys.set_socket_host_transposer_num_of_workers(n_workers)
-            mys.set_socket_host_max_connections(n_max_conns)
 
             self.host_thread = None
 
@@ -1287,8 +1281,12 @@ class MysceliumClient:
 
         self.client_uid = client_uid
 
-        mys.initialize_client_buffer_tables(buffer_path)
-        mys.set_client_key(client_uid)
+        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
+            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+        else:
+            pass
+
+        mys.setup_client(name, client_uid, buffer_path, log_level)
 
         time.sleep(5)
 
@@ -1296,12 +1294,9 @@ class MysceliumClient:
         self.host_thread = None
         self.initialized = True
 
-        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
-            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
-        else:
-            pass
+       
 
-        mys.set_socket_client_log_level(log_level)
+        # mys.set_socket_client_log_level(log_level)
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -1399,7 +1394,7 @@ class MysceliumClient:
         """
 
         self.running = True
-        mys.initialize_socket_client(ip, port, self.client_uid, self.name)
+        mys.initialize_socket_client(ip, port)
 
     def stop_client(self, signal, frame):
         """

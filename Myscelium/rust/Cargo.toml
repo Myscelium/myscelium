@@ -23,10 +23,10 @@ chrono = "0.4"
 ctrlc = "3.1.9"
 cpython = "0.5"
 parking_lot = { version = "0.11.1", features = ["deadlock_detection"] }
+OxidizedMyscelium = { path = "../OxidizedMysceliumCore/OxidizedMyscelium" }
+oxidized_myscelium_macros = { path = "../OxidizedMysceliumCore/oxidized_myscelium_macros" }
+RustPyNet = { path = "../RustPyNet/RustPyNet" }
 
 [dependencies.pyo3]
 version = "0.19.2"
 features = ["extension-module"]
-
-
-
