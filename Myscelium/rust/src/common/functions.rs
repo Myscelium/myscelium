@@ -130,7 +130,6 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
 
         // serde_json::to_string(value)instrctions.to_value_map();
 
-        // TODO >>> Check if the response contains the correct things to cast a command instruction
         // * The response of python should be the exactly thing necessary to cast a Commandinstruction,
         // * and maybe alwready have a method to do so
 
