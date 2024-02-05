@@ -91,6 +91,15 @@ class MyHost:
                 max_sub_channels=5
             ),
 
+            self.host_patterns.client_pattern(
+                client_name="TestClient3", 
+                client_type="Interface", 
+                client_key="InitialHostKey", 
+                client_permission_group="", 
+                client_is_super_user=True, 
+                max_sub_channels=5
+            ),
+
         ]
 
         print(allowed_clients)
@@ -119,7 +128,7 @@ class MyHost:
 
         return
 
-    def run(self, ip="127.0.0.1", port=4444, event=None):
+    def run(self, ip="127.0.0.1", port=8000, event=None):
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self.monitor_stop_event)
