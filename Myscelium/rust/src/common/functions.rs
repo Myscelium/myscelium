@@ -41,19 +41,6 @@ fn convert_boxed_any_to_pyany(py: Python, boxed_any: &Box<dyn Any>) -> PyResult<
             py_dict.set_item(key, py_value)?;
         }
         Ok(py_dict.into_py(py))
-    } else if let Some(value) = boxed_any.downcast_ref::<Value>() {
-        // Handle serde_json::Value
-        match value {
-            Value::Object(map) => {
-                let py_dict = PyDict::new(py);
-                for (key, val) in map {
-                    let py_val = convert_json_value_to_pyobject(py, val)?;
-                    py_dict.set_item(key, py_val)?;
-                }
-                Ok(py_dict.into_py(py))
-            },
-            _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Expected a JSON object")),
-        }
     } else if boxed_any.is::<()>() {
         Ok(py.None())
     } else {
@@ -63,12 +50,66 @@ fn convert_boxed_any_to_pyany(py: Python, boxed_any: &Box<dyn Any>) -> PyResult<
 
 fn convert_json_value_to_pyobject(py: Python, value: &Value) -> PyResult<PyObject> {
     match value {
+        Value::Object(map) => {
+            let py_dict = PyDict::new(py);
+            for (key, val) in map.iter() {
+                let py_val = convert_json_value_to_pyobject(py, val)?;
+                py_dict.set_item(key, py_val)?;
+            }
+            Ok(py_dict.into_py(py))
+        },
+        Value::Array(arr) => {
+            let py_list = PyList::empty(py);
+            for val in arr {
+                let py_val = convert_json_value_to_pyobject(py, val)?;
+                py_list.append(py_val)?;
+            }
+            Ok(py_list.into_py(py))
+        },
         Value::String(s) => Ok(s.into_py(py)),
-        Value::Number(n) => Ok(n.as_f64().unwrap().into_py(py)), // Simplification, may need to handle other numeric types
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Ok(i.into_py(py))
+            } else if let Some(f) = n.as_f64() {
+                Ok(f.into_py(py))
+            } else {
+                Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Unsupported number type"))
+            }
+        },
         Value::Bool(b) => Ok(b.into_py(py)),
-        // Handle other serde_json::Value variants as needed
-        _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported JSON value")),
+        Value::Null => Ok(py.None()),
     }
+}
+
+fn convert_boxed_anys_to_pyany(py: Python, boxed_anys: Vec<Box<dyn Any>>) -> PyResult<PyObject> {
+    let py_list = PyList::new(py, &[]);
+    for boxed_any in boxed_anys {
+        if let Some(value) = boxed_any.downcast_ref::<bool>() {
+            py_list.append(value.into_py(py))?;
+        } else if let Some(value) = boxed_any.downcast_ref::<f64>() {
+            py_list.append(value.into_py(py))?;
+        } else if let Some(value) = boxed_any.downcast_ref::<String>() {
+            py_list.append(value.into_py(py))?;
+        } else if let Some(vec) = boxed_any.downcast_ref::<Vec<Box<dyn Any>>>() {
+            let nested_list = convert_boxed_anys_to_pyany(py, vec.clone())?; // This requires handling Vec cloning if necessary
+            py_list.append(nested_list)?;
+        } else if let Some(hash_map) = boxed_any.downcast_ref::<HashMap<String, Box<dyn Any>>>() {
+            let py_dict = PyDict::new(py);
+            for (key, value) in hash_map.iter() {
+                let py_value = convert_boxed_anys_to_pyany(py, vec![value])?; // Adjust for handling HashMap
+                py_dict.set_item(key, py_value)?;
+            }
+            py_list.append(py_dict.into_py(py))?;
+        } else if let Some(value) = boxed_any.downcast_ref::<Value>() {
+            let py_value = convert_json_value_to_pyobject(py, value)?;
+            py_list.append(py_value)?;
+        } else if boxed_any.is::<()>() {
+            py_list.append(py.None())?;
+        } else {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unsupported type: {:?}", boxed_any.type_id())));
+        }
+    }
+    Ok(py_list.into_py(py))
 }
 
 fn convert_boxed_anys_to_pyany_vec(boxed_anys: Vec<Box<dyn Any>>) -> PyResult<Vec<PyObject>> {
