@@ -91,29 +91,29 @@ fn convert_boxed_anys_to_pyany(py: Python, boxed_anys: Vec<Box<dyn Any>>) -> PyR
     Ok(py_list.into_py(py))
 }
 
-fn convert_to_tuple(py: Python, obj: PyObject) -> PyResult<PyObject> {
+fn convert_to_tuple<'a>(py: Python<'a>, obj: &'a PyObject) -> PyResult<&'a PyTuple> {
     // If obj is a tuple, return it directly.
-    if let Ok(_) = obj.extract::<&PyTuple>(py) {
-        return Ok(obj);
+    if let Ok(tuple) = obj.extract::<&PyTuple>(py) {
+        return Ok(tuple);
     }
 
     // If obj is a dict, convert its values to a tuple.
     if let Ok(dict) = obj.extract::<&PyDict>(py) {
         let values = dict.values().into_iter().map(|v| v.to_object(py)).collect::<Vec<_>>();
         let tuple = PyTuple::new(py, &values);
-        return Ok(tuple.into());
+        return Ok(tuple);
     }
 
     // If obj is a list, convert it to a tuple by iterating over its elements.
     if let Ok(list) = obj.extract::<&PyList>(py) {
         let elements = list.into_iter().map(|item| item.to_object(py)).collect::<Vec<_>>();
         let tuple = PyTuple::new(py, &elements);
-        return Ok(tuple.into());
+        return Ok(tuple);
     }
 
     // For any other type, wrap the obj in a tuple.
     let tuple = PyTuple::new(py, &[obj]);
-    Ok(tuple.into())
+    Ok(tuple)
 }
 
 /// Wraps a Python function into a Rust closure that can be executed with dynamic parameters.
@@ -144,10 +144,10 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
 
             println!("[MYSCELIUM][HOST][PYTHON BRIDGE] - py_args: {:?}", py_args);
 
-            let args = convert_to_tuple(py, py_args.into());
+            let args = convert_to_tuple(py, &py_args).unwrap();
 
-            let py_tuple = PyTuple::new(py, &args);
-            result = py_func.call(py, py_tuple, None);
+            // let py_tuple = PyTuple::new(py, &args);
+            result = py_func.call(py, args, None);
 
             let response = match result {
                 Ok(py_result) => {
