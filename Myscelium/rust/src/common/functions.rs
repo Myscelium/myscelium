@@ -41,10 +41,33 @@ fn convert_boxed_any_to_pyany(py: Python, boxed_any: &Box<dyn Any>) -> PyResult<
             py_dict.set_item(key, py_value)?;
         }
         Ok(py_dict.into_py(py))
+    } else if let Some(value) = boxed_any.downcast_ref::<Value>() {
+        // Handle serde_json::Value
+        match value {
+            Value::Object(map) => {
+                let py_dict = PyDict::new(py);
+                for (key, val) in map {
+                    let py_val = convert_json_value_to_pyobject(py, val)?;
+                    py_dict.set_item(key, py_val)?;
+                }
+                Ok(py_dict.into_py(py))
+            },
+            _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Expected a JSON object")),
+        }
     } else if boxed_any.is::<()>() {
         Ok(py.None())
     } else {
         Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unsupported type: {:?}", boxed_any.type_id())))
+    }
+}
+
+fn convert_json_value_to_pyobject(py: Python, value: &Value) -> PyResult<PyObject> {
+    match value {
+        Value::String(s) => Ok(s.into_py(py)),
+        Value::Number(n) => Ok(n.as_f64().unwrap().into_py(py)), // Simplification, may need to handle other numeric types
+        Value::Bool(b) => Ok(b.into_py(py)),
+        // Handle other serde_json::Value variants as needed
+        _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported JSON value")),
     }
 }
 
