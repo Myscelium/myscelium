@@ -82,45 +82,38 @@ fn convert_json_value_to_pyobject(py: Python, value: &Value) -> PyResult<PyObjec
 }
 
 fn convert_boxed_anys_to_pyany(py: Python, boxed_anys: Vec<Box<dyn Any>>) -> PyResult<PyObject> {
-    let py_list = PyList::new(py, &[]);
-    for boxed_any in boxed_anys {
-        if let Some(value) = boxed_any.downcast_ref::<bool>() {
-            py_list.append(value.into_py(py))?;
-        } else if let Some(value) = boxed_any.downcast_ref::<f64>() {
-            py_list.append(value.into_py(py))?;
-        } else if let Some(value) = boxed_any.downcast_ref::<String>() {
-            py_list.append(value.into_py(py))?;
-        } else if let Some(vec) = boxed_any.downcast_ref::<Vec<Box<dyn Any>>>() {
-            let nested_list = convert_boxed_anys_to_pyany(py, vec.clone())?; // This requires handling Vec cloning if necessary
-            py_list.append(nested_list)?;
-        } else if let Some(hash_map) = boxed_any.downcast_ref::<HashMap<String, Box<dyn Any>>>() {
-            let py_dict = PyDict::new(py);
-            for (key, value) in hash_map.iter() {
-                let py_value = convert_boxed_anys_to_pyany(py, vec![value])?; // Adjust for handling HashMap
-                py_dict.set_item(key, py_value)?;
-            }
-            py_list.append(py_dict.into_py(py))?;
-        } else if let Some(value) = boxed_any.downcast_ref::<Value>() {
-            let py_value = convert_json_value_to_pyobject(py, value)?;
-            py_list.append(py_value)?;
-        } else if boxed_any.is::<()>() {
-            py_list.append(py.None())?;
-        } else {
-            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unsupported type: {:?}", boxed_any.type_id())));
-        }
+    let py_list = PyList::empty(py);
+    for boxed_any in boxed_anys.iter() {
+        // Use iter() to avoid moving out of the Vec
+        let py_item = convert_boxed_any_to_pyany(py, boxed_any)?;
+        py_list.append(py_item)?;
     }
     Ok(py_list.into_py(py))
 }
 
-fn convert_boxed_anys_to_pyany_vec(boxed_anys: Vec<Box<dyn Any>>) -> PyResult<Vec<PyObject>> {
-    Python::with_gil(|py| {
-        let mut py_objs: Vec<PyObject> = Vec::new();
-        for boxed_any in boxed_anys {
-            let py_obj = convert_boxed_any_to_pyany(py, &boxed_any)?;
-            py_objs.push(py_obj);
-        }
-        Ok(py_objs)
-    })
+fn convert_to_tuple(py: Python, obj: PyObject) -> PyResult<PyObject> {
+    // If obj is a tuple, return it directly.
+    if let Ok(_) = obj.extract::<&PyTuple>(py) {
+        return Ok(obj);
+    }
+
+    // If obj is a dict, convert its values to a tuple.
+    if let Ok(dict) = obj.extract::<&PyDict>(py) {
+        let values = dict.values().into_iter().map(|v| v.to_object(py)).collect::<Vec<_>>();
+        let tuple = PyTuple::new(py, &values);
+        return Ok(tuple.into());
+    }
+
+    // If obj is a list, convert it to a tuple by iterating over its elements.
+    if let Ok(list) = obj.extract::<&PyList>(py) {
+        let elements = list.into_iter().map(|item| item.to_object(py)).collect::<Vec<_>>();
+        let tuple = PyTuple::new(py, &elements);
+        return Ok(tuple.into());
+    }
+
+    // For any other type, wrap the obj in a tuple.
+    let tuple = PyTuple::new(py, &[obj]);
+    Ok(tuple.into())
 }
 
 /// Wraps a Python function into a Rust closure that can be executed with dynamic parameters.
@@ -131,18 +124,6 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
 
         println!("[MYSCELIUM][HOST][PYTHON BRIDGE] - Callback args: {:?}", args);
 
-        // Convert Rust `args` into Python objects. This might involve type checking and conversion.
-        let py_args = match convert_boxed_anys_to_pyany_vec(args) {
-            Ok(r) => r,
-            Err(e) => {
-                // Handle error, maybe convert to a Rust error type
-                println!("Error calling Python function: {:?}", e);
-                return Box::new(e) as Box<dyn Any>;
-            },
-        };
-
-        println!("[MYSCELIUM][HOST][PYTHON BRIDGE] - py_args: {:?}", py_args);
-
         let result: Result<Py<PyAny>, PyErr>;
         let value: Value;
 
@@ -151,7 +132,21 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
             let gil_pool = unsafe { getting_py.clone().new_pool() };
             let py = gil_pool.python();
 
-            let py_tuple = PyTuple::new(py, &py_args);
+            // Convert Rust `args` into Python objects. This might involve type checking and conversion.
+            let py_args = match convert_boxed_anys_to_pyany(py, args) {
+                Ok(r) => r,
+                Err(e) => {
+                    // Handle error, maybe convert to a Rust error type
+                    println!("Error calling Python function: {:?}", e);
+                    return Box::new(e) as Box<dyn Any>;
+                },
+            };
+
+            println!("[MYSCELIUM][HOST][PYTHON BRIDGE] - py_args: {:?}", py_args);
+
+            let args = convert_to_tuple(py, py_args.into());
+
+            let py_tuple = PyTuple::new(py, &args);
             result = py_func.call(py, py_tuple, None);
 
             let response = match result {
