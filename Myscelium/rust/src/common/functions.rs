@@ -20,33 +20,33 @@ use OxidizedMyscelium::ResultType;
 
 use pyo3::prelude::*;
 
-fn convert_boxed_any_to_pyany(py: Python, boxed_any: &Box<dyn Any>) -> PyResult<PyObject> {
-    if let Some(value) = boxed_any.downcast_ref::<bool>() {
-        Ok(value.into_py(py))
-    } else if let Some(value) = boxed_any.downcast_ref::<f64>() {
-        Ok(value.into_py(py))
-    } else if let Some(value) = boxed_any.downcast_ref::<String>() {
-        Ok(value.into_py(py))
-    } else if let Some(vec) = boxed_any.downcast_ref::<Vec<Box<dyn Any>>>() {
-        let py_list = PyList::empty(py);
-        for item in vec {
-            let py_item = convert_boxed_any_to_pyany(py, item)?;
-            py_list.append(py_item)?;
-        }
-        Ok(py_list.into_py(py))
-    } else if let Some(hash_map) = boxed_any.downcast_ref::<HashMap<String, Value>>() {
-        let py_dict = PyDict::new(py);
-        for (key, value) in hash_map {
-            let py_value = convert_json_value_to_pyobject(py, value)?;
-            py_dict.set_item(key, py_value)?;
-        }
-        Ok(py_dict.into_py(py))
-    } else if boxed_any.is::<()>() {
-        Ok(py.None())
-    } else {
-        Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unsupported type: {:?}", boxed_any.type_id())))
-    }
-}
+// fn convert_boxed_any_to_pyany(py: Python, boxed_any: Box<Value>) -> PyResult<PyObject> {
+//     if let Some(value) = boxed_any.downcast_ref::<bool>() {
+//         Ok(value.into_py(py))
+//     } else if let Some(value) = boxed_any.downcast_ref::<f64>() {
+//         Ok(value.into_py(py))
+//     } else if let Some(value) = boxed_any.downcast_ref::<String>() {
+//         Ok(value.into_py(py))
+//     } else if let Some(vec) = boxed_any.downcast_ref::<Vec<Box<dyn Any>>>() {
+//         let py_list = PyList::empty(py);
+//         for item in vec {
+//             let py_item = convert_boxed_any_to_pyany(py, item)?;
+//             py_list.append(py_item)?;
+//         }
+//         Ok(py_list.into_py(py))
+//     } else if let Some(hash_map) = boxed_any.downcast_ref::<HashMap<String, Value>>() {
+//         let py_dict = PyDict::new(py);
+//         for (key, value) in hash_map {
+//             let py_value = convert_json_value_to_pyobject(py, value)?;
+//             py_dict.set_item(key, py_value)?;
+//         }
+//         Ok(py_dict.into_py(py))
+//     } else if boxed_any.is::<()>() {
+//         Ok(py.None())
+//     } else {
+//         Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unsupported type: {:?}", boxed_any)))
+//     }
+// }
 
 fn convert_json_value_to_pyobject(py: Python, value: &Value) -> PyResult<PyObject> {
     match value {
@@ -83,10 +83,16 @@ fn convert_json_value_to_pyobject(py: Python, value: &Value) -> PyResult<PyObjec
 
 fn convert_boxed_anys_to_pyany(py: Python, boxed_anys: Vec<Box<dyn Any>>) -> PyResult<PyObject> {
     let py_list = PyList::empty(py);
-    for boxed_any in boxed_anys.iter() {
-        // Use iter() to avoid moving out of the Vec
-        let py_item = convert_boxed_any_to_pyany(py, boxed_any)?;
-        py_list.append(py_item)?;
+    for boxed_any in boxed_anys {
+        match boxed_any.downcast::<Value>() {
+            Ok(value_box) => {
+                println!("String value: {}", value_box.clone());
+                let val = value_box.clone();
+                let py_item = convert_json_value_to_pyobject(py, &val)?;
+                py_list.append(py_item)?;
+            },
+            Err(_) => println!("Not a string"),
+        }
     }
     Ok(py_list.into_py(py))
 }
@@ -131,6 +137,19 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
             let getting_py = unsafe { Python::assume_gil_acquired() };
             let gil_pool = unsafe { getting_py.clone().new_pool() };
             let py = gil_pool.python();
+
+            // for any in args {
+            //     let downcasted_args: Result<Box<Value>, Box<dyn Any>> = any.downcast::<Value>();
+            //     match downcasted_args {
+            //         Ok(value_box) => {
+            //             println!("String value: {}", value_box);
+            //             let val = *value_box;
+            //             let converted_map: HashMap<String, Value> = serde_json::from_value(val).unwrap();
+            //             let instructions = CommandInstructions::from_value_map(converted_map).unwrap();
+            //         },
+            //         Err(_) => println!("Not a string"),
+            //     }
+            // }
 
             // Convert Rust `args` into Python objects. This might involve type checking and conversion.
             let py_args = match convert_boxed_anys_to_pyany(py, args) {
