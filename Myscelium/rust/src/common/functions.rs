@@ -91,7 +91,7 @@ fn convert_boxed_anys_to_pyany(py: Python, boxed_anys: Vec<Box<dyn Any>>) -> PyR
                 let py_item = convert_json_value_to_pyobject(py, &val)?;
                 py_list.append(py_item)?;
             },
-            Err(_) => println!("Not a string"),
+            Err(_) => println!("Not a value"),
         }
     }
     Ok(py_list.into_py(py))
