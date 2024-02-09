@@ -10,35 +10,40 @@ from multiprocessing import Process, Event, Manager
 CLIENT_KEY = "some_client_id"
 CLIENT_NAME = "TestClient1"
 TEMP_PATH = "Temp/Client1Data/"
-LOG_LEVEL = "DEBUG"
+LOG_LEVEL = "INFO"
 
 class Senders:
-
     @staticmethod
     def send_some_data():
+        time.sleep(25)
 
-        time.sleep(20)
+        mys_client = MysceliumClient(
+            name="TestClient1",
+            client_uid="some_client_id",
+            buffer_path="Temp/Client1Data/",
+        )
 
-        mys_client = MysceliumClient(name=CLIENT_NAME, client_uid=CLIENT_KEY, buffer_path=TEMP_PATH, log_level=LOG_LEVEL)
+        mys_client.running = True
 
-        max_attempts = 100
-        attempts = 0
+        max_attempts = 10
+        attemtps = 0
         while not mys_client.is_client_ready():
             time.sleep(1)
-            attempts += 1
-            if attempts >= max_attempts:
+            attemtps += 1
+            if attemtps >= max_attempts:
                 assert False, "Take too long to client be ready"
             continue
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
         command = client_patterns.command_pattern(
             CLIENT_KEY,
-            "python_function", 
-            "", # Empty is default
-            {"age": 10, "birth": 8, "name": "cristian"}
+            "python_function",
+            "",  # Empty is default
+            {"age": 10, "birth": 8, "name": "cristian"},
         )
 
         result = mys_client.send(command, priority=10)
+
         print(result)
 
 class Receivers:
@@ -66,28 +71,31 @@ class Receivers:
         
 
 class MyClient:
-
-    def __init__ (self, debug_level):
+    def __init__(self, debug_level):
         self.debug_level = debug_level
 
     def initializer(self):
-
         receivers = Receivers()
 
-        mys_client = MysceliumClient(name=CLIENT_NAME, client_uid=CLIENT_KEY, buffer_path=TEMP_PATH, log_level=LOG_LEVEL)
+        mys_client = MysceliumClient(
+            name="TestClien1",
+            client_uid=CLIENT_KEY,
+            buffer_path="Temp/Client1Data/",
+            log_level=self.debug_level,
+        )
 
         self.mys_client = mys_client
 
         callbacks = [
             client_patterns.callback_pattern(callback=receivers.test_handler),
         ]
-        
+
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
-        
+
         mys_client.initialize_client("127.0.0.1", 8000)
 
-        return 
+        return
     
     def monitor_stop_event(self):
         
@@ -126,4 +134,4 @@ class MyClient:
         return
 
 if __name__ == "__main__":
-    MyClient("DEBUG").run()  
+    MyClient("INFO").run()  

@@ -112,7 +112,7 @@ class MyHost:
             allowed_clients=allowed_clients, 
             buffer_path="Temp/Data/", 
             n_workers=2, 
-            log_level="DEBUG"
+            log_level="INFO"
         )
 
         self.mys_host = mys_host
@@ -146,7 +146,7 @@ class MyHost:
         return 
 
 if __name__ == "__main__":
-    MyHost("DEBUG").run()            
+    MyHost("INFO").run()            
 
 
         
