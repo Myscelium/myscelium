@@ -16,7 +16,12 @@ class Senders:
 
         time.sleep(20)
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client= MysceliumClient(
+            name="TestClien1",
+            client_uid=CLIENT_KEY,
+            buffer_path="Temp/Client1Data/",
+            log_level="INFO",
+        )
         mys_client.running = True
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
@@ -57,29 +62,31 @@ class Receivers:
         
 
 class MyClient:
-
-    def __init__ (self, debug_level):
+    def __init__(self, debug_level):
         self.debug_level = debug_level
 
     def initializer(self):
-
         receivers = Receivers()
 
-        mys_client = MysceliumClient(client_uid=CLIENT_KEY, buffer_path="Temp/Client1Data/", log_level=self.debug_level)
+        mys_client = MysceliumClient(
+            name="TestClien1",
+            client_uid=CLIENT_KEY,
+            buffer_path="Temp/Client1Data/",
+            log_level="INFO",
+        )
 
         self.mys_client = mys_client
 
         callbacks = [
             client_patterns.callback_pattern(callback=receivers.test_handler),
         ]
-        
+
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
 
-        
-        mys_client.initialize_client("127.0.0.1", 4444)
+        mys_client.initialize_client("127.0.0.1", 8000)
 
-        return 
+        return
     
     def monitor_stop_event(self):
         
