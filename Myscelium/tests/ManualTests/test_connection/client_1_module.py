@@ -17,8 +17,9 @@ class Senders:
     @staticmethod
     def send_some_data():
 
+        time.sleep(20)
+
         mys_client = MysceliumClient(name=CLIENT_NAME, client_uid=CLIENT_KEY, buffer_path=TEMP_PATH, log_level=LOG_LEVEL)
-        mys_client.running = True
 
         max_attempts = 100
         attempts = 0

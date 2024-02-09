@@ -1420,12 +1420,11 @@ class MysceliumClient:
         - Response from the send operation.
         """
 
-        print(self.running)
-
-        if not self.running:
-            raise "Client need to be running before try to send something"
-        else:
-            pass
+        # if not mys.is_client_ready():
+        #     raise "Client need to be running before try to send something"
+        # else:
+        #     pass
+        
         return mys.client_send(command, priority)
 
 

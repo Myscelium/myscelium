@@ -248,7 +248,7 @@ pub fn setup_client(client_name: String, client_uid: String, buffer_path: String
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
-    if !OxidizedMyscelium::CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
+    if !OxidizedMyscelium::is_client_ready() {
         println!("Error, client isn't running, pls run the client before try to send something!");
         return Err(PyErr::new::<exceptions::PyValueError, _>("Client isn't running! Please start client before try to send something."));
     }
