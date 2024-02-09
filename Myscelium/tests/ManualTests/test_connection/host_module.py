@@ -112,7 +112,7 @@ class MyHost:
             allowed_clients=allowed_clients, 
             buffer_path="Temp/Data/", 
             n_workers=2, 
-            log_level="INFO"
+            log_level="DEBUG"
         )
 
         self.mys_host = mys_host
