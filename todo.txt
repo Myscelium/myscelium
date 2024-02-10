@@ -1,0 +1,29 @@
+TODO >>> Logs batch insert to use thread trotlle in advantage
+TODO >>> Possible buffer batch insert, when have multiple commands receive at once to use thread trotlle in advantage
+
+TODO >>> Host Client Permission mananger
+TODO >>> Improve tests to test host client permission mananger
+
+TODO >>> Host Client Sub channel mananger
+TODO >>> Improve tests to test host client sub channel mananger
+
+TODO >>> Transform host core into procedural macro wrapper based crate that are injected when build the lib version
+TODO >>> Transform client core into procedural macro wrapper based crate that are injected when build the lib version
+
+TODO >>> Verify the callback infering mecanism because i thing the tipe checking for remote activation is not working at all!
+
+----
+
+### Added
+- Add a new command patterns mecanism to enhance the safety, now they have a dedicated struct with dedicated impl methods
+- Add a enum `ConversionError` to converters be able to specify the error they possible can have
+- New converter `convert_value_map_to_resulttype_map``that can convert `map: &HashMap<String, Value>`to `Result<ResultType, ConversionError>`
+- Organize better the host transpose functions
+- Add direct functions to both client and host
+
+
+
+### TODOS
+- The command.command should have a struct too, some type of mecanism to allow set the required fields or something like that
+
+- Need to update the client mecanism to send command, now is necessary to add a target to where he is sending a command since now commands avalaible have their owners atrelated to them

@@ -1,114 +1,147 @@
 from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
+from multiprocessing import Process, Event, Manager
+import os
+import signal
+import time
 
-host_patterns = HostPatterns()
+import time
 
-# -> Callbacks python functions
+# actual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
-def python_function(age, birth, name):
-
-    #! Don't forget to put the args in the alphabetic order
-    # Your function logic here
-
-    print (birth)
-    print (name)
-    print (age)
-
-    response = host_patterns.response_pattern(response_mode='to_origin', response_activation_function="test_handler", response={"data":'hello!'})
-
-    return response
-
-def test_redirect (client_id, data):
-
-    if isinstance(client_id, str):
-    
-        print (f"Redicrecting data: {data} to client: {client_id}")
-        response = host_patterns.response_pattern(response=data, response_mode='redirect', redirect_to_client_id=client_id)
-        return response
-    
-    else:
-
-        print ("Client id isn't a string, failed to redirect data!")
-        return None
-    
-# -> Host handlers
-
-def handle_client_contact (client_id:str):
-    # print("Access heartbeat handler")
-    # print(f"Client: {client_id}, made contact")
-    return None
-
-def logs_handler (log:dict):
-
-    try:
-        log_time  = log["log_time"]
-        log_level = log["log_level"]
-        log_msg   = log["log_msg"]
-
-        print(f"{log_time} - {log_level} - {log_msg}")
-    except:
-        pass
-
+def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
+    print(client_name, client_key, client_last_contact)
     pass
 
-# -> Set Host callbacks
+class Handlers:
 
-callbacks = [
+    @staticmethod
+    def python_function(age:int, birth:int, name:str):
+        print("Access python function")
+        print(birth)
+        print(name)
+        print(age)
 
-    host_patterns.callback_pattern(callback=python_function, args={
-        "birth": "str",
-        "name": "str",
-        "age": "int",
-    }),
+        host_patterns = HostPatterns()
+        
+        response = host_patterns.response_pattern(
+            response_mode='to_origin',
+            response_activation_function="test_handler",
+            response={"data": 'hello!'}
+        )
 
-    host_patterns.callback_pattern(callback=test_redirect, args={
-        "client_id" : "str", 
-        "data" : "dict",
-    }),
+      
+        
+       
+     
+        # (callback name) - Receive Data: [Data received list for comparison]
 
-]
+        return response
 
-# -> Set host allowed clients whitelist
+class MyHost:
 
-allowed_clients = [
+    def __init__(self, debug_level):
+        self.host_patterns = HostPatterns()
+        self.debug_level = debug_level
 
-    host_patterns.client_pattern(client_type="Interface", client_id="some_client_id"),
-    host_patterns.client_pattern(client_type="Interface", client_id="randomsclientids"),
+    def monitor_stop_event(self):
 
-]
+        time.sleep(5)
 
-# -> Initialize
+        # -> Define how much time host will be alive!
+        # TODO >>> In the future change to use 100% timeout
+        
+        n = 0 
+        COUNTER = 12 # Each counter is 5 secs of waiting
+
+
+        mys_host_interface = MysceliumHostInterface("Temp/Data/")
+
+        mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
+
+        mys_host_interface.start_client_events_retriever()
+
+        while True:
+                continue
+
+        return
+
+    def run_host(self, ip, port):
+
+        handlers = Handlers()
+
+        callbacks = [
+            
+            self.host_patterns.callback_pattern(callback=handlers.python_function),
+            # self.host_patterns.callback_pattern(callback=self.test_redirect),
+
+        ]
+
+        allowed_clients = [
+
+            self.host_patterns.client_pattern(
+                client_name="TestClient1", 
+                client_type="Interface", 
+                client_key="some_client_id", 
+                client_permission_group="", 
+                client_is_super_user=True, 
+                max_sub_channels=5
+            ),
+
+            self.host_patterns.client_pattern(
+                client_name="TestClient2", 
+                client_type="Interface", 
+                client_key="randomsclientids", 
+                client_permission_group="", 
+                client_is_super_user=True, 
+                max_sub_channels=5
+            ),
+
+        ]
+
+        print(allowed_clients)
+
+        # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
+
+        mys_host = MysceliumHost(
+                        callbacks=callbacks, 
+                        host_id="xnsmdkeflerpfsa",
+                        allowed_clients=allowed_clients, 
+                        buffer_path="Temp/Data/", 
+                        n_workers=2, 
+                        log_level=self.debug_level
+                    )
+
+        self.mys_host = mys_host
+
+        # client_heart_beat_handler = [self.host_patterns.callback_pattern(callback=self.handle_client_contact,
+        #                                                                  args={"client_id": "str", "event_key": "str"}), ]
+
+        # mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
+
+        # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTechnologies})
+
+
+        mys_host.initialize_host(ip=ip, port=port)
+
+        return
+
+    def run(self, ip="127.0.0.1", port=8000, event=None):
+
+        host_process = Process(target=self.run_host, args=(ip, port))
+        monitor_process = Process(target=self.monitor_stop_event)
+
+        host_process.start()
+        monitor_process.start()
+
+        monitor_process.join()
+
+        # Send SIGINT to the process
+        os.kill(host_process.pid, signal.SIGINT)
+
+        host_process.join()
+
+        return 
+
 
 if __name__ == '__main__':
-
-    BUFFER_PATH = "Data/"
-
-    mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa", allowed_clients=allowed_clients, buffer_path=BUFFER_PATH, n_workers=2, log_level="DEBUG")
-
-    # client_heart_beat_handler = [host_patterns.callback_pattern(callback=handle_client_contact, args={
-    #     "client_id": "str",
-    # }),] #! Feature removed for now.
-
-    # mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
-
-    # logs_handler = [host_patterns.callback_pattern(callback=logs_handler, args={
-    #     "node_name":"str",
-    #     "log_time":"float",
-    #     "log_name":"str",
-    #     "log_msg":"str",
-    # }),]
-
-    host_logs_interface = MysceliumHostInterface(buffer_path=BUFFER_PATH)
-
-    host_logs_interface.set_logs_callback(callback=logs_handler)
-
-    host_logs_interface.allow_multi_handlers(workers_num=3)
-
-    host_logs_interface.start_logs_retriver()
-
-    # mys_host.set_logs_callback_handler(logs_handler_callback=logs_handler)
-
-    # print(mys_host.get_registred_commands())
-
-    mys_host.initialize_host(ip="127.0.0.1", port=4444)
-
-    
+    MyHost("INFO").run()

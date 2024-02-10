@@ -1,10 +1,10 @@
 
-# TODO >>> Create a test that auto create one host and client and test all the avaliable functionalities of host and clients
+# TODO >>> Create a test that auto create one host and client and test all the available functionalities of host and clients
 
-#> The idea of doing this is auto test everithing with one button, and every thing will be tested
-#> The susscefull ones will be marked with ✅ and the possible bad outcomes if has one will be marked with ❗or ⛔ or 💥
+#> The idea of doing this is auto test everything with one button, and every thing will be tested
+#> The successfully ones will be marked with ✅ and the possible bad outcomes if has one will be marked with ❗or ⛔ or 💥
 
-#> We can also made a test mecanism to tes like 1000 runs of something, test redirects, test file transfer, and then made the final build
+#> We can also made a test mechanism to tes like 1000 runs of something, test redirects, test file transfer, and then made the final build
 #> We can also test bad cases where something is to be wrong, to test the lib strength, etc..
 
 #> And if it passes in all test it will compile the build an jenkins will auto delivery the lib built and the things done in it
