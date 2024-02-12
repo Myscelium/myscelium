@@ -39,3 +39,30 @@ then:
 cd \Myscelium\tests\History
 then:
 -> run: `streamlit run .\interface.py`
+
+# To build a release
+
+```shell
+pip install wheel setuptools setuptools-rust
+```
+then got to: 
+
+```shell
+\Myscelium\Myscelium
+```
+
+And then do:
+
+```shell
+python setup.py bdist_wheel
+```
+
+```shell
+python setup.py bdist_wheel
+```
+
+and then
+
+```shell
+pip install dist/your_package_name-0.1-py3-none-any.whl
+```
