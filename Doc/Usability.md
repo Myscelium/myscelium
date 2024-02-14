@@ -81,7 +81,7 @@ def __init__(
 ) -> None:
 ```
 
-#### Basic setup
+## Basic setup
 
 ```python
 
@@ -120,11 +120,9 @@ mys_host = MysceliumHost(
 )
 ```
 
----
+## Methods
 
-### Methods
-
-#### Set a callback for logs
+### Set a callback for logs
 
 ```python
 mys_host.set_logs_callback_handler(
@@ -135,7 +133,7 @@ mys_host.set_logs_callback_handler(
 ```
 Registers a logs handler.
 
-#### Get the registred commands
+### Get the registred commands
 
 ```python
 mys_host.get_registered_commands() -> dict
@@ -143,12 +141,18 @@ mys_host.get_registered_commands() -> dict
 
 Retrieves the registered commands.
 
-#### Set a callback for client contact
+### Set a callback for client contact
 
-`set_client_heartbeat_handler(callback)`: Registers a client heartbeat handler. 
-- > **Disclaimer:** This will not work untill python pool is finished.
+> **Disclaimer:** This will not work untill python pool is finished.
 
-#### Initialize the host
+
+```python
+mys_host.set_client_heartbeat_handler(callback)
+```
+Registers a client heartbeat handler. 
+
+
+### Initialize the host
 
 ```python
 mys_host.initialize_host(self, ip: str, port: int)
@@ -160,17 +164,20 @@ Parameters:
 - ip: IP address for the host.
 - port: Port number for the host.
 
-#### Shutdown host
+### Shutdown host
 
-- `stop_host(signal, frame)`: Stops the host.
+```python
+mys_host.stop_host(signal, frame)
+```
+Stops the host.
 
-## HostPatterns Class
+# HostPatterns Class
 
 The `HostPatterns` class provides patterns for the host.
 
-### Methods
+## Methods
 
-#### client_pattern
+### client_pattern
 
 ```python
 HostPatterns().client_pattern(
@@ -199,7 +206,7 @@ Parameters:
 Returns:
 - Dictionary representing the client pattern.
 
-#### response_pattern
+### response_pattern
 
 ```python
 HostPatterns().response_pattern(
@@ -238,7 +245,7 @@ Example:
 command = response_pattern("some_function", target_key="client456", kwargs={"arg1": "value1"}, message="Example message")
 ```
 
-#### callback_pattern
+### callback_pattern
 
 ```python
 def some_function (data:dict) -> str {
@@ -270,7 +277,7 @@ args and kwargs: Will be auto inferred by the wrapper, just add the types to you
 Returns:
 - Dictionary representing the callback pattern.
 
-> **Disclaimer:** The idea now is use callback collector, you create a class for your callbacks and use callback collector to automatically load all callbacks of the class and convert into a list of callbacks:
+> **Disclaimer:** The main mechanism now is to use callback collector, you create a class for your callbacks and use callback collector to automatically load all callbacks of the class and convert into a list of callbacks:
 
 ```python
 callbacks = CallbackCollector(
@@ -280,7 +287,9 @@ callbacks = CallbackCollector(
 ).get_callbacks()
 ```
 
-#### error_response_pattern:
+Callback collector collects all the callbacks contained in a class and converts them to be usable as callbacks in host or client modules
+
+### error_response_pattern:
 
 ```python
 mys_host.error_response_pattern(
@@ -304,13 +313,12 @@ mys_host.error_response_pattern(
 
 Returns a error response to the client
 
----
 
-### HostInterface Class
+# HostInterface Class
 
 The `HostInterface` class provides methods to interact with host buffers
 
-#### Methods
+## Methods
 
 - `retrive_logs(self)`: Retrieve logs and process them. If multiple threads are set, it will split the logs and process them in parallel.
 
