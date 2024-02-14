@@ -26,8 +26,6 @@ This guide provides a detailed overview of setting up a Myscelium host and clien
   - [ClientPatterns Class](#clientpatterns-class)
   - [Non Bloking Client Usage Guide](#myscelium-client-multithreading-usage-guide)
 
-
-
 # Utilities
 
 ### GetHostClients
@@ -71,28 +69,240 @@ The `MysceliumHost` class manages the socket host's operations.
 #### Constructor
 
 ```python
-def __init__(self, callbacks:list, host_id:int, allowed_clients:list, buffer_path:str, n_workers=2, n_max_conns:int=5, log_level:str="WARN") -> None:
+def __init__(
+    self,
+    callbacks: list,
+    host_id: int,
+    allowed_clients: list,
+    buffer_path: str,
+    n_workers=2,
+    n_max_conns: int = 5,
+    log_level: str = "DEBUG",
+) -> None:
 ```
 
-#### Methods
+#### Basic setup
 
-- `set_logs_callback_handler(logs_handler:list)`: Registers a logs handler.
-- `set_client_heartbeat_handler(callback)`: Registers a client heartbeat handler.
-- `get_registred_commands() -> dict`: Retrieves the registered commands.
-- `initialize_host(ip:str, port:int)`: Initializes the host with the given IP and port.
+```python
+
+callbacks = CallbackCollector(
+    [
+        Receivers,
+    ]
+).get_callbacks()
+
+allowed_clients = [
+    self.host_patterns.client_pattern(
+        client_name="TestClient1", 
+        client_type="Interface", 
+        client_key="some_client_id", 
+        client_permission_group="", 
+        client_is_super_user=True, 
+        max_sub_channels=5
+    ),
+    self.host_patterns.client_pattern(
+        client_name="TestClient2", 
+        client_type="Interface", 
+        client_key="randomsclientids", 
+        client_permission_group="", 
+        client_is_super_user=True, 
+        max_sub_channels=5
+    ),
+]
+
+mys_host = MysceliumHost(
+    callbacks=callbacks, 
+    host_id="xnsmdkeflerpfsa",
+    allowed_clients=allowed_clients, 
+    buffer_path="Temp/Data/", 
+    n_workers=2, 
+    log_level="INFO"
+)
+```
+
+---
+
+### Methods
+
+#### Set a callback for logs
+
+```python
+mys_host.set_logs_callback_handler(
+    logs_handler_callback: object,
+    active_multi_handlers: bool = False,
+    workers_num: int = 2,
+) -> None:
+```
+Registers a logs handler.
+
+#### Get the registred commands
+
+```python
+mys_host.get_registered_commands() -> dict
+```
+
+Retrieves the registered commands.
+
+#### Set a callback for client contact
+
+`set_client_heartbeat_handler(callback)`: Registers a client heartbeat handler. 
+- > **Disclaimer:** This will not work untill python pool is finished.
+
+#### Initialize the host
+
+```python
+mys_host.initialize_host(self, ip: str, port: int)
+```
+
+Initialize the host with the given IP and port.FResponse pattern
+
+Parameters:
+- ip: IP address for the host.
+- port: Port number for the host.
+
+#### Shutdown host
+
 - `stop_host(signal, frame)`: Stops the host.
-- `registry_new_allowed_clients`: Allow to registry new client allowed, using a list of HostPatterns.ClientPatterns
 
-### HostPatterns Class
+## HostPatterns Class
 
 The `HostPatterns` class provides patterns for the host.
 
-#### Methods
+### Methods
 
-- `client_pattern(client_type:str, client_id:str) -> dict`: Returns a client pattern.
-- `response_pattern(response:any, response_mode:str, response_activation_function:str = None,  redirect_to_client_id:str=None) -> dict`: Returns a response pattern.
-- `callback_pattern(callback) -> dict`: Returns a callback pattern.
-- `error_response_pattern(error_message:str, expected_remote_error_handler:str)`: Returns a error response to the client
+#### client_pattern
+
+```python
+HostPatterns().client_pattern(
+    self,
+    client_name: str,
+    client_key: str,
+    client_type: str,
+    client_permission_group: str,
+    client_is_super_user: bool,
+    max_sub_channels: int,
+    owned_sub_channels_keys: list = [],
+) -> dict:
+```
+
+Create a client pattern.
+
+Parameters:
+- client_name: Name of the client (user).
+- client_key: Unique Key of the client.
+- client_type: Client purpose.
+- client_permission_group: Group that client inherit permission.
+- client_is_super_user: If client has root privileges on myscelium.
+- client_max_sub_channels: Max sub-channels of stream that client are allowed to create and manage.
+- client_owned_sub_channels_keys: Optional parameter to pre initialize host with client sub-channels keys allowed.
+
+Returns:
+- Dictionary representing the client pattern.
+
+#### response_pattern
+
+```python
+HostPatterns().response_pattern(
+    self,
+    activation_function: str,
+    target_key: str = None,
+    kwargs: dict = {},
+    message="",
+) -> dict:
+```
+
+Creates a response pattern for sending back to a client or for retransmission.
+
+This function handles two main cases:
+1. Simple send to origin: The response is sent back to the originating client.
+2. Retransmit to another client: The response is retransmitted to a different client specified by `target_key`.
+
+Parameters:
+- `activation_function` (str): The activation function to be triggered upon response.
+- `target_key` (str, optional): The key of the target client for retransmission. ExternalFunction is None.
+- `kwargs` (dict, optional): Additional keyword arguments for the command. ExternalFunction is an empty dict.
+- `message` (str, optional): A message to be sent to the client. ExternalFunction is an empty string.
+
+Returns:
+dict: A dictionary representing the command instructions based on the specified pattern.
+
+Note:
+- In the case of 'Simple send to origin', the response is scheduled to be sent back to the client
+that originated the command.
+- In the case of 'Retransmit to another client', the response is redirected to a different client
+specified by `target_key`. The function then triggers the specified `activation_function` on the
+target client. If the target client does not exist, an error is returned.
+
+Example:
+```Python
+command = response_pattern("some_function", target_key="client456", kwargs={"arg1": "value1"}, message="Example message")
+```
+
+#### callback_pattern
+
+```python
+def some_function (data:dict) -> str {
+    # Some code, i.e.g:
+
+    if True :
+        response = host_patterns.response_pattern(
+            activation_function="test_handler", 
+            kwargs={"data": 'hello!'}
+        )
+
+        return response
+    
+    else:
+        return None
+
+}
+
+HostPatterns().callback_pattern(callback=some_function)
+```
+
+Create a callback pattern.
+
+Parameters:
+- callback: The callback function.
+
+args and kwargs: Will be auto inferred by the wrapper, just add the types to your functions.
+
+Returns:
+- Dictionary representing the callback pattern.
+
+> **Disclaimer:** The idea now is use callback collector, you create a class for your callbacks and use callback collector to automatically load all callbacks of the class and convert into a list of callbacks:
+
+```python
+callbacks = CallbackCollector(
+    [
+        Receivers,
+    ]
+).get_callbacks()
+```
+
+#### error_response_pattern:
+
+```python
+mys_host.error_response_pattern(
+    error_message: str, expected_remote_error_handler: str = ""
+):
+```
+```
+# -> This pattern is used to manipulate host configs remotely
+# >
+# > (Client 1)       [Host]
+# >    |                |
+# >    |--------------> |  (receive command)
+# >    |               (|) (do something that results in a error and return this pattern error)
+# >    |<-------------- |  (return exception)
+# >    |                |
+# > (Client 1)        [host]
+# >
+# > (|) This is this pattern
+# >
+```
+
+Returns a error response to the client
 
 ---
 
