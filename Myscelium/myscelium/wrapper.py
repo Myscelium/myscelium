@@ -358,8 +358,12 @@ class MysceliumHostInterface:
         self.transposition_threads = 1
 
         return
+    
 
-    def retrive_logs(self):
+    # -> -------------------------------------------------------------------------------------------
+    # -> LOGS RETRIEVER
+
+    def _retrieve_logs(self):
         """
         Retrieve logs and process them. If multiple threads are set, it will split the logs
         and process them in parallel.
@@ -433,6 +437,43 @@ class MysceliumHostInterface:
         pool.release_connection(connection)
 
         return
+    
+    def set_logs_callback(self, callback: str):
+        """
+        Set the callback function for logs.
+
+        Parameters:
+        - callback: Callback function to be invoked for each log.
+        """
+
+        self.log_callback = callback
+
+        pass
+
+    def start_logs_retriever(self):
+        """
+        Start the logs retriever process in a separate process.
+        """
+
+        self.stats = True
+
+        self.process = Process(target=self._retrieve_logs, args=())
+        self.process.start()
+
+        return
+
+    def stop_logs_retriever(self):
+        """
+        Stop the logs retriever process.
+        """
+
+        self.stats = False
+        self.process.join()
+
+        return
+    
+    # -> -------------------------------------------------------------------------------------------
+    # -> CLIENT CONTACT EVENT RETRIEVER
 
     def watch_client_contact(self):
         control = []
@@ -512,19 +553,7 @@ class MysceliumHostInterface:
             continue
 
         return
-
-    def allow_multi_handlers(self, workers_num=2):
-        """
-        Activate multiple handlers for processing logs.
-
-        Parameters:
-        - threads_num: Number of threads to be used for processing logs.
-        """
-
-        self.transposition_threads = workers_num
-
-        return
-
+    
     def set_client_contact_retriever_callback(self, callback: str):
         """
         Set the callback function for client contacts transposition.
@@ -534,18 +563,6 @@ class MysceliumHostInterface:
         """
 
         self.clients_contact_retriever_callback = callback
-
-        pass
-
-    def set_logs_callback(self, callback: str):
-        """
-        Set the callback function for logs.
-
-        Parameters:
-        - callback: Callback function to be invoked for each log.
-        """
-
-        self.log_callback = callback
 
         pass
 
@@ -564,7 +581,7 @@ class MysceliumHostInterface:
         self.client_events_retriever_process.start()
 
         return
-
+    
     def stop_client_events_retriever(self):
         """
         Stop the clients event retriever process.
@@ -577,27 +594,19 @@ class MysceliumHostInterface:
 
         return
 
-    def stop_logs_retriever(self):
+
+    def allow_multi_handlers(self, workers_num=2):
         """
-        Stop the logs retriever process.
+        Activate multiple handlers for processing logs.
+
+        Parameters:
+        - threads_num: Number of threads to be used for processing logs.
         """
 
-        self.stats = False
-        self.process.join()
+        self.transposition_threads = workers_num
 
         return
 
-    def start_logs_retriever(self):
-        """
-        Start the logs retriever process in a separate process.
-        """
-
-        self.stats = True
-
-        self.process = Process(target=self.retrieve_logs, args=())
-        self.process.start()
-
-        return
 
 
 class MysceliumHost:

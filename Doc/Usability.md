@@ -143,7 +143,7 @@ Retrieves the registered commands.
 
 ### Set a callback for client contact
 
-> **Disclaimer:** This will not work untill python pool is finished.
+> **IMPORTANT!** - This will not work until python pool is finished.
 
 
 ```python
@@ -171,7 +171,7 @@ mys_host.stop_host(signal, frame)
 ```
 Stops the host.
 
-# HostPatterns Class
+# Host Patterns
 
 The `HostPatterns` class provides patterns for the host.
 
@@ -296,35 +296,120 @@ mys_host.error_response_pattern(
     error_message: str, expected_remote_error_handler: str = ""
 ):
 ```
+
+This pattern is useful when you want to build some callback in host that require specific values and you want to do some error handling that will not only do not do the thing that the callback are supposed to do, but also send this error back to the client that cause it, the logic will be something like that:
+
+```mermaid
+sequenceDiagram
+    participant C1 as Client 1
+    participant H as Host
+
+    C1->>H: Command
+    H ->> H: 
+    Note right of H: (do something that results in an error and return this pattern error)
+    H-->>C1: return exception
+
+    Note over C1,H: (|) This is this pattern
+
 ```
-# -> This pattern is used to manipulate host configs remotely
-# >
-# > (Client 1)       [Host]
-# >    |                |
-# >    |--------------> |  (receive command)
-# >    |               (|) (do something that results in a error and return this pattern error)
-# >    |<-------------- |  (return exception)
-# >    |                |
-# > (Client 1)        [host]
-# >
-# > (|) This is this pattern
-# >
-```
-
-Returns a error response to the client
 
 
-# HostInterface Class
+# Host Interface
 
 The `HostInterface` class provides methods to interact with host buffers
 
 ## Methods
 
-- `retrive_logs(self)`: Retrieve logs and process them. If multiple threads are set, it will split the logs and process them in parallel.
+### retrieve_logs
 
-- `watch_client_contact(self)`: This is a private function of HostInterface Class that are responsible to what modifications in client last contact
+```python
+MysceliumHostInterface().retrieve_logs()
+```
 
-- `allow_multi_handlers(self, workes_num:int=2)`: Activate multiple handlers for processing logs.
+Retrieve logs and process them. If multiple threads are set, it will split the logs and process them in parallel.
+
+### watch_client_contact
+
+```python
+MysceliumHostInterface().watch_client_contact()
+```
+
+This is a private function of HostInterface Class that are responsible to what modifications in client last contact
+
+To use it you can call the:
+
+```python
+MysceliumHostInterface().start_client_events_retriever()
+```
+
+It start the clients event retriever process.
+
+> **Disclaimer:** This requires to set the callbacks before, if you try to run the client_events_retriever before set the callback for it it will result in a error, the correct usage for it will be something like this:
+
+```python
+host_inter = MysceliumHostInterface()
+
+def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
+    print(client_name, client_key, client_last_contact)
+    pass
+
+host_inter.set_client_contact_retriever_callback(client_contact_event_handler)
+host_inter.start_client_events_retriever()
+
+```
+
+This way the function will be called and you can save it or do whatever you want if this information, the callback needs to have a `client_name`, `client_key` and a `client_last_contact` arguments specified or a `*args` field to the information be passed to it without exceptions. If all is setuped correctly this should work as intended.
+
+Also you can stop the contact events retriever using: 
+
+```Python
+host_intern.stop_client_events_retriever()
+```
+### Logs Retriever
+
+This is a retriever added to transpose logs to a external server if you want to, to setup this is very simple, just need to do the following:
+
+```Python
+host_inter = MysceliumHostInterface()
+
+# The callback should expect a dict similar to that:
+# {
+#     "log_time": log_time,
+#     "log_level": log_level,
+#     "log_from_node": log_from_node,
+#     "log_msg": log_msg,
+# }
+
+# For example:
+
+def logs_handler(log:dict):
+
+    log_string = ""
+    log_string += f"[{log['log_time']}]"
+    log_string += f"[{log['log_level']}]"
+    log_string += f"[{log['log_from_node']}]"
+    log_string += f"[{log['log_msg']}]"
+
+    print(log_string)
+
+host_inter.set_logs_callback(logs_handler)
+host_inter.start_logs_retriever()
+
+# And when you want, you can stop it like that:
+host_inter.stop_logs_retriever()
+
+```
+
+> **Disclaimer:** Remember, logs retriever will stop when host stops anyway, so keep that in mind, host needs to be running to it keep running.
+
+
+### allow_multi_handlers
+
+```python
+MysceliumHostInterface().allow_multi_handlers(workers_num=2)
+```
+
+- ``: Activate multiple handlers for processing logs.
     - Parameters:
         - threads_num: Number of threads to be used for processing logs.
 
