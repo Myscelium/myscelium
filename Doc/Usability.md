@@ -320,13 +320,8 @@ The `HostInterface` class provides methods to interact with host buffers
 
 ## Methods
 
-### retrieve_logs
 
-```python
-MysceliumHostInterface().retrieve_logs()
-```
 
-Retrieve logs and process them. If multiple threads are set, it will split the logs and process them in parallel.
 
 ### watch_client_contact
 
@@ -400,8 +395,12 @@ host_inter.stop_logs_retriever()
 
 ```
 
+Retrieve logs and process them. If multiple threads are set, it will split the logs and process them in parallel.
+
 > **Disclaimer:** Remember, logs retriever will stop when host stops anyway, so keep that in mind, host needs to be running to it keep running.
 
+---
+# TODO >>>
 
 ### allow_multi_handlers
 
@@ -678,8 +677,6 @@ graph LR
     Error3 --> ErrorHandler3[Handle Error]
     Z --> Error4[Error Sending Terminate Signal]
     Error4 --> ErrorHandler4[Handle Error]
-
-
 ```
 
 ### Socket Host Diagram: 
@@ -755,7 +752,6 @@ graph TD
     AB --> AC
     AC --> AD
 
-
 ```
 
 ### Host Transposer Diagram
@@ -785,7 +781,6 @@ graph TD
     T -->|to_origin| U[Schedule in up buffer]
     T -->|redirect| V[Handle redirect: handle_redirect]
     V --> W[Redirect and schedule in up buffer]
-
 
 ```
 
