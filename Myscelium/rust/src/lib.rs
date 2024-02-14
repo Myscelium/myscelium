@@ -2,39 +2,28 @@
 #[allow(unused_extern_crates)]
 mod common;
 
-mod socket_client;
-mod socket_host;
-
 mod host_entry_point;
 use host_entry_point::*;
 
 mod client_entry_point;
 use client_entry_point::*;
 
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
+
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-
-use lazy_static::lazy_static;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use parking_lot::Mutex;
+use OxidizedMyscelium::AllowedNetWorkController;
+use OxidizedMyscelium::ClientState;
+use OxidizedMyscelium::NetworkMap;
+use OxidizedMyscelium::Node;
 
-lazy_static! {
-
-    // CLIENT
-    pub static ref CLIENT_IS_RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
-    pub static ref CLIENT_ID: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
-    pub static ref CLIENT_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
-    pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
-
-    // HOST:
-    pub static ref HOST_IS_RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
-    pub static ref HOST_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
-    pub static ref HOST_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new("".to_string()));
-
-}
+extern crate chrono;
+use crate::chrono::TimeZone;
 
 // #[pyfunction]
 // fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
@@ -100,27 +89,34 @@ lazy_static! {
 #[pymodule]
 fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // -> Host
-    m.add_function(wrap_pyfunction!(initialize_host_buffer_tables, m)?)?;
+    // m.add_function(wrap_pyfunction!(initialize_host_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
     m.add_function(wrap_pyfunction!(get_socket_host_available_commands, m)?)?;
-    m.add_function(wrap_pyfunction!(set_socket_host_max_connections, m)?)?;
-    m.add_function(wrap_pyfunction!(set_socket_host_transposer_num_of_workers, m)?)?;
+    // m.add_function(wrap_pyfunction!(set_socket_host_max_connections, m)?)?;
+    // m.add_function(wrap_pyfunction!(set_socket_host_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(set_socket_host_allowed_clients, m)?)?;
-    m.add_function(wrap_pyfunction!(registry_socket_host_client_heartbeat_contact_callback, m)?)?;
+    // m.add_function(wrap_pyfunction!(registry_socket_host_client_heartbeat_contact_callback, m)?)?;
     // m.add_function(wrap_pyfunction!(registry_host_logs_handler, m)?)?;
-    m.add_function(wrap_pyfunction!(set_socket_host_log_level, m)?)?;
+    // m.add_function(wrap_pyfunction!(set_socket_host_log_level, m)?)?;
+    m.add_function(wrap_pyfunction!(setup_socket_host, m)?)?;
     m.add_function(wrap_pyfunction!(registry_new_allowed_clients, m)?)?;
 
     // -> Client
-    m.add_function(wrap_pyfunction!(initialize_client_buffer_tables, m)?)?;
+    // m.add_function(wrap_pyfunction!(initialize_client_buffer_tables, m)?)?;
     m.add_function(wrap_pyfunction!(registry_socket_client_callbacks, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_socket_client, m)?)?;
+    m.add_function(wrap_pyfunction!(get_client_state, m)?)?;
+
     m.add_function(wrap_pyfunction!(set_socket_client_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(client_send, m)?)?;
-    m.add_function(wrap_pyfunction!(set_client_uid, m)?)?;
-    m.add_function(wrap_pyfunction!(set_socket_client_log_level, m)?)?;
+    m.add_function(wrap_pyfunction!(setup_client, m)?)?;
+    // m.add_function(wrap_pyfunction!(set_socket_client_log_level, m)?)?;
+    m.add_function(wrap_pyfunction!(get_socket_client_available_handlers, m)?)?;
+    // m.add_function(wrap_pyfunction!(set_client_key, m)?)?;
+    m.add_function(wrap_pyfunction!(is_client_ready, m)?)?;
     // m.add_function(wrap_pyfunction!(registry_client_logs_handler, m)?)?;
+    m.add_function(wrap_pyfunction!(is_target_ready, m)?)?;
 
     Ok(())
 }

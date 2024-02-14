@@ -1,6 +1,5 @@
 from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
 from multiprocessing import Process, Event, Manager
-from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
 import signal
 import time
@@ -10,7 +9,6 @@ import time
 # actual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
-    Events_Manager(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
     pass
 
@@ -28,31 +26,6 @@ class Handlers:
         response = host_patterns.response_pattern(
             activation_function="test_handler", 
             kwargs={"data": 'hello!'}
-        )
-
-        Events_Manager(
-            Unit="Host", 
-            path="Logs"
-        ).Set_Event(
-            step="Active Basic Callback", 
-            event_type="Receive", 
-            event_key="088p72pbv9Ozj7T1"
-        )
-        
-        Events_Manager(
-            Unit="Host", 
-            path="Logs"
-        ).Set_Event(
-            step="Send Response", 
-            event_type="Send", 
-            event_key="74L648VZDI7J1GV5"
-        )
-        
-        Events_Manager(
-            Unit="Host", 
-            path="Logs"
-        ).Set_Event(
-            step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
         )
 
         # (callback name) - Receive Data: [Data received list for comparison]
@@ -83,19 +56,7 @@ class MyHost:
         mys_host_interface.start_client_events_retriever()
 
         while True:
-
-            client_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
-
-            if (not client_status) or (n >= COUNTER):
-                print("Receive stop host")
-                mys_host_interface.stop_client_events_retriever()
-                System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
-                break
-
-            else:
-                time.sleep(5)
-                n += 1
-                continue
+            continue
 
         return
 
@@ -130,6 +91,15 @@ class MyHost:
                 max_sub_channels=5
             ),
 
+            self.host_patterns.client_pattern(
+                client_name="TestClient3", 
+                client_type="Interface", 
+                client_key="InitialHostKey", 
+                client_permission_group="", 
+                client_is_super_user=True, 
+                max_sub_channels=5
+            ),
+
         ]
 
         print(allowed_clients)
@@ -137,13 +107,13 @@ class MyHost:
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channes:int, client_owned_sub_channels_keys:list
 
         mys_host = MysceliumHost(
-                        callbacks=callbacks, 
-                        host_id="xnsmdkeflerpfsa",
-                        allowed_clients=allowed_clients, 
-                        buffer_path="Temp/Data/", 
-                        n_workers=2, 
-                        log_level=self.debug_level
-                    )
+            callbacks=callbacks, 
+            host_id="xnsmdkeflerpfsa",
+            allowed_clients=allowed_clients, 
+            buffer_path="Temp/Data/", 
+            n_workers=2, 
+            log_level="INFO"
+        )
 
         self.mys_host = mys_host
 
@@ -153,14 +123,12 @@ class MyHost:
         # mys_host.set_client_heartbeat_handler(callback=client_heart_beat_handler)
 
         # TODO >>> Add callback handler to handle client contact (need to be like the logs transposer {Based on BufferDbTechnologies})
-
-        System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
-
+        
         mys_host.initialize_host(ip=ip, port=port)
 
         return
 
-    def run(self, ip="127.0.0.1", port=4444, event=None):
+    def run(self, ip="127.0.0.1", port=8000, event=None):
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self.monitor_stop_event)
@@ -177,7 +145,8 @@ class MyHost:
 
         return 
 
-            
+if __name__ == "__main__":
+    MyHost("INFO").run()            
 
 
         

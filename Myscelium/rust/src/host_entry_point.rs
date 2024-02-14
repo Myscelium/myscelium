@@ -2,32 +2,36 @@
 
 use std::collections::HashMap;
 
-use crate::socket_host::socket_host::{get_available_commands_registered, initialize_host, set_socket_host_callbacks};
-use crate::socket_host::socket_host::{initialize_host_buffer, set_heartbeat_callback, set_max_conns};
-use crate::socket_host::transposer::{initialize_socket_host_transposer, set_socket_host_transposer_callbacks, set_socket_host_transposer_workers_num};
+use crate::common::functions::extract_arg_types;
+use crate::common::functions::translate_value_to_py;
+use crate::common::functions::wrap_py_function;
 
-use crate::socket_host::host_logger::log_handler::{initialize_host_logs_database_dir, set_host_log_level};
+use OxidizedMyscelium::{HOST_COMMAND_PATTERNS, HOST_IS_RUNNING};
 
-use crate::socket_host::client_manager::manager::{check_if_client_key_exists, clients_manager_initialize_table, set_host_clients_manager__pool_workers_num};
-use crate::socket_host::client_manager::manager::{Client, ClientError};
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 
 use serde_json::Value;
 
+use std::sync;
 use std::sync::atomic::Ordering;
-
-use parking_lot::Mutex;
-
-use serde_json::Value as JsonValue;
+use std::sync::Arc;
+use std::sync::MutexGuard;
 use std::thread;
-
 use std::time::Duration;
 
-use crate::common::functions::python_functions::extract_arg_types;
+use OxidizedMyscelium::{ClientStatusPoolError, Clients};
 
-use crate::HOST_IS_RUNNING;
+use OxidizedMyscelium::CommandType;
+use OxidizedMyscelium::{Client, ClientError};
+use OxidizedMyscelium::{HandlerStatus, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
+
+lazy_static! {
+    pub static ref CLIENTS_SYNC_CONTROLLER: Arc<Mutex<Clients>> = Arc::new(Mutex::new(Clients::new()));
+}
 
 // #[pyfunction]
 // fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
@@ -99,43 +103,53 @@ macro_rules! process_commands {
 }
 
 #[pyfunction]
-pub fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
-    let workers_num: u32 = n_workers.extract().unwrap();
-
-    set_socket_host_transposer_workers_num(workers_num);
-
-    return;
+pub fn setup_socket_host(buffer_path: String, log_level: String, n_workers: u32, n_max_conns: u32) {
+    OxidizedMyscelium::setup_socket_host(&buffer_path, &log_level, &n_workers, &n_max_conns);
 }
 
-#[pyfunction]
-pub fn set_socket_host_max_connections(n_max_conns: &PyInt) {
-    let max_conns: u32 = n_max_conns.extract().unwrap();
+// TODO >>> Chang eset workers num, max conns, buffer initialization, socket host level
 
-    set_host_clients_manager__pool_workers_num(max_conns.clone());
-    set_max_conns(max_conns);
+// #[pyfunction]
+// pub fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
+//     let workers_num: u32 = n_workers.extract().unwrap();
 
-    return;
-}
+//     OxidizedMyscelium::set_socket
 
-#[pyfunction]
-pub fn initialize_host_buffer_tables(path: &PyString) {
-    let buffer_path: String = path.extract().unwrap();
+//     set_socket_host_transposer_workers_num(workers_num);
 
-    initialize_host_logs_database_dir(buffer_path.clone());
-    initialize_host_buffer(buffer_path.clone());
-    clients_manager_initialize_table(buffer_path.clone());
+//     return;
+// }
+// #[pyfunction]
+// pub fn set_socket_host_max_connections(n_max_conns: &PyInt) {
+//     let max_conns: u32 = n_max_conns.extract().unwrap();
 
-    return;
-}
+//     set_host_clients_manager__pool_workers_num(max_conns.clone());
+//     set_max_conns(max_conns);
 
-#[pyfunction]
-pub fn set_socket_host_log_level(log_level: &PyString) {
-    let log_level: String = log_level.extract().unwrap();
+//     return;
+// }
 
-    set_host_log_level(log_level);
+// #[pyfunction]
+// pub fn initialize_host_buffer_tables(path: &PyString) {
+//     let buffer_path: String = path.extract().unwrap();
 
-    return;
-}
+//     initialize_host_logs_database_dir(buffer_path.clone());
+//     initialize_host_buffer(buffer_path.clone());
+//     clients_manager_initialize_table(buffer_path.clone());
+
+//     return;
+// }
+
+// #[pyfunction]
+// pub fn set_socket_host_log_level(log_level: &PyString) {
+//     let log_level: String = log_level.extract().unwrap();
+
+//     set_host_log_level(log_level);
+
+//     return;
+// }
+
+// -> --------------------------------------------------------------------------------------------------------------
 
 // #[pyfunction]
 // fn registry_host_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
@@ -167,16 +181,14 @@ pub fn set_socket_host_log_level(log_level: &PyString) {
 /// # Python Binding
 ///
 /// This function is exposed to Python and can be called from a Python script.
-#[pyfunction]
-pub fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
-    let mut callback_pattern = HashMap::new();
+// #[pyfunction]
+// pub fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
+//     let mut callback_pattern = HashMap::new();
+//     process_commands!(py, commands, callback_pattern);
+//     OxidizedMyscelium::set_heartbeat_callback(callback_pattern);
 
-    process_commands!(py, commands, callback_pattern);
-
-    set_heartbeat_callback(callback_pattern);
-
-    Ok(())
-}
+//     Ok(())
+// }
 
 /// Stops the socket host.
 ///
@@ -204,7 +216,7 @@ fn stop_socket_host() {
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
-    let mut command_patterns = HashMap::new();
+    let mut host_node_handlers: Vec<NodeHandler> = Vec::new();
 
     let mut callbacks_patterns = HashMap::new();
 
@@ -241,17 +253,27 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
         }
 
         // Store the function name and argument types in the command patterns
-        command_patterns.insert(function_name.to_string(), args_types_value.clone());
+        let host_handler: NodeHandler = NodeHandler::new(function_name.to_string(), args_types_value.clone(), CommandType::ExternalFunction, HandlerStatus::NotTested, HashMap::new(), "".to_string());
 
-        let function = function.downcast::<PyFunction>()?.clone();
+        host_node_handlers.push(host_handler);
 
-        let function: Py<PyFunction> = function.into_py(py); // convert &PyAny to Py<PyFunction>
-        callbacks_patterns.insert(function_name.to_string(), (function, args_types_value));
+        // Inside your loop over commands
+        let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
+
+        // Wrap the Python function to match CallbackClosure signature
+        let wrapped_function = Box::new(wrap_py_function(function));
+
+        // Assuming `my_callbacks` is an instance of MyCallbacks
+        callbacks_patterns.insert(function_name.to_string(), wrapped_function);
     }
 
     // Now you can use the command_patterns
-    set_socket_host_callbacks(command_patterns.clone());
-    set_socket_host_transposer_callbacks(command_patterns.clone(), callbacks_patterns);
+    OxidizedMyscelium::set_host_callbacks(callbacks_patterns);
+
+    let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
+    let node_version = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
+    let host_node: Node = Node::new("host".to_string(), "host".to_string(), "".to_string(), node_version, host_node_handlers, NodeStatus::Online);
+    global_command_patterns.add_or_update_if_exists(host_node);
 
     Ok(())
 }
@@ -272,96 +294,7 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: String) {
-    // Create a global Mutex for demonstration
-    let mutex1 = Mutex::new(0);
-    let mutex2 = Mutex::new(0);
-
-    // Spawn a thread to periodically check for deadlocks
-    thread::spawn(|| {
-        loop {
-            thread::sleep(Duration::from_secs(5)); // Check every 5 seconds
-            let deadlocks = parking_lot::deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                continue;
-            }
-
-            println!("{} deadlocks detected", deadlocks.len());
-            for (i, threads) in deadlocks.iter().enumerate() {
-                println!("Deadlock #{}", i);
-                for t in threads {
-                    println!("Thread Id {:?}", t.thread_id());
-                    println!("{:?}", t.backtrace());
-                }
-            }
-        }
-    });
-
-    let address = format!("{}:{}", ip, port);
-
-    thread::spawn(|| {
-        ctrlc::set_handler(move || {
-            if HOST_IS_RUNNING.load(Ordering::SeqCst) {
-                println!("\nreceived Ctrl+C!\n");
-                stop_socket_host();
-            }
-        })
-        .expect("Error setting Ctrl-C handler");
-
-        initialize_host(address, client_id);
-        println!("Socket host exited successfully!");
-    });
-
-    loop {
-        initialize_socket_host_transposer(py);
-
-        if !HOST_IS_RUNNING.load(Ordering::SeqCst) {
-            println!("Stop the core!");
-            thread::sleep(Duration::from_secs(7));
-            break;
-        }
-    }
-
-    println!("Socket transposer exited successfully!");
-}
-
-/// Converts a JSON value to its corresponding Python object.
-///
-/// This helper function takes in a JSON value and recursively converts it to the corresponding Python object.
-/// This can be useful for translating between Rust and Python data structures.
-///
-/// # Parameters
-///
-/// - `py`: The Python interpreter.
-/// - `value`: The JSON value to convert.
-///
-/// # Returns
-///
-/// Returns the converted Python object.
-fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject> {
-    // Convert the JSON value to the appropriate Python object
-    match value {
-        JsonValue::Null => Ok(py.None()),
-        JsonValue::Bool(b) => Ok(b.into_py(py)),
-        JsonValue::Number(num) => Ok(num.as_f64().unwrap().into_py(py)),
-        JsonValue::String(s) => Ok(s.into_py(py)),
-        JsonValue::Array(arr) => {
-            let py_list = PyList::empty(py);
-            for item in arr {
-                let py_item = translate_value_to_py(py, item)?;
-                py_list.append(py_item)?;
-            }
-            Ok(py_list.into())
-        },
-        JsonValue::Object(obj) => {
-            let py_dict: &PyDict = PyDict::new(py);
-            for (k, v) in obj {
-                let py_key = k.into_py(py);
-                let py_value = translate_value_to_py(py, v)?;
-                py_dict.set_item(py_key, py_value)?;
-            }
-            Ok(py_dict.into())
-        },
-    }
+    OxidizedMyscelium::initialize_socket_host(ip, port, client_id)
 }
 
 /// Fetches the list of available commands that the socket host can recognize.
@@ -382,7 +315,7 @@ fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject>
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
-    let commands = get_available_commands_registered();
+    let commands = OxidizedMyscelium::get_socket_host_available_commands();
 
     // Convert the HashMap values to PyObjects
     let py_dict: &PyDict = PyDict::new(py);
@@ -397,7 +330,7 @@ pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> 
 // > --------------------------------------------------------------------------------------------------------
 // > Client Management
 
-use crate::handle_client_error;
+// use crate::handle_manager_client_error;
 
 macro_rules! extract_string {
     ($value:expr, $err_msg:expr) => {
@@ -428,6 +361,8 @@ macro_rules! extract_boolean {
         $value.extract::<bool>().map_err(|_| PyErr::new::<pyo3::exceptions::PyTypeError, _>($err_msg))?
     };
 }
+
+use OxidizedMyscelium::handle_manager_client_error;
 
 /// Sets the list of clients allowed to connect to the socket host.
 ///
@@ -467,6 +402,17 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
         let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
         let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
 
+        {
+            let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
+            let _ = controller.add_new_client(client_key.clone().to_string(), 10);
+            println!("\nSet clients sync controler to:\n{:?}\n", controller);
+        }
+
+        // {
+        //     let mut client_controller_pool: MutexGuard<Clients> = smart_lock(|| CLIENTS_SYNC_CONTROLLER.lock());
+        //     let _ = client_controller_pool.add_new_client(client_key.clone(), 10);
+        // }
+
         // {
         //     println!(
         //         "{:?},{:?},{:?},{:?},{:?},{:?},{:?}",
@@ -474,8 +420,10 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
         //     )
         // }
 
-        if !check_if_client_key_exists(client_key.clone()) {
-            let client = handle_client_error!(Client::new(
+        let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
+
+        if !OxidizedMyscelium::check_if_client_key_exists(client_key.clone()) {
+            let client = handle_manager_client_error!(Client::new(
                 client_name.clone(),
                 client_key.clone(),
                 client_type,
@@ -483,6 +431,7 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
                 client_is_super_user,
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
+                client_handlers,
             ));
 
             client.save_into_db();
@@ -523,8 +472,10 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
         let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
         let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
 
-        if !check_if_client_key_exists(client_key.clone()) {
-            let client = handle_client_error!(Client::new(
+        let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
+
+        if !OxidizedMyscelium::check_if_client_key_exists(client_key.clone()) {
+            let client = handle_manager_client_error!(Client::new(
                 client_name.clone(),
                 client_key.clone(),
                 client_type,
@@ -532,9 +483,10 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
                 client_is_super_user,
                 client_max_sub_channels,
                 client_owned_sub_channels_keys,
+                client_handlers,
             ));
 
-            client.save_into_db()
+            client.save_into_db();
         }
 
         println!("Successfully created client: {} of key: {}", client_name, client_key)
