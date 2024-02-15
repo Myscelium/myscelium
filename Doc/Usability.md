@@ -213,24 +213,32 @@ Certain callback functions must have specific names for the system to recognize 
 5. **Initialize the Myscelium Host**: Create an instance of the `MysceliumHost` class and set the necessary parameters.
 
    ```python
-    mys_host = MysceliumHost(
+   mys_host = MysceliumHost(
       callbacks=callbacks, 
       host_id="xnsmdkeflerpfsa",
       allowed_clients=allowed_clients, 
       buffer_path="Temp/Data/", 
       n_workers=2, 
       log_level="INFO"
-    )
+   )
    ```
 
 6. **Set Client Heartbeat Handler**: This is where you specify the function that will handle client heartbeats.
 
    ```python
+   def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
+      print(client_name, client_key, client_last_contact)
+      pass
+
+   mys_host_interface = MysceliumHostInterface("Temp/Data/") # Needs to be the same path of the one defined in host
+   mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
+   mys_host_interface.start_client_events_retriever()
    ```
 
 7. **Set Logs Callback Handler**: Specify the function that will handle logs from the library engine.
 
    ```python
+    
    ```
 
 8. **Start the Host**: Finally, initialize the host to start listening for incoming connections.
