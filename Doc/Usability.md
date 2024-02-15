@@ -621,6 +621,108 @@ callbacks = CallbackCollector([Receivers, Retransmiters, InternalManipulation]).
 
 The second way that you can do this is by using direct functions, direct functions aren't listed as external callbacks nor in the network map for now since they aren't integrated in the network map yet, however they can be called remotely if you have permission and it allows you to create, remove or update clients remotely in a direct way without require to declare any external function in python. This is more fast and also more secure since the security is done automatically inside the engine, however in the cases that you need to create other clients in some condition or update them in some condition it's nice to use the callback response method
 
+This kind of internal function that can be called by callbacks responses and DirectFunction are called internal management functions and there is a couple functions alwready integrated inside the myscelium engine, the following ones are the functions that are available to use:
+
+#### Valid Direct InnerManagement Functions:
+
+#### 1. add_client
+
+**Input:**
+
+```json
+{
+  "new_client": {
+    "client_name": "string",
+    "client_key": "string",
+    "client_type": "string",
+    "permission_group": "string",
+    "is_super-user": "boolean",
+    "max_sub_channels": "integer",
+    "owned_sub_channels_key": ["string", "string", "string"]
+  }
+}
+```
+
+**Success Response:**
+
+- **CommandInstructions** object with:
+  - **CommandMode:** `Response`
+  - **CommandType:** `ExternalFunction`
+  - **CommandTarget:** `Origin`
+  - **CommandStatus:** `Success`
+  - **CommandOrigin:** `Host`
+  - **Handler Name:** `add_client_handler`
+  - **Message:** `"Successfully add a client: [client_key]!"` (client_key is dynamically replaced with the actual `client_key`)
+
+#### 2. update_client
+
+**Input:**
+
+```json
+{
+  "actual_client_key": "string",
+  "updated_client": {
+    "client_name": "string",
+    "client_key": "string",
+    "client_type": "string",
+    "permission_group": "string",
+    "is_super-user": "boolean",
+    "max_sub_channels": "integer",
+    "owned_sub_channels_key": ["string", "string", "string"]
+  }
+}
+```
+
+**Success Response:**
+
+- **CommandInstructions** object with:
+  - **CommandMode:** `Response`
+  - **CommandType:** `ExternalFunction`
+  - **CommandTarget:** `Origin`
+  - **CommandStatus:** `Success`
+  - **CommandOrigin:** `Host`
+  - **Handler Name:** `update_client_handler`
+  - **Message:** `"Successfully executed the function: [activation_key] and remove client: [old_client.client_key]!"` (dynamic values replaced accordingly)
+
+**Error Handling:**
+
+- `ClientError::ClientDoesNotExist`:
+  - Log: `"Error! Can't Update client because client [client_key] Don't exist!"`
+  - Returns: `ProcessResult::Error` with the same message.
+- Other errors:
+  - Log: `"Error! Can Update client because a unexpected error!"`
+  - Returns: `ProcessResult::Error` with the same message.
+
+#### 3. remove_client
+
+**Input:**
+
+```json
+{
+  "client_key": "string"
+}
+```
+
+**Success Response:**
+
+- **CommandInstructions** object with:
+  - **CommandMode:** `Response`
+  - **CommandType:** `ExternalFunction`
+  - **CommandTarget:** `Origin`
+  - **CommandStatus:** `Success`
+  - **CommandOrigin:** `Host`
+  - **Handler Name:** `remove_client_handler`
+  - **Message:** `"Successfully executed the function: [activation_key] and remove client: [client_key]!"` (dynamic values replaced accordingly)
+
+**Error Handling:**
+
+- `ClientError::ClientDoesNotExist`:
+  - Log: `"Error! Can't Remove client because client [client_key] Don't exist!"`
+  - Returns: `ProcessResult::Error` with the same message.
+- Other errors:
+  - Log: `"Error! Can Remove client because a unexpected error!"`
+  - Returns: `ProcessResult::Error` with the same message.
+
 ---
 
 ### Thread pool diagram
