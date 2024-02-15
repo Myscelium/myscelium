@@ -574,25 +574,52 @@ $~$
 
 ### To Add new Clients in Flight:
 
-1. **Create new Clients Allowed List**: This will create a new list of clients allwoed with the correct patterns.
+You can do this in two ways, first is by returning a response from a host callback to inside of the myscelium engine, to do that you can do by creating a callback structure like the following one:
 
-   ```python
-   new_clients_allowed = [
-        self.host_patterns.client_pattern(
-           client_name="TestClient1",
-           client_type="Interface",
-           client_key="randomsclientids",
-           client_permission_group="",
-           client_is_super_user=True,
-           max_sub_channes=5
-       ),
-   ]
-   ```
+1. **Create a callback in Host**: This callback will hold a structure that will allow add a client inside the myscelium engine by the response of it
 
-2. **Send the new client list to be added**: Thiss will send the allowed clients to the myscelium engine to registry.
-   ```python
-   mys_host.registry_new_allowed_clients(new_clients_allowed)
-   ```
+```python
+class InternalManipulation:
+
+    def __init__ (self):
+      pass
+
+   def add_client (
+      self,
+      name:str,
+      key:str,
+      client_tpye:str,
+      permission_group:str,
+      is_super_user:bool,
+      max_sub_channels:int,
+      owned_sub_channels_keys:list
+    ):
+
+      new_client = HostPatterns().client_pattern(
+        client_name=str(name),
+        client_key=str(key),
+        client_type=str(client_type),
+        client_permission_group=str(permission_group),
+        client_is_super_user=bool(is_super_user),
+        max_sub_channels=int(max_sub_channels),
+        owned_sub_channels_keys=list(owned_sub_channels_keys)
+      )
+
+      response = HostPatterns().update_host_configs(activation_function="add_client", new_client=new_client)
+
+      return response
+```
+
+2. **Collect the callback and assing it to host**: Inside you callback collector add the `InternalManipulation` class or the class that you create with whatever name together with the other classes that you created that contain callbacks too. This will registry this callback as a valid endpoint inside the myscelium network together with the other callbacks as demonstrated bellow.
+
+```python
+# Collect the callbacks:
+callbacks = CallbackCollector([Receivers, Retransmiters, InternalManipulation]).get_callbacks()
+```
+
+3. **Now is just call it**: Now you can call this function by any other client remotely and if your client has permission to create this new client with the specification and if the client key are a valid one them the client will be added and it will be available into the network as a not initialize client, when some client connects with this credentials into the network them the client configurations will be streamed to each other client that has permission to reach this client.
+
+The second way that you can do this is by using direct functions, direct functions aren't listed as external callbacks nor in the network map for now since they aren't integrated in the network map yet, however they can be called remotely if you have permission and it allows you to create, remove or update clients remotely in a direct way without require to declare any external function in python. This is more fast and also more secure since the security is done automatically inside the engine, however in the cases that you need to create other clients in some condition or update them in some condition it's nice to use the callback response method
 
 ---
 
