@@ -90,6 +90,8 @@ The Myscelium Host provides an interface to set up a server that can handle vari
 
 Certain callback functions must have specific names for the system to recognize and use them correctly:
 
+> **IMPOTANT!** : This functions isn't working for versions equal or above v1.3-ReleaseCandidate, they are temporarly subistituted for other db based collectors that comunicates between files, this is due to a limitation in present in python actually that don't allow multiple interpreters due to GIL aquire, so for this reason was necessary to deprecate this temporarly untill this can be solved, meanwile try to avoid use them or other callbacks with similar names to avoid future conflicts.
+
 1. **Logs Handler Callback**: This callback is responsible for handling logs from the library engine. The function must be named `logs_handler` and should have the following signature:
 
    ```python
@@ -570,7 +572,7 @@ $~$
 
 ---
 
-### To Add new CLients in Flight:
+### To Add new Clients in Flight:
 
 1. **Create new Clients Allowed List**: This will create a new list of clients allwoed with the correct patterns.
 
@@ -591,6 +593,8 @@ $~$
    ```python
    mys_host.registry_new_allowed_clients(new_clients_allowed)
    ```
+
+---
 
 ### Thread pool diagram
 
