@@ -80,57 +80,163 @@ def __init__(
 ) -> None:
 ```
 
-## Basic setup
+## Myscelium Host Usage Guide
 
-```python
+### Introduction
 
-callbacks = CallbackCollector(
-    [
-        Receivers,
-    ]
-).get_callbacks()
+The Myscelium Host provides an interface to set up a server that can handle various callbacks and manage client connections. This guide will walk you through setting up a basic host and the necessary callbacks.
 
-allowed_clients = [
-    self.host_patterns.client_pattern(
+### Callback Requirements
+
+Certain callback functions must have specific names for the system to recognize and use them correctly:
+
+1. **Logs Handler Callback**: This callback is responsible for handling logs from the library engine. The function must be named `logs_handler` and should have the following signature:
+
+   ```python
+   def logs_handler(node_name: str, log_time: float, log_name: str, log_msg: str):
+       # Your implementation here
+   ```
+
+2. **Client Contact Callback**: This callback is triggered when a client makes contact. The function must be named `handle_client_contact` and should have the following signature:
+   ```python
+   def handle_client_contact(client_id: str):
+       # Your implementation here
+   ```
+
+### Setting Up the Host
+
+1. **Define Your Callbacks**: Start by defining the necessary callback functions. For example, a function to handle incoming data might look like this:
+
+   ```python
+   def python_function(age, birth, name):
+      # Your function logic here
+
+      if condition: # In case of a success
+          
+          response = host_patterns.response_pattern(
+            "test_handler",
+            kwargs={"data": 'hello!'}
+          )
+          
+          reuturn response
+
+      if other_condition: # In case of error in the expectation
+
+        response = HostPatterns().error_response_pattern( # For now this is only to origin
+                error_message="incorrect_birth",
+                expected_remote_error_handler='error_test_handler',
+        )
+
+        return response
+
+
+      # If you don't want to return nothing you can return none
+      return None 
+   ```
+
+2. **Initialize Host Patterns**: This will help in creating the required patterns for clients and responses.
+
+   ```python
+   host_patterns = HostPatterns()
+   ```
+
+3. **Create Callback List**: Add all your callback functions to a list. This list will be passed to the Myscelium Host during initialization.
+
+   ```python
+   callbacks = [
+       host_patterns.callback_pattern(
+           callback=python_function
+       ),
+       # Add other callbacks here
+   ]
+   ```
+    
+   > **IMPORTANT!** : Since v1.3 callbacks and they args can be automatically infered using he callback collector to automate the callback wrapping and allow fast callback blocks (classes of callbacks) registration!
+
+   For this you can use the callbacks collector to automate this by do the following:
+
+   ```python
+    class Receivers:
+
+      def __init__ (self):
+          pass
+
+      @staticmethod
+      def example_receiver (arg1:dict, arg2:str, arg3:list, arg4:tuple):
+          return None
+
+    class Retransmiters:
+
+      def __init__ (self):
+          pass
+
+      @staticmethod
+      def example_retransmiter ():
+          return None
+
+      @staticmethod
+      def example_retransmiter (arg1:dict, arg2:str, arg3:list, arg4:tuple):
+          return None
+    
+    # Collect the callbacks:
+    callbacks = CallbackCollector([Receivers, Retransmiters]).get_callbacks()
+   ```
+
+   With this CallbackCollector we can extract all the callbacks of these call and also the types that these callbacks takes,
+   imediatly automate the callbacks of these receivers.
+
+4. **Specify Allowed Clients**: Define which clients are allowed to connect to your host.
+
+   ```python
+   allowed_clients = [
+      self.host_patterns.client_pattern(
         client_name="TestClient1", 
         client_type="Interface", 
         client_key="some_client_id", 
         client_permission_group="", 
         client_is_super_user=True, 
         max_sub_channels=5
-    ),
-    self.host_patterns.client_pattern(
+      ),
+      self.host_patterns.client_pattern(
         client_name="TestClient2", 
         client_type="Interface", 
         client_key="randomsclientids", 
         client_permission_group="", 
         client_is_super_user=True, 
         max_sub_channels=5
-    ),
-]
+      ),
+   ]
+   ```
 
-mys_host = MysceliumHost(
-    callbacks=callbacks, 
-    host_id="xnsmdkeflerpfsa",
-    allowed_clients=allowed_clients, 
-    buffer_path="Temp/Data/", 
-    n_workers=2, 
-    log_level="INFO"
-)
-```
+5. **Initialize the Myscelium Host**: Create an instance of the `MysceliumHost` class and set the necessary parameters.
+
+   ```python
+    mys_host = MysceliumHost(
+      callbacks=callbacks, 
+      host_id="xnsmdkeflerpfsa",
+      allowed_clients=allowed_clients, 
+      buffer_path="Temp/Data/", 
+      n_workers=2, 
+      log_level="INFO"
+    )
+   ```
+
+6. **Set Client Heartbeat Handler**: This is where you specify the function that will handle client heartbeats.
+
+   ```python
+   ```
+
+7. **Set Logs Callback Handler**: Specify the function that will handle logs from the library engine.
+
+   ```python
+   ```
+
+8. **Start the Host**: Finally, initialize the host to start listening for incoming connections.
+   ```python
+   mys_host.initialize_host(ip="127.0.0.1", port=4444)
+   ```
 
 ## Methods
-
-### Set a callback for logs
-
-```python
-mys_host.set_logs_callback_handler(
-    logs_handler_callback: object,
-    active_multi_handlers: bool = False,
-    workers_num: int = 2,
-) -> None:
-```
-Registers a logs handler.
 
 ### Get the registred commands
 
@@ -138,18 +244,51 @@ Registers a logs handler.
 mys_host.get_registered_commands() -> dict
 ```
 
-Retrieves the registered commands.
+Retrieves the registered commands, from the engine, this uses the interface to send commands to inside the engine and get them back, the logic behind of it is something like the following:
 
-### Set a callback for client contact event in host
+```mermaid
+graph LR
+    subgraph PythonSide
+    style PythonSide fill:#fff9f,stroke:#ffffff,stroke-width:2px
+    get_registred_commands --> PyO3[Python Bridge]
+    PyO3 --> get_registred_commands
+    Wrapper --> get_registred_commands
+    get_registred_commands --> Wrapper
+    end
+
+    subgraph PythonScript
+    style PythonScript fill:#45ff55,stroke:#ffffff,stroke-width:2px,color: #000000
+    FunctionCalling[Function Calling] --> Wrapper
+    Wrapper --> FunctionCalling
+    end
+
+    subgraph MysceliumCore
+    style MysceliumCore fill:#1122ff,stroke:#00ffff,stroke-width:2px
+    PyO3 --> OxidizedMysceliumCore[Oxidized Myscelium Core]
+    OxidizedMysceliumCore --> ParkingLotLocker[Parking Lot Locker]
+    ParkingLotLocker -.-> OxidizedMysceliumCore
+    style COMMANDS_REGISTRED fill:#e4e,stroke:#333,stroke-width:2px
+    COMMANDS_REGISTRED[COMMANDS REGISTRED]
+    ParkingLotLocker -.-> COMMANDS_REGISTRED
+    COMMANDS_REGISTRED -.-> ParkingLotLocker
+    end
+
+    OxidizedMysceliumCore --> PyO3
+```
+
+---
+
+### Set a direct callback for client contact event in host
 
 > **IMPORTANT!** - This will not work until python pool is finished.
-
 
 ```python
 mys_host.set_client_heartbeat_handler(callback)
 ```
-Registers a client heartbeat handler. 
 
+Registers a client heartbeat handler.
+
+---
 
 ### Initialize Host
 
@@ -160,14 +299,18 @@ mys_host.initialize_host(self, ip: str, port: int)
 Initialize the host with the given IP and port.FResponse pattern
 
 Parameters:
+
 - ip: IP address for the host.
 - port: Port number for the host.
+
+---
 
 ### Shutdown Host
 
 ```python
 mys_host.stop_host(signal, frame)
 ```
+
 Stops the host.
 
 # Host Patterns
@@ -194,6 +337,7 @@ HostPatterns().client_pattern(
 Create a client pattern.
 
 Parameters:
+
 - client_name: Name of the client (user).
 - client_key: Unique Key of the client.
 - client_type: Client purpose.
@@ -203,7 +347,10 @@ Parameters:
 - client_owned_sub_channels_keys: Optional parameter to pre initialize host with client sub-channels keys allowed.
 
 Returns:
+
 - Dictionary representing the client pattern.
+
+---
 
 ### Host Response Pattern
 
@@ -220,10 +367,12 @@ HostPatterns().response_pattern(
 Creates a response pattern for sending back to a client or for retransmission.
 
 This function handles two main cases:
+
 1. Simple send to origin: The response is sent back to the originating client.
 2. Retransmit to another client: The response is retransmitted to a different client specified by `target_key`.
 
 Parameters:
+
 - `activation_function` (str): The activation function to be triggered upon response.
 - `target_key` (str, optional): The key of the target client for retransmission. ExternalFunction is None.
 - `kwargs` (dict, optional): Additional keyword arguments for the command. ExternalFunction is an empty dict.
@@ -233,16 +382,20 @@ Returns:
 dict: A dictionary representing the command instructions based on the specified pattern.
 
 Note:
+
 - In the case of 'Simple send to origin', the response is scheduled to be sent back to the client
-that originated the command.
+  that originated the command.
 - In the case of 'Retransmit to another client', the response is redirected to a different client
-specified by `target_key`. The function then triggers the specified `activation_function` on the
-target client. If the target client does not exist, an error is returned.
+  specified by `target_key`. The function then triggers the specified `activation_function` on the
+  target client. If the target client does not exist, an error is returned.
 
 Example:
+
 ```Python
 command = response_pattern("some_function", target_key="client456", kwargs={"arg1": "value1"}, message="Example message")
 ```
+
+---
 
 ### Host Callback Patterns
 
@@ -252,12 +405,12 @@ def some_function (data:dict) -> str {
 
     if True :
         response = host_patterns.response_pattern(
-            activation_function="test_handler", 
+            activation_function="test_handler",
             kwargs={"data": 'hello!'}
         )
 
         return response
-    
+
     else:
         return None
 
@@ -269,11 +422,13 @@ HostPatterns().callback_pattern(callback=some_function)
 Create a callback pattern.
 
 Parameters:
+
 - callback: The callback function.
 
 args and kwargs: Will be auto inferred by the wrapper, just add the types to your functions.
 
 Returns:
+
 - Dictionary representing the callback pattern.
 
 > **Disclaimer:** The main mechanism now is to use callback collector, you create a class for your callbacks and use callback collector to automatically load all callbacks of the class and convert into a list of callbacks:
@@ -287,6 +442,8 @@ callbacks = CallbackCollector(
 ```
 
 Callback collector collects all the callbacks contained in a class and converts them to be usable as callbacks in host or client modules
+
+---
 
 ### Host Error Response Patterns:
 
@@ -304,14 +461,11 @@ sequenceDiagram
     participant H as Host
 
     C1->>H: Command
-    H ->> H: 
-    Note right of H: (do something that results in an error and return this pattern error)
+    H ->> H: (do something that results in an error and return this pattern error)
     H-->>C1: return exception
 
     Note over C1,H: (|) This is this pattern
-
 ```
-
 
 # Host Interface
 
@@ -319,10 +473,7 @@ The `HostInterface` class provides methods to interact with host buffers
 
 ## Methods
 
-
-
-
-### watch_client_contact
+### Watch Client Contact
 
 ```python
 MysceliumHostInterface().watch_client_contact()
@@ -354,11 +505,14 @@ host_inter.start_client_events_retriever()
 
 This way the function will be called and you can save it or do whatever you want if this information, the callback needs to have a `client_name`, `client_key` and a `client_last_contact` arguments specified or a `*args` field to the information be passed to it without exceptions. If all is setuped correctly this should work as intended.
 
-Also you can stop the contact events retriever using: 
+Also you can stop the contact events retriever using:
 
 ```Python
 host_intern.stop_client_events_retriever()
 ```
+
+---
+
 ### Logs Retriever
 
 This is a retriever added to transpose logs to a external server if you want to, to setup this is very simple, just need to do the following:
@@ -400,187 +554,21 @@ Retrieve logs and process them. If multiple threads are set, it will split the l
 
 ---
 
-# TODO >>>
-
-### allow_multi_handlers
+### Allow Multi Handlers
 
 ```python
 MysceliumHostInterface().allow_multi_handlers(workers_num=2)
 ```
 
-- ``: Activate multiple handlers for processing logs.
-  - Parameters:
-    - threads_num: Number of threads to be used for processing logs.
+Activate multiple handlers for processing logs.
+
+Parameters:
+
+- threads_num: Number of threads to be used for processing logs.
 
 $~$
-
-- `set_client_contact_retriver_callback (self, callback:str)`:Set the callback function for client contacts transposition.
-  - Parameters:
-    - callback: Callback function to be invoked for each client contact.
-
-$~$
-
-- `set_logs_callback (self, callback:str)`: Set the callback function for logs.
-  Parameters: - callback: Callback function to be invoked for each log.
-
-$~$
-
-- `start_client_events_retriver(self)`: Start the clients event retriever process.
-
-- `stop_client_events_retriver (self)`: Stop the clients event retriever process.
-
-- `stop_logs_reriver (self)`: Stop the logs retriever process.
-
-- `start_logs_retriver (self)`: Start the logs retriever
-  process in a separate process.
 
 ---
-
-## Myscelium Host Usage Guide
-
-### Introduction
-
-The Myscelium Host provides an interface to set up a server that can handle various callbacks and manage client connections. This guide will walk you through setting up a basic host and the necessary callbacks.
-
-### Callback Requirements
-
-Certain callback functions must have specific names for the system to recognize and use them correctly:
-
-1. **Logs Handler Callback**: This callback is responsible for handling logs from the library engine. The function must be named `logs_handler` and should have the following signature:
-
-   ```python
-   def logs_handler(node_name: str, log_time: float, log_name: str, log_msg: str):
-       # Your implementation here
-   ```
-
-2. **Client Contact Callback**: This callback is triggered when a client makes contact. The function must be named `handle_client_contact` and should have the following signature:
-   ```python
-   def handle_client_contact(client_id: str):
-       # Your implementation here
-   ```
-
-### Setting Up the Host
-
-1. **Define Your Callbacks**: Start by defining the necessary callback functions. For example, a function to handle incoming data might look like this:
-
-   ```python
-   def python_function(age, birth, name):
-       # Your function logic here
-   ```
-
-2. **Initialize Host Patterns**: This will help in creating the required patterns for clients and responses.
-
-   ```python
-   host_patterns = HostPatterns()
-   ```
-
-3. **Create Callback List**: Add all your callback functions to a list. This list will be passed to the Myscelium Host during initialization.
-
-   ```python
-   callbacks = [
-       host_patterns.callback_pattern(
-           callback=python_function
-       ),
-       # Add other callbacks here
-   ]
-   ```
-
-   - IMPORTANT! : Since v1.3 callbacks and they args are automatically infered!
-
-   For this you can use the callbacks collector to automate this by do the following:
-
-   ```python
-       class Receivers:
-
-           def __init__ (self):
-               pass
-
-           @staticmethod
-           def example_receiver (arg1:dict, arg2:str, arg3:list, arg4:tuple):
-               pass
-
-       class Retransmiters:
-
-           def __init__ (self):
-               pass
-
-           @staticmethod
-           def example_retransmiter ():
-               pass
-
-           @staticmethod
-           def example_retransmiter (arg1:dict, arg2:str, arg3:list, arg4:tuple):
-               pass
-
-
-       callbacks = CallbackCollector([Receivers, Retransmiters]).get_callbacks()
-   ```
-
-   With this CallbackCollector we can extract all the callbacks of these call and also the types that these callbacks takes,
-   imediatly automate the callbacks of these receivers.
-
-4. **Specify Allowed Clients**: Define which clients are allowed to connect to your host.
-
-   ```python
-
-   allowed_clients = [
-       self.host_patterns.client_pattern(
-           client_name="TestClient1",
-           client_type="Interface",
-           client_key="randomsclientids",
-           client_permission_group="",
-           client_is_super_user=True,
-           max_sub_channes=5
-       ),
-       # Add other clients here
-   ]
-
-   ```
-
-5. **Initialize the Myscelium Host**: Create an instance of the `MysceliumHost` class and set the necessary parameters.
-
-   ```python
-   mys_host = MysceliumHost(
-       callbacks=callbacks,
-       host_id="your_host_id",
-       allowed_clients=allowed_clients,
-       buffer_path="Data/",
-       n_workers=2,
-       log_level="INFO"
-   )
-   ```
-
-6. **Set Client Heartbeat Handler**: This is where you specify the function that will handle client heartbeats.
-
-   ```python
-   client_heart_beat_handler = [
-       host_patterns.callback_pattern(
-           callback=handle_client_contact
-       )
-   ]
-
-   mys_host.set_client_heartbeat_handler(
-       callback=client_heart_beat_handler
-   )
-   ```
-
-7. **Set Logs Callback Handler**: Specify the function that will handle logs from the library engine.
-
-   ```python
-   logs_handler_callback = [
-       host_patterns.callback_pattern(
-           callback=logs_handler,
-       )
-   ]
-   mys_host.set_logs_callback_handler(
-       logs_handler_callback=logs_handler_callback
-   )
-   ```
-
-8. **Start the Host**: Finally, initialize the host to start listening for incoming connections.
-   ```python
-   mys_host.initialize_host(ip="127.0.0.1", port=4444)
-   ```
 
 ### To Add new CLients in Flight:
 
