@@ -935,41 +935,101 @@ By following the steps above, you can set up a Myscelium Host and handle various
 
 ### Setting Up the Client
 
-To set up a Myscelium client, you'll need to:
-
-1. Import necessary classes and functions.
-2. Define the callback functions.
-3. Initialize the client.
-4. Send data to the host.
-
-### MysceliumClient Class
-
-The `MysceliumClient` class manages the socket client's operations.
-
-#### Constructor
+1. You will need to define your receivers class, in this case is a class that will contain your functions
 
 ```python
-def __init__(self, client_uid:int, buffer_path:str) -> None:
+class Receivers:
+    @staticmethod
+    def test_handler(data: dict):
+
+        if "status" in data:
+            pass
+        else:
+            return None
+
+        if data["status"] == "success":
+            pass
+        else:
+            return None
+
+        print("Received data: ", data)
+
+        time.sleep(5)
 ```
 
-#### Methods
+2. Define your client main class
 
-- `set_workers_num(n_workers=2)`: Sets the number of workers.
-- `set_callbacks(callbacks:list)`: Registers callback functions.
-- `get_registred_commands() -> dict`: Retrieves the registered commands.
-- `initialize_client(ip:str, port:int)`: Initializes the client with the given IP and port.
-- `send(command:dict, priority:int)`: Sends a command to the host.
+```python
 
-### ClientPatterns Class
+from mysclium import MysceliumClient, CallbackCollector
 
-The `ClientPatterns` class provides patterns for the client.
+class MyClient:
+    def __init__(self, debug_level):
+        self.debug_level = debug_level
 
-#### Methods
+    def initializer(self):
 
-- `client_pattern(client_type:str, client_id:str) -> dict`: Returns a client pattern.
-- `command_pattern(command_function:str, args=None) -> dict`: Returns a command pattern.
-- `response_pattern(response:any, response_mode:str, retransmit_to_client_id:str=None) -> dict`: Returns a response pattern.
-- `callback_pattern(callback, args) -> dict`: Returns a callback pattern.
+        # Define the client
+        mys_client = MysceliumClient(
+            name="TestClien1",
+            client_uid=CLIENT_KEY,
+            buffer_path="Temp/Client1Data/",
+            log_level=self.debug_level,
+        )
+
+        self.mys_client = mys_client
+
+        # This will collect the callbacks from the classes
+        callbacks = CallbackCollector([
+          Receivers,
+        ]).get_callbacks()
+
+        mys_client.set_callbacks(callbacks=callbacks)
+        mys_client.set_workers_num(n_workers=2)
+        mys_client.initialize_client("127.0.0.1", 4444)
+
+        return
+
+    def run(self):
+        senders = Senders()
+
+        t1 = Process(target=self.initializer, args=())
+
+        # If you want to start a thread to schedule commands to the client send
+        # then you should use the following t2 setup:
+
+        # t2 = Process(target=senders.send_some_data, args=())
+
+        t1.start()
+        time.sleep(5)
+
+        #! It is important that t2 be initialized after 15 seconds latter after the initialization
+        #! of t1, this is required because the client needs to initialize before send any commands,
+        #! and this 15s delay is necessary to client initializate
+
+        # t2.start() # start t2 seutp
+
+        time.sleep(5)
+
+        # PID is the process ID of the process you want to send the signal to.
+        # You would typically get this from the 'pid' attribute of a process.
+        os.kill(t1.pid, signal.SIGINT)
+
+        t1.join()  # Wait for the process to finish
+        # t2.join()
+
+
+        return
+```
+
+This will create a client, when you run this client it will try to connect in: `127.0.0.1:4444` where it will try to find a compatible host,
+also it's important that you client key be correctly setuped, when you client enters in contact to the host, host will verify if the client is a valid client, if it is in the white list, if the client isn't in the white list then client will be droped and it will cause a disconnect event, client also will receive a error saying that the cause for the exception was that host detects a unautrized key for connection. to be able to connect with a valid one will be necessary to change the key to a valid one or create this key in host.
+
+---
+
+# TODO >>>
+
+### MysceliumClient Class
 
 ---
 
