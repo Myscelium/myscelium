@@ -194,6 +194,80 @@ class GetHostClients:
 
 import inspect
 
+# > ----------------------------------------------------------------------------------------------------------------------------------------------
+# > Callbacks
+
+
+def callback_pattern(callback) -> dict:
+    """
+    Create a callback pattern.
+
+    Parameters:
+    - callback: The callback function.
+
+    args and kwargs: Will be auto inferred by the wrapper, just add the notes to your functions.
+
+    Returns:
+    - Dictionary representing the callback pattern.
+    """
+
+    # > The idea of this pattern
+    # >
+    # > (Client 1)         [Host]
+    # >    |                 |
+    # >    | --------------> |
+    # >    |                [|]
+    # >   (|) <------------- |
+    # >    |                 |
+    # > (Client 1)         [Host]
+    # >
+    # > (|) This is this callback
+    # > [|] This is a host process
+    # >
+    # > Basically this creates a callable, that host can execute remotely by redirecting some command or sending some command
+
+    sig = inspect.signature(callback)
+    params = sig.parameters
+
+    args = {}
+
+    for name, param in params.items():
+        if param.annotation is inspect._empty:
+            function_name = callback.__name__
+            raise f"function: {function_name} has args or kwargs without the required notes!"
+        else:
+            pass
+
+        args[name] = str(param.annotation.__name__)
+
+    else:
+        pass
+
+    if "info" not in args:
+        function_name = callback.__name__
+        raise ValueError(
+            f"Fist argument must be info, ifnor is a carrier argument designed to send crutial info about then engine and generla staus, you must define it inside function: {function_name}"
+        )
+    else:
+        pass
+
+    args.pop(
+        "info", None
+    )  # Remove the info carrier arg in the start of the callback argument
+
+    # Info carrier argument is only defined in the function as a delimiter to the
+    # information that will be sended by the engine to the callback, it isn't a
+    # requirement for remote call this argument, however this is necessary to delimit
+    # that space and say that the first arg is the info carrier. The engine know that
+    # too so it isn't required to be sended to inside the engine.
+
+    callback_pattern = {
+        "function": callback,
+        "args": args,
+    }
+
+    return callback_pattern
+
 
 class CallbackCollector:
 
@@ -201,6 +275,8 @@ class CallbackCollector:
     Extract from a list of classes (Handlers, Receivers and Retransmiters) the methods and callbacks in it
     And automatically creates the callback list, simplifiing even more the process of create new callbacks and
     Methods for you host or to you client.
+
+    IMPORTANT!: This only extract static methods toa llow you to use other methods inside your class
 
     Usage:
 
@@ -229,9 +305,7 @@ class CallbackCollector:
 
                 # Check if obj is not None before proceeding
                 if obj is not None:
-                    callback_pattern_result = host_patterns.callback_pattern(
-                        callback=obj
-                    )
+                    callback_pattern_result = callback_pattern(callback=obj)
                     # Check if callback_pattern_result is not None before appending
                     if callback_pattern_result is not None:
                         self.callbacks.append(callback_pattern_result)
@@ -656,7 +730,6 @@ class MysceliumHost:
             else:
                 pass
 
-       
             mys.setup_socket_host(buffer_path, log_level, n_workers, n_max_conns)
 
             mys.registry_socket_host_callbacks(callbacks)
@@ -839,7 +912,7 @@ class HostPatterns:
     def response_pattern(
         self,
         activation_function: str,
-        target_key: str = None,
+        target_key: str = "",
         kwargs: dict = {},
         message="",
     ) -> dict:
@@ -918,7 +991,7 @@ class HostPatterns:
 
         command_instructions = {}
 
-        if target_key == None:
+        if target_key == "":
             command_instructions = cast_command_instruction(
                 "Response",
                 "ExternalFunction",  # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
@@ -1206,58 +1279,6 @@ class HostPatterns:
                 "remove_client_handler",
             )
 
-    def callback_pattern(self, callback) -> dict:
-        """
-        Create a callback pattern.
-
-        Parameters:
-        - callback: The callback function.
-
-        args and kwargs: Will be auto inferred by the wrapper, just add the types to your functions.
-
-        Returns:
-        - Dictionary representing the callback pattern.
-        """
-
-        # -> This is used to create a endpoint in the host that is visible to every client that has permission to see it
-        # >
-        # > (Client 1)       [Host]
-        # >    |                |
-        # >    |-------------> (|)
-        # >    |                |
-        # >    |<-------------- |
-        # >    |                |
-        # > (Client 1)        [host]
-        # >
-        # > (|) This is this pattern
-        # >
-
-        sig = inspect.signature(callback)
-        params = sig.parameters
-
-        args = {}
-
-        for name, param in params.items():
-            if param.annotation is inspect._empty:
-                print(
-                    f"function: {callback.__name__} has args or kwargs without the required types!"
-                )
-                return
-            else:
-                pass
-
-            args[name] = str(param.annotation.__name__)
-
-        else:
-            pass
-
-        callback_pattern = {
-            "function": callback,
-            "args": args,
-        }
-
-        return callback_pattern
-
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > CLIENT
@@ -1282,7 +1303,9 @@ class MysceliumClient:
         self.client_uid = client_uid
 
         if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
-            raise f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+            raise ValueError(
+                f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+            )
         else:
             pass
 
@@ -1293,8 +1316,6 @@ class MysceliumClient:
         self.name = name
         self.host_thread = None
         self.initialized = True
-
-       
 
         # mys.set_socket_client_log_level(log_level)
 
@@ -1424,7 +1445,7 @@ class MysceliumClient:
         #     raise "Client need to be running before try to send something"
         # else:
         #     pass
-        
+
         return mys.client_send(command, priority)
 
 
@@ -1813,58 +1834,6 @@ class ClientPatterns:
         )
 
         return command_instruction
-
-    def callback_pattern(self, callback) -> dict:
-        """
-        Create a callback pattern.
-
-        Parameters:
-        - callback: The callback function.
-
-        args and kwargs: Will be auto inferred by the wrapper, just add the notes to your functions.
-
-        Returns:
-        - Dictionary representing the callback pattern.
-        """
-
-        # > The idea of this pattern
-        # >
-        # > (Client 1)         [Host]
-        # >    |                 |
-        # >    | --------------> |
-        # >    |                [|]
-        # >   (|) <------------- |
-        # >    |                 |
-        # > (Client 1)         [Host]
-        # >
-        # > (|) This is this callback
-        # > [|] This is a host process
-        # >
-        # > Basically this creates a callable, that host can execute remotely by redirecting some command or sending some command
-
-        sig = inspect.signature(callback)
-        params = sig.parameters
-
-        args = {}
-
-        for name, param in params.items():
-            if param.annotation is inspect._empty:
-                function_name = callback.__name__
-                raise f"function: {function_name} has args or kwargs without the required notes!"
-            else:
-                pass
-
-            args[name] = str(param.annotation.__name__)
-
-        else:
-            pass
-
-        callback_pattern = {
-            "function": callback,
-            "args": args,
-        }
-
-        return callback_pattern
 
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

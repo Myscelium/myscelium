@@ -1,4 +1,5 @@
-from myscelium import MysceliumClient, ClientPatterns
+from myscelium import MysceliumClient, ClientPatterns, CallbackCollector
+
 import os
 import time
 import signal
@@ -11,6 +12,7 @@ CLIENT_KEY = "some_client_id"
 CLIENT_NAME = "TestClient1"
 TEMP_PATH = "Temp/Client1Data/"
 LOG_LEVEL = "INFO"
+
 
 class Senders:
     @staticmethod
@@ -46,18 +48,17 @@ class Senders:
 
         print(result)
 
+
 class Receivers:
-
     @staticmethod
-    def test_handler(data:dict):
-
+    def test_handler(data: dict):
         print("Received data: ", data)
 
         if "status" in data:
             pass
         else:
             return None
-        
+
         if data["status"] == "success":
             pass
         else:
@@ -68,7 +69,7 @@ class Receivers:
         time.sleep(5)
 
         return None
-        
+
 
 class MyClient:
     def __init__(self, debug_level):
@@ -96,9 +97,8 @@ class MyClient:
         mys_client.initialize_client("127.0.0.1", 8000)
 
         return
-    
+
     def monitor_stop_event(self):
-        
         time.sleep(5)
 
         while True:
@@ -107,7 +107,6 @@ class MyClient:
         return
 
     def run(self):
-
         senders = Senders()
 
         t1 = Process(target=self.initializer, args=())
@@ -119,8 +118,7 @@ class MyClient:
         t2.start()
         t3.start()
 
-        
-        t3.join()  
+        t3.join()
 
         time.sleep(5)
 
@@ -133,5 +131,8 @@ class MyClient:
 
         return
 
-if __name__ == "__main__":
-    MyClient("INFO").run()  
+
+# if __name__ == "__main__":
+#     MyClient("INFO").run()
+
+print(CallbackCollector([Receivers]).get_callbacks())
