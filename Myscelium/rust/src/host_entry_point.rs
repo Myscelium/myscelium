@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use crate::common::functions::convert_to_pydict;
 use crate::common::functions::extract_arg_types;
 use crate::common::functions::translate_value_to_py;
 use crate::common::functions::wrap_py_function;
@@ -247,7 +248,7 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
         let function_name: &str = function.getattr("__name__")?.extract()?;
 
         // Extract the argument types
-        let args_types_value = IndexMap::new();
+        let mut args_types_value = IndexMap::new();
 
         if let Some(args_dict) = args_dict {
             for (key, value) in args_dict.into_iter() {
@@ -323,16 +324,7 @@ pub fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: 
 #[pyfunction]
 pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
     let commands = OxidizedMyscelium::get_socket_host_available_commands();
-
-    // Convert the HashMap values to PyObjects
-    let py_dict: &PyDict = PyDict::new(py);
-    for (key, value) in commands {
-        // TODO >>> Convert to use index map not values
-        let py_value = translate_value_to_py(py, value)?;
-        py_dict.set_item(key, py_value)?;
-    }
-
-    Ok(py_dict.into())
+    convert_to_pydict(py, &commands)
 }
 
 // > --------------------------------------------------------------------------------------------------------

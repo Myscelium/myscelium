@@ -20,6 +20,25 @@ use OxidizedMyscelium::ResultType;
 
 use pyo3::prelude::*;
 
+use indexmap::IndexMap;
+
+pub fn convert_to_pydict(py: Python, data: &HashMap<String, IndexMap<String, String>>) -> PyResult<PyObject> {
+    let py_dict = PyDict::new(py);
+    for (key, value) in data {
+        let inner_py_dict = convert_indexmap_to_pydict(py, value)?;
+        py_dict.set_item(key, inner_py_dict)?;
+    }
+    Ok(py_dict.into())
+}
+
+fn convert_indexmap_to_pydict(py: Python<'_>, data: &IndexMap<String, String>) -> PyResult<Py<PyDict>> {
+    let py_dict = PyDict::new(py);
+    for (key, value) in data {
+        py_dict.set_item(PyString::new(py, key), PyString::new(py, value))?;
+    }
+    Ok(py_dict.into())
+}
+
 // fn convert_boxed_any_to_pyany(py: Python, boxed_any: Box<Value>) -> PyResult<PyObject> {
 //     if let Some(value) = boxed_any.downcast_ref::<bool>() {
 //         Ok(value.into_py(py))

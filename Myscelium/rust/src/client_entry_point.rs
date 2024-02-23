@@ -7,9 +7,11 @@ use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::{ClientState, StateManagerError};
 use OxidizedMyscelium::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
+use crate::common::functions::convert_to_pydict;
 use crate::common::functions::extract_arg_types;
 use crate::common::functions::translate_value_to_py;
 use crate::common::functions::wrap_py_function;
+use indexmap::IndexMap;
 use parking_lot::Mutex;
 use pyo3::exceptions;
 use pyo3::prelude::*;
@@ -328,13 +330,7 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
 pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject> {
     let commands = OxidizedMyscelium::get_socket_client_available_handlers();
     // Convert the HashMap values to PyObjects
-    let py_dict: &PyDict = PyDict::new(py);
-    for (key, value) in commands {
-        // TODO >>> Convert it to use index map not values
-        let py_value = translate_value_to_py(py, value)?;
-        py_dict.set_item(key, py_value)?;
-    }
-    Ok(py_dict.into())
+    convert_to_pydict(py, &commands)
 }
 
 // #[pyfunction]
@@ -408,11 +404,16 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         let function_name: &str = function.getattr("__name__")?.extract()?;
 
         // Extract the argument types
-        let args_types_value;
+        let mut args_types_value = IndexMap::new();
+
         if let Some(args_dict) = args_dict {
-            args_types_value = extract_arg_types(args_dict)?;
-        } else {
-            args_types_value = Value::Array(Vec::new()); // or whatever default value you want to use
+            for (key, value) in args_dict.into_iter() {
+                let key: String = key.extract()?;
+                let value: String = value.extract()?;
+                args_types_value.insert(key, value);
+            }
+            // Ok(map)
+            // args_types_value = extract_arg_types(args_dict)?;
         }
 
         let handler: NodeHandler = NodeHandler::new(function_name.to_string(), args_types_value.clone(), CommandType::ExternalFunction, HandlerStatus::NotTested, HashMap::new(), "".to_string());
