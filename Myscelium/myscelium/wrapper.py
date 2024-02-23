@@ -246,7 +246,7 @@ def callback_pattern(callback) -> dict:
     if "info" not in args:
         function_name = callback.__name__
         raise ValueError(
-            f"Fist argument must be info, ifnor is a carrier argument designed to send crutial info about then engine and generla staus, you must define it inside function: {function_name}"
+            f"Fist argument must be info, ifnor is a carrier argument designed to send crutial info about then engine and general staus, you must define it inside function: {function_name}"
         )
     else:
         pass

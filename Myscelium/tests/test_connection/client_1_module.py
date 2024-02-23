@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns
+from myscelium import MysceliumClient, ClientPatterns, callback_pattern
 import os
 import time
 import signal
@@ -52,7 +52,7 @@ class Senders:
 
 class Receivers:
     @staticmethod
-    def test_handler(data: dict):
+    def test_handler(info: dict):
         EVManager = Events_Manager(Unit="Client1", path="Logs")
         EVManager.Set_Event(
             "Activate Basic Response Test callback handler",
@@ -60,17 +60,17 @@ class Receivers:
             event_key="74L648VZDI7J1GV5",
         )
 
-        if "status" in data:
+        if "status" in info:
             pass
         else:
             return None
 
-        if data["status"] == "success":
+        if info["status"] == "success":
             pass
         else:
             return None
 
-        print("Received data: ", data)
+        print("Received data: ", info)
 
         time.sleep(5)
 
@@ -94,7 +94,7 @@ class MyClient:
         self.mys_client = mys_client
 
         callbacks = [
-            client_patterns.callback_pattern(callback=receivers.test_handler),
+            callback_pattern(callback=receivers.test_handler),
         ]
 
         mys_client.set_callbacks(callbacks=callbacks)
