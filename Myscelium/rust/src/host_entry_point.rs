@@ -327,6 +327,7 @@ pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> 
     // Convert the HashMap values to PyObjects
     let py_dict: &PyDict = PyDict::new(py);
     for (key, value) in commands {
+        // TODO >>> Convert to use index map not values
         let py_value = translate_value_to_py(py, value)?;
         py_dict.set_item(key, py_value)?;
     }

@@ -426,6 +426,7 @@ dependencies = [
  "chrono",
  "cpython",
  "ctrlc",
+ "indexmap 2.2.3",
  "lazy_static",
  "oxidized_myscelium_macros",
  "parking_lot 0.11.2",

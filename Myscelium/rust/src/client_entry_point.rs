@@ -330,6 +330,7 @@ pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject
     // Convert the HashMap values to PyObjects
     let py_dict: &PyDict = PyDict::new(py);
     for (key, value) in commands {
+        // TODO >>> Convert it to use index map not values
         let py_value = translate_value_to_py(py, value)?;
         py_dict.set_item(key, py_value)?;
     }
