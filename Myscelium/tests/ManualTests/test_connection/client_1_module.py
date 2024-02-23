@@ -51,20 +51,20 @@ class Senders:
 
 class Receivers:
     @staticmethod
-    def test_handler(data: dict):
-        print("Received data: ", data)
+    def test_handler(info: dict):
+        print("Received data: ", info)
 
-        if "status" in data:
+        if "status" in info:
             pass
         else:
             return None
 
-        if data["status"] == "success":
+        if info["status"] == "success":
             pass
         else:
             return None
 
-        print("Received data: ", data)
+        print("Received data: ", info)
 
         time.sleep(5)
 
