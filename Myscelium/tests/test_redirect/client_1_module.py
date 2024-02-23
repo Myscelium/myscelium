@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns
+from myscelium import MysceliumClient, ClientPatterns, callback_pattern
 import os
 import time
 import signal
@@ -53,50 +53,50 @@ class Receivers:
         pass
 
     @staticmethod
-    def test_handler(data: str):
+    def test_handler(info: dict):
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test callback handler",
             event_type="Receive",
             event_key="r99F3i89D20Oj1lq",
         )
 
-        if "status" in data:
+        if "status" in info:
             pass
         else:
             return None
 
-        if data["status"] == "Success":
+        if info["status"] == "Success":
             pass
         else:
             return None
 
-        print("Received data: ", data)
+        print("Received data: ", info)
 
         # time.sleep(5)
 
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def test_redirect_handler(data: dict):
+    def test_redirect_handler(info: dict):
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Redirect Test callback handler",
             event_type="Receive",
             event_key="02V0P37Dz09zR3fL",
         )
 
-        if "status" in data:
+        if "status" in info:
             pass
         else:
             return None
 
-        if data["status"] == "Success":
+        if info["status"] == "Success":
             pass
         else:
             return None
 
         # TODO >>> Maybe implement a response redirect test from here
 
-        print("Received redirected data: ", data)
+        print("Received redirected data: ", info)
 
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
@@ -120,8 +120,8 @@ class MyClient:
         receivers = Receivers()
 
         callbacks = [
-            client_patterns.callback_pattern(callback=receivers.test_handler),
-            client_patterns.callback_pattern(callback=receivers.test_redirect_handler),
+            callback_pattern(callback=receivers.test_handler),
+            callback_pattern(callback=receivers.test_redirect_handler),
         ]
 
         mys_client.set_callbacks(callbacks=callbacks)

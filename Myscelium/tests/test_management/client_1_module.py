@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns, CallbackCollector
+from myscelium import MysceliumClient, ClientPatterns, CallbackCollector, callback_pattern
 import os
 import time
 import signal
@@ -13,7 +13,7 @@ CLIENT_ID = "some_client_id"
 
 class Receivers:
     @staticmethod
-    def add_client_handler(data: any):  # -> Need to be implemented
+    def add_client_handler(info: dict):  # -> Need to be implemented
         # "data" {
         #     "command_type":"response",
         #     "status": "Success"
@@ -27,55 +27,55 @@ class Receivers:
             "Activate Basic Response Test Add Client"
         )
 
-        print("Received data in python callback: ", data)
+        print("Received data in python callback: ", info)
 
-        if "status" in data:
+        if "status" in info:
             pass
         else:
             return None  # This return that the callback called don't have a response for this case
 
-        if data["status"] == "Success":
+        if info["status"] == "Success":
             pass
         else:
             return None
 
     @staticmethod
-    def update_client_handler(data: any):  # -> Need to be implemented
+    def update_client_handler(info: dict):  # -> Need to be implemented
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Update Client"
         )
 
-        if "status" in data:
+        if "status" in info:
             pass
         else:
             return None
 
-        if data["status"] == "Success":
+        if info["status"] == "Success":
             pass
         else:
             return None
 
-        print("Received data: ", data)
+        print("Received data: ", info)
 
         # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
     @staticmethod
-    def remove_client_handler(data: any):  # TODO >>> test_remove_client
+    def remove_client_handler(info: dict):  # TODO >>> test_remove_client
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Activate Basic Response Test Remove Client"
         )
 
-        if "status" in data:
+        if "status" in info:
             pass
         else:
             return None
 
-        if data["status"] == "Success":
+        if info["status"] == "Success":
             pass
         else:
             return None
 
-        print("Received data: ", data)
+        print("Received data: ", info)
 
         time.sleep(10)
 

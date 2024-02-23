@@ -1,4 +1,4 @@
-from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector, callback_pattern
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
@@ -17,7 +17,7 @@ def client_contact_event_handler (client_name:str, client_key:str, client_last_c
 class Handlers:
 
     @staticmethod
-    def test_add_client (client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
+    def test_add_client (info:dict, client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
 
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
@@ -49,7 +49,7 @@ class Handlers:
         return response
     
     @staticmethod
-    def test_update_client (actual_client_key:str,client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
+    def test_update_client (info:dict, actual_client_key:str,client_name:str, client_key:str, client_type:str, permission_group:str, is_super_user:bool, max_sub_channels:int, owned_sub_channels_keys:list):
 
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
@@ -77,7 +77,7 @@ class Handlers:
         return HostPatterns().update_host_configs(activation_function="update_client", actual_client_key=actual_client_key, updated_client=updated_client)
 
     @staticmethod
-    def test_remove_client (client_key:str):
+    def test_remove_client (info:dict, client_key:str):
 
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
