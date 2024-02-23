@@ -23,6 +23,8 @@ use std::sync::MutexGuard;
 use std::thread;
 use std::time::Duration;
 
+use indexmap::IndexMap;
+
 use OxidizedMyscelium::{ClientStatusPoolError, Clients};
 
 use OxidizedMyscelium::CommandType;
@@ -245,11 +247,16 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
         let function_name: &str = function.getattr("__name__")?.extract()?;
 
         // Extract the argument types
-        let args_types_value;
+        let args_types_value = IndexMap::new();
+
         if let Some(args_dict) = args_dict {
-            args_types_value = extract_arg_types(args_dict)?;
-        } else {
-            args_types_value = Value::Array(Vec::new()); // or whatever default value you want to use
+            for (key, value) in args_dict.into_iter() {
+                let key: String = key.extract()?;
+                let value: String = value.extract()?;
+                args_types_value.insert(key, value);
+            }
+            // Ok(map)
+            // args_types_value = extract_arg_types(args_dict)?;
         }
 
         // Store the function name and argument types in the command patterns
