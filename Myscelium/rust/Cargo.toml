@@ -16,6 +16,7 @@ path = "src/lib.rs"
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+indexmap = { version = "2.2.3", features = ["serde"] }
 rusqlite = { version = "*", features = ["bundled"] }
 lazy_static = "1.4.0"
 rand = "0.8.5"

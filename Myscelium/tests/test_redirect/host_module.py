@@ -1,4 +1,4 @@
-from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
@@ -26,7 +26,7 @@ class Handlers:
     #     # TODO >>> Save event in the test database log
 
     @staticmethod   
-    def python_function(age:int, birth:str, name:str):
+    def python_function(info:dict, age:int, birth:str, name:str):
         print("Access python function")
         print(birth)
         print(name)
@@ -133,7 +133,7 @@ class MyHost:
         handlers = Handlers()
 
         callbacks = [
-            self.host_patterns.callback_pattern(callback=handlers.python_function),
+            callback_pattern(callback=handlers.python_function),
         ]
 
         allowed_clients = [

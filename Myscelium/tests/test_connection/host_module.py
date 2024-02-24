@@ -1,4 +1,4 @@
-from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
@@ -17,7 +17,7 @@ def client_contact_event_handler (client_name:str, client_key:str, client_last_c
 class Handlers:
 
     @staticmethod
-    def python_function(age:int, birth:int, name:str):
+    def python_function(info:dict, age:int, birth:int, name:str):
         print("Access python function")
         print(birth)
         print(name)
@@ -105,7 +105,7 @@ class MyHost:
 
         callbacks = [
             
-            self.host_patterns.callback_pattern(callback=handlers.python_function),
+            callback_pattern(callback=handlers.python_function),
             # self.host_patterns.callback_pattern(callback=self.test_redirect),
 
         ]
