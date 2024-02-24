@@ -333,7 +333,6 @@ The `HostPatterns` class provides patterns for the host.
 
 ```python
 HostPatterns().client_pattern(
-    self,
     client_name: str,
     client_key: str,
     client_type: str,
@@ -409,8 +408,10 @@ command = response_pattern("some_function", target_key="client456", kwargs={"arg
 
 ### Host Callback Patterns
 
+The simple callback you can create is that, a callback only containing the info required argument and some basic logic inside of it just to demonstation:
+
 ```python
-def some_function (data:dict) -> str {
+def some_function (info:dict) -> str {
     # Some code, i.e.g:
 
     if True :
@@ -592,8 +593,9 @@ class InternalManipulation:
     def __init__ (self):
       pass
 
+   @staticmethod
    def add_client (
-      self,
+      info:dict,
       name:str,
       key:str,
       client_tpye:str,
