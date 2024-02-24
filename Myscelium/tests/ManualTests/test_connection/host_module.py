@@ -15,7 +15,7 @@ def client_contact_event_handler (client_name:str, client_key:str, client_last_c
 class Handlers:
 
     @staticmethod
-    def python_function(age:int, birth:int, name:str):
+    def python_function(info:dict, age:int, birth:int, name:str):
         print("Access python function")
         print(birth)
         print(name)
