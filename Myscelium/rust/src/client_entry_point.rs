@@ -220,17 +220,7 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
 
 #[pyfunction]
 pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String) {
-    OxidizedMyscelium::initialize_client_buffer_tables(&buffer_path);
-    OxidizedMyscelium::set_socket_client_log_level(&log_level);
-    OxidizedMyscelium::set_client_key(client_uid.clone());
-    {
-        let mut key = CLIENT_NODE_KEY.lock();
-        *key = client_uid.clone();
-    }
-    {
-        let mut name = CLIENT_NODE_NAME.lock();
-        *name = client_name.clone();
-    }
+    OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level)
 }
 
 /// Sends a c:ommand from the client.
