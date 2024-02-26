@@ -28,13 +28,14 @@ use indexmap::IndexMap;
 
 use OxidizedMyscelium::{ClientStatusPoolError, Clients};
 
+use OxidizedMyscelium::registry_new_client;
 use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::{Client, ClientError};
 use OxidizedMyscelium::{HandlerStatus, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
-lazy_static! {
-    pub static ref CLIENTS_SYNC_CONTROLLER: Arc<Mutex<Clients>> = Arc::new(Mutex::new(Clients::new()));
-}
+// lazy_static! {
+//     pub static ref CLIENTS_SYNC_CONTROLLER: Arc<Mutex<Clients>> = Arc::new(Mutex::new(Clients::new()));
+// }
 
 // #[pyfunction]
 // fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
@@ -402,40 +403,24 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
         let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
         let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
 
-        {
-            let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
-            let _ = controller.add_new_client(client_key.clone().to_string(), 10);
-            println!("\nSet clients sync controler to:\n{:?}\n", controller);
-        }
-
         // {
-        //     let mut client_controller_pool: MutexGuard<Clients> = smart_lock(|| CLIENTS_SYNC_CONTROLLER.lock());
-        //     let _ = client_controller_pool.add_new_client(client_key.clone(), 10);
-        // }
-
-        // {
-        //     println!(
-        //         "{:?},{:?},{:?},{:?},{:?},{:?},{:?}",
-        //         &client_name, &client_key, &client_type, &client_permission_group, &client_is_super_user, &client_max_sub_channels, &client_owned_sub_channels_keys,
-        //     )
+        //     let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
+        //     let _ = controller.add_new_client(client_key.clone().to_string(), 10);
+        //     println!("\nSet clients sync controler to:\n{:?}\n", controller);
         // }
 
         let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 
-        if !OxidizedMyscelium::check_if_client_key_exists(client_key.clone()) {
-            let client = handle_manager_client_error!(Client::new(
-                client_name.clone(),
-                client_key.clone(),
-                client_type,
-                client_permission_group,
-                client_is_super_user,
-                client_max_sub_channels,
-                client_owned_sub_channels_keys,
-                client_handlers,
-            ));
-
-            client.save_into_db();
-        }
+        registry_new_client(
+            client_name.clone(),
+            client_key.clone(),
+            client_type,
+            client_permission_group,
+            client_is_super_user,
+            client_max_sub_channels,
+            client_owned_sub_channels_keys,
+            client_handlers,
+        );
 
         println!("Successfully created client: {} of key: {}", client_name, client_key)
     }
