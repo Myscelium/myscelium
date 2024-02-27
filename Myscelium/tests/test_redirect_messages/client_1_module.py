@@ -17,7 +17,7 @@ class Senders:
     def send_some_data_to_redirect():
 
         # time.sleep(10)
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/",is_main_process = False)
         
         mys_client.running = True
 
@@ -45,7 +45,7 @@ class Senders:
     def send_some_incorrect_data_to_redirect():
 
         # time.sleep(10)
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/")
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", is_main_process = False)
         
         mys_client.running = True
 
@@ -129,7 +129,7 @@ class MyClient:
 
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level=self.debug_level)
+        mys_client = MysceliumClient(client_uid="some_client_id", buffer_path="Temp/Client1Data/", log_level=self.debug_level, is_main_process = True)
 
         self.mys_client = mys_client
 

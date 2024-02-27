@@ -157,7 +157,7 @@ class MyClient:
 
     def initializer(self):
 
-        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client1Data/", log_level=self.debug_level)
+        mys_client = MysceliumClient(client_uid="randomsclientids", buffer_path="Temp/Client1Data/", log_level=self.debug_level, is_main_process = True)
 
         self.mys_client = mys_client
 

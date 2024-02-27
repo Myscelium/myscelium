@@ -1288,7 +1288,7 @@ class MysceliumClient:
     _instance = None  # Singleton instance
 
     def __init__(
-        self, name: str, client_uid: int, buffer_path: str, log_level: str = "DEBUG"
+        self, name: str, client_uid: int, buffer_path: str, log_level: str = "DEBUG", is_main_process: bool = False
     ):
         """
         Initialize the MysceliumClient.
@@ -1309,7 +1309,7 @@ class MysceliumClient:
         else:
             pass
 
-        mys.setup_client(name, client_uid, buffer_path, log_level)
+        mys.setup_client(name, client_uid, buffer_path, log_level, is_main_process)
 
         time.sleep(5)
 

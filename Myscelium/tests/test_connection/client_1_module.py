@@ -20,6 +20,7 @@ class Senders:
             name="TestClient1",
             client_uid="some_client_id",
             buffer_path="Temp/Client1Data/",
+            is_main_process = False
         )
 
         mys_client.running = True
@@ -89,6 +90,7 @@ class MyClient:
             client_uid=CLIENT_KEY,
             buffer_path="Temp/Client1Data/",
             log_level=self.debug_level,
+            is_main_process = True
         )
 
         self.mys_client = mys_client

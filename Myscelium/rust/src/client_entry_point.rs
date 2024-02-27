@@ -219,8 +219,8 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
 }
 
 #[pyfunction]
-pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String) {
-    OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level)
+pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String, is_main_process: bool) {
+    OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level, is_main_process)
 }
 
 /// Sends a c:ommand from the client.
@@ -370,70 +370,59 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
     let mut callbacks_patterns = HashMap::new();
 
     for command in commands.iter() {
+        // Safely casting the command to a Python dictionary
         let command_dict: &PyDict = command.downcast().unwrap();
+
+        // Extracting the "function" item from the command dictionary
         let function: &PyAny = command_dict.get_item("function").unwrap();
 
+        // Extracting the "args" item from the command dictionary
         let args_item: &PyAny = command_dict.get_item("args").unwrap();
 
-        // Check if args_item is a dict or a string with the value "None"
+        // Initializing an optional variable to hold the arguments dictionary
         let args_dict: Option<&PyDict>;
 
+        // Checking if the args item is a dictionary or a string with the value "None"
         if let Ok(args_as_dict) = args_item.downcast::<PyDict>() {
             args_dict = Some(args_as_dict);
         } else if let Ok(args_as_str) = args_item.extract::<String>() {
             if args_as_str == "None" {
                 args_dict = None;
             } else {
+                // Returning an error if the args item does not meet the expected conditions
                 return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
             }
         } else {
+            // Returning an error if the args item cannot be processed
             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
         }
 
-        // Extract the Python function name
+        // Extracting the Python function name for use in the handler
         let function_name: &str = function.getattr("__name__")?.extract()?;
 
-        // Extract the argument types
+        // Preparing a map to hold argument types, if any
         let mut args_types_value = IndexMap::new();
 
+        // If args are provided as a dictionary, iterating over the dictionary to populate args_types_value
         if let Some(args_dict) = args_dict {
             for (key, value) in args_dict.into_iter() {
                 let key: String = key.extract()?;
                 let value: String = value.extract()?;
                 args_types_value.insert(key, value);
             }
-            // Ok(map)
-            // args_types_value = extract_arg_types(args_dict)?;
         }
 
+        // Creating a new handler with the extracted information and adding it to a collection
         let handler: NodeHandler = NodeHandler::new(function_name.to_string(), args_types_value.clone(), CommandType::ExternalFunction, HandlerStatus::NotTested, HashMap::new(), "".to_string());
         client_handlers.push(handler);
 
-        // Inside your loop over commands
+        // Converting the Python function to a form that can be stored and called later
         let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
-
-        // Wrap the Python function to match CallbackClosure signature
         let wrapped_function = Box::new(wrap_py_function(function));
 
-        // Assuming `my_callbacks` is an instance of MyCallbacks
+        // Converting the Python function to a form that can be stored and called later
         callbacks_patterns.insert(function_name.to_string(), wrapped_function);
     }
-
-    let client_name: String;
-
-    {
-        let name = CLIENT_NODE_NAME.lock();
-        client_name = name.clone();
-    }
-
-    let client_key: String;
-
-    {
-        let mut key = CLIENT_NODE_KEY.lock();
-        client_key = key.clone();
-    }
-
-    // TODO >>> Make a mechanism to be able to only update the required things and not subistitute the entire thing in the handlers update
 
     // -> UPDATE CLIENT HANDLERS AND NODE
 
@@ -441,23 +430,12 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
         let mut command_patterns = CLIENT_NODE_CONFIGS.lock();
         println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
-
-        let client_version: NodeVersion = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
-        let client_node = Node::new(client_name.clone(), client_key.clone(), "".to_string(), client_version, client_handlers, NodeStatus::NotSyncYet);
-        *command_patterns = client_node.clone();
-
-        {
-            let mut client_state = CLIENT_STATE_MANAGER.lock();
-            client_state.clean_storage(); // remove any old state
-            let new_client_state = ClientState::new(client_name.clone(), client_key.clone(), NetworkMap::new(Vec::new()), client_node.clone(), true, false, false, false);
-            new_client_state.save_in_storage();
-            *client_state = new_client_state.clone();
-        }
-
+        command_patterns.update_handlers(client_handlers);
         println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
     }
 
     OxidizedMyscelium::set_client_callbacks(callbacks_patterns);
+    OxidizedMyscelium::change_client_to_initialized();
 
     Ok(())
 }
