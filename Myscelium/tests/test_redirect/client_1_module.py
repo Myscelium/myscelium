@@ -113,7 +113,7 @@ class MyClient:
             client_uid="some_client_id",
             buffer_path="Temp/Client1Data/",
             log_level=self.debug_level,
-            is_main_process = False
+            is_main_process = True
         )
 
         self.mys_client = mys_client

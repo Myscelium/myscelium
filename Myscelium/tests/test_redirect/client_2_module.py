@@ -146,7 +146,7 @@ class MyClient:
             client_uid=CLIENT_ID,
             buffer_path="Temp/Client2Data/",
             log_level=self.debug_level,
-            is_main_process = False
+            is_main_process = True
         )
 
         self.mys_client = mys_client
