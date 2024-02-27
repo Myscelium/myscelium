@@ -433,6 +433,10 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         client_key = key.clone();
     }
 
+    // TODO >>> Make a mechanism to be able to only update the required things and not subistitute the entire thing in the handlers update
+
+    // -> UPDATE CLIENT HANDLERS AND NODE
+
     {
         println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
         let mut command_patterns = CLIENT_NODE_CONFIGS.lock();
@@ -452,8 +456,6 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
 
         println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
     }
-
-    // TODO >>> Add the new mechanism of Network Commands here
 
     OxidizedMyscelium::set_client_callbacks(callbacks_patterns);
 

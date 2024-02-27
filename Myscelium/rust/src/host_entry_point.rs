@@ -279,6 +279,9 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
     // Now you can use the command_patterns
     OxidizedMyscelium::set_host_callbacks(callbacks_patterns);
 
+    // TODO >>> Create a mechanism that allows to only update the necessary information to avoid need update all what can cause isues
+
+    // -> UPDATE HOST NODE WITH THE HANDLERS
     let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
     let node_version = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
     let host_node: Node = Node::new("host".to_string(), "host".to_string(), "".to_string(), node_version, host_node_handlers, NodeStatus::Online);
