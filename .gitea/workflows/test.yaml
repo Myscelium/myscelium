@@ -20,12 +20,16 @@ jobs:
         run: |
           cd Myscelium
           python3 -m venv .venv
-          source venv/bin/activate
+          source ./venv/bin/activate
           python3 -m pip install -r requirements.txt
+      - name: List files in the repository
+        run: |
+          cd Myscelium
+          ls
       - name: Test Communication
         run: |
           cd Myscelium
-          source venv/bin/activate
+          source ./venv/bin/activate
           cd tests
           python3 -m pytest -v -s .\test_myscelium.py::test_communication
       - run: echo "🍏 This job's status is ${{ job.status }}."
