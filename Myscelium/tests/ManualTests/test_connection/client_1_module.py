@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns, CallbackCollector
+from myscelium import MysceliumClient, ClientPatterns, CallbackCollector, callback_pattern
 
 import os
 import time
@@ -23,6 +23,7 @@ class Senders:
             name="TestClient1",
             client_uid="some_client_id",
             buffer_path="Temp/Client1Data/",
+            is_main_process = False
         )
 
         mys_client.running = True
@@ -83,12 +84,13 @@ class MyClient:
             client_uid=CLIENT_KEY,
             buffer_path="Temp/Client1Data/",
             log_level=self.debug_level,
+            is_main_process = True
         )
 
         self.mys_client = mys_client
 
         callbacks = [
-            client_patterns.callback_pattern(callback=receivers.test_handler),
+            callback_pattern(callback=receivers.test_handler),
         ]
 
         mys_client.set_callbacks(callbacks=callbacks)
@@ -132,7 +134,7 @@ class MyClient:
         return
 
 
-# if __name__ == "__main__":
-#     MyClient("INFO").run()
+if __name__ == "__main__":
+    MyClient("INFO").run()
 
-print(CallbackCollector([Receivers]).get_callbacks())
+# print(CallbackCollector([Receivers]).get_callbacks())
