@@ -19,6 +19,6 @@ jobs:
       - name: Run pytest
         run: |
           cd Myscelium
-          cd test
+          cd tests
           python3 -m pytest
       - run: echo "🍏 This job's status is ${{ job.status }}."
