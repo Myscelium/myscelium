@@ -1,4 +1,4 @@
-from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern
 from multiprocessing import Process, Event, Manager
 import os
 import signal
@@ -66,7 +66,7 @@ class MyHost:
 
         callbacks = [
             
-            self.host_patterns.callback_pattern(callback=handlers.python_function),
+            callback_pattern(callback=handlers.python_function),
             # self.host_patterns.callback_pattern(callback=self.test_redirect),
 
         ]

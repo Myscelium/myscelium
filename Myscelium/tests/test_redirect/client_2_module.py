@@ -24,7 +24,7 @@ class Senders:
 
         try:
             mys_client = MysceliumClient(
-                name=CLIENT_NAME, client_uid=CLIENT_ID, buffer_path="Temp/Client2Data/"
+                name=CLIENT_NAME, client_uid=CLIENT_ID, buffer_path="Temp/Client2Data/", is_main_process = False
             )
             mys_client.running = True
 
@@ -146,6 +146,7 @@ class MyClient:
             client_uid=CLIENT_ID,
             buffer_path="Temp/Client2Data/",
             log_level=self.debug_level,
+            is_main_process = True
         )
 
         self.mys_client = mys_client

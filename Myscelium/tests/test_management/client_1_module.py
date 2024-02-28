@@ -94,10 +94,12 @@ class Senders:
 
     @staticmethod
     def test_add_client():
+        # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
             client_uid="some_client_id",
             buffer_path="Temp/Client1Data/",
+            is_main_process = False
         )
         mys_client.running = True
 
@@ -132,10 +134,12 @@ class Senders:
 
     @staticmethod
     def test_update_client():
+        # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
             client_uid="some_client_id",
             buffer_path="Temp/Client1Data/",
+            is_main_process = False
         )
         mys_client.running = True
 
@@ -173,10 +177,12 @@ class Senders:
 
     @staticmethod
     def test_remove_client():
+        # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
             client_uid="some_client_id",
             buffer_path="Temp/Client1Data/",
+            is_main_process = False
         )
         mys_client.running = True
 
@@ -204,10 +210,12 @@ class Senders:
 
     @staticmethod
     def test_add_client_from_response():
+        # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
             client_uid="some_client_id",
             buffer_path="Temp/Client1Data/",
+            is_main_process = False
         )
         mys_client.running = True
 
@@ -242,10 +250,12 @@ class Senders:
 
     @staticmethod
     def test_update_client_from_response():
+        # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
             client_uid="some_client_id",
             buffer_path="Temp/Client1Data/",
+            is_main_process = False
         )
         mys_client.running = True
 
@@ -281,10 +291,12 @@ class Senders:
 
     @staticmethod
     def test_remove_client_from_response():
+        # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
             client_uid="some_client_id",
             buffer_path="Temp/Client1Data/",
+            is_main_process = False
         )
 
         mys_client.running = True
@@ -319,6 +331,7 @@ class MyClient:
             client_uid=CLIENT_ID,
             buffer_path="Temp/Client1Data/",
             log_level=self.debug_level,
+            is_main_process = True
         )
 
         self.mys_client = mys_client
