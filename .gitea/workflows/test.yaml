@@ -18,7 +18,6 @@ jobs:
           ls ${{ gitea.workspace }}
       - name: Run pytest
         run: |
-          cd /Myscelium
-          cd /test
+          cd ${GITEA_WORKSPACE}/Myscelium/test
           python3 -m pytest
       - run: echo "🍏 This job's status is ${{ job.status }}."
