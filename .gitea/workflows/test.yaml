@@ -16,4 +16,8 @@ jobs:
       - name: List files in the repository
         run: |
           ls ${{ gitea.workspace }}
+      - name: Run pytest
+        run: |
+          cd myscelium/test/
+          python3 -m pytest
       - run: echo "🍏 This job's status is ${{ job.status }}."
