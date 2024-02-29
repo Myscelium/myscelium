@@ -27,21 +27,38 @@ jobs:
           cd Myscelium 
           python -m venv venv
           source ./venv/bin/activate
+          pip install -U pip
           python -m pip install --upgrade pip
           python -m pip install --upgrade pip setuptools wheel
+          
+      - name: Install Pyarrow
+        run: |
+          cd Myscelium 
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install pyarrow
+
+      - name: Install Myscelium Building Depencies
+        run: |
+          cd Myscelium 
+          python -m venv venv
+          source ./venv/bin/activate
           pip install -r requirements.txt
 
       - name: List files in the repository
         run: |
           ls ${{ gitea.workspace }}
+
       - name: List files in the repository
         run: |
           cd Myscelium
           ls
+
       - name: Test Communication
         run: |
           cd Myscelium
           source ./venv/bin/activate
           cd tests
           python3 -m pytest -v -s .\test_myscelium.py::test_communication
+          
       - run: echo "🍏 This job's status is ${{ job.status }}."
