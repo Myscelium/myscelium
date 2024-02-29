@@ -14,14 +14,6 @@ jobs:
       - run: echo "💡 The ${{ gitea.repository }} repository has been cloned to the runner."
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
 
-      - name: Cache Python virtual environment
-        uses: actions/cache@v2
-        with:
-          path: Myscelium/venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('**/Myscelium/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-venv-
-
       - name: Install CMake (Nightly)
         run: |
           sudo apt-get update
@@ -30,6 +22,14 @@ jobs:
           sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6AF7F09730B3F0A4
           sudo apt-get update
           sudo apt-get install cmake
+
+      - name: Cache Python virtual environment
+        uses: actions/cache@v2
+        with:
+          path: Myscelium/venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/Myscelium/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-venv-
 
       - name: Setup Python environment
         run: |
