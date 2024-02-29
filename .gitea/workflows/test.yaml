@@ -1,6 +1,10 @@
 name: Gitea Actions Demo
 run-name: ${{ gitea.actor }} is testing ${{ gitea.repository }} 🚀.
-on: [push]
+on:
+  push:
+    branches:
+      - develop
+      - main
 
 jobs:
   test-repository:
