@@ -19,8 +19,12 @@ jobs:
           wget https://github.com/Kitware/CMake/releases/download/v3.21.1/cmake-3.21.1-linux-x86_64.sh
           chmod +x cmake-3.21.1-linux-x86_64.sh
           ./cmake-3.21.1-linux-x86_64.sh --skip-license --prefix=/usr/local
-          chmod +x /usr/local/bin/cmake
-          export PATH=/usr/local/bin:$PATH
+          export PATH=/path/to/cmake:$PATH
+
+      - name: Check CMake Path
+        run: |
+          ln -s /path/to/cmake /usr/local/bin/cmake
+          cmake --version
 
       - name: Cache Python virtual environment
         uses: actions/cache@v2
