@@ -523,7 +523,11 @@ def host_thread_to_test_inner_management(event_host_received):
     print("Starting host thread...")
 
     # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
-
+    
+    #> Create a system to test if the manipulation in the host structure really happened
+    
+    
+    
     host_instance = MyHostToTestManagement(DEBUG_LEVEL).run(event=event_host_received)
 
     print("Host thread finished.")

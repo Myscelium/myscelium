@@ -9,6 +9,10 @@ import time
 
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
+def host_manipulation_watcher ():
+    
+    pass
+
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
     Events_Manager(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
