@@ -23,8 +23,8 @@ jobs:
 
       - name: Check CMake Path
         run: |
-          ln -s /path/to/cmake /usr/local/bin/cmake
-          cmake --version
+          ls -l /usr/local/bin/cmake
+          /usr/local/bin/cmake --version
 
       - name: Cache Python virtual environment
         uses: actions/cache@v2
