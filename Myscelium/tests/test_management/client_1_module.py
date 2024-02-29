@@ -96,15 +96,6 @@ class Senders:
     @staticmethod
     def test_add_client():
         
-        #> Client            Host
-        #>   |                |
-        #>   |--------------> | Host receives add client order 
-        #>   |                |
-        #>   |               (|) Add client (verification needs to be done here)
-        #>   |                |
-        #>   |<---------------| Send a confirmation back
-        #>   |                |
-        
         # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
@@ -145,16 +136,7 @@ class Senders:
 
     @staticmethod
     def test_update_client():
-        
-        #> Client            Host
-        #>   |                |
-        #>   |--------------> | Host receives update client order 
-        #>   |                |
-        #>   |               (|) Update client (verification needs to be done here)
-        #>   |                |
-        #>   |<---------------| Send a confirmation back
-        #>   |                |
-        
+
         # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
@@ -196,17 +178,9 @@ class Senders:
             "Send test update a client", event_type="Send", event_key="3p7194Y33W6BnYlA"
         )
 
+
     @staticmethod
     def test_remove_client():
-        
-        #> Client            Host
-        #>   |                |
-        #>   |--------------> | Host receives remove client order 
-        #>   |                |
-        #>   |               (|) Remove client (verification needs to be done here)
-        #>   |                |
-        #>   |<---------------| Send a confirmation back
-        #>   |                |
         
         # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
@@ -352,7 +326,7 @@ class Senders:
         )
 
 
-class MyClient:#
+class MyClient:
     def __init__(self, debug_level):
         self.debug_level = debug_level
 
