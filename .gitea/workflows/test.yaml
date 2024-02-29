@@ -24,6 +24,7 @@ jobs:
       - name: Check CMake Path
         run: |
           ls -l /usr/local/bin/cmake
+          ldd /usr/local/bin/cmake
           /usr/local/bin/cmake --version
 
       - name: Cache Python virtual environment
