@@ -1,11 +1,13 @@
 name: Gitea Actions Demo
-run-name: ${{ gitea.actor }} is testing out Gitea Actions 🚀
+run-name: ${{ gitea.actor }} is testing ${{ gitea.repository }} 🚀.
 on: [push]
 
 jobs:
-  Explore-Gitea-Actions:
-    runs-on: runner1
+  test-repository:
+    runs-on: ubuntu-latest
     steps:
+      - run: |
+          echo "The job was automatically triggered by a ${{ gitea.event_name }} event.\nThis job is now running on a ${{ runner.os }}.\nThe name of your branch is ${{ gitea.ref }} and your repository is ${{ gitea.repository }}."
       - run: echo "🎉 The job was automatically triggered by a ${{ gitea.event_name }} event."
       - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by Gitea!"
       - run: echo "🔎 The name of your branch is ${{ gitea.ref }} and your repository is ${{ gitea.repository }}."
@@ -13,7 +15,65 @@ jobs:
         uses: actions/checkout@v4
       - run: echo "💡 The ${{ gitea.repository }} repository has been cloned to the runner."
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+
+      - name: Install CMake from Official Source
+        run: |
+          wget https://github.com/Kitware/CMake/releases/download/v3.21.1/cmake-3.21.1-linux-x86_64.sh
+          chmod +x cmake-3.21.1-linux-x86_64.sh
+          ./cmake-3.21.1-linux-x86_64.sh --skip-license --prefix=/usr/local
+          export PATH=/path/to/cmake:$PATH
+
+      - name: Check CMake Path
+        run: |
+          ls -l /usr/local/bin/cmake
+          ldd /usr/local/bin/cmake
+          /usr/local/bin/cmake --version
+
+      - name: Cache Python virtual environment
+        uses: actions/cache@v2
+        with:
+          path: Myscelium/venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/Myscelium/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-venv-
+
+      - name: Setup Python environment
+        run: |
+          cd Myscelium 
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install -U pip
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
+          
+      - name: Install Pyarrow
+        run: |
+          cd Myscelium 
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install pyarrow
+
+      - name: Install Myscelium Building Depencies
+        run: |
+          cd Myscelium 
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install -r requirements.txt
+
       - name: List files in the repository
         run: |
           ls ${{ gitea.workspace }}
+
+      - name: List files in the repository
+        run: |
+          cd Myscelium
+          ls
+
+      - name: Test Communication
+        run: |
+          cd Myscelium
+          source ./venv/bin/activate
+          cd tests
+          python3 -m pytest -v -s .\test_myscelium.py::test_communication
+          
       - run: echo "🍏 This job's status is ${{ job.status }}."
