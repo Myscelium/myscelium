@@ -22,6 +22,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-venv-
 
+      - name: Install CMake (Nightly)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common lsb-release
+          echo "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6AF7F09730B3F0A4
+          sudo apt-get update
+          sudo apt-get install cmake
+
       - name: Setup Python environment
         run: |
           cd Myscelium 
