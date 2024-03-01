@@ -6,8 +6,9 @@ import signal
 import time
 import pandas as pd
 
-
 from .clients_retriever import SQLiteConnectionPool, Clients_Retriever
+
+THIS_DIR = os.path.dirname(__file__)
 
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
@@ -113,70 +114,81 @@ def client_changes_event_watcher (db_path):
     previous_df = pd.DataFrame()
 
     while True:
-
-        connection = pool.get_connection()
-        retriever = Clients_Retriever(connection)
-        current_df = retriever.get_clients
         
-        # Ensure DataFrames are sorted by 'ID' for direct comparison
-        dfA = previous_df.sort_values('ID').reset_index(drop=True)
-        dfB = current_df.sort_values('ID').reset_index(drop=True)
+        current_df = pd.DataFrame()
         
-        # Find added clients
-        added = dfB[~dfB['ClientKey'].isin(dfA['ClientKey'])]
-
-        # Find removed clients
-        removed = dfA[~dfA['ClientKey'].isin(dfB['ClientKey'])]
+        with pool.get_connection() as connection:
+            retriever = Clients_Retriever(connection)
+            current_df = retriever.get_clients()  # Make sure this is a method call
         
-        # The `~` operator in Python, when used with pandas DataFrames, 
-        # performs a logical NOT operation on boolean values. In the context of filtering DataFrame rows, 
-        # `~` is used to invert a condition, effectively selecting rows that do not match the specified condition.
-        # For instance, `~df['ClientKey'].isin(dfA['ClientKey'])` selects rows in `df` where 'ClientKey' values are
-        # not found in `dfA['ClientKey']`, identifying new or removed clients depending on the operation context.
-
-        # Find common clients to check for updates
-        common_a = dfA[dfA['ClientKey'].isin(dfB['ClientKey'])]
-        common_b = dfB[dfB['ClientKey'].isin(dfA['ClientKey'])]
-
-        # Sort to align for comparison
-        common_a = common_a.sort_values('ClientKey').reset_index(drop=True)
-        common_b = common_b.sort_values('ClientKey').reset_index(drop=True)
-
-        # Check for updates by comparing rows
-        updates = common_a[common_a != common_b].dropna(how='all')
-
-        # Print messages
-        for key in added['ClientKey']:
-
-            Events_Manager(Unit="Host", path="Logs").Set_Event(
-                step=f"Client key {key} was added.", 
-                event_type="Receive", 
-                event_key="30bt28u819A1QDpH"
-            )
+        if previous_df.empty:
+            continue
+        
+        else:
             
-            print(f"Client key {key} was added.")
+            # Ensure DataFrames are sorted by 'ID' for direct comparison
+            dfA = previous_df.sort_values('ID').reset_index(drop=True)
+            dfB = current_df.sort_values('ID').reset_index(drop=True)
+            
+            # Find added clients
+            added = dfB[~dfB['ClientKey'].isin(dfA['ClientKey'])]
 
-        for key in removed['ClientKey']:
+            # Find removed clients
+            removed = dfA[~dfA['ClientKey'].isin(dfB['ClientKey'])]
             
-            Events_Manager(Unit="Host", path="Logs").Set_Event(
-                step=f"Client key {key} was removed.", 
-                event_type="Receive", 
-                event_key="30bt28u819A1QDpH"
-            )
-            
-            print(f"Client key {key} was removed.")
+            # The `~` operator in Python, when used with pandas DataFrames, 
+            # performs a logical NOT operation on boolean values. In the context of filtering DataFrame rows, 
+            # `~` is used to invert a condition, effectively selecting rows that do not match the specified condition.
+            # For instance, `~df['ClientKey'].isin(dfA['ClientKey'])` selects rows in `df` where 'ClientKey' values are
+            # not found in `dfA['ClientKey']`, identifying new or removed clients depending on the operation context.
 
-        for index, row in updates.iterrows():
+            # Find common clients to check for updates
+            common_a = dfA[dfA['ClientKey'].isin(dfB['ClientKey'])]
+            common_b = dfB[dfB['ClientKey'].isin(dfA['ClientKey'])]
+
+            # Sort to align for comparison
+            common_a = common_a.sort_values('ClientKey').reset_index(drop=True)
+            common_b = common_b.sort_values('ClientKey').reset_index(drop=True)
+
+            # Check for updates by comparing rows
+            updates = common_a[common_a != common_b].dropna(how='all')
+
+            # Print messages
+            for key in added['ClientKey']:
+
+                Events_Manager(Unit="Host", path="Logs").Set_Event(
+                    step=f"Client key {key} was added.", 
+                    event_type="Receive", 
+                    event_key="30bt28u819A1QDpH"
+                )
+                
+                print(f"Client key {key} was added.")
+
+            for key in removed['ClientKey']:
+                
+                Events_Manager(Unit="Host", path="Logs").Set_Event(
+                    step=f"Client key {key} was removed.", 
+                    event_type="Receive", 
+                    event_key="30bt28u819A1QDpH"
+                )
+                
+                print(f"Client key {key} was removed.")
+
+            for index, row in updates.iterrows():
+                
+                Events_Manager(Unit="Host", path="Logs").Set_Event(
+                    step=f"Client key {common_a.at[index, 'ClientKey']} was updated.", 
+                    event_type="Receive", 
+                    event_key="30bt28u819A1QDpH"
+                )
+                
+                print(f"Client key {common_a.at[index, 'ClientKey']} was updated.")
             
-            Events_Manager(Unit="Host", path="Logs").Set_Event(
-                step=f"Client key {common_a.at[index, 'ClientKey']} was updated.", 
-                event_type="Receive", 
-                event_key="30bt28u819A1QDpH"
-            )
-            
-            print(f"Client key {common_a.at[index, 'ClientKey']} was updated.")
+        previous_df = current_df.copy() # Replace old df with copy of the current one
             
         time.sleep(2) #> Prevent thread overflow
+        
+        continue
     
     return
 
@@ -283,10 +295,12 @@ class MyHost:
         return
 
     def run(self, ip="127.0.0.1", port=4444, event=None):
+        
+        host_data_db_path = os.path.join(THIS_DIR, "..", "Temp", "Data", "Data.db")
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self.monitor_stop_event)
-        monitor_db_changes = Process(target=client_changes_event_watcher)
+        monitor_db_changes = Process(target=client_changes_event_watcher, args=(host_data_db_path, ))
         
         host_process.start()
         monitor_process.start()

@@ -71,23 +71,3 @@ class Clients_Retriever:
         
         return dict_df    
     
-def client_changes_event_watcher (db_path):
-    
-    pool = SQLiteConnectionPool(
-        1 + 2, db_path
-    )
-
-    previous_df = pd.DataFrame()
-
-    while True:
-
-        connection = pool.get_connection()
-        retriever = Clients_Retriever(connection)
-        current_df = retriever.get_clients
-        
-        # Ensure DataFrames are sorted by 'ID' for direct comparison
-        dfA = previous_df.sort_values('ID').reset_index(drop=True)
-        dfB = current_df.sort_values('ID').reset_index(drop=True)
-        
-        # Use DataFrame.compare() for pandas >= 1.1.0
-        changes = dfA.compare(dfB)
