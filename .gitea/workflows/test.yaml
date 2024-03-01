@@ -26,14 +26,28 @@ jobs:
       - run: echo "💡 The ${{ gitea.repository }} repository has been cloned to the runner."
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
 
+
+      - name: Checkout code
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+          ssh-add private_key.pem
+          git clone git@177.72.148.22:YourGroup/YourProject.git
+          # The following line is just an example and will need to be adjusted to your actual CI/CD script syntax
+          git submodule update --init --recursive
+
       - name: init submodules
         run: |
-          # Replace the submodule URL with a relative path
-          sed -i 's|http://177.72.148.22:3000/Poseidon/OxidizedMyscelium.git|../../Poseidon/OxidizedMyscelium.git|' .gitmodules
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+          ssh-add private_key.pem
 
-          # Synchronize the submodule configuration and update
-          git submodule sync
-          git submodule update --init --recursive
+          # Replace the submodule URL with a relative path
+          # Set the submodule URL to include the access token
+          git config submodule.Myscelium/OxidizedMysceliumCore.url "git@177.72.148.22:3000/Poseidon/OxidizedMyscelium.git"
+
+          # Initialize and update the submodule
+          git submodule update --init --recursive Myscelium/OxidizedMysceliumCore
 
       - name: Checkout ${{ gitea.ref }} branch for OxidizedMyscelium
         run: |
