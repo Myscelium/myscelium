@@ -7,7 +7,7 @@ import time
 import pandas as pd
 
 
-from clients_retriever import SQLiteConnectionPool, Clients_Retriever
+from .clients_retriever import SQLiteConnectionPool, Clients_Retriever
 
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
