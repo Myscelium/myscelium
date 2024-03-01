@@ -33,6 +33,7 @@ jobs:
             ${{ runner.os }}-venv-
 
       - name: Setup Python environment
+        shell: bash
         run: |
           cd Myscelium 
           python -m venv venv
@@ -40,7 +41,7 @@ jobs:
           pip install -U pip
           python -m pip install --upgrade pip
           python -m pip install --upgrade pip setuptools wheel
-          
+        
       # - name: Install Pyarrow
       #   run: |
       #     cd Myscelium 
@@ -49,6 +50,7 @@ jobs:
       #     pip install pyarrow
 
       - name: Install Myscelium Building Depencies
+        shell: bash
         run: |
           cd Myscelium 
           python -m venv venv
@@ -65,6 +67,7 @@ jobs:
           ls
 
       - name: Build myscelium locally for tests
+        shell: bash
         run: |
           cd Myscelium
           source ./venv/bin/activate
