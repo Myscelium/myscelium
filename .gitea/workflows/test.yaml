@@ -65,6 +65,6 @@ jobs:
           cd Myscelium
           source ./venv/bin/activate
           cd tests
-          python3 -m pytest -v -s .\test_myscelium.py::test_communication
+          python3 -m pytest -v -s ./test_myscelium.py::test_communication
           
       - run: echo "🍏 This job's status is ${{ job.status }}."
