@@ -28,9 +28,13 @@ jobs:
 
       - name: Config SSH permissions to access sub modules
         run: |
+          # Start the SSH agent
+          eval "$(ssh-agent -s)"
+
+          # Add the private key to the agent
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
           chmod 600 private_key.pem
-          ssh-add private_key.pem          
+          ssh-add private_key.pem     
 
       - name: init submodules
         run: |
