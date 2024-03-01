@@ -28,8 +28,12 @@ jobs:
 
       - name: init submodules
         run: |
-          git submodule init
-          git submodule update
+          # Replace the submodule URL with a relative path
+          sed -i 's|http://177.72.148.22:3000/Poseidon/OxidizedMyscelium.git|../../Poseidon/OxidizedMyscelium.git|' .gitmodules
+
+          # Synchronize the submodule configuration and update
+          git submodule sync
+          git submodule update --init --recursive
 
       - name: Checkout ${{ gitea.ref }} branch for OxidizedMyscelium
         run: |
