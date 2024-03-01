@@ -127,6 +127,12 @@ def client_changes_event_watcher (db_path):
 
         # Find removed clients
         removed = dfA[~dfA['ClientKey'].isin(dfB['ClientKey'])]
+        
+        # The `~` operator in Python, when used with pandas DataFrames, 
+        # performs a logical NOT operation on boolean values. In the context of filtering DataFrame rows, 
+        # `~` is used to invert a condition, effectively selecting rows that do not match the specified condition.
+        # For instance, `~df['ClientKey'].isin(dfA['ClientKey'])` selects rows in `df` where 'ClientKey' values are
+        # not found in `dfA['ClientKey']`, identifying new or removed clients depending on the operation context.
 
         # Find common clients to check for updates
         common_a = dfA[dfA['ClientKey'].isin(dfB['ClientKey'])]
