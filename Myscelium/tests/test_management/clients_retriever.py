@@ -1,3 +1,4 @@
+
 import sqlite3
 import random
 import os
@@ -36,8 +37,6 @@ class SQLiteConnectionPool:
             connection = self.connections.get()
             connection.close()
         
-
-
 class Clients_Retriever:
 
     def __init__(self, connection):
@@ -72,82 +71,23 @@ class Clients_Retriever:
         
         return dict_df    
     
-class ClientsChangesTracker:
-    
-    def __init__(self, path_to_db) -> None:
-        
-        # Possible changes:
-        # - ClientAdded
-        # - Client Updated
-        # - ClientRemotion
-        
-        self.change_expected
-        self.change_track # tracs the changess done
-        
-        self.pool = SQLiteConnectionPool(
-            1 + 2, path_to_db
-        )
-        
-        # store old db
-        self.old_df_before_changes
-        
-        pass
-    
-    def _get_clients (self):
-        
-        connection = self.pool.get_connection()
-        
-        retriever = Clients_Retriever(connection)
-        clients = retriever.get_clients()
-        
-        self.pool.release_connection(connection)
-        
-        return clients
-        
-    def prepare_for_change (self, change_expected):
-        
-        self.old_df_before_changes = self._get_clients()
-        self.change_expected = change_expected
-        
-        return
-    
-    def change_happened (self) -> bool:
-        
-        current_clients = self._get_clients()
-        
-        # TODO >>> Verify changes in relation to `self.old_df_before_changes` if find some change save in self.change_track and return true
-        
-        return False
-    
-# Example of usage
-
-changes_tracker = ClientsChangesTracker("/path_to_db/Data.db")
-changes_tracker.prepare_for_change()
-
-# Do what needs to be done
-
-changes_tracker.change_happened()
-
-# ---
-
-# This should work for case where we are managing clients by callbacks
-# however when comes to internal functions this needs to be done without 
-# any previously preparations.
-
-# For this cases we can do a loop that do this process automatically and save into the events the cahnges
-
-def client_manipulation_watcher (client_db__path):
+def client_changes_event_watcher (db_path):
     
     pool = SQLiteConnectionPool(
-        1 + 2, os.path.join(client_db__path, "Data.db")
+        1 + 2, db_path
     )
 
-    connection = pool.get_connection()
-    
-    retriever = Clients_Retriever(connection)
-    
-    # TODO >>> Create a mechanism to compare old dfs to new dfs from time to time and detect changes
-    # > This doesn't need to be a loop, it can be like a CLASS that have a method 
-    # > Lets say, check changes and we pass a change that it should check the old df to the new one
-    
-    pass
+    previous_df = pd.DataFrame()
+
+    while True:
+
+        connection = pool.get_connection()
+        retriever = Clients_Retriever(connection)
+        current_df = retriever.get_clients
+        
+        # Ensure DataFrames are sorted by 'ID' for direct comparison
+        dfA = previous_df.sort_values('ID').reset_index(drop=True)
+        dfB = current_df.sort_values('ID').reset_index(drop=True)
+        
+        # Use DataFrame.compare() for pandas >= 1.1.0
+        changes = dfA.compare(dfB)

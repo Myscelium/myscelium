@@ -4,16 +4,21 @@ from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
 import signal
 import time
+import pandas as pd
 
-import time
+
+from clients_retriever import SQLiteConnectionPool, Clients_Retriever
 
 # ctual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
 
-def host_manipulation_watcher ():
-    
-    pass
+# -> HANDLERS DEFINITION
 
 def client_contact_event_handler (client_name:str, client_key:str, client_last_contact:float):
+    
+    # Contact handler is a special detached from core handler that works with database transposition to avoid 
+    # Python interpreter multiprocess limitations like GIL dilema that don't allows to use smae process to call multiple
+    # references of python internals from outside in safe way without drop anything in the way
+    
     Events_Manager(Unit="Host", path="Logs").Set_Event(step=f"Contact received from Client: {client_key}")
     print(client_name, client_key, client_last_contact)
     pass
@@ -96,6 +101,80 @@ class Handlers:
         )
 
         return HostPatterns().update_host_configs(activation_function="remove_client", client_key=client_key)
+
+# -> CLIENT DB CHANGES WATCHER
+
+def client_changes_event_watcher (db_path):
+    
+    pool = SQLiteConnectionPool(
+        1 + 2, db_path
+    )
+
+    previous_df = pd.DataFrame()
+
+    while True:
+
+        connection = pool.get_connection()
+        retriever = Clients_Retriever(connection)
+        current_df = retriever.get_clients
+        
+        # Ensure DataFrames are sorted by 'ID' for direct comparison
+        dfA = previous_df.sort_values('ID').reset_index(drop=True)
+        dfB = current_df.sort_values('ID').reset_index(drop=True)
+        
+        # Find added clients
+        added = dfB[~dfB['ClientKey'].isin(dfA['ClientKey'])]
+
+        # Find removed clients
+        removed = dfA[~dfA['ClientKey'].isin(dfB['ClientKey'])]
+
+        # Find common clients to check for updates
+        common_a = dfA[dfA['ClientKey'].isin(dfB['ClientKey'])]
+        common_b = dfB[dfB['ClientKey'].isin(dfA['ClientKey'])]
+
+        # Sort to align for comparison
+        common_a = common_a.sort_values('ClientKey').reset_index(drop=True)
+        common_b = common_b.sort_values('ClientKey').reset_index(drop=True)
+
+        # Check for updates by comparing rows
+        updates = common_a[common_a != common_b].dropna(how='all')
+
+        # Print messages
+        for key in added['ClientKey']:
+
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
+                step=f"Client key {key} was added.", 
+                event_type="Receive", 
+                event_key="30bt28u819A1QDpH"
+            )
+            
+            print(f"Client key {key} was added.")
+
+        for key in removed['ClientKey']:
+            
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
+                step=f"Client key {key} was removed.", 
+                event_type="Receive", 
+                event_key="30bt28u819A1QDpH"
+            )
+            
+            print(f"Client key {key} was removed.")
+
+        for index, row in updates.iterrows():
+            
+            Events_Manager(Unit="Host", path="Logs").Set_Event(
+                step=f"Client key {common_a.at[index, 'ClientKey']} was updated.", 
+                event_type="Receive", 
+                event_key="30bt28u819A1QDpH"
+            )
+            
+            print(f"Client key {common_a.at[index, 'ClientKey']} was updated.")
+            
+        time.sleep(2) #> Prevent thread overflow
+    
+    return
+
+# -> HOST MAIN CLASS
 
 class MyHost:
 
@@ -201,11 +280,15 @@ class MyHost:
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self.monitor_stop_event)
-
+        monitor_db_changes = Process(target=client_changes_event_watcher)
+        
         host_process.start()
         monitor_process.start()
+        monitor_db_changes.start()
 
         monitor_process.join()
+        monitor_db_changes.kill() # Kill db monitor after monitor process resumes
+        monitor_db_changes.join() # Join bellow to avoid infinit cicles
 
         # Send SIGINT to the process
         os.kill(host_process.pid, signal.SIGINT)
