@@ -37,12 +37,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --upgrade pip setuptools wheel
           
-      - name: Install Pyarrow
-        run: |
-          cd Myscelium 
-          python -m venv venv
-          source ./venv/bin/activate
-          pip install pyarrow
+      # - name: Install Pyarrow
+      #   run: |
+      #     cd Myscelium 
+      #     python -m venv venv
+      #     source ./venv/bin/activate
+      #     pip install pyarrow
 
       - name: Install Myscelium Building Depencies
         run: |
@@ -59,6 +59,12 @@ jobs:
         run: |
           cd Myscelium
           ls
+
+      - name: Build myscelium locally for tests
+        run: |
+          cd Myscelium
+          source ./venv/bin/activate
+          python3 -m pip install -e .
 
       - name: Test Communication
         run: |
