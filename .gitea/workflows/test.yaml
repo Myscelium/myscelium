@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     
     container:
-      image: letalboy/rust_python_lib_env:latest
+      image: letalboy/python_and_rust_lib_development_env:latest
 
     steps:
       - run: |
