@@ -107,21 +107,60 @@ class Handlers:
 
 def client_changes_event_watcher (db_path):
     
+    time.sleep(4)
+    
     pool = SQLiteConnectionPool(
-        1 + 2, db_path
+        2 + 2, db_path
     )
 
-    previous_df = pd.DataFrame()
+    previous_df = pd.DataFrame(
+        [], 
+        columns=[
+            'ID', 
+            'ClientName', 
+            'ClientKey', 
+            'ClientType', 
+            'PermissionGroup', 
+            'SuperUser', 
+            'LastContact', 
+            'MaxSubChannels', 
+            'OwnedSubChannelsKeys', 
+            'SubChannelsInUse', 
+            'Handlers', 
+            'Syncronized'
+        ]
+    )
+    
+    print("Initializing client changes event retriever")
 
     while True:
         
-        current_df = pd.DataFrame()
+        current_df = pd.DataFrame(
+            [], 
+            columns=[
+                'ID', 
+                'ClientName', 
+                'ClientKey', 
+                'ClientType', 
+                'PermissionGroup', 
+                'SuperUser', 
+                'LastContact', 
+                'MaxSubChannels', 
+                'OwnedSubChannelsKeys', 
+                'SubChannelsInUse', 
+                'Handlers', 
+                'Syncronized'
+            ]
+        )
         
         with pool.get_connection() as connection:
             retriever = Clients_Retriever(connection)
-            current_df = retriever.get_clients()  # Make sure this is a method call
+            current_df = pd.DataFrame.from_dict(retriever.get_clients())  # Make sure this is a method call
+            pool.release_connection(connection)
+        
         
         if previous_df.empty:
+            previous_df = current_df
             continue
         
         else:
