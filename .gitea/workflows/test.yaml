@@ -42,9 +42,9 @@ jobs:
           git config --global credential.helper store
 
           # Set the Git credentials for Gitea instance
-          git config --global http.177.72.148.22:3000.username RUNNER1-AUTH
-          echo "http://177.72.148.22:3000:${{ secrets.RUNNER1_ACCESS_TOKEN }}" > ~/.git-credentials          
-
+          git config --global http.177.72.148.22:3000.username RUNNER1_ACCESS_TOKEN
+          echo "http://177.72.148.22:3000:${{ secrets.RUNNER1_ACCESS_TOKEN }}" > ~/.git-credentials      
+    
       - name: init submodules
         run: |
           # Replace the submodule URL with a relative path
