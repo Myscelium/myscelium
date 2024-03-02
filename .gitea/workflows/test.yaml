@@ -1,0 +1,137 @@
+name: Gitea Actions Demo
+run-name: ${{ gitea.actor }} is testing ${{ gitea.repository }} 🚀.
+on:
+  push:
+    branches:
+      - develop
+      - main
+
+jobs:
+  test-repository:
+    runs-on: ubuntu-latest
+    
+    container:
+      image: letalboy/python_and_rust_lib_development_env:latest
+
+    steps:
+      - run: |
+          echo "The job was automatically triggered by a ${{ gitea.event_name }} event.\nThis job is now running on a ${{ runner.os }}.\nThe name of your branch is ${{ gitea.ref }} and your repository is ${{ gitea.repository }}."
+      - run: echo "🎉 The job was automatically triggered by a ${{ gitea.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by Gitea!"
+      - run: echo "🔎 The name of your branch is ${{ gitea.ref }} and your repository is ${{ gitea.repository }}."
+      
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - run: echo "💡 The ${{ gitea.repository }} repository has been cloned to the runner."
+      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+
+      - name: Config SSH permissions to access sub modules
+        run: |
+          # Start the SSH agent
+          eval "$(ssh-agent -s)"
+
+          # Add the private key to the agent
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+          ssh-add private_key.pem     
+
+      - name: Set Git Configs
+        run: |
+          # Set the Git credential.helper to 'store'.
+          git config --global credential.helper store
+
+          # Create a '.git-credentials' file with the Gitea access token.
+          echo "http://RUNNER1-AUTH:${{ secrets.RUNNER1_ACCESS_TOKEN }}@177.72.148.22:3000" > ~/.git-credentials
+    
+      - name: init submodules
+        run: |
+          # Replace the submodule URL with a relative path
+          # Set the submodule URL to include the access token
+          # git config submodule.Myscelium/OxidizedMysceliumCore.url "git@177.72.148.22:3000/Poseidon/OxidizedMyscelium.git"
+
+          # Initialize and update submodules
+          git submodule update --init --recursive
+
+      - name: Checkout ${{ gitea.ref }} branch for OxidizedMyscelium
+        run: |
+          cd Myscelium/OxidizedMysceliumCore
+          git fetch
+          branch_name=$(echo "${{ gitea.ref }}" | sed 's|refs/heads/||')
+          git checkout $branch_name
+          git pull origin develop
+
+      - name: Cache Python virtual environment
+        uses: actions/cache@v2
+        with:
+          path: Myscelium/venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/Myscelium/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-venv-
+
+      - name: Setup Python environment
+        shell: bash
+        run: |
+          cd Myscelium 
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install -U pip
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
+        
+      # - name: Install Pyarrow
+      #   run: |
+      #     cd Myscelium 
+      #     python -m venv venv
+      #     source ./venv/bin/activate
+      #     pip install pyarrow
+
+      - name: Install Myscelium Building Depencies
+        shell: bash
+        run: |
+          cd Myscelium 
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: List files in the repository
+        run: |
+          ls ${{ gitea.workspace }}
+
+      - name: List files in the repository
+        run: |
+          cd Myscelium
+          ls
+
+      - name: Build myscelium locally for tests
+        shell: bash
+        run: |
+          cd Myscelium
+          source ./venv/bin/activate
+          python3 -m pip install -e .
+
+      - name: Test Communication
+        shell: bash
+        run: |
+          cd Myscelium
+          source ./venv/bin/activate
+          cd tests
+          python3 -m pytest -v -s ./test_myscelium.py::test_communication
+
+      - name: Test Redirect
+        shell: bash
+        run: |
+          cd Myscelium
+          source ./venv/bin/activate
+          cd tests
+          python3 -m pytest -v -s ./test_myscelium.py::test_redirect
+
+      - name: Test Management
+        shell: bash
+        run: |
+          cd Myscelium
+          source ./venv/bin/activate
+          cd tests
+          python3 -m pytest -v -s ./test_myscelium.py::test_management
+          
+      - run: echo "🍏 This job's status is ${{ job.status }}."
