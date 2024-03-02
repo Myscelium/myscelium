@@ -55,7 +55,7 @@ jobs:
 
       - name: Checkout ${{ gitea.ref }} branch for OxidizedMyscelium
         run: |
-          cd path/to/submodule
+          cd Myscelium/OxidizedMysceliumCore
           git fetch
           git checkout ${{ gitea.ref }}
 
