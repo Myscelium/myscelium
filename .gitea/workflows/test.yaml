@@ -36,14 +36,23 @@ jobs:
           chmod 600 private_key.pem
           ssh-add private_key.pem     
 
+      - name: Set Git Configs
+        run: |
+          # Configure Git to use the access token
+          git config --global credential.helper store
+
+          # Set the Git credentials for Gitea instance
+          git config --global http.177.72.148.22:3000.username RUNNER1-AUTH
+          echo "http://177.72.148.22:3000:${{ secrets.GITEA_ACCESS_TOKEN }}" > ~/.git-credentials          
+
       - name: init submodules
         run: |
           # Replace the submodule URL with a relative path
           # Set the submodule URL to include the access token
           # git config submodule.Myscelium/OxidizedMysceliumCore.url "git@177.72.148.22:3000/Poseidon/OxidizedMyscelium.git"
 
-          # Initialize and update the submodule
-          git submodule update --init --recursive Myscelium/OxidizedMysceliumCore
+          # Initialize and update submodules
+          git submodule update --init --recursive
 
       - name: Checkout ${{ gitea.ref }} branch for OxidizedMyscelium
         run: |
