@@ -86,14 +86,35 @@ class Senders:
     def start_send_sequence(self):
         time.sleep(15)
         self.test_add_client()
+        time.sleep(10) 
+        
+        # This 5 seconds dellay is necessary to the client db changes event watcher have time to detect changes 
+        # without consume too much ressources by have to use more fast refresh loops
+        
         self.test_update_client()
+        time.sleep(10)
+        
+        # This 5 seconds dellay is necessary to the client db changes event watcher have time to detect changes 
+        # without consume too much ressources by have to use more fast refresh loops
+        
         self.test_remove_client()
 
     # > -------------------------------------------------------------------------------------------------------------------------------------
     # > USING DIRECT MANAGEMENT FUNCTIONS:
+    
 
     @staticmethod
     def test_add_client():
+        
+        #> Client            Host
+        #>   |                |
+        #>   |--------------> | Host receives add client order 
+        #>   |                |
+        #>   |               (|) Add client (verification needs to be done here)
+        #>   |                |
+        #>   |<---------------| Send a confirmation back
+        #>   |                |
+        
         # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
@@ -134,6 +155,16 @@ class Senders:
 
     @staticmethod
     def test_update_client():
+        
+        #> Client            Host
+        #>   |                |
+        #>   |--------------> | Host receives update client order 
+        #>   |                |
+        #>   |               (|) Update client (verification needs to be done here)
+        #>   |                |
+        #>   |<---------------| Send a confirmation back
+        #>   |                |
+        
         # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
@@ -151,18 +182,25 @@ class Senders:
             if attemtps >= max_attempts:
                 assert False, "Take too long to client be ready"
             continue
-
+        
+        #! HERE SINCE IS A TEST THE TEST REQUIRES KEY TO BE CONSTANT, 
+        #! SO NEVER CHANGES IT IN TEST CASES BECAUSE CHANGES MAY NOT BE DETECTED BY EVENT WATCHER
+        
+        #> Changes done:
+        # Change client name
+        # Turn super user to false
+        
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID,  # origin
             "update_client",  # actf
             kwargs={
                 "actual_client_key": "xMndjslwpedcnfe",
                 "updated_client": {
-                    "client_key": "xMndjslwpedcnfe",
-                    "client_name": "test_client",
+                    "client_key": "xMndjslwpedcnfe", 
+                    "client_name": "changed_test_client", 
                     "client_type": "Test",
                     "permission_group": "",
-                    "is_super_user": True,
+                    "is_super_user": False, 
                     "max_sub_channels": 10,
                     "owned_sub_channels_keys": [],
                 },
@@ -177,6 +215,16 @@ class Senders:
 
     @staticmethod
     def test_remove_client():
+        
+        #> Client            Host
+        #>   |                |
+        #>   |--------------> | Host receives remove client order 
+        #>   |                |
+        #>   |               (|) Remove client (verification needs to be done here)
+        #>   |                |
+        #>   |<---------------| Send a confirmation back
+        #>   |                |
+        
         # TODO >>> Centralize this Myscelium class
         mys_client = MysceliumClient(
             name="TestClient1",
@@ -321,7 +369,7 @@ class Senders:
         )
 
 
-class MyClient:
+class MyClient:#
     def __init__(self, debug_level):
         self.debug_level = debug_level
 

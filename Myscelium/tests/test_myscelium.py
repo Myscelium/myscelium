@@ -523,7 +523,11 @@ def host_thread_to_test_inner_management(event_host_received):
     print("Starting host thread...")
 
     # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
-
+    
+    #> Create a system to test if the manipulation in the host structure really happened
+    
+    
+    
     host_instance = MyHostToTestManagement(DEBUG_LEVEL).run(event=event_host_received)
 
     print("Host thread finished.")
@@ -599,6 +603,11 @@ def test_management():
     add_client_callback = True  #! Change to False to allow this test
     update_client_callback = True  #! Change to False to allow this test
     remove_client_callback = True  #! Change to False to allow this test
+    
+    #* Check if client db was really moded:
+    new_client_added_in_db = False
+    new_client_updated_in_db = False
+    new_client_deleted_in_db = False
 
     # > Client 1 events:
 
@@ -626,6 +635,18 @@ def test_management():
 
         if "Active Test Remove Client" in event:
             remove_client_callback = True
+            
+        # > Confirmation of change in db structure:
+        
+        if "Client key xMndjslwpedcnfe was added." in event:
+            new_client_added_in_db = True
+            
+        if "Client key xMndjslwpedcnfe was updated." in event:
+            new_client_updated_in_db = True
+            
+        if "Client key xMndjslwpedcnfe was removed." in event:
+            new_client_deleted_in_db = True
+            
 
     # -> Client 1 Tests
     for i in client_1_events_df.index:
@@ -652,6 +673,7 @@ def test_management():
 
         if "Activate Basic Response Test Remove Client" in event:
             receive_remove_client_conf = True
+            
 
     unified_events = host_events_df.merge(client_1_events_df, how="outer")
 
@@ -724,6 +746,10 @@ def test_management():
     assert add_client_callback, "Host don't receive add client!"
     assert update_client_callback, "Host don't receive update client!"
     assert remove_client_callback, "Host don't receive remove client!"
+    
+    assert new_client_added_in_db, "Host receive add client but it doesn't added any client!"
+    assert new_client_updated_in_db, "Host receive update client but it doesn't update any client!"
+    assert new_client_deleted_in_db, "Host receive remove client but it doesn't remove any client!"
 
 
 # > ------------------------------------------------------------------------------------------------------------------------------------

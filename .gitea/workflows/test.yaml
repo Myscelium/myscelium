@@ -117,5 +117,21 @@ jobs:
           source ./venv/bin/activate
           cd tests
           python3 -m pytest -v -s ./test_myscelium.py::test_communication
+
+      - name: Test Redirect
+        shell: bash
+        run: |
+          cd Myscelium
+          source ./venv/bin/activate
+          cd tests
+          python3 -m pytest -v -s ./test_myscelium.py::test_redirect
+
+      - name: Test Management
+        shell: bash
+        run: |
+          cd Myscelium
+          source ./venv/bin/activate
+          cd tests
+          python3 -m pytest -v -s ./test_myscelium.py::test_management
           
       - run: echo "🍏 This job's status is ${{ job.status }}."
