@@ -57,7 +57,8 @@ jobs:
         run: |
           cd Myscelium/OxidizedMysceliumCore
           git fetch
-          git checkout ${{ gitea.ref }}
+          branch_name=$(echo "${{ gitea.ref }}" | sed 's|refs/heads/||')
+          git checkout $branch_name
 
       - name: Cache Python virtual environment
         uses: actions/cache@v2
