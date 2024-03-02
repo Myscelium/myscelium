@@ -59,6 +59,7 @@ jobs:
           git fetch
           branch_name=$(echo "${{ gitea.ref }}" | sed 's|refs/heads/||')
           git checkout $branch_name
+          git pull origin develop
 
       - name: Cache Python virtual environment
         uses: actions/cache@v2
