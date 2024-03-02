@@ -202,6 +202,16 @@ def client_changes_event_watcher (db_path):
                 )
                 
                 print(f"Client key {key} was added.")
+                
+            for index, row in updates.iterrows():
+                
+                Events_Manager(Unit="Host", path="Logs").Set_Event(
+                    step=f"Client key {common_a.at[index, 'ClientKey']} was updated.", 
+                    event_type="Receive", 
+                    event_key="30bt28u819A1QDpH"
+                )
+                
+                print(f"Client key {common_a.at[index, 'ClientKey']} was updated.")
 
             for key in removed['ClientKey']:
                 
@@ -212,16 +222,6 @@ def client_changes_event_watcher (db_path):
                 )
                 
                 print(f"Client key {key} was removed.")
-
-            for index, row in updates.iterrows():
-                
-                Events_Manager(Unit="Host", path="Logs").Set_Event(
-                    step=f"Client key {common_a.at[index, 'ClientKey']} was updated.", 
-                    event_type="Receive", 
-                    event_key="30bt28u819A1QDpH"
-                )
-                
-                print(f"Client key {common_a.at[index, 'ClientKey']} was updated.")
             
         previous_df = current_df.copy() # Replace old df with copy of the current one
             
