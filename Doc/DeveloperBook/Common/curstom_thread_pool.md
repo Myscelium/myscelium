@@ -167,4 +167,72 @@ pub fn free_workers(&self) -> Vec<usize> {
 }
 ```
 
-The Vec as you see is a usize, this is on purpose since we don't collect the workers in essence=, but the number of workers free in each section of the pool, then we send it back to use in cases like `wait_for_free_worker` for example.
+The Vec as you see is a usize, this is on purpose since we don't collect the workers in essence, but the number of workers free in each section of the pool, then we send it back to use in cases like `wait_for_free_worker` for example.
+
+#### All Workers Free:
+
+Helper method to check if all worker threads are free. Simillar to the `free_workers` method but this instead of returning a Vec of usize it returns a boolean saying if all workers are free or not, this is the code for it:
+
+```
+fn all_workers_free(&self) -> bool {
+    self.workers.iter().all(|worker| !worker.busy.load(Ordering::SeqCst))
+}
+```
+
+It is used in cases like the pool global stop, that uses this to ensure that all workers are with no tasks being executed.
+
+#### Join:
+
+The join is a blocking operation that waits until all workers have finished their tasks. The code bellow demonstrates how it works:
+
+```rust
+pub fn join(&self) {
+    let lock = Mutex::new(());
+    let mut guard = lock.lock().unwrap();
+    while !self.all_workers_free() {
+      guard = self.free_condvar.wait_timeout(guard, std::time::Duration::from_millis(10)).unwrap().0;
+    }
+}
+```
+
+As you can see above it uses the `all_workers_free` to check when all works finish its respective tasks, it also uses the `free_condvar` trick to wait by the timeout and lock it to join inside the while loop, when all loops lock it return, meaning that the worker is free to to wathever you want, this is used in the stop to join all workers an the stop all them.
+
+#### Stop:
+
+This method sends a termination message to all workers and waits for them to finish their current tasks. The process is a little complicated but it ensures that the pool stops nicelly by finishing all tasks before it doesn't allow any new task to be scheduled.
+
+The code for it is bellow:
+
+```rust
+pub fn stop(&mut self) {
+    if !self.stopped.load(Ordering::SeqCst) {
+        if *DEBUG_MODE {
+            println!("Sending terminate message to all workers.");
+        }
+
+        for _ in &self.workers {
+            if let Err(err) = self.sender.send(None) {
+                if *DEBUG_MODE {
+                    println!("Error sending terminate message to worker: {:?}", err);
+                }
+            }
+        }
+
+        if *DEBUG_MODE {
+            println!("Shutting down all workers.");
+        }
+
+        for worker in &mut self.workers {
+            if *DEBUG_MODE {
+                println!("Shutting down worker {}", worker.id);
+            }
+
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
+
+        self.stopped.store(true, Ordering::SeqCst);
+    }
+}
+```
