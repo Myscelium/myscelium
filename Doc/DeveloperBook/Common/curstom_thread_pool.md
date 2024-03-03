@@ -173,7 +173,7 @@ The Vec as you see is a usize, this is on purpose since we don't collect the wor
 
 Helper method to check if all worker threads are free. Simillar to the `free_workers` method but this instead of returning a Vec of usize it returns a boolean saying if all workers are free or not, this is the code for it:
 
-```
+```rust
 fn all_workers_free(&self) -> bool {
     self.workers.iter().all(|worker| !worker.busy.load(Ordering::SeqCst))
 }
