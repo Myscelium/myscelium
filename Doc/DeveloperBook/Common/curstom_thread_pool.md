@@ -34,7 +34,7 @@ They are designed to resume when they crash and send the error back and also the
 
 Sender is a mpsc channel that has a job parameter that ensure safety and ensure that this will be droped when finish, the sender job is a option of a box with boundaries to ensure that will only run one unique time plus ensure that it is safe to send throught threads and ensure that it is safe by adding a lifetime to it
 
-This is arepresentation of the mpsc sender job:
+This is a representation of the mpsc sender job:
 
 ```Rust
 type Job = Option<Box<dyn FnOnce() + Send + 'static>>;
@@ -236,3 +236,87 @@ pub fn stop(&mut self) {
     }
 }
 ```
+
+Stop first check if the pool is running cause you can't stop a pool that isn't because it is already stoped. Then it will iterate in the workers and send None to all of them, this will send a terminate message to the worker;
+
+After sending tis terminating message to the workers we iterate in all workers taking it's treads heads and joining all of them, this finish all the threads preventing zoombie threads.
+
+After this our work is easy from that one, is just store a stopped in the pool status as stopped true and it's done!
+
+---
+
+### How a Worker Really works?
+
+A worker of this `UnifiedThreadPool` is a very complex codeblock that allows functions and preatty much any code to be executed inside it, it uses `mpsc` channels to receive Jobs and has complex system to sync it's state in relation to the pool signilizing if it's available, if it is busy, etc...
+
+This code bellow creates a new worker, lets analize it:
+
+```rust
+fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>, free_condvar: Arc<Condvar>, task_count: Arc<AtomicUsize>) -> Worker {
+    let busy = Arc::new(AtomicBool::new(false));
+    let busy_clone = Arc::clone(&busy);
+    let free_condvar_clone = Arc::clone(&free_condvar);
+    let task_count_clone = Arc::clone(&task_count);
+
+    let thread = thread::spawn(move || loop {
+        let job = match receiver.lock().unwrap().recv() {
+            Ok(Some(job)) => {
+                task_count_clone.fetch_sub(1, Ordering::SeqCst);
+                job
+            },
+            Ok(None) => return,
+            Err(_) => return,
+        };
+
+        if *DEBUG_MODE {
+            println!("Unified Worker {} got a job; executing.", id);
+        }
+        busy_clone.store(true, Ordering::SeqCst);
+        job();
+        busy_clone.store(false, Ordering::SeqCst);
+        free_condvar_clone.notify_one();
+    });
+
+    Worker { id, thread: Some(thread), busy }
+}
+```
+
+This top section:
+
+```rust
+let busy = Arc::new(AtomicBool::new(false));
+let busy_clone = Arc::clone(&busy);
+let free_condvar_clone = Arc::clone(&free_condvar);
+let task_count_clone = Arc::clone(&task_count);
+```
+
+Represents the states of this work, and we have to update them accordinly to the states of the worker itself so that it don't confuses the pool in relation to the worker status.
+
+Then we have the thread isolation section of our code that is respnsible for execute the Jobs that we pass using the mpsc channel:
+
+```rust
+let thread = thread::spawn(move || loop {
+    let job = match receiver.lock().unwrap().recv() {
+        Ok(Some(job)) => {
+            task_count_clone.fetch_sub(1, Ordering::SeqCst);
+            job
+        },
+        Ok(None) => return,
+        Err(_) => return,
+    };
+
+    if *DEBUG_MODE {
+        println!("Unified Worker {} got a job; executing.", id);
+    }
+    busy_clone.store(true, Ordering::SeqCst);
+    job();
+    busy_clone.store(false, Ordering::SeqCst);
+    free_condvar_clone.notify_one();
+});
+```
+
+This is basically a loop that
+
+##### TODO: Finish this explanation about how the threads run the code received in the mpsc channel
+
+##### TODO: Explain how after receive a work the thread becomes temporarly unavailable until it don't finishs
