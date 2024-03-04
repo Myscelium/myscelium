@@ -1896,9 +1896,9 @@ class ClientPatterns:
         target_key: str = "",
         kwargs: dict = {},
         message: str = "",
-        response_target: str = "", # origin
-        response_actf: str = "",
-        
+        response_type: str = "",
+        response_target: str = "Origin",
+        response_actf: str = "",  
     ):
         """
         Constructs a command instruction for communication between clients and a host in a network system.
@@ -1913,6 +1913,16 @@ class ClientPatterns:
         - target_key (str, optional): Identifier for the target client to whom the response should be forwarded. Defaults to an empty string.
         - kwargs (dict, optional): Additional keyword arguments to pass along with the command. Defaults to an empty dictionary.
         - message (str, optional): A message accompanying the command. Defaults to an empty string.
+        - response_type (str, required): This is the type of the response command, it needs to be one of the following:
+            - "DirectFunction",
+            - "InternalManagement",
+            - "ExternalFunction",
+        - response_target (strm Optional): This can be blank and will mean to send to Origin, however you can use the following options:
+            - "Origin"
+            - "Host"
+            - "ClientKey(client_key_goes_here)"
+            Just remmeber to not send to Client if in Client nor to Host if in Host, because this kind of operation isn't supported
+        - response_actf (str, required): This is the Handler that the response that this command will generate that will be activated when the response arrives on target
 
         Returns:
         dict: A dictionary representing the command instruction, tailored to the specified interaction pattern.
@@ -1943,8 +1953,6 @@ class ClientPatterns:
         # > basically creates a command to send to host, when the command arrives in host the command will execute something
 
         command_instruction = {}
-        
-        # TODO >>> Update this to send the response target and the response actf too
 
         if target_key == "":
             command_instruction = cast_command_instruction(
@@ -1956,6 +1964,9 @@ class ClientPatterns:
                 command_function,
                 kwargs,
                 message,
+                response_type,
+                response_target,
+                response_actf,
             )
         else:
             command_instruction = cast_command_instruction(
@@ -1967,6 +1978,9 @@ class ClientPatterns:
                 command_function,
                 kwargs,
                 message,
+                response_type,
+                response_target,
+                response_actf,
             )
 
         return command_instruction
