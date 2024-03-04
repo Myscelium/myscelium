@@ -298,50 +298,71 @@ Above we can see a basic example of how the command patters works, it takes some
 
 - is the final destination that this command needs to reach. The way that the myscelium network works is by using a mechanism that redirect the commands untill them arrive into the correct place, for example if our target is host it will be sended to host and them will stop there. However if we want to send it to other place then it will be redirected throught the myscelium network untill it arrives in the target, the same works for the responses too
 
-# TODO >>>
+## Receivers:
 
-### MysceliumClient Class
+Receivers are functions tha can be triggered in client side by remote activation, they are structures that allows to create functions that can be triggered by myscelium core, here in python version of the lib this functions are wrapped in a Rust safe structure and converted into a callbable, the process to do so is a little complex and involves various transducers, but since all is done using references it is extremelly fast
 
----
-
-### Myscelium Client Multithreading Usage Guide
-
-#### 1. **Import Necessary Modules:**
+This is a common structure for a Receiver class:
 
 ```python
-from myscelium import MysceliumClient, ClientPatterns
-from multiprocessing import Process
-import time
+class Receivers:
+    @staticmethod
+    def test_handler(info: dict):
+
+        if "status" in info:
+            pass
+        else:
+            return None
+
+        if info["status"] == "success":
+            pass
+        else:
+            return None
+
+        # Do something with the data, lets say, save it into a database
+
+        print("Received data: ", info)
+
+        time.sleep(5)
 ```
 
-#### 2. **Initialize Client Patterns:**
+Receiver classes are useful for group several receivers, the average structure required in a receiver is as demonstrated above, you always need to start it using a `info` kwarg, that is a dict, this is a information carrier and it loads information like messages, origin_key, target, etc...
+
+If you need to have args to your callback, you can add them in sequence of the info argument, for example:
 
 ```python
-client_patterns = ClientPatterns()
+def test_handler(info: dict, arg1:int, arg2:str, arg3:dict, arg4:list, arg5:tuple):
+
+    if "status" in info:
+        pass
+    else:
+        return None
+
+    if info["status"] == "success":
+        pass
+    else:
+        return None
+
+    # Do something with the data, lets say, save it into a database
+    print("Received data: ", info)
+    time.sleep(5)
 ```
 
-#### 3. **Define Callback Functions:**
+You can add how many args as you want to, the only requirement is that they must be in the sequence of the info arg, also is important that all of they have the type assigned, so if you arg is a int, so put a int signature, if is a str, then put a str signature, this is important and it is a requirement since in background this types will be used for type checking automatically.
 
-This function will be triggered when the client receives a response.
+#### How to convert Receivers into callbacks?
 
-```python
-def test_handler(data):
-    print("Receive data:", data)
-    return None
-```
-
-#### 4. **Setup Callbacks:**
+For this you can use the following structure:
 
 ```python
+from myscelium import callback_pattern
+
 callbacks = [
-    client_patterns.callback_pattern(
-        callback=test_handler,
-        args={"data": "dict"}
-    ),
+  callback_pattern(callback=test_handler),
 ]
 ```
 
-Or you can use the callbacks collector to automate this by do the following:
+This is a manual way to convert a function into a clalback, however there is simpler ways to do so using callback collectors in an automated way as demonstrated bellow:
 
 ```python
 
@@ -353,6 +374,23 @@ class Receivers:
     @staticmethod
     def example_receiver (data:dict):
         pass
+
+    @staticmethod
+    def test_handler(info: dict, arg1:int, arg2:str, arg3:dict, arg4:list, arg5:tuple):
+
+      if "status" in info:
+          pass
+      else:
+          return None
+
+      if info["status"] == "success":
+          pass
+      else:
+          return None
+
+      # Do something with the data, lets say, save it into a database
+      print("Received data: ", info)
+      time.sleep(5)
 
 class Retransmiters:
 
@@ -373,88 +411,29 @@ callbacks = CallbackCollector([Receivers, Retransmiters]).get_callbacks()
 With this CallbackCollector we can extract all the callbacks of these call and also the types that these callbacks takes,
 imediatly automate the callbacks of these receivers.
 
-** IMPORTANT! ** Take in consideration that now all client functions require data:dict arg, this is a thing to allow the following:
+> ** IMPORTANT! ** Take in consideration that now all client functions require info:dict arg, this is a thing to allow the following:
 
 ```python
-"data": {
-  "command_type":"response",
-  "status": "success"
-  "response_activation_function":"",
+"info": {
+  "mode":"response",
+  "status": "success or failure"
+  "origin": "key-of-origin"
   "message":"",
-  "kwargs":{"arg1": [], "arg2": "", "arg3": {}}
-  "response_mode":"",
 }
 ```
 
-So now client have the entire control to status, activation function to allow create advanced activation switches,
-also you have the access to the entire kwargs, a message field and a response mode, the response mode indicates if it is:
-
-- `redirect`
-- `to_send`
+This is what will allow syou to send responses back to origin for example, or to transmit messages directly without extra argument, this allows more flexibility and facilitate some important patterns like redirect, eveen using the smart redirect mecanism.
 
 And also, now you can retransmit messages direct adding a possibility to return errors using the `error_pattern` introduced in v1.3 to host be able to send error messages to client:
+
+##### TODO >>> Make tests for the error patterns and create the default error handler
+
+---
 
 TODO >>> See to add a mecanism to retrasnmit from client to host to client without complications
 
 ```python
 client_patterns.redirect_error_pattern (self, error_message:str, expected_remote_error_handler:str, redirect_to:str)
-```
-
-#### 5. **Function to Send Data to the Host:**
-
-This function initializes a client, sets its UID, and sends a command to the host after a delay.
-
-```python
-def send_some_data():
-
-    mys_client = MysceliumClient(
-        client_uid="some_client_id",
-        buffer_path="ClientData/"
-    )
-
-    mys_client.runing = True
-    time.sleep(10)
-
-    command = client_patterns.command_pattern(
-        "python_function",
-        args={"age":10, "birth":8, "name":"cristian"}
-    )
-
-    result = mys_client.send(command, priority=10)
-    print(result)
-```
-
-#### 6. **Function to Initialize and Start the Client:**
-
-This function initializes the client, sets its callbacks, worker number, and starts it.
-
-```python
-def initialize_client():
-
-    mys_client = MysceliumClient(
-        client_uid="some_client_id",
-        buffer_path="ClientData/"
-    )
-
-    mys_client.set_callbacks(callbacks=callbacks)
-    mys_client.set_workers_num(n_workers=2)
-    mys_client.initialize_client("127.0.0.1", 4444)
-```
-
-#### 7. **Main Execution:**
-
-Here, we use Python's multiprocessing module to run the client continuously in one process and send commands in another process. This allows the client to run independently and interact with it by sending commands.
-
-```python
-if __name__ == '__main__':
-    p1 = Process(target=initialize_client)
-    p2 = Process(target=send_some_data)
-
-    p1.start()
-    p2.start()
-
-    p1.join()
-    p2.join()
 ```
 
 ---

@@ -24,6 +24,8 @@ class Handlers:
         print(age)
 
         host_patterns = HostPatterns()
+        
+        # TODO >>> Check if isn't possible to centralize the response pattern and make it a default pattern of myscelium lib
 
         response = host_patterns.response_pattern(
             activation_function="test_handler", 
