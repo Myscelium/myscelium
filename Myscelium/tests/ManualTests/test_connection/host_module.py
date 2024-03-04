@@ -20,11 +20,21 @@ class Handlers:
         print(birth)
         print(name)
         print(age)
+        
+        print(f"info is this: {info}")
+        
+        if "response_actf" in info:
+            pass
+        else:
+            print("info don't have the response_actf, sending none")
+            return None
+        
+        response_actf = info["response_actf"]
 
         host_patterns = HostPatterns()
 
         response = host_patterns.response_pattern(
-            activation_function="test_handler", 
+            activation_function=response_actf, 
             kwargs={"data": 'hello!'}
         )
 
@@ -128,7 +138,7 @@ class MyHost:
 
         return
 
-    def run(self, ip="127.0.0.1", port=8000, event=None):
+    def run(self, ip="127.0.0.1", port=4444, event=None):
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self.monitor_stop_event)

@@ -123,11 +123,12 @@ def cast_response_command_instruction(
         "actf": command_actf,
         "kwargs": command_kwargs,
         "message": command_message,
-        "response_type": "",
-        "response_target": "",
-        "response_actf": "",
-            
+        "response_type": command_type, # This is a duplication due to a temporary change in the Option downcast
+        "response_target": command_target, # This is a duplication due to a temporary change in the Option downcast
+        "response_actf": command_actf, # This is a duplication due to a temporary change in the Option downcast
     }
+    
+    # TODO >>> Find a sulution to use None in the above struct casting in the `response_type`, `response_target`, `response_actf` and not a repetition of the act and other fields used to replace None
 
     return command_instruction
 
@@ -273,7 +274,6 @@ def cast_command_instruction(
         "response_type": response_type,
         "response_target": response_target,
         "response_actf": response_actf
-            
     }
 
     return command_instruction

@@ -36,10 +36,14 @@ class Senders:
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
         command = client_patterns.command_pattern(
-            CLIENT_KEY,
-            "python_function",
-            "",  # Empty is default
-            {"age": 10, "birth": 8, "name": "cristian"},
+            origin_key=CLIENT_KEY,
+            command_function="python_function",
+            target_key="",  # Empty is default
+            kwargs={"age": 10, "birth": 8, "name": "cristian"},
+            message="",
+            response_type="ExternalFunction",
+            response_target="Origin",
+            response_actf="test_handler",
         )
 
         result = mys_client.send(command, priority=10)

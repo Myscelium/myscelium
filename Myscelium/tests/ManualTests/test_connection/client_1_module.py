@@ -17,7 +17,7 @@ LOG_LEVEL = "INFO"
 class Senders:
     @staticmethod
     def send_some_data():
-        time.sleep(25)
+        time.sleep(15)
 
         mys_client = MysceliumClient(
             name="TestClient1",
@@ -32,18 +32,26 @@ class Senders:
         attemtps = 0
         while not mys_client.is_client_ready():
             time.sleep(1)
+            print("Client not ready yet")
             attemtps += 1
             if attemtps >= max_attempts:
                 assert False, "Take too long to client be ready"
             continue
 
+        # TODO >>> Add panic handler inside myscelium when something returns a error from python side
+            
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
         command = client_patterns.command_pattern(
-            CLIENT_KEY,
-            "python_function",
-            "",  # Empty is default
-            {"age": 10, "birth": 8, "name": "cristian"},
+            origin_key=CLIENT_KEY,
+            command_function="python_function",
+            target_key="",  # Empty is default
+            kwargs={"age": 10, "birth": 8, "name": "cristian"},
+            message="",
+            response_type="ExternalFunction",
+            response_target="Origin",
+            response_actf="test_handler",
         )
+    
 
         result = mys_client.send(command, priority=10)
 
@@ -96,7 +104,7 @@ class MyClient:
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
 
-        mys_client.initialize_client("127.0.0.1", 8000)
+        mys_client.initialize_client("127.0.0.1", 4444)
 
         return
 
