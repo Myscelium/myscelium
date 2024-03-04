@@ -163,6 +163,9 @@ def cast_command_instruction(
     - command_actf (str): Activation function for the command. Cannot be empty.
     - command_kwargs (dict): Additional keyword arguments for the command.
     - command_message (str): Message associated with the command.
+    - response_type (str): The type of the response command that will be sended back to this node that is casting this command,
+    - response_target (str): The target of the response that this command will produce,
+    - response_actf (str): The handler that response will triger when arrive in the target
 
     Returns:
     dict: A dictionary representing the constructed command instruction.
