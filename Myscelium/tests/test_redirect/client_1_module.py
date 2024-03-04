@@ -33,6 +33,8 @@ class Senders:
                 assert False, "Take too long to client be ready"
             continue
 
+        # TODO >>> Update it to use the new command pattern
+            
         command = client_patterns.command_pattern(
             CLIENT_ID,
             "python_function",

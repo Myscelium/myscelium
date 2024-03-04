@@ -87,8 +87,10 @@ class Senders:
             Events_Manager(Unit="Client2", path="Logs").Set_Event(
                 "Target Client 1 is ready",
                 event_type="Default",
-            )
-
+            )   
+            
+            # TODO >>> Update it to use the new command pattern
+            
             command = client_patterns.command_pattern(
                 CLIENT_ID,
                 "test_redirect_handler",

@@ -132,6 +132,8 @@ class Senders:
             if attemtps >= max_attempts:
                 assert False, "Take too long to client be ready"
             continue
+        
+        # TODO >>> Update Inner management patterns to use the new command pattern dynamic response method and update this to declare the response handler required
 
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID,  # origin
@@ -190,6 +192,8 @@ class Senders:
         # Change client name
         # Turn super user to false
         
+        # TODO >>> Update Inner management patterns to use the new command pattern dynamic response method and update this to declare the response handler required
+        
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID,  # origin
             "update_client",  # actf
@@ -243,6 +247,8 @@ class Senders:
                 assert False, "Take too long to client be ready"
             continue
 
+        # TODO >>> Update Inner management patterns to use the new command pattern dynamic response method and update this to declare the response handler required
+            
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID, "remove_client", kwargs={"client_key": "xMndjslwpedcnfe"}
         )
