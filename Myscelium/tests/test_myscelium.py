@@ -773,7 +773,7 @@ def client_1_thread_to_test_messages(event_client_received):
     print("Client1 thread finished.")
 
 
-def test_messages():
+def _test_messages(): #! Temporarly Deactivated
     time.sleep(5)
 
     Events_Manager(

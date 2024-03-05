@@ -276,8 +276,26 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
                     OxidizedMyscelium::ClientError::ClientDoesNotExist(c) => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client {} doesn't exists!", c)));
                     },
+                    OxidizedMyscelium::ClientError::TargetDoesntExists => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>("Can't send a command nor a response to a target that doens't exist!"));
+                    },
+                    OxidizedMyscelium::ClientError::CantScheduleCommandsToItself => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>("Cant schedule a command to from this node to this node!"));
+                    },
+                    OxidizedMyscelium::ClientError::HandlerDoesntExist => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>("Handler does not exist in target!"));
+                    },
+                    OxidizedMyscelium::ClientError::HostCantSendResponseToItself => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>("Host cant send a response to itself!"));
+                    },
+                    OxidizedMyscelium::ClientError::TargetCantSendResponseToItself => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>("Target can't send a response to itself!"));
+                    },
+                    OxidizedMyscelium::ClientError::ResponseHandlerDoesntExist => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>("Response handler does not exist in target!"));
+                    },
                     _ => {
-                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Unexpected error case not covered!")));
+                        return Err(PyErr::new::<exceptions::PyValueError, _>("Unexpected Error not covered!"));
                     },
                 },
             };
