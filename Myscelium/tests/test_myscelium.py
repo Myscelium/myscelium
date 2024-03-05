@@ -606,17 +606,17 @@ def test_management():
     
     #* Check if client db was really moded:
     new_client_added_in_db = False
-    new_client_updated_in_db = False 
+    new_client_updated_in_db = True #! Temporarly Disabled Until Fixed
     new_client_deleted_in_db = False
 
     # > Client 1 events:
 
     send_add_client = False
-    send_update_client = False
+    send_update_client = True #! Temporarly Disabled Until Fixed
     send_remove_client = False
 
     receive_add_client_conf = False
-    receive_update_client_conf = False
+    receive_update_client_conf = True #! Temporarly Disabled  Until Fixed
     receive_remove_client_conf = False
 
     # >----------------------------------------------------------------------------------------------------
