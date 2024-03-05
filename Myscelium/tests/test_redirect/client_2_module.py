@@ -11,7 +11,6 @@ from ..Logs.test_logs_manager import Events_Manager, System_Status
 CLIENT_ID = "randomsclientids"
 CLIENT_NAME = "TestClient2"
 
-
 class Senders:
     @staticmethod
     def send_some_data_to_redirect():
@@ -89,13 +88,14 @@ class Senders:
                 event_type="Default",
             )   
             
-            # TODO >>> Update it to use the new command pattern
-            
             command = client_patterns.command_pattern(
-                CLIENT_ID,
-                "test_redirect_handler",
+                origin_key=CLIENT_ID,
+                command_function="test_redirect_handler",
                 target_key=TARGET_KEY,  # This is part of the smart redirect mechanism to redirect commands
                 kwargs={"data": 8},
+                response_type="ExternalFunction",
+                response_target= "Origin",
+                response_actf="", # Isn't defined a handler to this here yet
             )
 
             result = mys_client.send(command, priority=10)

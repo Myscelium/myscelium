@@ -259,8 +259,8 @@ def cast_command_instruction(
         if content == "":
             raise ValueError("Command response_target ClientKey needs a valid ClientKey!")
         
-    if response_actf == "" or response_actf == None:
-        raise ValueError("Command activation function can't be empty")
+    # if response_actf == "" or response_actf == None:
+    #     raise ValueError("Command activation function can't be empty")
 
     command_instruction = {
         "mode": command_mode,
