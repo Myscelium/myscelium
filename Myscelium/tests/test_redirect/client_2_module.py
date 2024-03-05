@@ -98,7 +98,13 @@ class Senders:
                 response_actf="", # Isn't defined a handler to this here yet
             )
 
-            result = mys_client.send(command, priority=10)
+            try:
+                result = mys_client.send(command, priority=10)
+            except ValueError as e:
+                Events_Manager(Unit="Client2", path="Logs").Set_Event(
+                    f"Error: {e}", event_type="Exception"
+                )
+            
         except e as e:
             Events_Manager(Unit="Client2", path="Logs").Set_Event(
                 f"{e}",

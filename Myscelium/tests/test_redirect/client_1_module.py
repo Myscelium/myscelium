@@ -42,7 +42,12 @@ class Senders:
             response_actf="test_handler",
         )
 
-        result = mys_client.send(command, priority=10)
+        try:
+            result = mys_client.send(command, priority=10)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Data Sended", event_type="Send", event_key="1dX2A63Rp7O79x6t"

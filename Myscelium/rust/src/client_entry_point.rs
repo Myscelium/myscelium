@@ -21,6 +21,8 @@ use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
 
+use OxidizedMyscelium::Callback;
+
 use OxidizedMyscelium::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY, CLIENT_NODE_NAME, CLIENT_STATE_MANAGER};
 
 // -> Socket Client main-points:
@@ -375,17 +377,7 @@ pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
-    // For this given data
-    //
-    // special_functions = [{
-    //     "function": get_registered_commands,
-    //     "response_type":"same_as_origin",
-    //     "args": "None",
-    // }, ]
-    //
-
-    let mut client_handlers: Vec<NodeHandler> = Vec::new();
-    let mut callbacks_patterns = HashMap::new();
+    let mut callbacks: Vec<Callback> = Vec::new();
 
     for command in commands.iter() {
         // Safely casting the command to a Python dictionary
@@ -430,29 +422,34 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
             }
         }
 
-        // Creating a new handler with the extracted information and adding it to a collection
-        let handler: NodeHandler = NodeHandler::new(function_name.to_string(), args_types_value.clone(), CommandType::ExternalFunction, HandlerStatus::NotTested, HashMap::new(), "".to_string());
-        client_handlers.push(handler);
-
         // Converting the Python function to a form that can be stored and called later
         let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
         let wrapped_function = Box::new(wrap_py_function(function));
 
-        // Converting the Python function to a form that can be stored and called later
-        callbacks_patterns.insert(function_name.to_string(), wrapped_function);
+        callbacks.push(Callback::new(
+            function_name.to_string(),
+            wrapped_function,
+            args_types_value.clone(),
+            CommandType::ExternalFunction,
+            HandlerStatus::NotTested,
+            HashMap::new(),
+            "".to_string(),
+        ));
     }
 
     // -> UPDATE CLIENT HANDLERS AND NODE
 
-    {
-        println!("[CLIENT][GLOBAL][Try Lock] - CLIENT_NODE_CONFIGS");
-        let mut command_patterns = CLIENT_NODE_CONFIGS.lock();
-        println!("[CLIENT][GLOBAL][Lock] - CLIENT_NODE_CONFIGS");
-        command_patterns.update_handlers(client_handlers);
-        println!("[CLIENT][GLOBAL][Release] - CLIENT_NODE_CONFIGS");
-    }
+    // "callback_name" {
+    //       "callback": Box<CallbackClosure>
+    //       "parameters": IndexMap<String, String>
+    //       "type": CallbackType
+    //       "status": HandlerStatus,
+    //       "response_structure": HashMap<String, Value>,
+    //       "description": String
+    // }
 
-    OxidizedMyscelium::set_client_callbacks(callbacks_patterns);
+    // OxidizedMyscelium::set_client_callbacks(callbacks_patterns);
+    OxidizedMyscelium::set_client_callbacks(callbacks);
     OxidizedMyscelium::change_client_to_initialized();
 
     Ok(())
