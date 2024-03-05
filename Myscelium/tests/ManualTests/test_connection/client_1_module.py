@@ -60,7 +60,7 @@ class Senders:
 
 class Receivers:
     @staticmethod
-    def test_handler(info: dict):
+    def test_handler(info: dict, arg1:str, arg2:int, arg3:dict):
         print("Received data: ", info)
 
         if "status" in info:
@@ -142,7 +142,7 @@ class MyClient:
         return
 
 
-if __name__ == "__main__":
-    MyClient("INFO").run()
+# if __name__ == "__main__":
+#     MyClient("INFO").run()
 
-# print(CallbackCollector([Receivers]).get_callbacks())
+print(CallbackCollector([Receivers]).get_callbacks())

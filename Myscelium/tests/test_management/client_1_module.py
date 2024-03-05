@@ -150,7 +150,12 @@ class Senders:
             response_actf="add_client_handler",
         )
 
-        _ = mys_client.send(command, priority=9)
+        try:
+            _ = mys_client.send(command, priority=9)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test add a client", event_type="Send", event_key="94G2zy6cV54GN64O"
@@ -213,7 +218,12 @@ class Senders:
             response_actf="update_client_handler",
         )
 
-        _ = mys_client.send(command, priority=8)
+        try:
+            _ = mys_client.send(command, priority=8)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test update a client", event_type="Send", event_key="3p7194Y33W6BnYlA"
@@ -258,7 +268,12 @@ class Senders:
             response_actf="remove_client_handler",
         )
         
-        _ = mys_client.send(command, priority=7)
+        try:
+            _ = mys_client.send(command, priority=7)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test remove a client", event_type="Send", event_key="30bt28u819A1QDpH"
@@ -301,7 +316,12 @@ class Senders:
             },
         )
 
-        _ = mys_client.send(command, priority=9)
+        try:
+            _ = mys_client.send(command, priority=9)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test add a client", event_type="Send", event_key="94G2zy6cV54GN64O"
@@ -342,7 +362,12 @@ class Senders:
             },
         )
 
-        _ = mys_client.send(command, priority=8)
+        try:
+            _ = mys_client.send(command, priority=8)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test update a client", event_type="Send", event_key="3p7194Y33W6BnYlA"
@@ -375,7 +400,12 @@ class Senders:
             kwargs={"client_key": "xMndjslwpedcnfe"}
         )
 
-        _ = mys_client.send(command, priority=7)
+        try:
+            _ = mys_client.send(command, priority=7)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test remove a client", event_type="Send", event_key="30bt28u819A1QDpH"
