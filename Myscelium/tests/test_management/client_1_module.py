@@ -133,11 +133,9 @@ class Senders:
                 assert False, "Take too long to client be ready"
             continue
         
-        # TODO >>> Update Inner management patterns to use the new command pattern dynamic response method and update this to declare the response handler required
-
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID,  # origin
-            "add_client",  # actf
+            origin_key=CLIENT_ID,  # origin
+            command_function="add_client",  # actf
             kwargs={
                 "client_name": "test_client",
                 "client_key": "xMndjslwpedcnfe",
@@ -147,6 +145,9 @@ class Senders:
                 "max_sub_channels": 5,
                 "owned_sub_channels_keys": [],
             },
+            response_type="ExternalFunction",
+            response_target = "Origin",
+            response_actf="add_client_handler",
         )
 
         _ = mys_client.send(command, priority=9)
@@ -191,9 +192,7 @@ class Senders:
         #> Changes done:
         # Change client name
         # Turn super user to false
-        
-        # TODO >>> Update Inner management patterns to use the new command pattern dynamic response method and update this to declare the response handler required
-        
+                
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID,  # origin
             "update_client",  # actf
@@ -209,6 +208,9 @@ class Senders:
                     "owned_sub_channels_keys": [],
                 },
             },
+            response_type="ExternalFunction",
+            response_target = "Origin",
+            response_actf="update_client_handler",
         )
 
         _ = mys_client.send(command, priority=8)
@@ -246,13 +248,16 @@ class Senders:
             if attemtps >= max_attempts:
                 assert False, "Take too long to client be ready"
             continue
-
-        # TODO >>> Update Inner management patterns to use the new command pattern dynamic response method and update this to declare the response handler required
             
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID, "remove_client", kwargs={"client_key": "xMndjslwpedcnfe"}
+            origin_key=CLIENT_ID, 
+            command_function="remove_client", 
+            kwargs={"client_key": "xMndjslwpedcnfe"},
+            response_type="ExternalFunction",
+            response_target = "Origin",
+            response_actf="remove_client_handler",
         )
-
+        
         _ = mys_client.send(command, priority=7)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
@@ -283,8 +288,8 @@ class Senders:
             continue
 
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID,  # origin
-            "test_add_client",  # actf
+            origin_key=CLIENT_ID,  # origin
+            command_function="test_add_client",  # actf
             kwargs={
                 "client_name": "test_client",
                 "client_key": "xMndjslwpedcnfe",
@@ -323,8 +328,8 @@ class Senders:
             continue
 
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID,  # origin
-            "test_update_client",  # actf
+            origin_key=CLIENT_ID,  # origin
+            command_function="test_update_client",  # actf
             kwargs={
                 "actual_client_key": "xMndjslwpedcnfe",
                 "client_key": "xMndjslwpedcnfe",
@@ -365,7 +370,9 @@ class Senders:
             continue
 
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID, "test_remove_client", kwargs={"client_key": "xMndjslwpedcnfe"}
+            CLIENT_ID, 
+            "test_remove_client", 
+            kwargs={"client_key": "xMndjslwpedcnfe"}
         )
 
         _ = mys_client.send(command, priority=7)

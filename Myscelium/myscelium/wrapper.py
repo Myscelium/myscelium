@@ -1991,6 +1991,9 @@ class ClientPatterns:
         command_function: str,
         kwargs: dict = {},
         message: str = "",
+        response_type: str = "",
+        response_target: str = "Origin",
+        response_actf: str = "",
     ):
         """
         Constructs a command instruction for communication between clients and a host in a network system.
@@ -2004,7 +2007,15 @@ class ClientPatterns:
         - command_function (str): The function to be executed in response to the command.
         - kwargs (dict, optional): Additional keyword arguments to pass along with the command. Defaults to an empty dictionary.
         - message (str, optional): A message accompanying the command. Defaults to an empty string.
-
+        - response_type (str, required): This is the category of the handler that the response will trigger, it needs to be one of the options bellow:
+            - "DirectFunction",
+            - "InternalManagement",
+            - "ExternalFunction",
+        - response_target (str, optional): The default is Origin, to send back to origin, but you can use the bellow options:
+            - "Origin"
+            - "Host"
+            - "ClientKey(client_key_goes_here)"
+            
         Returns:
         dict: A dictionary representing the command instruction, tailored to the specified interaction pattern.
 
@@ -2049,8 +2060,11 @@ class ClientPatterns:
             command_function,  # act function
             kwargs,
             message,
+            response_type,
+            response_target,
+            response_actf,
         )
-
+        
         return command_instruction
 
 

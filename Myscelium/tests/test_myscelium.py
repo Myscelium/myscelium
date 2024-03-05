@@ -606,7 +606,7 @@ def test_management():
     
     #* Check if client db was really moded:
     new_client_added_in_db = False
-    new_client_updated_in_db = False
+    new_client_updated_in_db = False 
     new_client_deleted_in_db = False
 
     # > Client 1 events:
