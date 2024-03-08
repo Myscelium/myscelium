@@ -315,8 +315,324 @@ let thread = thread::spawn(move || loop {
 });
 ```
 
-This is basically a loop that
+This is basically a loop that, the way that it works is relativelly simple, the client receives the work in it's relative tread that is detached of the sync related to the rest of the pool, then this thread receives this job, lock in it and change the thread states to busy, then executes this job, the response of the job return to the place that called it automatically using the Job custom context, then, when it finish processing the job it change the states to not busy and wait for new jobs.
 
-##### TODO: Finish this explanation about how the threads run the code received in the mpsc channel
+In resume the pool looks something like that:
 
-##### TODO: Explain how after receive a work the thread becomes temporarly unavailable until it don't finishs
+<img src="../Resources/HowThreadPollWorks.png" alt="How the thread pool works" width="850" height="550">
+
+Yes this is a little complicated, however we have macros that makes it all more simple, bellow we can see some important macros in the macros section that we ca use to use this thread pool with easy:
+
+## Macros:
+
+### Initialize Thread Pool
+
+```rust
+#[macro_export]
+macro_rules! init_thread_pool {
+    ($size:expr) => {{
+        use std::sync::{mpsc, Arc, Mutex};
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let pool = Arc::new(Mutex::new(crate::common::custom_thread_pool::thread_pool::UnifiedThreadPool::new($size)));
+            if let Err(err) = tx.send(pool) {
+                println!("Error initializing thread pool: {:?}", err);
+            }
+        });
+        match rx.recv() {
+            Ok(pool) => pool,
+            Err(err) => {
+                println!("Error receiving thread pool: {:?}", err);
+                panic!("Failed to initialize thread pool!"); // or handle the error as appropriate
+            },
+        }
+    }};
+}
+```
+
+This macro simplifies the process of setting up a thread pool by encapsulating the necessary boilerplate code into a reusable component. Let's break down how it works:
+
+##### Macro Definition
+
+- `#[macro_export]`: This attribute makes the macro available for use in other modules that import this module. It's necessary for reusability of the macro outside the module where it's defined.
+- `macro_rules! init_thread_pool`: This defines a new macro named `init_thread_pool`.
+
+##### Macro Body
+
+The macro takes a single expression `$size` as input. This expression specifies the size of the thread pool, i.e., the number of threads it should contain.
+
+##### Inside the Macro
+
+1. **Imports**:
+
+   It starts by importing necessary items from the `std::sync` module - `mpsc` (multi-producer, single-consumer) for creating a communication channel, `Arc` (atomic reference counted) for thread-safe reference counting, and `Mutex` for mutual exclusion.
+
+2. **Creating a Channel**:
+
+   `let (tx, rx) = mpsc::channel();` creates a channel for sending (`tx`) and receiving (`rx`) messages. This channel is used to communicate the newly created thread pool from the spawned thread to the calling thread.
+
+3. **Spawning a Thread**:
+
+   `std::thread::spawn(move || {...});` is used to spawn a new thread. Inside this thread:
+
+   - A new `UnifiedThreadPool` is created with the specified size (`$size`).
+   - The thread pool is wrapped in an `Arc<Mutex<...>>` to ensure safe concurrent access.
+   - The newly created thread pool is sent back to the calling thread via the `tx` channel.
+   - If sending fails, an error is printed to the console.
+
+4. **Receiving the Thread Pool**:
+
+   The `match rx.recv()` statement waits for the new thread pool to be sent from the spawned thread. It handles two cases:
+
+   - `Ok(pool)`: The thread pool is successfully received, and it's returned.
+   - `Err(err)`: An error occurred while receiving the thread pool. This error is printed, and then the macro causes a panic, indicating that the thread pool initialization failed.
+
+##### Usage
+
+The macro is used to initialize a thread pool with a specified number of threads. For instance:
+
+```rust
+let pool = init_thread_pool!(4);
+```
+
+This will create a thread pool with 4 threads and return a handle to this pool.
+
+##### Advantages
+
+- **Encapsulation**: The macro hides the complexity of setting up a thread pool, making the code cleaner and easier to read.
+- **Reusability**: Since it's exported, this macro can be used across different parts of your application or even in different applications.
+- **Error Handling**: The macro includes basic error handling for thread pool creation and communication, ensuring that failures are noticed and handled appropriately.
+
+This macro is a convenient way to abstract the details of initializing a thread pool, making your Rust code more modular and maintainable.
+
+---
+
+### Wait All Threads:
+
+This macro allows to join all threads for some purpose, it waits all threads finish wath they are doing and then continues to next line, bellow is better explained how it works:
+
+```rust
+#[macro_export]
+macro_rules! wait_all_threads {
+    ($receivers:expr) => {{
+        let mut results = Vec::new();
+        for rx in $receivers {
+            match rx.recv() {
+                Ok(result) => results.push(result),
+                Err(err) => {
+                    println!("Error receiving result from thread: {:?}", err);
+                },
+            }
+        }
+        results
+    }};
+}
+```
+
+The `wait_all_threads` macro is designed to collect results from multiple threads. It's particularly useful in scenarios where you have spawned multiple threads and need to gather their results or outputs. Let's break down how this macro works:
+
+##### Macro Definition
+
+- `#[macro_export]`: This attribute makes the macro available for use outside the module in which it is defined, allowing it to be imported and used in other parts of your codebase.
+
+- `macro_rules! wait_all_threads`: This declares a new macro named `wait_all_threads`.
+
+##### Macro Body
+
+The macro takes a single input, `$receivers`, which is expected to be an iterable collection of receiver endpoints of channels (usually `mpsc::Receiver`).
+
+#### Inside the Macro
+
+1. **Initializing a Vector**:
+
+   `let mut results = Vec::new();` initializes an empty vector to store the results collected from the threads.
+
+2. **Iterating Over Receivers**:
+
+   The macro iterates over each receiver in `$receivers`. For each receiver, it attempts to receive a message (or result) from the corresponding thread.
+
+3. **Receiving and Handling Messages**:
+
+   - `match rx.recv() {...}`: This match statement is used to receive a message from the current receiver (`rx`). The `recv()` method blocks execution until a message is received or the channel is closed.
+   - `Ok(result) => results.push(result)`: If a message is successfully received, it's added to the `results` vector.
+   - `Err(err) => {...}`: If there's an error in receiving a message (e.g., if the sending end of the channel has been dropped), the error is printed to the console.
+
+4. **Returning Results**:
+
+   Finally, the macro returns the `results` vector, which contains all the successfully received messages from the threads.
+
+##### Usage
+
+This macro is typically used in situations where you have multiple threads performing tasks, and you need to collect their results. For example:
+
+```rust
+let receivers = vec![rx1, rx2, rx3]; // rx1, rx2, rx3 are Receivers from threads
+let all_results = wait_all_threads!(receivers);
+```
+
+In this example, `rx1`, `rx2`, and `rx3` are the receiver ends of channels connected to different threads. The macro waits for each thread to send its result and collects these results into `all_results`.
+
+##### Advantages
+
+- **Synchronization**: It provides a simple way to synchronize with multiple threads, ensuring that you wait for all of them to complete their execution.
+- **Collection of Results**: It collects the results of thread executions in an orderly and manageable way.
+- **Error Handling**: Basic error handling is included, which helps in debugging issues related to thread communication.
+- **Code Clarity and Reusability**: By encapsulating this common pattern into a macro, your code becomes cleaner and more reusable, reducing the likelihood of repetitive code.
+
+Overall, the `wait_all_threads` macro is a handy tool in concurrent Rust programming, simplifying the pattern of waiting for and collecting results from multiple threads.
+
+---
+
+### Run In Thread Pool:
+
+This ine is the most important one because it simplifyes schedule work for the thread_pool workers, the structure for it is that:
+
+```rust
+#[macro_export]
+macro_rules! run_in_thread_pool {
+    ($pool:expr, $code:block) => {{
+        use std::sync::mpsc;
+        let (tx, rx) = mpsc::channel();
+        let mut locked_pool = $pool.lock().unwrap();
+        locked_pool.execute(move || {
+            let result = $code;
+            if let Err(err) = tx.send(result) {
+                println!("Error sending result from thread: {:?}", err);
+            }
+        });
+        rx
+    }};
+}
+```
+
+The `run_in_thread_pool` macro is designed to execute a block of code within a thread from a thread pool and return a receiver for the result. This macro is useful for delegating tasks to a pool of worker threads and asynchronously retrieving their results. Let's break down its functionality:
+
+##### Macro Definition
+
+- `#[macro_export]`: This attribute exports the macro, making it available for use in other modules outside of where it's defined.
+
+- `macro_rules! run_in_thread_pool`: This starts the definition of a new macro named `run_in_thread_pool`.
+
+##### Macro Body
+
+The macro takes two inputs:
+
+1. `$pool`: This is the thread pool where the code block will be executed. The pool is typically a shared resource, managed by an `Arc<Mutex<...>>` for thread safety.
+
+2. `$code`: This is a block of code to be executed in the thread pool. This code block is expected to produce a result which will be sent back to the calling context.
+
+##### Inside the Macro
+
+1. **Creating a Channel**:
+
+   `let (tx, rx) = mpsc::channel();` creates a new channel. `tx` is the transmitter used to send the result from the worker thread, and `rx` is the receiver used in the calling context to retrieve the result.
+
+2. **Accessing the Thread Pool**:
+
+   `let mut locked_pool = $pool.lock().unwrap();` locks the thread pool mutex to gain access to the pool. This is necessary because the thread pool might be shared across multiple threads.
+
+3. **Executing the Code in the Thread Pool**:
+
+   `locked_pool.execute(move || {...});`: This line schedules the execution of the provided code block on one of the threads in the pool.
+
+   - The `move` keyword is used to transfer ownership of the captured variables (including the transmitter `tx`) into the closure.
+   - Inside the closure, the code block `$code` is executed, and its result is captured.
+   - The result is then sent back to the calling context using the transmitter `tx`.
+   - If sending the result fails (e.g., if the receiver has been dropped), an error is printed to the console.
+
+4. **Returning the Receiver**:
+
+   The macro returns `rx`, the receiver part of the channel. This allows the calling context to receive the result asynchronously once the worker thread completes its execution.
+
+##### Usage Example
+
+Here's a basic example of how you might use this macro:
+
+```rust
+let pool = Arc::new(Mutex::new(MyThreadPool::new(4))); // assuming MyThreadPool implements a thread pool
+
+let rx = run_in_thread_pool!(pool, {
+    // Code block to execute in the thread
+    let computation = some_computation();
+    computation // This is the result sent back
+});
+
+// Later, in the calling context
+match rx.recv() {
+    Ok(result) => println!("Received: {:?}", result),
+    Err(e) => println!("Failed to receive: {:?}", e),
+}
+```
+
+In this example, `some_computation()` is executed in one of the threads from `MyThreadPool`, and its result is sent back to the main thread.
+
+##### Advantages
+
+- **Concurrency Management**: The macro simplifies the use of a thread pool for executing concurrent tasks.
+- **Asynchronous Execution**: It allows for asynchronous execution of code blocks, with results communicated back via channels.
+- **Error Handling**: Basic error handling is included, which helps in dealing with issues related to inter-thread communication.
+- **Code Reusability and Clarity**: By encapsulating the pattern of executing tasks in a thread pool, the macro enhances code clarity and reusability.
+
+The `run_in_thread_pool` macro is a powerful tool for efficiently managing tasks that need to be run concurrently in Rust, particularly in applications where workload distribution among multiple threads is essential.
+
+---
+
+### Terminate Pool:
+
+This is auto sugestive but has a key role of terminate the entire pool safelly, the code for it is the bellow one:
+
+```rust
+#[macro_export]
+macro_rules! terminate_pool {
+    ($pool:expr) => {{
+        let mut locked_pool = $pool.lock().unwrap();
+        locked_pool.stop();
+    }};
+}
+```
+
+The `terminate_pool` macro is a straightforward yet important piece of code used in the context of managing thread pools in Rust. Its purpose is to safely terminate all threads within a given thread pool. Let's dissect it for a clearer understanding:
+
+##### Macro Definition
+
+- `#[macro_export]`: This attribute makes the macro available for use in other modules outside of where it's defined, facilitating reuse across your codebase.
+
+- `macro_rules! terminate_pool`: This line defines a new macro called `terminate_pool`.
+
+##### Macro Body
+
+The macro accepts a single input:
+
+- `$pool`: This represents the thread pool that you want to terminate. It is expected to be a shared, mutable resource, likely wrapped in a thread-safe construct like `Arc<Mutex<...>>`.
+
+##### Inside the Macro
+
+1. **Accessing the Thread Pool**:
+
+   `let mut locked_pool = $pool.lock().unwrap();` acquires a lock on the thread pool. The `lock()` method is called on the `$pool` variable (which should be a `Mutex`), and `unwrap()` is used to handle the `Result` returned by `lock()`. In a production environment, better error handling instead of `unwrap()` might be advisable to prevent potential panics.
+
+2. **Terminating the Pool**:
+
+   `locked_pool.stop();` calls the `stop` method on the thread pool. This method is assumed to be part of the thread pool's interface and is responsible for gracefully shutting down all threads in the pool. The actual implementation of `stop` would depend on how the thread pool is designed. Typically, it involves signaling all threads to complete their current work and then exit.
+
+##### Usage
+
+This macro is used to terminate a thread pool, typically when the program is done with executing parallel tasks, or when it's cleaning up resources before exiting. For example:
+
+```rust
+let pool = Arc::new(Mutex::new(MyThreadPool::new(4))); // assuming MyThreadPool is a custom thread pool implementation
+
+// ... use the pool for various tasks ...
+
+terminate_pool!(pool); // gracefully shut down the pool
+```
+
+In this example, `MyThreadPool` is an assumed implementation of a thread pool, and `terminate_pool!(pool)` is called when the pool is no longer needed.
+
+##### Advantages
+
+- **Simplicity and Clarity**: The macro provides a clear and concise way to terminate a thread pool.
+- **Safe Resource Management**: It promotes the safe and orderly shutdown of threads, which is crucial for avoiding issues like resource leaks or unfinished tasks.
+- **Reusability**: Being a macro, it can be easily reused across different parts of an application where thread pool management is necessary.
+
+The `terminate_pool` macro is an essential tool in concurrent Rust programming, especially in applications that heavily rely on thread pools for managing parallel tasks. It encapsulates the best practice of gracefully shutting down thread pools, thus contributing to robust and maintainable code.
