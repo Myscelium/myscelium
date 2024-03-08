@@ -1,7 +1,10 @@
-- [Setting Up the Client](#setting-up-the-client)
-- [MysceliumClient Class](#mysceliumclient-class)
-- [ClientPatterns Class](#clientpatterns-class)
-- [Non Bloking Client Usage Guide](#myscelium-client-multithreading-usage-guide)
+#### Index:
+
+- [Myscelium Client](#myscelium-client)
+  - [Setting Up the Client](#setting-up-the-client)
+  - [MysceliumClient Class](#mysceliumclient-class)
+  - [ClientPatterns Class](#clientpatterns-class)
+  - [Non Bloking Client Usage Guide](#myscelium-client-multithreading-usage-guide)
 
 ## Myscelium Client
 
@@ -80,7 +83,7 @@ Then you will need to define you main workflow, this is the root of your client 
 
 Something like this:
 
-<img src="./Resources/ClientCommandsFlowExample.png" alt="Description of Image">
+<img src="../Resources/ClientCommandsFlowExample.png" alt="Description of Image">
 
 Above is a example of how the Commands are sended and how they are received, you can see that the Senders send a order to inside the myscelium engine to prepare a command to send, then the receivers receives the commands in a async way, then this commands received can save some instruction into a db or a global of you program. Then a loop thread in your program can look into this storage and check for the response and when find it return to the main flow and do stuff with it, dis is a aproach that is more like a await system but without timeout and other limitations.
 
@@ -429,7 +432,7 @@ And also, now you can retransmit messages direct adding a possibility to return 
 
 What is dinamic responses? well, they are a way to define in client side what will be the kind of the handler that this response will trigger, in wat target and what actf, so you can define in a secure way in the caller side (the client that will call the command that will generate the response) how will be the response, and this is powefull because allows you to customize the response handler in each client using the same function in the target, this allow several patterns to emerge like demonstrated bellow:
 
-<img src="Resources/MysceliumCommandPatternsAndResponsesCombination.png" alt="Myscelium Responses Diagram" width="850" height="700">
+<img src="../Resources/MysceliumCommandPatternsAndResponsesCombination.png" alt="Myscelium Responses Diagram" width="850" height="700">
 
 We can see several examples of host the response can behave above, we can do a loot of combinations creating this way a very dinamic way to configure Myscelium to do whatever you want yo do with it!
 
@@ -550,7 +553,66 @@ command = client_patterns.command_pattern(
 )
 ```
 
-That is the same of the older versions, however take into consideration that eveen that you don't define the response type, response actf and other response ifnormation they will still be defined as default because the lib requires them to do some internal checking and this is important to ensure safety for example. But you can do this that way, if the requirements of the lib was supplyed then you can do what you want, the idea is that the Myscelium lib was designed to be flexible to the majority of the cases, giving power to the developed do things from simple to complex with easy. mt
+That is the same of the older versions, however take into consideration that eveen that you don't define the response type, response actf and other response ifnormation they will still be defined as default because the lib requires them to do some internal checking and this is important to ensure safety for example. But you can do this that way, if the requirements of the lib was supplyed then you can do what you want, the idea is that the Myscelium lib was designed to be flexible to the majority of the cases, giving power to the developed do things from simple to complex with easy.
+
+Certainly! Here are the Markdown topics for the two cases:
+
+---
+
+### Response Handler Verification Process
+
+###### Overview
+
+This process ensures that response handlers specified in command patterns exist on the client side before a command is executed.
+
+##### Verification Process
+
+1. **Handler Existence Check**:
+
+   - When a command is issued, the system checks if the specified `response_handler` exists on the client that sent the command.
+   - This check is crucial to ensure that the response can be appropriately handled upon its return.
+
+2. **Error Handling**:
+
+   - If the specified `response_handler` is not found, the system triggers an error handling routine.
+   - This routine may involve logging the error, sending an error response back to the origin, or triggering a default or fallback handler if defined.
+
+3. **Fallback Procedures**:
+   - The system can be configured with default response handlers to manage scenarios where the specified handler is absent.
+   - This ensures that the system remains robust and can handle unexpected situations gracefully.
+
+#### Implementation Tips
+
+- Ensure clear error messages are generated to aid in debugging.
+- Document fallback handlers and their configuration for easy reference.
+
+-
+
+### Automatic Response Compatibility Checking
+
+##### Purpose
+
+Planned as a future enhancement, this feature aims to automatically check the compatibility of response handlers with the responses they are meant to handle.
+
+##### Key Components
+
+1. **Remote Handler Testing Feature**:
+
+   - This feature allows testing of a handler remotely in a special mode.
+   - It helps determine if the handler can process the response correctly by assessing its output structure.
+
+2. **Compatibility Assessment**:
+
+   - The system will automatically evaluate if the response structure matches the handler's expected input format.
+   - This prevents runtime errors and ensures smoother interoperability between different system components.
+
+3. **Implementation Benefits**:
+   - Increases the reliability of the system by ensuring handlers can process the responses they receive.
+   - Reduces the need for extensive manual testing and debugging.
+
+#### Future Developments
+
+- Details of implementation, such as algorithms or methods used for compatibility checking, will be defined in subsequent updates.
 
 ---
 

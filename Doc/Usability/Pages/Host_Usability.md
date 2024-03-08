@@ -1,45 +1,18 @@
----
-# Myscelium Usage Guide & Documentation
-
-#### Mycelium v1.3
-
-<img src="../ressources/myscelium_logo_centralized.png" alt="Description of Image" width="150" height="150">
-
-This guide provides a detailed overview of setting up a Myscelium host and client using the provided library. It covers the methods, patterns, and step-by-step usage examples for both.
-
-## Table of Contents
-
-
-- [Utilities](#utilities)
-    - [GetHostClients](#get-host-clients)
-
-- [Myscelium Host](#myscelium-host)
-  - [Setting Up the Host](#setting-up-the-host)
-  - [MysceliumHost Class](#mysceliumhost-class)
-  - [HostPatterns Class](#hostpatterns-class)
-  - [HostInterface Class](#hostinterface-class)
-  - [Myscelium Host Usage Guide](#myscelium-host-usage-guide) 
-- [Myscelium Client](#myscelium-client)
-  - [Setting Up the Client](#setting-up-the-client)
-  - [MysceliumClient Class](#mysceliumclient-class)
-  - [ClientPatterns Class](#clientpatterns-class)
-  - [Non Bloking Client Usage Guide](#myscelium-client-multithreading-usage-guide)
-
 # Utilities
 
 ### GetHostClients
 
 - `list_clients` this returns a dict df with:
-    - ID
-    - ClientName
-    - ClientKey
-    - ClientType
-    - PermissionGroup
-    - SuperUser
-    - LastContact
-    - MaxSubChannels
-    - OwnedSubChannelsKeys
-    - SubChannelsInUse
+  - ID
+  - ClientName
+  - ClientKey
+  - ClientType
+  - PermissionGroup
+  - SuperUser
+  - LastContact
+  - MaxSubChannels
+  - OwnedSubChannelsKeys
+  - SubChannelsInUse
 
 You can use this to generate a pandas df with this columns and then do whatever you want with this dataframe
 
@@ -48,7 +21,6 @@ To use is very easy:
 ```python
 dict_df = GetHostClients(db_path:str).list_clients()
 ```
-  
 
 ## Myscelium Host
 
@@ -114,12 +86,12 @@ Certain callback functions must have specific names for the system to recognize 
       # Your function logic here
 
       if condition: # In case of a success
-          
+
           response = host_patterns.response_pattern(
             "test_handler",
             kwargs={"data": 'hello!'}
           )
-          
+
           reuturn response
 
       if other_condition: # In case of error in the expectation
@@ -133,7 +105,7 @@ Certain callback functions must have specific names for the system to recognize 
 
 
       # If you don't want to return nothing you can return none
-      return None 
+      return None
    ```
 
 2. **Initialize Host Patterns**: This will help in creating the required patterns for clients and responses.
@@ -152,7 +124,7 @@ Certain callback functions must have specific names for the system to recognize 
        # Add other callbacks here
    ]
    ```
-    
+
    > **IMPORTANT!** : Since v1.3 callbacks and they args can be automatically infered using he callback collector to automate the callback wrapping and allow fast callback blocks (classes of callbacks) registration!
 
    For this you can use the callbacks collector to automate this by do the following:
@@ -179,7 +151,7 @@ Certain callback functions must have specific names for the system to recognize 
       @staticmethod
       def example_retransmiter (arg1:dict, arg2:str, arg3:list, arg4:tuple):
           return None
-    
+
     # Collect the callbacks:
     callbacks = CallbackCollector([Receivers, Retransmiters]).get_callbacks()
    ```
@@ -192,19 +164,19 @@ Certain callback functions must have specific names for the system to recognize 
    ```python
    allowed_clients = [
       self.host_patterns.client_pattern(
-        client_name="TestClient1", 
-        client_type="Interface", 
-        client_key="some_client_id", 
-        client_permission_group="", 
-        client_is_super_user=True, 
+        client_name="TestClient1",
+        client_type="Interface",
+        client_key="some_client_id",
+        client_permission_group="",
+        client_is_super_user=True,
         max_sub_channels=5
       ),
       self.host_patterns.client_pattern(
-        client_name="TestClient2", 
-        client_type="Interface", 
-        client_key="randomsclientids", 
-        client_permission_group="", 
-        client_is_super_user=True, 
+        client_name="TestClient2",
+        client_type="Interface",
+        client_key="randomsclientids",
+        client_permission_group="",
+        client_is_super_user=True,
         max_sub_channels=5
       ),
    ]
@@ -214,11 +186,11 @@ Certain callback functions must have specific names for the system to recognize 
 
    ```python
    mys_host = MysceliumHost(
-      callbacks=callbacks, 
+      callbacks=callbacks,
       host_id="xnsmdkeflerpfsa",
-      allowed_clients=allowed_clients, 
-      buffer_path="Temp/Data/", 
-      n_workers=2, 
+      allowed_clients=allowed_clients,
+      buffer_path="Temp/Data/",
+      n_workers=2,
       log_level="INFO"
    )
    ```
@@ -238,7 +210,7 @@ Certain callback functions must have specific names for the system to recognize 
 7. **Set Logs Callback Handler**: Specify the function that will handle logs from the library engine.
 
    ```python
-    
+
    ```
 
 8. **Start the Host**: Finally, initialize the host to start listening for incoming connections.
@@ -580,6 +552,63 @@ command = client_patterns.command_pattern(
 ```
 
 That is the same of the older versions, however take into consideration that eveen that you don't define the response type, response actf and other response ifnormation they will still be defined as default because the lib requires them to do some internal checking and this is important to ensure safety for example. But you can do this that way, if the requirements of the lib was supplyed then you can do what you want, the idea is that the Myscelium lib was designed to be flexible to the majority of the cases, giving power to the developed do things from simple to complex with easy. mt
+
+### Response Handler Verification Process
+
+###### Overview
+
+This process ensures that response handlers specified in command patterns exist on the client side before a command is executed.
+
+##### Verification Process
+
+1. **Handler Existence Check**:
+
+   - When a command is issued, the system checks if the specified `response_handler` exists on the client that sent the command.
+   - This check is crucial to ensure that the response can be appropriately handled upon its return.
+
+2. **Error Handling**:
+
+   - If the specified `response_handler` is not found, the system triggers an error handling routine.
+   - This routine may involve logging the error, sending an error response back to the origin, or triggering a default or fallback handler if defined.
+
+3. **Fallback Procedures**:
+   - The system can be configured with default response handlers to manage scenarios where the specified handler is absent.
+   - This ensures that the system remains robust and can handle unexpected situations gracefully.
+
+#### Implementation Tips
+
+- Ensure clear error messages are generated to aid in debugging.
+- Document fallback handlers and their configuration for easy reference.
+
+-
+
+### Automatic Response Compatibility Checking
+
+##### Purpose
+
+Planned as a future enhancement, this feature aims to automatically check the compatibility of response handlers with the responses they are meant to handle.
+
+##### Key Components
+
+1. **Remote Handler Testing Feature**:
+
+   - This feature allows testing of a handler remotely in a special mode.
+   - It helps determine if the handler can process the response correctly by assessing its output structure.
+
+2. **Compatibility Assessment**:
+
+   - The system will automatically evaluate if the response structure matches the handler's expected input format.
+   - This prevents runtime errors and ensures smoother interoperability between different system components.
+
+3. **Implementation Benefits**:
+   - Increases the reliability of the system by ensuring handlers can process the responses they receive.
+   - Reduces the need for extensive manual testing and debugging.
+
+#### Future Developments
+
+- Details of implementation, such as algorithms or methods used for compatibility checking, will be defined in subsequent updates.
+
+---
 
 # Host Interface
 
