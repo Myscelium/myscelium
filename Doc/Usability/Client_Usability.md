@@ -382,7 +382,6 @@ class Receivers:
           pass
       else:
           return None
-
       if info["status"] == "success":
           pass
       else:
@@ -425,6 +424,28 @@ imediatly automate the callbacks of these receivers.
 This is what will allow syou to send responses back to origin for example, or to transmit messages directly without extra argument, this allows more flexibility and facilitate some important patterns like redirect, eveen using the smart redirect mecanism.
 
 And also, now you can retransmit messages direct adding a possibility to return errors using the `error_pattern` introduced in v1.3 to host be able to send error messages to client:
+
+#### Dinamic Responses:
+
+What is dinamic responses? well, they are a way to define in client side what will be the kind of the handler that this response will trigger, in wat target and what actf, so you can define in a secure way in the caller side (the client that will call the command that will generate the response) how will be the response, and this is powefull because allows you to customize the response handler in each client using the same function in the target, this allow several patterns to emerge like demonstrated bellow:
+
+<img src="Resources/MysceliumCommandPatternsAndResponsesCombination.png" alt="Myscelium Responses Diagram" width="850" height="700">
+
+We can see several examples of host the response can behave above, we can do a loot of combinations creating this way a very dinamic way to configure Myscelium to do whatever you want yo do with it!
+
+###### Case 1:
+
+In the first example we have a case where we send a command to host that have a target_key corresponent to Client B, then it executes a Handler in Client B that returns a response to redrect to a target that have a client_key correspondent to Client C, Client C receives this response, and return a confirmation `C210` to host signaling that it receives the response, then it activates the Handler and returns None as response, finalizing the cicle.
+
+###### Case 2:
+
+In the second case we have something different, instead of Client B return a response with a target to Client C, it returns a Command with a target_key equal to Client C, then it arrives in Client C and Client C returns a `C210` conf, then it is processed in Client C and it returns a response to redirect to a Client A that arrives in Client A and Client A sends a confirmation `C210` to host signaling that it receives the response, then the Client A process the Response and activate the correspondent Handler to it.
+
+###### Case 3:
+
+The third example is simple, it is just a command sent from Client A to Client B, the cofirmation goes forward signaling that the commands arrive in the target correspondently and the Response goes from the target Client B to the Origin that is the caller, in this case the Client A, this is the most common use case of Myscelium, it has some internal systems that allows to do this redirect in a very easy way.
+
+---
 
 ##### TODO >>> Make tests for the error patterns and create the default error handler
 
