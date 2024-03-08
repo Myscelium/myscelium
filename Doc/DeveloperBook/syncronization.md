@@ -75,3 +75,18 @@ sequenceDiagram
    Host ->> ClientB: Pong
 
 ```
+
+---
+
+We can simplify this idea to something more simple that is what id does in dead, that in essence is that when ClientA connects into the Host, then host will stream the new commands available to all client that have permission to access these new Handlers, we can see here:
+
+```mermaid
+graph LR
+
+  ClientA --> Host
+  Host --> ClientB
+  Host --> ClientC
+  Host --> ClientD
+```
+
+This is a simplified example of what the complex diagram of the network processes does in practice, it basically stream the changes in network map as needed to all client that needs to receive this update in the network map, offcourse it is a high simplification example, however it adres the demonstration of how it is done, at least the base idea.
