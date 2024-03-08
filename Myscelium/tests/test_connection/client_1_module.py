@@ -36,14 +36,24 @@ class Senders:
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
         command = client_patterns.command_pattern(
-            CLIENT_KEY,
-            "python_function",
-            "",  # Empty is default
-            {"age": 10, "birth": 8, "name": "cristian"},
+            origin_key=CLIENT_KEY,
+            command_function="python_function",
+            target_key="",  # Empty is default
+            kwargs={"age": 10, "birth": 8, "name": "cristian"},
+            message="",
+            response_type="ExternalFunction",
+            response_target="Origin",
+            response_actf="test_handler",
         )
 
-        result = mys_client.send(command, priority=10)
-
+        try:
+            result = mys_client.send(command, priority=10)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                step=f"Error: {e}", event_type="Exception"
+            )
+            return
+    
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             step="Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1"
         )

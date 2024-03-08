@@ -132,10 +132,10 @@ class Senders:
             if attemtps >= max_attempts:
                 assert False, "Take too long to client be ready"
             continue
-
+        
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID,  # origin
-            "add_client",  # actf
+            origin_key=CLIENT_ID,  # origin
+            command_function="add_client",  # actf
             kwargs={
                 "client_name": "test_client",
                 "client_key": "xMndjslwpedcnfe",
@@ -145,9 +145,17 @@ class Senders:
                 "max_sub_channels": 5,
                 "owned_sub_channels_keys": [],
             },
+            response_type="ExternalFunction",
+            response_target = "Origin",
+            response_actf="add_client_handler",
         )
 
-        _ = mys_client.send(command, priority=9)
+        try:
+            _ = mys_client.send(command, priority=9)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test add a client", event_type="Send", event_key="94G2zy6cV54GN64O"
@@ -189,7 +197,7 @@ class Senders:
         #> Changes done:
         # Change client name
         # Turn super user to false
-        
+                
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID,  # origin
             "update_client",  # actf
@@ -205,9 +213,17 @@ class Senders:
                     "owned_sub_channels_keys": [],
                 },
             },
+            response_type="ExternalFunction",
+            response_target = "Origin",
+            response_actf="update_client_handler",
         )
 
-        _ = mys_client.send(command, priority=8)
+        try:
+            _ = mys_client.send(command, priority=8)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test update a client", event_type="Send", event_key="3p7194Y33W6BnYlA"
@@ -242,12 +258,22 @@ class Senders:
             if attemtps >= max_attempts:
                 assert False, "Take too long to client be ready"
             continue
-
+            
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID, "remove_client", kwargs={"client_key": "xMndjslwpedcnfe"}
+            origin_key=CLIENT_ID, 
+            command_function="remove_client", 
+            kwargs={"client_key": "xMndjslwpedcnfe"},
+            response_type="ExternalFunction",
+            response_target = "Origin",
+            response_actf="remove_client_handler",
         )
-
-        _ = mys_client.send(command, priority=7)
+        
+        try:
+            _ = mys_client.send(command, priority=7)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test remove a client", event_type="Send", event_key="30bt28u819A1QDpH"
@@ -277,8 +303,8 @@ class Senders:
             continue
 
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID,  # origin
-            "test_add_client",  # actf
+            origin_key=CLIENT_ID,  # origin
+            command_function="test_add_client",  # actf
             kwargs={
                 "client_name": "test_client",
                 "client_key": "xMndjslwpedcnfe",
@@ -290,7 +316,12 @@ class Senders:
             },
         )
 
-        _ = mys_client.send(command, priority=9)
+        try:
+            _ = mys_client.send(command, priority=9)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test add a client", event_type="Send", event_key="94G2zy6cV54GN64O"
@@ -317,8 +348,8 @@ class Senders:
             continue
 
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID,  # origin
-            "test_update_client",  # actf
+            origin_key=CLIENT_ID,  # origin
+            command_function="test_update_client",  # actf
             kwargs={
                 "actual_client_key": "xMndjslwpedcnfe",
                 "client_key": "xMndjslwpedcnfe",
@@ -331,7 +362,12 @@ class Senders:
             },
         )
 
-        _ = mys_client.send(command, priority=8)
+        try:
+            _ = mys_client.send(command, priority=8)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test update a client", event_type="Send", event_key="3p7194Y33W6BnYlA"
@@ -359,10 +395,17 @@ class Senders:
             continue
 
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID, "test_remove_client", kwargs={"client_key": "xMndjslwpedcnfe"}
+            CLIENT_ID, 
+            "test_remove_client", 
+            kwargs={"client_key": "xMndjslwpedcnfe"}
         )
 
-        _ = mys_client.send(command, priority=7)
+        try:
+            _ = mys_client.send(command, priority=7)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Send test remove a client", event_type="Send", event_key="30bt28u819A1QDpH"
