@@ -32,14 +32,22 @@ class Senders:
             if attemtps >= max_attempts:
                 assert False, "Take too long to client be ready"
             continue
-
+            
         command = client_patterns.command_pattern(
-            CLIENT_ID,
-            "python_function",
+            origin_key=CLIENT_ID,
+            command_function="python_function",
             kwargs={"age": 10, "birth": 8, "name": "cristian"},
+            response_type="ExternalFunction",
+            response_target= "Origin",
+            response_actf="test_handler",
         )
 
-        result = mys_client.send(command, priority=10)
+        try:
+            result = mys_client.send(command, priority=10)
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error: {e}", event_type="Exception"
+            )
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Data Sended", event_type="Send", event_key="1dX2A63Rp7O79x6t"
@@ -72,10 +80,6 @@ class Receivers:
 
         print("Received data: ", info)
 
-        # time.sleep(5)
-
-        # System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
-
     @staticmethod
     def test_redirect_handler(info: dict):
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
@@ -93,8 +97,6 @@ class Receivers:
             pass
         else:
             return None
-
-        # TODO >>> Maybe implement a response redirect test from here
 
         print("Received redirected data: ", info)
 

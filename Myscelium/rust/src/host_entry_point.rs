@@ -248,7 +248,7 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
         // Extract the Python function name
         let function_name: &str = function.getattr("__name__")?.extract()?;
 
-        // Extract the argument types
+        //> Extract the argument types (This are extracted from the function args requirements)
         let mut args_types_value = IndexMap::new();
 
         if let Some(args_dict) = args_dict {
@@ -278,6 +278,54 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
 
     // Now you can use the command_patterns
     OxidizedMyscelium::set_host_callbacks(callbacks_patterns);
+
+    // -> REGISTRY THE DIRECT MANAGEMENT FUNCTIONS INTO THE HANDLERS
+
+    // TODO >>> See if is possible to automatically do it later
+
+    {
+        //> Add Client
+        {
+            let mut args_types_value: IndexMap<String, String> = IndexMap::new();
+
+            args_types_value.insert("client_name".to_string(), "str".to_string());
+            args_types_value.insert("client_key".to_string(), "str".to_string());
+            args_types_value.insert("client_type".to_string(), "str".to_string());
+            args_types_value.insert("permission_group".to_string(), "str".to_string());
+            args_types_value.insert("is_super_user".to_string(), "bool".to_string());
+            args_types_value.insert("max_sub_channels".to_string(), "int".to_string());
+            args_types_value.insert("owned_sub_channels_keys".to_string(), "list".to_string());
+
+            let host_add_client_handler: NodeHandler = NodeHandler::new("add_client".to_string(), args_types_value.clone(), CommandType::DirectFunction, HandlerStatus::Working, HashMap::new(), "".to_string());
+
+            host_node_handlers.push(host_add_client_handler);
+        }
+
+        //> Update Client
+        {
+            let mut args_types_value: IndexMap<String, String> = IndexMap::new();
+
+            args_types_value.insert("actual_client_key".to_string(), "str".to_string());
+            args_types_value.insert("updated_client".to_string(), "dict".to_string());
+
+            // TODO >>> make be possible to do sub dict explicity definitions of the parameters that is should have, also do the same with lists too
+
+            let host_update_client_handler: NodeHandler = NodeHandler::new("update_client".to_string(), args_types_value.clone(), CommandType::DirectFunction, HandlerStatus::Working, HashMap::new(), "".to_string());
+
+            host_node_handlers.push(host_update_client_handler);
+        }
+
+        //> Remove Client
+        {
+            let mut args_types_value: IndexMap<String, String> = IndexMap::new();
+
+            args_types_value.insert("client_key".to_string(), "str".to_string());
+
+            let host_remove_client_handler: NodeHandler = NodeHandler::new("remove_client".to_string(), args_types_value.clone(), CommandType::DirectFunction, HandlerStatus::Working, HashMap::new(), "".to_string());
+
+            host_node_handlers.push(host_remove_client_handler);
+        }
+    }
 
     // TODO >>> Create a mechanism that allows to only update the necessary information to avoid need update all what can cause isues
 

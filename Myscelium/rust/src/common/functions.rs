@@ -226,7 +226,7 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
         }
 
         println!("Value map extracted from callback response: {:?}", value);
-        let instrctions = {
+        let instructions = {
             // Check if the Value is an object and convert it to HashMap
             if let Some(obj) = value.as_object() {
                 match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
@@ -244,7 +244,7 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
             }
         };
 
-        return Box::new(instrctions) as Box<dyn Any>;
+        return Box::new(instructions) as Box<dyn Any>;
 
         // serde_json::to_string(value)instrctions.to_value_map();
 
@@ -398,8 +398,10 @@ pub fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyRes
 }
 
 pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
+    use serde_json::Value;
+
     if let Ok(dict) = obj.cast_as::<PyDict>(py) {
-        let mut rust_dict: HashMap<String, serde_json::Value> = HashMap::new();
+        let mut rust_dict = serde_json::Map::new();
 
         for (key, value) in dict.iter() {
             let key_str = match key.extract::<String>() {
@@ -410,22 +412,12 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
                 },
             };
 
-            if let Ok(value_str) = value.extract::<String>() {
-                rust_dict.insert(key_str, Value::String(value_str));
-            } else if let Ok(value_int) = value.extract::<i64>() {
-                rust_dict.insert(key_str, Value::Number(value_int.into()));
-            } else if let Ok(value_list) = value.cast_as::<PyList>() {
-                let rust_list: Vec<_> = value_list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
-                rust_dict.insert(key_str, Value::Array(rust_list));
-            } else if let Ok(nested_dict) = value.cast_as::<PyDict>() {
-                rust_dict.insert(key_str, extract_pyobject(py, nested_dict.into()));
-            } else {
-                println!("Unmatched type for key: {}", key_str);
-                // You may decide how to handle other types
-            }
+            // Recursively extract the value
+            let rust_value = extract_pyobject(py, value.to_object(py));
+            rust_dict.insert(key_str, rust_value);
         }
 
-        Value::Object(serde_json::Map::from_iter(rust_dict))
+        Value::Object(rust_dict)
     } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
         let rust_list: Vec<_> = tuple.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
         Value::Array(rust_list)
@@ -434,10 +426,7 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
         Value::Array(rust_list)
     } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
         match int.extract::<i64>() {
-            Ok(i) => {
-                let num = serde_json::Number::from(i);
-                Value::Number(num)
-            },
+            Ok(i) => Value::Number(serde_json::Number::from(i)),
             Err(e) => {
                 println!("Failed to extract integer: {:?}", e);
                 Value::Null

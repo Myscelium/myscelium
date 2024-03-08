@@ -17,8 +17,7 @@ import inspect
 
 # > Type Cast
 
-
-def cast_command_instruction(
+def cast_response_command_instruction(
     command_mode: str,
     command_type: str,
     command_target: str,
@@ -113,7 +112,7 @@ def cast_command_instruction(
         )
 
     if command_actf == "" or command_actf == None:
-        raise ValueError("Response activation function can't be empty")
+        raise ValueError("Command activation function can't be empty")
 
     command_instruction = {
         "mode": command_mode,
@@ -124,6 +123,157 @@ def cast_command_instruction(
         "actf": command_actf,
         "kwargs": command_kwargs,
         "message": command_message,
+        "response_type": command_type, # This is a duplication due to a temporary change in the Option downcast
+        "response_target": command_target, # This is a duplication due to a temporary change in the Option downcast
+        "response_actf": command_actf, # This is a duplication due to a temporary change in the Option downcast
+    }
+    
+    # TODO >>> Find a sulution to use None in the above struct casting in the `response_type`, `response_target`, `response_actf` and not a repetition of the act and other fields used to replace None
+
+    return command_instruction
+
+
+def cast_command_instruction(
+    command_mode: str,
+    command_type: str,
+    command_target: str,
+    command_status: str,
+    command_origin: str,
+    command_actf: str,
+    command_kwargs: dict,
+    command_message: str,
+    response_type: str,
+    response_target: str,
+    response_actf: str
+) -> dict:
+    """
+    Constructs a command instruction dictionary from the given parameters.
+
+    Validates the provided arguments against specific criteria for each command aspect
+    (mode, type, target, status, origin, activation function). Raises an exception if
+    any of the provided arguments do not meet the expected values or format.
+
+    Parameters:
+    - command_mode (str): Mode of the command, must be one of ['Function', 'Response'].
+    - command_type (str): Type of the command, must be one of ['SpecialFunction', 'DirectFunction',
+                      'InternalManagement', 'ExternalFunction'].
+    - command_target (str): Target of the command, should follow the format 'Origin',
+                            'ClientKey(String)', or 'Host'.
+    - command_status (str): Status of the command, must be one of ['Success', 'Failure'].
+    - command_origin (str): Origin of the command, must be 'Host' or 'ClientKey(String)'.
+    - command_actf (str): Activation function for the command. Cannot be empty.
+    - command_kwargs (dict): Additional keyword arguments for the command.
+    - command_message (str): Message associated with the command.
+    - response_type (str): The type of the response command that will be sended back to this node that is casting this command,
+    - response_target (str): The target of the response that this command will produce,
+    - response_actf (str): The handler that response will triger when arrive in the target
+
+    Returns:
+    dict: A dictionary representing the constructed command instruction.
+
+    Raises:
+    Exception: If any parameter does not conform to its expected format or allowable values.
+
+    Example:
+    command_dict = cast_command_instruction("Function", "DirectFunction", "Host", "Success",
+                                            "ClientKey(123)", "activate", {}, "Execute action")
+    """
+
+    if command_mode not in ["Function", "Response"]:
+        raise ValueError(
+            "Command mode needs to be one of those: ['Function', 'Response']"
+        )
+
+    if command_type not in [
+        "SpecialFunction",
+        "DirectFunction",
+        "InternalManagement",
+        "ExternalFunction",
+    ]:
+        raise ValueError(
+            "Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
+        )
+
+    if command_target in ["Origin", "Host"]:
+        pass
+
+    # -> Validate the redirect cases:
+    elif command_target.startswith("ClientKey(") and command_target.endswith(")"):
+        # Extracting the part inside 'ClientKey()'
+        content = command_target[len("ClientKey(") : -1].strip()
+
+        # Validate the content inside the parentheses
+        if content == "":
+            raise ValueError("Command target ClientKey needs a valid ClientKey!")
+
+    else:
+        raise ValueError(
+            "Command target must be either 'Origin', 'Host', or 'ClientKey(some_value)'"
+        )
+
+    if command_status not in ["Success", "Failure"]:
+        raise ValueError(
+            "Command status can only be one of those: ['Success', 'Failure']"
+        )
+
+    if command_origin == "Host":
+        pass
+
+    # -> Validate the client cases:
+    elif command_origin.startswith("ClientKey(") and command_origin.endswith(")"):
+        # Extracting the part inside 'ClientKey()'
+        content = command_origin[len("ClientKey(") : -1].strip()
+
+        # Validate the content inside the parentheses
+        if content == "":
+            raise ValueError("Command target ClientKey needs a valid ClientKey!")
+
+    else:
+        raise ValueError(
+            "Command origin must be either 'Host' or 'ClientKey(some_value)'"
+        )
+
+    if command_actf == "" or command_actf == None:
+        raise ValueError("Command activation function can't be empty")
+
+    # -> Response definitions:
+    
+    if response_type not in [
+        "DirectFunction",
+        "InternalManagement",
+        "ExternalFunction",
+    ]:
+        raise ValueError(
+            "Command response type needs to be one of those: [ 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
+        )
+
+    if response_target in ["Origin", "Host"]:
+        pass
+
+    # -> Validate the redirect cases:
+    elif response_target.startswith("ClientKey(") and command_target.endswith(")"):
+        # Extracting the part inside 'ClientKey()'
+        content = response_target[len("ClientKey(") : -1].strip()
+
+        # Validate the content inside the parentheses
+        if content == "":
+            raise ValueError("Command response_target ClientKey needs a valid ClientKey!")
+        
+    # if response_actf == "" or response_actf == None:
+    #     raise ValueError("Command activation function can't be empty")
+
+    command_instruction = {
+        "mode": command_mode,
+        "type": command_type,
+        "target": command_target,
+        "status": command_status,
+        "origin": command_origin,
+        "actf": command_actf,
+        "kwargs": command_kwargs,
+        "message": command_message,
+        "response_type": response_type,
+        "response_target": response_target,
+        "response_actf": response_actf
     }
 
     return command_instruction
@@ -928,7 +1078,16 @@ class HostPatterns:
         - `target_key` (str, optional): The key of the target client for retransmission. ExternalFunction is None.
         - `kwargs` (dict, optional): Additional keyword arguments for the command. ExternalFunction is an empty dict.
         - `message` (str, optional): A message to be sent to the client. ExternalFunction is an empty string.
-
+        - `response_type` (str, required): This is the type of the callback that you command will trigger, the availbale types are the following:
+            - "DirectFunction"
+            - "InternalManagement"
+            - "ExternalFunction"
+        - `response_target` (str, optional): This is the target that the response of your command will trigger, if not defined will be Origin as default, but you have the following options:
+            - "Origin"
+            - "Host"
+            - "ClientKey(client_key_goes_here)"
+        - `response_actf` (str, required): This is the target handler that the response of your function will activate when the target receives it, basically the name of this function
+    
         Returns:
         dict: A dictionary representing the command instructions based on the specified pattern.
 
@@ -992,7 +1151,7 @@ class HostPatterns:
         command_instructions = {}
 
         if target_key == "":
-            command_instructions = cast_command_instruction(
+            command_instructions = cast_response_command_instruction(
                 "Response",
                 "ExternalFunction",  # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
                 "Origin",
@@ -1003,7 +1162,7 @@ class HostPatterns:
                 message,
             )
         else:  # Redirect case
-            command_instructions = cast_command_instruction(
+            command_instructions = cast_response_command_instruction(
                 "Response",
                 "ExternalFunction",  # TODO >>> Change this case to PythonFunction or somehting like ExternFunction
                 f"ClientKey({target_key})",
@@ -1017,7 +1176,7 @@ class HostPatterns:
         return command_instructions
 
     def error_response_pattern(
-        self, error_message: str, expected_remote_error_handler: str = ""
+        self, error_message: str, error_handler: str = "", target="Origin", 
     ):
         # TODO >>> Implement a Error Handler Callback Caller in client, to allow personalize how errors will be treated or change the way that client handles responses
 
@@ -1059,14 +1218,14 @@ class HostPatterns:
         if not isinstance(error_message, str):
             print("Error message needs to be a string!")
 
-        if not isinstance(expected_remote_error_handler, str):
+        if not isinstance(error_handler, str):
             print("Expected remote error handler needs to be a string!")
 
         kwargs = {}
         command_instructions = {}
 
-        if expected_remote_error_handler == "":
-            command_instructions = cast_command_instruction(
+        if error_handler == "":
+            command_instructions = cast_response_command_instruction (
                 "Response",
                 "DirectFunction",
                 "Origin",
@@ -1078,13 +1237,13 @@ class HostPatterns:
             )
 
         else:
-            command_instructions = cast_command_instruction(
+            command_instructions = cast_response_command_instruction (
                 "Response",
                 "ExternalFunction",
                 "Origin",
                 "Failure",
                 "Host",
-                expected_remote_error_handler,
+                error_handler, ## TODO  >>> See what to do in this case since we can use the default actf as a reponse actf
                 kwargs,
                 error_message,
             )
@@ -1158,7 +1317,7 @@ class HostPatterns:
             else:
                 return self.error_response_pattern(
                     "new client isn't in kwargs, so can't add client!",
-                    "add_client_handler",
+                    "add_client_handler", # TODO >>> Define a default error handler
                 )
 
             new_client = kwargs["new_client"]
@@ -1168,10 +1327,20 @@ class HostPatterns:
             else:
                 return self.error_response_pattern(
                     "New client needs to be a dict generated by client_pattern",
-                    "add_client_handler",
+                    "add_client_handler", # TODO >>> Define a default error handler
                 )
 
             kwargs = {"new_client": new_client}
+            
+            if "response_actf" in kwargs:
+                pass
+            else:
+                return self.error_response_pattern(
+                    "response_actf isn't in kwargs, so can't add client!",
+                    "add_client_handler", # TODO >>> Define a default error handler
+                )
+                
+            response_actf = kwargs["response_actf"]
 
             command_instructions = cast_command_instruction(
                 "Response",
@@ -1182,6 +1351,9 @@ class HostPatterns:
                 "add_client",
                 kwargs,
                 "",
+                "InternalManagement",
+                "Origin",
+                response_actf
             )
 
             return command_instructions
@@ -1209,7 +1381,7 @@ class HostPatterns:
             else:
                 return self.error_response_pattern(
                     "new client isn't in kwargs, so can't edit client!",
-                    "update_client_handler",
+                    "update_client_handler", # TODO >>> Define a default error handler
                 )
 
             updated_client = kwargs["updated_client"]
@@ -1219,13 +1391,23 @@ class HostPatterns:
             else:
                 return self.error_response_pattern(
                     "New client needs to be a dict generated by client_pattern",
-                    "update_client_handler",
+                    "update_client_handler", # TODO >>> Define a default error handler
                 )
 
             kwargs = {
                 "actual_client_key": actual_client_key,
                 "updated_client": updated_client,
             }
+            
+            if "response_actf" in kwargs:
+                pass
+            else:
+                return self.error_response_pattern(
+                    "response_actf isn't in kwargs, so can't add client!",
+                    "add_client_handler", # TODO >>> Define a default error handler
+                )
+                
+            response_actf = kwargs["response_actf"]
 
             command_instructions = cast_command_instruction(
                 "Response",
@@ -1236,6 +1418,9 @@ class HostPatterns:
                 "update_client",
                 kwargs,
                 "",
+                "InternalManagement",
+                "Origin",
+                response_actf
             )
 
             return command_instructions
@@ -1246,7 +1431,7 @@ class HostPatterns:
             else:
                 self.error_response_pattern(
                     "client_key isn't in kwargs, so can't remove client!",
-                    "remove_client_handler",
+                    "remove_client_handler", # TODO >>> Define a default error handler
                 )
 
             client_key = kwargs["client_key"]
@@ -1255,10 +1440,21 @@ class HostPatterns:
                 pass
             else:
                 return self.error_response_pattern(
-                    "client key needs to be a string!", "remove_client_handler"
+                    "client key needs to be a string!", 
+                    "remove_client_handler" # TODO >>> Define a default error handler
                 )
 
             kwargs = {"client_key": client_key}
+            
+            if "response_actf" in kwargs:
+                pass
+            else:
+                return self.error_response_pattern(
+                    "response_actf isn't in kwargs, so can't add client!",
+                    "add_client_handler", # TODO >>> Define a default error handler
+                )
+                
+            response_actf = kwargs["response_actf"]
 
             command_instructions = cast_command_instruction(
                 "Response",
@@ -1269,6 +1465,10 @@ class HostPatterns:
                 "remove_client",
                 kwargs,
                 "",
+                "InternalManagement",
+                "Origin",
+                response_actf
+                
             )
 
             return command_instructions
@@ -1282,7 +1482,6 @@ class HostPatterns:
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > CLIENT
-
 
 class MysceliumClient:
     _instance = None  # Singleton instance
@@ -1697,6 +1896,9 @@ class ClientPatterns:
         target_key: str = "",
         kwargs: dict = {},
         message: str = "",
+        response_type: str = "",
+        response_target: str = "Origin",
+        response_actf: str = "",  
     ):
         """
         Constructs a command instruction for communication between clients and a host in a network system.
@@ -1711,6 +1913,16 @@ class ClientPatterns:
         - target_key (str, optional): Identifier for the target client to whom the response should be forwarded. Defaults to an empty string.
         - kwargs (dict, optional): Additional keyword arguments to pass along with the command. Defaults to an empty dictionary.
         - message (str, optional): A message accompanying the command. Defaults to an empty string.
+        - response_type (str, required): This is the type of the response command, it needs to be one of the following:
+            - "DirectFunction",
+            - "InternalManagement",
+            - "ExternalFunction",
+        - response_target (strm Optional): This can be blank and will mean to send to Origin, however you can use the following options:
+            - "Origin"
+            - "Host"
+            - "ClientKey(client_key_goes_here)"
+            Just remmeber to not send to Client if in Client nor to Host if in Host, because this kind of operation isn't supported
+        - response_actf (str, required): This is the Handler that the response that this command will generate that will be activated when the response arrives on target
 
         Returns:
         dict: A dictionary representing the command instruction, tailored to the specified interaction pattern.
@@ -1752,6 +1964,9 @@ class ClientPatterns:
                 command_function,
                 kwargs,
                 message,
+                response_type,
+                response_target,
+                response_actf,
             )
         else:
             command_instruction = cast_command_instruction(
@@ -1763,6 +1978,9 @@ class ClientPatterns:
                 command_function,
                 kwargs,
                 message,
+                response_type,
+                response_target,
+                response_actf,
             )
 
         return command_instruction
@@ -1773,6 +1991,9 @@ class ClientPatterns:
         command_function: str,
         kwargs: dict = {},
         message: str = "",
+        response_type: str = "",
+        response_target: str = "Origin",
+        response_actf: str = "",
     ):
         """
         Constructs a command instruction for communication between clients and a host in a network system.
@@ -1786,7 +2007,15 @@ class ClientPatterns:
         - command_function (str): The function to be executed in response to the command.
         - kwargs (dict, optional): Additional keyword arguments to pass along with the command. Defaults to an empty dictionary.
         - message (str, optional): A message accompanying the command. Defaults to an empty string.
-
+        - response_type (str, required): This is the category of the handler that the response will trigger, it needs to be one of the options bellow:
+            - "DirectFunction",
+            - "InternalManagement",
+            - "ExternalFunction",
+        - response_target (str, optional): The default is Origin, to send back to origin, but you can use the bellow options:
+            - "Origin"
+            - "Host"
+            - "ClientKey(client_key_goes_here)"
+            
         Returns:
         dict: A dictionary representing the command instruction, tailored to the specified interaction pattern.
 
@@ -1831,8 +2060,11 @@ class ClientPatterns:
             command_function,  # act function
             kwargs,
             message,
+            response_type,
+            response_target,
+            response_actf,
         )
-
+        
         return command_instruction
 
 

@@ -22,11 +22,19 @@ class Handlers:
         print(birth)
         print(name)
         print(age)
-
+        
+        if "response_actf" in info:
+            pass
+        else:
+            print("info don't have the response_actf, sending none")
+            return
+        
+        response_actf = info["response_actf"]
+        
         host_patterns = HostPatterns()
-
+    
         response = host_patterns.response_pattern(
-            activation_function="test_handler", 
+            activation_function=response_actf, 
             kwargs={"data": 'hello!'}
         )
 
