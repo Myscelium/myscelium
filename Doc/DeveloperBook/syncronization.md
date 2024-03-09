@@ -233,7 +233,7 @@ pub fn change_client_node_status_and_stream(client_key: String, new_status: Node
 }
 ```
 
-The code above uses of this system to change the status of a client, then change the sync status of all dependent nodes that depends on this client, then it dreops the connection with this client, what will happen is that when the dependent client made contact with host they will trigger this code demonstrate dbellow:
+The code above uses of this system to change the status of a client, then change the sync status of all dependent nodes that depends on this client, then it dreops the connection with this client, what will happen is that when the dependent client made contact with host they will trigger this code demonstrated bellow:
 
 ```Rust
 if let Some(sync) = client_sync_status {
@@ -280,5 +280,3 @@ This allows to reset sync status for clients as demonstrated in the above exampl
 ###### get_last_sync:
 
 - This allows to get the last sync of some client directly in the client syncronization controller, without ahve to lock n a client, then read the status and then deref the client, this is more simpler to do and allows do the job very fast!
-
-TODO >>> Add the code of the sync controller mechanismt hat drops clients that refuses to sync.
