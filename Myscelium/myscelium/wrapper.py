@@ -1637,7 +1637,7 @@ class MysceliumClient:
         # This function will be called when a SIGINT signal is received
         mys.stop_socket_client()
 
-    def send(self, command: dict, priority: int):
+    def send(self, command: dict, priority: int) -> str:
         """
         Send a command with a specified priority.
 
@@ -1646,7 +1646,7 @@ class MysceliumClient:
         - priority: Priority level of the command.
 
         Returns:
-        - Response from the send operation.
+        - ParityId assigned to the command scheduled, this helps to waith the response using this parity id when needed
         """
 
         # if not mys.is_client_ready():

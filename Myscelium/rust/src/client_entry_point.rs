@@ -260,10 +260,12 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
     let converted_command = handle_pyobject(py, command);
     println!("\nConverted Command to schedule: {:?}\n", converted_command);
 
+    let parity_id_assigned: String;
+
     match converted_command {
         ResultType::Map(m) => {
             println!("Scheduling to send {:?}", m);
-            let _ = match OxidizedMyscelium::client_send_hashmap(m, priority) {
+            parity_id_assigned = match OxidizedMyscelium::client_send_hashmap(m, priority) {
                 Ok(o) => o,
                 Err(e) => match e {
                     OxidizedMyscelium::ClientError::ClientIsNotRunning => {
@@ -313,7 +315,7 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
         },
     }
 
-    Ok("Sended!".to_string().into_py(py))
+    Ok(parity_id_assigned.into_py(py))
 }
 
 /// Sets the log level for the client.
