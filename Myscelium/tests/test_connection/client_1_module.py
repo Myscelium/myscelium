@@ -25,29 +25,46 @@ class Senders:
 
         mys_client.running = True
 
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
+            step=f"Waiting Client To Be Ready", event_type="Default"
+        )
+    
         max_attempts = 10
         attemtps = 0
         while not mys_client.is_client_ready():
             time.sleep(1)
             attemtps += 1
             if attemtps >= max_attempts:
+                Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                    step=f"Take too long to client be ready!", event_type="Exception"
+                )
                 assert False, "Take too long to client be ready"
             continue
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
-        command = client_patterns.command_pattern(
-            origin_key=CLIENT_KEY,
-            command_function="python_function",
-            target_key="",  # Empty is default
-            kwargs={"age": 10, "birth": 8, "name": "cristian"},
-            message="",
-            response_type="ExternalFunction",
-            response_target="Origin",
-            response_actf="test_handler",
-        )
+        try:
+            command = client_patterns.command_pattern(
+                origin_key=CLIENT_KEY,
+                command_function="python_function",
+                target_key="",  # Empty is default
+                kwargs={"age": 10, "birth": 8, "name": "cristian"},
+                message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf="test_handler",
+                auto_collect_response=True,
+            )
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                step=f"Error: {e}", event_type="Exception"
+            )
+            return
 
         try:
-            result = mys_client.send(command, priority=10)
+            parity_id = mys_client.send(command, priority=10)
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                step=f"Scheduled command to send with parity id: {parity_id}", event_type="Default"
+            )
         except ValueError as e:
             Events_Manager(Unit="Client1", path="Logs").Set_Event(
                 step=f"Error: {e}", event_type="Exception"
@@ -58,7 +75,7 @@ class Senders:
             step="Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1"
         )
 
-        print(result)
+        print(parity_id)
 
 
 class Receivers:

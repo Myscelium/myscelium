@@ -400,7 +400,7 @@ pub fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyRes
 pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
     use serde_json::Value;
 
-    if let Ok(dict) = obj.cast_as::<PyDict>(py) {
+    if let Ok(dict) = obj.downcast::<PyDict>(py) {
         let mut rust_dict = serde_json::Map::new();
 
         for (key, value) in dict.iter() {
@@ -418,13 +418,22 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
         }
 
         Value::Object(rust_dict)
-    } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
+    } else if let Ok(tuple) = obj.downcast::<PyTuple>(py) {
         let rust_list: Vec<_> = tuple.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
         Value::Array(rust_list)
-    } else if let Ok(list) = obj.cast_as::<PyList>(py) {
+    } else if let Ok(list) = obj.downcast::<PyList>(py) {
         let rust_list: Vec<_> = list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
         Value::Array(rust_list)
-    } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
+    } else if let Ok(boolean) = obj.downcast::<PyBool>(py) {
+        //* THIS NEEDS TO BE PLACED BEFORE PyInt DOWNCAST TO AVOID BOOL TURN INTO NUMBER
+        match boolean.extract::<bool>() {
+            Ok(b) => Value::Bool(b),
+            Err(e) => {
+                println!("Failed to extract boolean: {:?}", e);
+                Value::Null
+            },
+        }
+    } else if let Ok(int) = obj.downcast::<PyInt>(py) {
         match int.extract::<i64>() {
             Ok(i) => Value::Number(serde_json::Number::from(i)),
             Err(e) => {
@@ -432,7 +441,7 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
                 Value::Null
             },
         }
-    } else if let Ok(float) = obj.cast_as::<PyFloat>(py) {
+    } else if let Ok(float) = obj.downcast::<PyFloat>(py) {
         match float.extract::<f64>() {
             Ok(i) => {
                 if let Some(num) = serde_json::Number::from_f64(i) {
@@ -447,19 +456,11 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
                 Value::Null
             },
         }
-    } else if let Ok(string) = obj.cast_as::<PyString>(py) {
+    } else if let Ok(string) = obj.downcast::<PyString>(py) {
         match string.extract() {
             Ok(s) => Value::String(s),
             Err(e) => {
                 println!("Failed to extract string: {:?}", e);
-                Value::Null
-            },
-        }
-    } else if let Ok(boolean) = obj.cast_as::<PyBool>(py) {
-        match boolean.extract() {
-            Ok(b) => Value::Bool(b),
-            Err(e) => {
-                println!("Failed to extract boolean: {:?}", e);
                 Value::Null
             },
         }

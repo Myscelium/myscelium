@@ -126,6 +126,7 @@ def cast_response_command_instruction(
         "response_type": command_type, # This is a duplication due to a temporary change in the Option downcast
         "response_target": command_target, # This is a duplication due to a temporary change in the Option downcast
         "response_actf": command_actf, # This is a duplication due to a temporary change in the Option downcast
+        "collect_response":True # Default here is true, but if can be changed in the command that trigger this handler that send this response, if False it will not be automatically Transposed.
     }
     
     # TODO >>> Find a sulution to use None in the above struct casting in the `response_type`, `response_target`, `response_actf` and not a repetition of the act and other fields used to replace None
@@ -144,7 +145,8 @@ def cast_command_instruction(
     command_message: str,
     response_type: str,
     response_target: str,
-    response_actf: str
+    response_actf: str,
+    auto_collect_response:bool,
 ) -> dict:
     """
     Constructs a command instruction dictionary from the given parameters.
@@ -273,7 +275,8 @@ def cast_command_instruction(
         "message": command_message,
         "response_type": response_type,
         "response_target": response_target,
-        "response_actf": response_actf
+        "response_actf": response_actf,
+        "collect_response":auto_collect_response
     }
 
     return command_instruction
@@ -1908,6 +1911,7 @@ class ClientPatterns:
         response_type: str = "",
         response_target: str = "Origin",
         response_actf: str = "",  
+        auto_collect_response: bool = True
     ):
         """
         Constructs a command instruction for communication between clients and a host in a network system.
@@ -1976,6 +1980,7 @@ class ClientPatterns:
                 response_type,
                 response_target,
                 response_actf,
+                auto_collect_response,
             )
         else:
             command_instruction = cast_command_instruction(
@@ -1990,6 +1995,7 @@ class ClientPatterns:
                 response_type,
                 response_target,
                 response_actf,
+                auto_collect_response
             )
 
         return command_instruction

@@ -267,6 +267,7 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
             println!("Scheduling to send {:?}", m);
             parity_id_assigned = match OxidizedMyscelium::client_send_hashmap(m, priority) {
                 Ok(o) => o,
+                // TODO >>> Enhace This Error Handlings
                 Err(e) => match e {
                     OxidizedMyscelium::ClientError::ClientIsNotRunning => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't read client states, maybe not ready yet!")));
@@ -297,6 +298,9 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
                     },
                     OxidizedMyscelium::ClientError::ResponseHandlerDoesntExist => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>("Response handler does not exist in target!"));
+                    },
+                    OxidizedMyscelium::ClientError::InvalidCommand(e) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't Schedule a invalid command, error case: {:?}!", e)));
                     },
                     _ => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>("Unexpected Error not covered!"));
