@@ -45,7 +45,7 @@ def pytest_sessionfinish(session, exitstatus):
     print(f"✅ No Warnings" if not warnings else f"⚠️ Warnings: {len(warnings)}")
     print(f"✅ No Exceptions" if not exceptions else f"🚫 Exceptions: {len(exceptions)}")
 
-    behavior_ok = exitstatus == 0
+    behavior_ok = (exitstatus == 0) and (len(exceptions) == 0)
     print(f"✅ Behavior {'GOOD' if behavior_ok else 'BAD'}\n")
 
     if warnings or exceptions or not behavior_ok:
