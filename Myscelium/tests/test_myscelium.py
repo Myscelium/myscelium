@@ -569,6 +569,9 @@ def test_management():
 
     if os.path.exists("Temp/Client1Data/"):
         shutil.rmtree("Temp/Client1Data/")
+        
+    if os.path.exists("Temp/Client2Data/"):
+        shutil.rmtree("Temp/Client2Data/")
 
     if os.path.exists("Temp/Data/"):
         shutil.rmtree("Temp/Data/")
