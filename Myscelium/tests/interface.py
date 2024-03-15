@@ -207,9 +207,26 @@ elif option == 'Test Interface':
 
 elif option == 'Logs Navigator':
     
+    # Create an expander
+    with st.expander("AI Analise", expanded=True):
+        # Generate HTML with different colors for each log entry
+        log_html = ""
+        
+        try:
+            with open(os.path.join(TEMP_DIR, "auto_analise.txt"), "r") as file:
+                content = file.read()
+                log_html += f'<p style="color: #ffffff;">{content}</p>'
+                file.close()
+                
+            st.markdown(log_html, unsafe_allow_html=True)      
+        except:
+            pass
+    
     # Example list of items
     items = [f"Item {i}" for i in range(100)]  # Adjust the range for more or fewer items
     
+    # Add a selection box at the top for log level
+    selected_exibition_preset = st.selectbox('Show', options=["Full", "Filtered"])
     
     def get_last_directory(path):
         # Strip the trailing slash if it exists
@@ -252,21 +269,26 @@ elif option == 'Logs Navigator':
     
         for log in logs:
             
-            if log["log_msg"] == "Nothing in the schedule, skipping >>>":
-                continue
-        
-            if log["log_msg"] == "\nSchedule to process:\n[]\n":
-                continue
+            if selected_exibition_preset == "Filtered":
             
-            # -> Remove C206 Ping and C207 Pong they are not necessary for this task and will overflow the model
-            if 'C206' not in log["log_msg"] and 'C207' not in log["log_msg"]:
-                pass
+                if log["log_msg"] == "Nothing in the schedule, skipping >>>":
+                    continue
+            
+                if log["log_msg"] == "\nSchedule to process:\n[]\n":
+                    continue
+                
+                # -> Remove C206 Ping and C207 Pong they are not necessary for this task and will overflow the model
+                if 'C206' not in log["log_msg"] and 'C207' not in log["log_msg"]:
+                    pass
+                else:
+                    continue
+        
+                if log["log_time"] == "":
+                    continue
+                
             else:
-                continue
-    
-            if log["log_time"] == "":
-                continue
-
+                pass
+            
             log_lines_dict[log["log_time"]] = f"{owner}: " + log["log_msg"] + "\n"
 
     # Sorting the dictionary by its keys (timestamps)
@@ -292,22 +314,6 @@ elif option == 'Logs Navigator':
         "CLIENT2": "orange",
         "HOST": "lightblue"
     }
-
-
-    # Create an expander
-    with st.expander("AI Analise", expanded=True):
-        # Generate HTML with different colors for each log entry
-        log_html = ""
-        
-        try:
-            with open(os.path.join(TEMP_DIR, "auto_analise.txt"), "r") as file:
-                content = file.read()
-                log_html += f'<p style="color: #ffffff;">{content}</p>'
-                file.close()
-                
-            st.markdown(log_html, unsafe_allow_html=True)      
-        except:
-            pass
 
     # Create an expander
     with st.expander("Log Entries", expanded=True):
