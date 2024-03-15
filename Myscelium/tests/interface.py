@@ -282,6 +282,15 @@ elif option == 'Logs Navigator':
                     pass
                 else:
                     continue
+                
+                if log["log_msg"] == 'Receive ping response pong conf!':
+                    continue
+                
+                if 'No command received in ping, skipping' in log["log_msg"]:
+                    continue
+                
+                if 'Nothing in schedule to send to host, so sending ping!' in log["log_msg"]:
+                    continue
         
                 if log["log_time"] == "":
                     continue
