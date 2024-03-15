@@ -53,7 +53,12 @@ def collect_logs():
                         except json.JSONDecodeError as e:
                             print(f"Error parsing JSON: {e}, in file: {file}, line: {line}")
                             
-                    all_logs_dict[last_dir_name] = logs
+                    if last_dir_name == "Data":    
+                        all_logs_dict["HOST"] = logs
+                    if last_dir_name == "Client1Data":    
+                        all_logs_dict["CLIENT1"] = logs
+                    if last_dir_name == "Client2Data":    
+                        all_logs_dict["CLIENT2"] = logs
     
     ALL_LOG_ENTRIES = all_logs_dict                
                             
@@ -128,6 +133,15 @@ def pytest_sessionfinish(session, exitstatus):
         ])
 
         message = response["message"]["content"]
+        
+        analise_file = os.path.join(TEMP_DIR, "auto_analise.txt")
+        
+        # Remove old analise file
+        os.remove(analise_file)
+        
+        with open (analise_file , "w") as file:
+            file.write(message + "\n")
+            file.close()
             
         print("-="*50)
         print(f"AI: {message}")

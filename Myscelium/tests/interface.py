@@ -295,6 +295,21 @@ elif option == 'Logs Navigator':
 
 
     # Create an expander
+    with st.expander("AI Analise", expanded=True):
+        # Generate HTML with different colors for each log entry
+        log_html = ""
+        
+        try:
+            with open(os.path.join(TEMP_DIR, "auto_analise.txt"), "r") as file:
+                content = file.read()
+                log_html += f'<p style="color: #ffffff;">{content}</p>'
+                file.close()
+                
+            st.markdown(log_html, unsafe_allow_html=True)      
+        except:
+            pass
+
+    # Create an expander
     with st.expander("Log Entries", expanded=True):
         # Generate HTML with different colors for each log entry
         log_html = ""
@@ -303,8 +318,8 @@ elif option == 'Logs Navigator':
             color = color_map.get(label, "black")  # Default to black if label is not in color_map
             log_html += f'<p style="color: {color};">{label}: {content}</p>'
 
-        st.markdown(log_html, unsafe_allow_html=True)                        
-                        
+        st.markdown(log_html, unsafe_allow_html=True)        
+                            
     
 #    # Create an expander
 #     with st.expander("Scrollable List", expanded=True):
