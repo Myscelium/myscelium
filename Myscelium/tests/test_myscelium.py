@@ -68,6 +68,8 @@ THIS_DIR = os.path.dirname(__file__)
 
 from .History.history_controller import History_Manager
 
+
+
 # -> ----------------------------------------------------------------------------------------------------------------------------
 # -> Tests:
 
@@ -567,6 +569,9 @@ def test_management():
 
     if os.path.exists("Temp/Client1Data/"):
         shutil.rmtree("Temp/Client1Data/")
+        
+    if os.path.exists("Temp/Client2Data/"):
+        shutil.rmtree("Temp/Client2Data/")
 
     if os.path.exists("Temp/Data/"):
         shutil.rmtree("Temp/Data/")
