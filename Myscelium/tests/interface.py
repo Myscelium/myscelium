@@ -11,7 +11,6 @@ import os
 
 import json
 
-
 # Define the root directory where the Temp folders are located
 TEMP_DIR = os.path.join(os.path.dirname(__file__), "Temp")
 
@@ -58,7 +57,6 @@ if option == 'Test Results Visualization':
 
     # Create columns
     col1, col2 = st.columns([1,1])
-
 
     # Use the left column for the first plot
     with col1:
