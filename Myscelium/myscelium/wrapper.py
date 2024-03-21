@@ -2078,6 +2078,7 @@ class ClientPatterns:
             response_type,
             response_target,
             response_actf,
+            auto_collect_response=True
         )
         
         return command_instruction
