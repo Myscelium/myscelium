@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import datetime
 from History.history_controller import History_Manager
+from Logs.test_logs_manager import Events_Manager, System_Status
 
 import pytest
 import xml.etree.ElementTree as ET
@@ -220,11 +221,36 @@ elif option == 'Logs Navigator':
         except:
             pass
     
+    #> ------------------------------------------------------------------------------------------------------------------
+    #> Events:
+    
+    with st.expander("Events", expanded=True):
+        # Generate HTML with different colors for each log entry
+        log_html = ""
+        
+        
+        # columns=['ID', 'Unit', 'StepCompleted', 'EventType', 'EventKey', 'Time']
+        events = pd.DataFrame.from_dict(Events_Manager(Unit="*", path="Logs").List_Events()) # Get All Events
+        
+        for index, row in events.iterrows():
+            log_html += f'<p style="color: #ffffff; margin: 0px;">[{row["Unit"]}][{row["EventType"]}] - {row["StepCompleted"]}</p>'
+        
+        log_html += f'<p style="color: Transparent; margin: 15px;">  </p>'
+        
+        try:
+            file.close()
+            st.markdown(log_html, unsafe_allow_html=True)      
+        except:
+            pass
+        
+    #> ------------------------------------------------------------------------------------------------------------------
+    #> Logs:
+    
     # Example list of items
-    items = [f"Item {i}" for i in range(100)]  # Adjust the range for more or fewer items
+    # items = [f"Item {i}" for i in range(100)]  # Adjust the range for more or fewer items
     
     # Add a selection box at the top for log level
-    selected_exibition_preset = st.selectbox('Show', options=["Full", "Filtered"])
+    selected_exibition_preset = st.selectbox('Show', options=["Filtered", "Full"])
     
     def get_last_directory(path):
         # Strip the trailing slash if it exists
@@ -329,7 +355,7 @@ elif option == 'Logs Navigator':
         for entry in sorted_dict.values():
             label, content = entry.split(": ", 1)
             color = color_map.get(label, "black")  # Default to black if label is not in color_map
-            log_html += f'<p style="color: {color};">{label}: {content}</p>'
+            log_html += f'<p style="color: {color}; margin: 0px;">{label}: {content}</p>'
 
         st.markdown(log_html, unsafe_allow_html=True)        
                             

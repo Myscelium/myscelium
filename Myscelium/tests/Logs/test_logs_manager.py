@@ -69,9 +69,28 @@ class SQLiteConnectionPool:
             connection = self.connections.get()
             connection.close()
 
+
+def get_events_manager_units ():
+    cur = self.connection.cursor()
+        
+    sqlite_select_query = """SELECT * FROM Events"""
+
+    Data = ((self.Unit, ))
+        
+    cur.execute(sqlite_select_query, Data)
+    
+    df = cur.fetchall()
+    df = pd.DataFrame(df, columns=['ID', 'Unit', 'StepCompleted', 'EventType', 'EventKey', 'Time'])
+    dict_df = df.to_dict()
+    
+    return dict_df
+
 class Events_Manager:
 
     def __init__(self, Unit:str, path:str):
+        """
+        if unit == "*" select all units data
+        """
 
         pool = SQLiteConnectionPool(3, os.path.join(path, "Data.db"))
         self.connection = pool.get_connection()
@@ -89,7 +108,7 @@ class Events_Manager:
                                                         Time NUMBER
                                                         )''')
         
-        
+    
     def drop_events_table(self) -> None:
         """Drop the Events table from the database."""
     
@@ -110,9 +129,14 @@ class Events_Manager:
         
         cur = self.connection.cursor()
         
-        sqlite_select_query = """SELECT * FROM Events"""
+        if self.Unit == "*":
+            sqlite_select_query = """SELECT * FROM Events"""
+            cur.execute(sqlite_select_query)
         
-        cur.execute(sqlite_select_query)
+        else:
+            sqlite_select_query = """SELECT * FROM Events WHERE Unit = ?"""
+            Data = ((self.Unit, ))
+            cur.execute(sqlite_select_query, Data)
         
         df = cur.fetchall()
         df = pd.DataFrame(df, columns=['ID', 'Unit', 'StepCompleted', 'EventType', 'EventKey', 'Time'])
@@ -137,6 +161,9 @@ class Events_Manager:
         helper `gen_valid_event_key.py` at Myscelium/tests/Logs/gen_valid_event_key.py
 
         """
+        
+        if self.Unit == "*":
+            raise ValueError("Can't Set Event To Generalized Unit: '*'")
 
         if event_type in ["Default", "Exception", "Send", "Receive"]:
             pass
