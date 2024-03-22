@@ -685,7 +685,7 @@ def test_management():
     tracking = {}
     deltas = []
 
-    for i in unified_events.index:
+    for i in host_events_df.index:
         event_type = host_events_df.loc[i, "EventType"]
         event_key = host_events_df.loc[i, "EventKey"]
         event_time = host_events_df.loc[i, "Time"]
