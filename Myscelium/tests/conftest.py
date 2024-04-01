@@ -5,8 +5,6 @@ import pytest
 import os
 from ollama import Client
 
-
-
 # This fixture will be automatically used by all tests.
 @pytest.fixture(autouse=True)
 def run_around_tests():
@@ -64,7 +62,6 @@ def collect_logs():
                             
     # Yield the collected log entries for tests, if needed
     yield ALL_LOG_ENTRIES
-
 
 # This hook is called after all tests have been executed.
 def pytest_sessionfinish(session, exitstatus):
