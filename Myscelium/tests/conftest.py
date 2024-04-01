@@ -77,14 +77,12 @@ def pytest_sessionfinish(session, exitstatus):
         warnings + [entry for entry in logs if entry["log_level"] == "WARNING"]
         exceptions + [entry for entry in logs if entry["log_level"] == "EXCEPTION"]
 
-
     print("\nPytest Summary:")
     print(f"✅ pytest {session.testscollected} collected")
     print(f"✅ No Warnings" if not warnings else f"⚠️ Warnings: {len(warnings)}")
     print(f"✅ No Exceptions" if not exceptions else f"🚫 Exceptions: {len(exceptions)}")
     
     print("\n")
-    
     
     # Received: Command { client_key: \"some_client_id\", parity_id: \"itisaspecialcase\", priority: 11, command: CommandInstructions { mode: Response, command_type: SpecialFunction, target: Origin, status: Success, origin: Host, actf: \"C207\", kwargs: {}, message: \"\", response_type: None, response_target: None, response_actf: None, collect_response: true } }
     
@@ -121,7 +119,9 @@ def pytest_sessionfinish(session, exitstatus):
         for val in sorted_dict.values():
             log_lines += val
             
-        print(log_lines)
+        # TODO >>> Maybe implement Crewai here to better analyse the logs
+
+        # print(log_lines)
     
         print("\n")
 
@@ -145,6 +145,7 @@ def pytest_sessionfinish(session, exitstatus):
             
         print("-="*50)
         print(f"AI: {message}")
+
     except BaseException as e:
         print(f"Error calling the llm for custom analisis, the error is: \n{e}")
         pass

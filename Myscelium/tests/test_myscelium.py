@@ -204,9 +204,9 @@ def test_communication():
     deltas = []
 
     for i in unified_events.index:
-        event_type = host_events_df.loc[i, "EventType"]
-        event_key = host_events_df.loc[i, "EventKey"]
-        event_time = host_events_df.loc[i, "Time"]
+        event_type = unified_events.loc[i, "EventType"]
+        event_key = unified_events.loc[i, "EventKey"]
+        event_time = unified_events.loc[i, "Time"]
 
         if event_type == "Send":
             tracking[event_key] = event_time
@@ -436,9 +436,9 @@ def test_redirect():
     deltas = []
 
     for i in unified_events.index:
-        event_type = host_events_df.loc[i, "EventType"]
-        event_key = host_events_df.loc[i, "EventKey"]
-        event_time = host_events_df.loc[i, "Time"]
+        event_type = unified_events.loc[i, "EventType"]
+        event_key = unified_events.loc[i, "EventKey"]
+        event_time = unified_events.loc[i, "Time"]
 
         if event_type == "Send":
             tracking[event_key] = event_time
@@ -527,8 +527,6 @@ def host_thread_to_test_inner_management(event_host_received):
     # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
     
     #> Create a system to test if the manipulation in the host structure really happened
-    
-    
     
     host_instance = MyHostToTestManagement(DEBUG_LEVEL).run(event=event_host_received)
 
