@@ -1658,7 +1658,15 @@ class MysceliumClient:
         #     pass
 
         return mys.client_send(command, priority)
+    
+    def wait(self, parity_id:str):
+        """
+        This method allows to waith a response by parity id, and the only requirement is;
+        - parity id: this parity id is a unique string assigned to to command when sending, used to sincronize the command and response between the async system
+        """
+        # TODO Implement this method
 
+        return mys.client_wait(parity_id)
 
 class MysceliumClientInterface:
     def __init__(self, buffer_path: str) -> None:
