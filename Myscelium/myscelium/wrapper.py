@@ -5,6 +5,8 @@ from . import host_logs_retriever
 from . import host_client_events_retriever
 from . import client_logs_retriever
 
+from .custom_decorators import experimental, todo, stable
+
 from multiprocessing import Process
 import pandas as pd
 import time
@@ -350,7 +352,7 @@ import inspect
 # > ----------------------------------------------------------------------------------------------------------------------------------------------
 # > Callbacks
 
-
+@stable
 def callback_pattern(callback) -> dict:
     """
     Create a callback pattern.
@@ -1019,6 +1021,7 @@ class MysceliumHost:
 
         return
 
+    @stable
     def send(self):
         """
         Send data. (This method is currently a placeholder and needs to be implemented.)
@@ -1568,6 +1571,7 @@ class MysceliumClient:
     def is_target_ready(self, target_key: str):
         return mys.is_target_ready(target_key)
 
+    @stable
     def set_workers_num(self, n_workers=2):
         """
         Set the number of workers for the client.
@@ -1580,6 +1584,7 @@ class MysceliumClient:
 
         return
 
+    @stable
     def set_callbacks(self, callbacks: list):
         """
         Register callback functions for the client.
@@ -1616,6 +1621,7 @@ class MysceliumClient:
 
         return mys.get_socket_client_available_handlers()
 
+    @stable
     def initialize_client(self, ip: str, port: int):
         """
         Initialize the client with the given IP and port.
@@ -1628,6 +1634,7 @@ class MysceliumClient:
         self.running = True
         mys.initialize_socket_client(ip, port)
 
+    @stable
     def stop_client(self, signal, frame):
         """
         Stop the client. This function is intended to be called when a termination signal is received.
@@ -1640,6 +1647,7 @@ class MysceliumClient:
         # This function will be called when a SIGINT signal is received
         mys.stop_socket_client()
 
+    @stable
     def send(self, command: dict, priority: int) -> str:
         """
         Send a command with a specified priority.
@@ -1659,6 +1667,7 @@ class MysceliumClient:
 
         return mys.client_send(command, priority)
     
+    @todo
     def wait(self, parity_id:str):
         """
         This method allows to waith a response by parity id, and the only requirement is;
