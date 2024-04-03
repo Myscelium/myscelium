@@ -7,6 +7,9 @@ from . import client_logs_retriever
 
 from .custom_decorators import experimental, todo, stable
 
+import functools
+import warnings
+
 from multiprocessing import Process
 import pandas as pd
 import time
@@ -352,7 +355,7 @@ import inspect
 # > ----------------------------------------------------------------------------------------------------------------------------------------------
 # > Callbacks
 
-@stable
+ 
 def callback_pattern(callback) -> dict:
     """
     Create a callback pattern.
@@ -1021,7 +1024,7 @@ class MysceliumHost:
 
         return
 
-    @stable
+     
     def send(self):
         """
         Send data. (This method is currently a placeholder and needs to be implemented.)
@@ -1565,13 +1568,39 @@ class MysceliumClient:
 
     #     return
 
+     
     def is_client_ready(self):
         return mys.is_client_ready()
+    
+    def ensure_client_ready(self, max_attempts=10, sleep_time=1):
+        attempts = 0
+        while not self.is_client_ready():
+            time.sleep(sleep_time)
+            attempts += 1
+            if attempts >= max_attempts:
+                raise Exception("Take too long for the client to be ready")
 
     def is_target_ready(self, target_key: str):
         return mys.is_target_ready(target_key)
 
-    @stable
+    def ensure_target_ready(self, target_key:str, max_attempts=10, sleep_time=1):
+        attempts = 0
+        while not self.is_target_ready(target_key):
+            time.sleep(sleep_time)
+            attempts += 1
+            if attempts >= max_attempts:
+                raise Exception(f"Take too long for the target: {target_key} to be ready")
+    
+    def wait_for_client_ready(max_attempts=10, sleep_time=1):
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(self, *args, **kwargs):
+                # Here we use ensure_client_ready which will raise an Exception if the client isn't ready
+                self.ensure_client_ready(max_attempts, sleep_time)
+                return func(self, *args, **kwargs)
+            return wrapper
+        return decorator
+
     def set_workers_num(self, n_workers=2):
         """
         Set the number of workers for the client.
@@ -1584,7 +1613,7 @@ class MysceliumClient:
 
         return
 
-    @stable
+     
     def set_callbacks(self, callbacks: list):
         """
         Register callback functions for the client.
@@ -1621,7 +1650,7 @@ class MysceliumClient:
 
         return mys.get_socket_client_available_handlers()
 
-    @stable
+     
     def initialize_client(self, ip: str, port: int):
         """
         Initialize the client with the given IP and port.
@@ -1634,7 +1663,7 @@ class MysceliumClient:
         self.running = True
         mys.initialize_socket_client(ip, port)
 
-    @stable
+     
     def stop_client(self, signal, frame):
         """
         Stop the client. This function is intended to be called when a termination signal is received.
@@ -1647,7 +1676,7 @@ class MysceliumClient:
         # This function will be called when a SIGINT signal is received
         mys.stop_socket_client()
 
-    @stable
+    @wait_for_client_ready(max_attempts=5, sleep_time=2)
     def send(self, command: dict, priority: int) -> str:
         """
         Send a command with a specified priority.
@@ -1668,6 +1697,7 @@ class MysceliumClient:
         return mys.client_send(command, priority)
     
     @todo
+    @wait_for_client_ready(max_attempts=5, sleep_time=2)
     def wait(self, parity_id:str):
         """
         This method allows to waith a response by parity id, and the only requirement is;
@@ -1904,6 +1934,7 @@ class ClientPatterns:
 
     #     return response
 
+     
     def client_pattern(self, client_type: str, client_id: str) -> dict:
         """
         Create a client pattern.
@@ -1918,6 +1949,7 @@ class ClientPatterns:
 
         return {"client_type": client_type, "client_id": client_id}
 
+     
     def command_pattern(
         self,
         origin_key: str,

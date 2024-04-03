@@ -28,18 +28,20 @@ class Senders:
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             step=f"Waiting Client To Be Ready", event_type="Default"
         )
-    
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                Events_Manager(Unit="Client1", path="Logs").Set_Event(
-                    step=f"Take too long to client be ready!", event_type="Exception"
-                )
-                assert False, "Take too long to client be ready"
-            continue
+
+        #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
+        
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         Events_Manager(Unit="Client1", path="Logs").Set_Event(
+        #             step=f"Take too long to client be ready!", event_type="Exception"
+        #         )
+        #         assert False, "Take too long to client be ready"
+        #     continue
 
         # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
         try:

@@ -24,15 +24,17 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 20
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
-            
+        #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
+
+        # max_attempts = 20
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
+
         command = client_patterns.command_pattern(
             origin_key=CLIENT_ID,
             command_function="python_function",

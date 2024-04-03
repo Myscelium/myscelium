@@ -124,14 +124,14 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
         
         try:
             command = client_patterns.inner_management_command_pattern(
@@ -187,14 +187,14 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
         
         #! HERE SINCE IS A TEST THE TEST REQUIRES KEY TO BE CONSTANT, 
         #! SO NEVER CHANGES IT IN TEST CASES BECAUSE CHANGES MAY NOT BE DETECTED BY EVENT WATCHER
@@ -260,14 +260,14 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
         
         try:
             command = client_patterns.inner_management_command_pattern(
@@ -308,14 +308,14 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
 
         command = client_patterns.inner_management_command_pattern(
             origin_key=CLIENT_ID,  # origin
@@ -353,14 +353,14 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
 
         command = client_patterns.inner_management_command_pattern(
             origin_key=CLIENT_ID,  # origin
@@ -400,14 +400,14 @@ class Senders:
 
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
 
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID, 

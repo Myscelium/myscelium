@@ -22,23 +22,20 @@ class Senders:
         print("Try to schedule!1")
 
         try:
+            
             mys_client = MysceliumClient(
                 name=CLIENT_NAME, client_uid=CLIENT_ID, buffer_path="Temp/Client2Data/", is_main_process = False
             )
+
             mys_client.running = True
 
-            max_attempts = 25
-            attemtps = 0
-            while True:
-                if mys_client.is_client_ready():
-                    break
-
-                if attemtps >= max_attempts:
-                    assert False, "Take too long to client be ready"
-
-                time.sleep(1)
-                attemtps += 1
-                continue
+            try: #! Here is required see if client is ready
+                mys_client.ensure_client_ready(max_attempts=25, sleep_time=1)
+            except Exception as e:
+                Events_Manager(Unit="Client2", path="Logs").Set_Event(
+                    f"{e}",
+                    event_type="Default",
+                )
 
             Events_Manager(Unit="Client2", path="Logs").Set_Event(
                 "Client 2 is ready",
@@ -47,41 +44,13 @@ class Senders:
 
             TARGET_KEY = "some_client_id"
 
-            target_attempts = 0
-            while True:
-                try:
-                    ready = mys_client.is_target_ready(target_key=TARGET_KEY)
-                    print(f"Target is ready? {ready}")
-                    if ready:
-                        break
-                except e as e:
-                    Events_Manager(Unit="Client2", path="Logs").Set_Event(
-                        f"Error trying to verify if target Client 2 is ready, error was: {e}",
-                        event_type="Default",
-                    )
-                    pass
-
-                else:
-                    pass
-
-                if target_attempts >= 120:
-                    Events_Manager(Unit="Client2", path="Logs").Set_Event(
-                        f"Take too long to target be ready!",
-                        event_type="Default",
-                    )
-                    assert False, "Take too long to target be ready!"
-
+            try: #! This require the target to be ready
+                mys_client.ensure_target_ready(target_key=TARGET_KEY)
+            except Exception as e: 
                 Events_Manager(Unit="Client2", path="Logs").Set_Event(
-                    "target isn't ready, so trying again in 5 secs",
+                    f"{e}",
                     event_type="Default",
                 )
-
-                print("target isn't ready, so trying again in 5 secs")
-
-                time.sleep(1)
-
-                target_attempts += 1
-                continue
 
             Events_Manager(Unit="Client2", path="Logs").Set_Event(
                 "Target Client 1 is ready",
