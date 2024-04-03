@@ -3,14 +3,14 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-use OxidizedMyscelium::CommandType;
-use OxidizedMyscelium::{ClientState, StateManagerError};
+use OxidizedMyscelium::{ClientState, Command, StateManagerError};
+use OxidizedMyscelium::{CommandType, WatcherError};
 use OxidizedMyscelium::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
-use crate::common::functions::convert_to_pydict;
 use crate::common::functions::extract_arg_types;
 use crate::common::functions::translate_value_to_py;
 use crate::common::functions::wrap_py_function;
+use crate::common::functions::{convert_to_pydict, dict_to_object};
 use indexmap::IndexMap;
 use parking_lot::Mutex;
 use pyo3::exceptions;
@@ -302,6 +302,7 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
                     OxidizedMyscelium::ClientError::InvalidCommand(e) => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't Schedule a invalid command, error case: {:?}!", e)));
                     },
+                    // TODO >>> Add unreachable for cases that needs it
                     _ => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>("Unexpected Error not covered!"));
                     },
@@ -320,6 +321,24 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
     }
 
     Ok(parity_id_assigned.into_py(py))
+}
+
+#[pyfunction]
+pub fn wait_client_resp(py: Python, parity_id: String, timeout_in: u64) -> PyResult<Py<PyAny>> {
+    let command: Command = match OxidizedMyscelium::client_wait_response(parity_id, timeout_in) {
+        Ok(c) => c,
+        Err(e) => match e {
+            WatcherError::CommandNotFinded(pkey) => {
+                return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Command Response With ParityId: {} Not finded!", pkey)));
+            },
+            WatcherError::MaxTimeExceeded(pkey) => {
+                return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Time to get Response With ParityId: {} exceeded!", pkey)));
+            },
+        },
+    };
+
+    // This convertes the command into a hasmpa and converts to a python object in this case a dict
+    dict_to_object(py, &command.command_to_hashmap().unwrap())
 }
 
 /// Sets the log level for the client.

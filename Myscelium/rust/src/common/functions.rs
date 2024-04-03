@@ -352,6 +352,17 @@ pub fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyRe
     Ok(kwargs)
 }
 
+pub fn dict_to_object<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<PyObject> {
+    let kwargs = PyDict::new(py); // Create a new Python dictionary
+
+    for (key, value) in dict.iter() {
+        let py_value = json_value_to_py_object(py, value)?; // Assume this function converts Rust `Value` to `PyObject`
+        kwargs.set_item(key, py_value)?; // Insert the key-value pair into the PyDict
+    }
+
+    Ok(kwargs.to_object(py)) // Convert the PyDict to PyObject and return
+}
+
 pub fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<&'l PyTuple> {
     // let logger = acquire_logger!("Transposer - Py Dict to Tuple Converter");
 

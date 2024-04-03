@@ -110,6 +110,7 @@ fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(set_socket_client_transposer_num_of_workers, m)?)?;
     m.add_function(wrap_pyfunction!(client_send, m)?)?;
+    m.add_function(wrap_pyfunction!(wait_client_resp, m)?)?;
     m.add_function(wrap_pyfunction!(setup_client, m)?)?;
     // m.add_function(wrap_pyfunction!(set_socket_client_log_level, m)?)?;
     m.add_function(wrap_pyfunction!(get_socket_client_available_handlers, m)?)?;
