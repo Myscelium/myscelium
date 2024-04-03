@@ -9,6 +9,10 @@ import time
 from .test_connection.host_module import MyHost as MyHostToTestCommunication
 from .test_connection.client_1_module import MyClient as MyClient1ToTestCommunication
 
+#> Test Inplace Responce
+from .test_inplace_responses.host_module import MyHost as MyHostToTestInplaceResponse
+from .test_inplace_responses.client_1_module import MyClient as MyClient1ToTestInplaceResponse
+
 # > Test Redirect
 from .test_redirect.host_module import MyHost as MyHostToTestRedirect
 from .test_redirect.client_1_module import MyClient as MyClient1ToTestRedirect
@@ -273,6 +277,205 @@ def test_communication():
     # MyClient.clear_events()
     #
 
+# > ------------------------------------------------------------------------------------------------------------------------------------
+# > Communication Test
+
+def host_thread_to_test_inplace_responses (event_host_received):
+    print("Starting host thread...")
+
+    # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
+
+    host_instance = MyHostToTestInplaceResponse(DEBUG_LEVEL).run(
+        event=event_host_received
+    )
+
+    print("Host thread finished.")
+
+
+def client_1_thread_to_test_inplace_responses (event_client_received):
+    print("Waiting for host to be ready...")
+    time.sleep(15)
+    print("Starting client 1 thread...")
+
+    client_instance = MyClient1ToTestInplaceResponse(DEBUG_LEVEL)
+    client_instance.run()
+
+    print("Client1 thread finished.")
+
+
+def test_inplace_responses ():
+    # multiprocessing.set_start_method('spawn')
+    # dill.settings['recurse'] = True
+
+    # Instead of having separate events for client and host, we use a shared event for simplicity
+    # The event_key 'main_event' will be used to identify this event
+
+    test_start_time = time.time()
+
+    Events_Manager(
+        Unit="Client1", path="Logs"
+    ).drop_events_table()  # To reset in the next iteration
+    Events_Manager(
+        Unit="Client2", path="Logs"
+    ).drop_events_table()  # To reset in the next iteration
+    Events_Manager(
+        Unit="Host", path="Logs"
+    ).drop_events_table()  # To reset in the next iteration
+
+    System_Status(path="Logs").create_unit("Client1")
+    System_Status(path="Logs").create_unit("Host")
+
+    System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+
+    if os.path.exists("Temp/Client1Data/"):
+        shutil.rmtree("Temp/Client1Data/")
+
+    if os.path.exists("Temp/Client2Data/"):
+        shutil.rmtree("Temp/Client2Data/")
+
+    if os.path.exists("Temp/Data/"):
+        shutil.rmtree("Temp/Data/")
+
+    t1 = Process(
+        target=host_thread_to_test_inplace_responses, args=("main_event",)
+    )  # Passing event_key
+    t2 = Process(
+        target=client_1_thread_to_test_inplace_responses, args=("main_event",)
+    )  # Passing event_key
+
+    t1.start()
+    t2.start()
+
+    t2.join()
+    t1.join()  # Wait for the process to finish
+
+    # * To test:
+
+    # > Client1 Initializes
+    # > Host initializes
+
+    # > Client1 make contact
+    # > Client1 sync commands available
+    # > Client1 schedule to send things
+    # > Client1 send command
+
+    # > Host received client command
+    # > Host Returned command to client
+
+    # > Client1 Receive Host response
+
+    # > Finish Client1
+    # > Finish Host
+
+    host_events = Events_Manager(Unit="Host", path="Logs").List_Events()
+    host_events_df = pd.DataFrame.from_dict(host_events)
+
+    client_1_events = Events_Manager(Unit="Client1", path="Logs").List_Events()
+    client_1_events_df = pd.DataFrame.from_dict(client_1_events)
+
+    # -> Host events:
+
+    client_contact = False
+    basic_callback = False
+
+    # -> Client1 events:
+
+    send_data = False
+    basic_inplace_response = False
+
+    for i in host_events_df.index:
+        event = host_events_df.loc[i, "StepCompleted"]
+
+        if "Contact received from Client: some_client_id" in event:
+            client_contact = True
+
+        if "Active Basic Callback" in event:
+            basic_callback = True
+
+    for i in client_1_events_df.index:
+        event = client_1_events_df.loc[i, "StepCompleted"]
+
+        if "Data Sended" in event:
+            send_data = True
+
+        if "Receive Inplace Response" in event:
+            basic_inplace_response = True
+
+    unified_events = host_events_df.merge(client_1_events_df, how="outer")
+
+    tracking = {}
+    deltas = []
+
+    for i in unified_events.index:
+        event_type = unified_events.loc[i, "EventType"]
+        event_key = unified_events.loc[i, "EventKey"]
+        event_time = unified_events.loc[i, "Time"]
+
+        if event_type == "Send":
+            tracking[event_key] = event_time
+
+        elif event_type == "Receive":
+            if event_key in tracking:
+                start_ts = tracking[event_key]
+                deltas.append(event_time - start_ts)
+            else:
+                pass
+
+        else:
+            pass
+
+    test_end_time = time.time()
+
+    if len(deltas) > 0:
+        average_com_delta = sum(deltas) / len(deltas)
+    else:
+        # Handle the empty list case
+        average_com_delta = 0  # or any other default or error valu
+
+    test_run_time = test_end_time - test_start_time
+
+    if (client_contact and basic_callback) and (send_data and basic_inplace_response):
+        History_Manager().store_history_point(
+            "test_inplace_responses",
+            communications_speed=float(average_com_delta),
+            test_speed=test_run_time,
+            test_status="PASSED",
+            log_level=DEBUG_LEVEL,
+        )
+    else:
+        History_Manager().store_history_point(
+            "test_inplace_responses",
+            communications_speed=float(average_com_delta),
+            test_speed=test_run_time,
+            test_status="FAILED",
+            log_level=DEBUG_LEVEL,
+        )
+
+    # -> Client1
+
+    assert send_data, "Cant send data"
+    assert basic_inplace_response, "Don't called basic inplace response handler"
+
+    # -> Host
+
+    assert client_contact, "Client1 doesn't made any contact"
+    assert basic_callback, "Basic callback not called"
+
+    # TODO >>> When add the client tables mechanism re add the client contact test unit
+    # TODO >>> Add a test mechanism to check if the logs are being stored and transposing
+
+    # TODO >>> Add a mechanism to call permission to realize the tests and give an advice that data in the buffers will be wiped of when do the test
+
+    # event = my_host.get_event('client_contact')
+    # assert event.is_set(), "Client1 contact event was not set!"
+
+    # event = MyClient.get_event('main_event')
+    # assert event.is_set()
+
+    # my_host.clear_events()
+    # MyClient.clear_events()
+    #
 
 # > ------------------------------------------------------------------------------------------------------------------------------------
 # > Redirect Test:
