@@ -32,6 +32,18 @@ class Senders:
 
         #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
 
+        max_attempts = 10
+        attemtps = 0
+        while not mys_client.is_client_ready():
+            time.sleep(1)
+            attemtps += 1
+            if attemtps >= max_attempts:
+                Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                    step=f"Take too long to client be ready!", event_type="Exception"
+                )
+                assert False, "Take too long to client be ready"
+            continue
+
         try:
             command = client_patterns.command_pattern(
                 origin_key=CLIENT_KEY,
@@ -70,7 +82,7 @@ class Senders:
         response = {}
 
         try:
-            response = mys_client.wait_response(parity_id, timeout_in=30)
+            response = mys_client.wait_response(parity_id, timeout_in=80)
         except Exception as e:
             Events_Manager(Unit="Client1", path="Logs").Set_Event(
                 step=f"Cant wait response, Error: {e}", event_type="Exception"

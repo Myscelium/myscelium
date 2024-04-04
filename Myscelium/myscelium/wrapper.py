@@ -5,7 +5,7 @@ from . import host_logs_retriever
 from . import host_client_events_retriever
 from . import client_logs_retriever
 
-from .custom_decorators import experimental, todo, stable
+from .custom_decorators import experimental, stable
 
 import functools
 import warnings
@@ -31,6 +31,7 @@ def cast_response_command_instruction(
     command_actf: str,
     command_kwargs: dict,
     command_message: str,
+    auto_collect: bool = False,
 ) -> dict:
     """
     Constructs a command instruction dictionary from the given parameters.
@@ -116,8 +117,11 @@ def cast_response_command_instruction(
             "Command origin must be either 'Host' or 'ClientKey(some_value)'"
         )
 
-    if command_actf == "" or command_actf == None:
-        raise ValueError("Command activation function can't be empty")
+    if auto_collect: # command_actf definition is only required in cases where auto_collect is on
+        if command_actf == "" or command_actf == None:
+            raise ValueError("Command activation function can't be empty")
+    else:
+        pass
 
     command_instruction = {
         "mode": command_mode,
@@ -1083,6 +1087,7 @@ class HostPatterns:
         target_key: str = "",
         kwargs: dict = {},
         message="",
+        auto_collect=True,
     ) -> dict:
         """
         Creates a response pattern for sending back to a client or for retransmission.
@@ -1178,6 +1183,7 @@ class HostPatterns:
                 activation_function,
                 kwargs,
                 message,
+                auto_collect=auto_collect
             )
         else:  # Redirect case
             command_instructions = cast_response_command_instruction(
@@ -1189,6 +1195,7 @@ class HostPatterns:
                 activation_function,
                 kwargs,
                 message,
+                auto_collect=auto_collect
             )
 
         return command_instructions
@@ -1696,16 +1703,13 @@ class MysceliumClient:
 
         return mys.client_send(command, priority)
     
-    @todo
     @wait_for_client_ready(max_attempts=5, sleep_time=2)
     def wait_response(self, parity_id:str, timeout_in:int):
         """
         This method allows to waith a response by parity id, and the only requirement is;
         - parity id: this parity id is a unique string assigned to to command when sending, used to sincronize the command and response between the async system
         """
-        # TODO Implement this method
-
-        return mys.client_wait(parity_id, timeout_in)
+        return mys.wait_client_resp(parity_id, timeout_in)
 
 class MysceliumClientInterface:
     def __init__(self, buffer_path: str) -> None:

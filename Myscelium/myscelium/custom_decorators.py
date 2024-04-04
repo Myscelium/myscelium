@@ -20,11 +20,11 @@ def instable(func):
 # def some_experimental_function():
 #     print("This function is experimental.")
 
-def todo(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        raise NotImplementedError(f"{func.__name__} is marked as TODO and has not been implemented yet.")
-    return wrapper
+# def todo(func):
+#     @functools.wraps(func)
+#     def wrapper(*args, **kwargs):
+#         raise NotImplementedError(f"{func.__name__} is marked as TODO and has not been implemented yet.")
+#     return wrapper
 
 # Example usage
 # @todo
