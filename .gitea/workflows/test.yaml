@@ -3,7 +3,6 @@ run-name: ${{ gitea.actor }} is testing ${{ gitea.repository }} 🚀.
 on:
   push:
     branches:
-      - develop
       - main
 
 jobs:
