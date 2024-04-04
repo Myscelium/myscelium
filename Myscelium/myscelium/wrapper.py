@@ -5,6 +5,11 @@ from . import host_logs_retriever
 from . import host_client_events_retriever
 from . import client_logs_retriever
 
+from .custom_decorators import experimental, stable
+
+import functools
+import warnings
+
 from multiprocessing import Process
 import pandas as pd
 import time
@@ -26,6 +31,7 @@ def cast_response_command_instruction(
     command_actf: str,
     command_kwargs: dict,
     command_message: str,
+    auto_collect: bool = False,
 ) -> dict:
     """
     Constructs a command instruction dictionary from the given parameters.
@@ -111,8 +117,11 @@ def cast_response_command_instruction(
             "Command origin must be either 'Host' or 'ClientKey(some_value)'"
         )
 
-    if command_actf == "" or command_actf == None:
-        raise ValueError("Command activation function can't be empty")
+    if auto_collect: # command_actf definition is only required in cases where auto_collect is on
+        if command_actf == "" or command_actf == None:
+            raise ValueError("Command activation function can't be empty")
+    else:
+        pass
 
     command_instruction = {
         "mode": command_mode,
@@ -126,6 +135,7 @@ def cast_response_command_instruction(
         "response_type": command_type, # This is a duplication due to a temporary change in the Option downcast
         "response_target": command_target, # This is a duplication due to a temporary change in the Option downcast
         "response_actf": command_actf, # This is a duplication due to a temporary change in the Option downcast
+        "collect_response":True # Default here is true, but if can be changed in the command that trigger this handler that send this response, if False it will not be automatically Transposed.
     }
     
     # TODO >>> Find a sulution to use None in the above struct casting in the `response_type`, `response_target`, `response_actf` and not a repetition of the act and other fields used to replace None
@@ -144,7 +154,8 @@ def cast_command_instruction(
     command_message: str,
     response_type: str,
     response_target: str,
-    response_actf: str
+    response_actf: str,
+    auto_collect_response:bool,
 ) -> dict:
     """
     Constructs a command instruction dictionary from the given parameters.
@@ -273,7 +284,8 @@ def cast_command_instruction(
         "message": command_message,
         "response_type": response_type,
         "response_target": response_target,
-        "response_actf": response_actf
+        "response_actf": response_actf,
+        "collect_response":auto_collect_response
     }
 
     return command_instruction
@@ -347,7 +359,7 @@ import inspect
 # > ----------------------------------------------------------------------------------------------------------------------------------------------
 # > Callbacks
 
-
+ 
 def callback_pattern(callback) -> dict:
     """
     Create a callback pattern.
@@ -1016,6 +1028,7 @@ class MysceliumHost:
 
         return
 
+     
     def send(self):
         """
         Send data. (This method is currently a placeholder and needs to be implemented.)
@@ -1074,6 +1087,7 @@ class HostPatterns:
         target_key: str = "",
         kwargs: dict = {},
         message="",
+        auto_collect=True,
     ) -> dict:
         """
         Creates a response pattern for sending back to a client or for retransmission.
@@ -1169,6 +1183,7 @@ class HostPatterns:
                 activation_function,
                 kwargs,
                 message,
+                auto_collect=auto_collect
             )
         else:  # Redirect case
             command_instructions = cast_response_command_instruction(
@@ -1180,6 +1195,7 @@ class HostPatterns:
                 activation_function,
                 kwargs,
                 message,
+                auto_collect=auto_collect
             )
 
         return command_instructions
@@ -1559,11 +1575,38 @@ class MysceliumClient:
 
     #     return
 
+     
     def is_client_ready(self):
         return mys.is_client_ready()
+    
+    def ensure_client_ready(self, max_attempts=10, sleep_time=1):
+        attempts = 0
+        while not self.is_client_ready():
+            time.sleep(sleep_time)
+            attempts += 1
+            if attempts >= max_attempts:
+                raise Exception("Take too long for the client to be ready")
 
     def is_target_ready(self, target_key: str):
         return mys.is_target_ready(target_key)
+
+    def ensure_target_ready(self, target_key:str, max_attempts=10, sleep_time=1):
+        attempts = 0
+        while not self.is_target_ready(target_key):
+            time.sleep(sleep_time)
+            attempts += 1
+            if attempts >= max_attempts:
+                raise Exception(f"Take too long for the target: {target_key} to be ready")
+    
+    def wait_for_client_ready(max_attempts=10, sleep_time=1):
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(self, *args, **kwargs):
+                # Here we use ensure_client_ready which will raise an Exception if the client isn't ready
+                self.ensure_client_ready(max_attempts, sleep_time)
+                return func(self, *args, **kwargs)
+            return wrapper
+        return decorator
 
     def set_workers_num(self, n_workers=2):
         """
@@ -1577,6 +1620,7 @@ class MysceliumClient:
 
         return
 
+     
     def set_callbacks(self, callbacks: list):
         """
         Register callback functions for the client.
@@ -1613,6 +1657,7 @@ class MysceliumClient:
 
         return mys.get_socket_client_available_handlers()
 
+     
     def initialize_client(self, ip: str, port: int):
         """
         Initialize the client with the given IP and port.
@@ -1625,6 +1670,7 @@ class MysceliumClient:
         self.running = True
         mys.initialize_socket_client(ip, port)
 
+     
     def stop_client(self, signal, frame):
         """
         Stop the client. This function is intended to be called when a termination signal is received.
@@ -1637,7 +1683,8 @@ class MysceliumClient:
         # This function will be called when a SIGINT signal is received
         mys.stop_socket_client()
 
-    def send(self, command: dict, priority: int):
+    @wait_for_client_ready(max_attempts=5, sleep_time=2)
+    def send(self, command: dict, priority: int) -> str:
         """
         Send a command with a specified priority.
 
@@ -1646,7 +1693,7 @@ class MysceliumClient:
         - priority: Priority level of the command.
 
         Returns:
-        - Response from the send operation.
+        - ParityId assigned to the command scheduled, this helps to waith the response using this parity id when needed
         """
 
         # if not mys.is_client_ready():
@@ -1655,7 +1702,14 @@ class MysceliumClient:
         #     pass
 
         return mys.client_send(command, priority)
-
+    
+    @wait_for_client_ready(max_attempts=5, sleep_time=2)
+    def wait_response(self, parity_id:str, timeout_in:int):
+        """
+        This method allows to waith a response by parity id, and the only requirement is;
+        - parity id: this parity id is a unique string assigned to to command when sending, used to sincronize the command and response between the async system
+        """
+        return mys.wait_client_resp(parity_id, timeout_in)
 
 class MysceliumClientInterface:
     def __init__(self, buffer_path: str) -> None:
@@ -1884,6 +1938,7 @@ class ClientPatterns:
 
     #     return response
 
+     
     def client_pattern(self, client_type: str, client_id: str) -> dict:
         """
         Create a client pattern.
@@ -1898,6 +1953,7 @@ class ClientPatterns:
 
         return {"client_type": client_type, "client_id": client_id}
 
+     
     def command_pattern(
         self,
         origin_key: str,
@@ -1908,6 +1964,7 @@ class ClientPatterns:
         response_type: str = "",
         response_target: str = "Origin",
         response_actf: str = "",  
+        auto_collect_response: bool = True
     ):
         """
         Constructs a command instruction for communication between clients and a host in a network system.
@@ -1976,6 +2033,7 @@ class ClientPatterns:
                 response_type,
                 response_target,
                 response_actf,
+                auto_collect_response,
             )
         else:
             command_instruction = cast_command_instruction(
@@ -1990,6 +2048,7 @@ class ClientPatterns:
                 response_type,
                 response_target,
                 response_actf,
+                auto_collect_response
             )
 
         return command_instruction
@@ -2072,6 +2131,7 @@ class ClientPatterns:
             response_type,
             response_target,
             response_actf,
+            auto_collect_response=True
         )
         
         return command_instruction

@@ -124,31 +124,36 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
         
-        command = client_patterns.inner_management_command_pattern(
-            origin_key=CLIENT_ID,  # origin
-            command_function="add_client",  # actf
-            kwargs={
-                "client_name": "test_client",
-                "client_key": "xMndjslwpedcnfe",
-                "client_type": "Test",
-                "permission_group": "",
-                "is_super_user": True,
-                "max_sub_channels": 5,
-                "owned_sub_channels_keys": [],
-            },
-            response_type="ExternalFunction",
-            response_target = "Origin",
-            response_actf="add_client_handler",
-        )
+        try:
+            command = client_patterns.inner_management_command_pattern(
+                origin_key=CLIENT_ID,  # origin
+                command_function="add_client",  # actf
+                kwargs={
+                    "client_name": "test_client",
+                    "client_key": "xMndjslwpedcnfe",
+                    "client_type": "Test",
+                    "permission_group": "",
+                    "is_super_user": True,
+                    "max_sub_channels": 5,
+                    "owned_sub_channels_keys": [],
+                },
+                response_type="ExternalFunction",
+                response_target = "Origin",
+                response_actf="add_client_handler",
+            )
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error Casting inner management command: {e}", event_type="Exception"
+            )
 
         try:
             _ = mys_client.send(command, priority=9)
@@ -182,14 +187,14 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
         
         #! HERE SINCE IS A TEST THE TEST REQUIRES KEY TO BE CONSTANT, 
         #! SO NEVER CHANGES IT IN TEST CASES BECAUSE CHANGES MAY NOT BE DETECTED BY EVENT WATCHER
@@ -197,26 +202,31 @@ class Senders:
         #> Changes done:
         # Change client name
         # Turn super user to false
-                
-        command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID,  # origin
-            "update_client",  # actf
-            kwargs={
-                "actual_client_key": "xMndjslwpedcnfe",
-                "updated_client": {
-                    "client_key": "xMndjslwpedcnfe", 
-                    "client_name": "changed_test_client", 
-                    "client_type": "Test",
-                    "permission_group": "",
-                    "is_super_user": False, 
-                    "max_sub_channels": 10,
-                    "owned_sub_channels_keys": [],
+        
+        try:
+            command = client_patterns.inner_management_command_pattern(
+                CLIENT_ID,  # origin
+                "update_client",  # actf
+                kwargs={
+                    "actual_client_key": "xMndjslwpedcnfe",
+                    "updated_client": {
+                        "client_key": "xMndjslwpedcnfe", 
+                        "client_name": "changed_test_client", 
+                        "client_type": "Test",
+                        "permission_group": "",
+                        "is_super_user": False, 
+                        "max_sub_channels": 10,
+                        "owned_sub_channels_keys": [],
+                    },
                 },
-            },
-            response_type="ExternalFunction",
-            response_target = "Origin",
-            response_actf="update_client_handler",
-        )
+                response_type="ExternalFunction",
+                response_target = "Origin",
+                response_actf="update_client_handler",
+            )
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error Casting inner management command: {e}", event_type="Exception"
+            )
 
         try:
             _ = mys_client.send(command, priority=8)
@@ -250,24 +260,29 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
-            
-        command = client_patterns.inner_management_command_pattern(
-            origin_key=CLIENT_ID, 
-            command_function="remove_client", 
-            kwargs={"client_key": "xMndjslwpedcnfe"},
-            response_type="ExternalFunction",
-            response_target = "Origin",
-            response_actf="remove_client_handler",
-        )
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
         
+        try:
+            command = client_patterns.inner_management_command_pattern(
+                origin_key=CLIENT_ID, 
+                command_function="remove_client", 
+                kwargs={"client_key": "xMndjslwpedcnfe"},
+                response_type="ExternalFunction",
+                response_target = "Origin",
+                response_actf="remove_client_handler",
+            )
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"Error Casting inner management command: {e}", event_type="Exception"
+            )
+            
         try:
             _ = mys_client.send(command, priority=7)
         except ValueError as e:
@@ -293,14 +308,14 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
 
         command = client_patterns.inner_management_command_pattern(
             origin_key=CLIENT_ID,  # origin
@@ -338,14 +353,14 @@ class Senders:
         )
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
 
         command = client_patterns.inner_management_command_pattern(
             origin_key=CLIENT_ID,  # origin
@@ -385,14 +400,14 @@ class Senders:
 
         mys_client.running = True
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         assert False, "Take too long to client be ready"
+        #     continue
 
         command = client_patterns.inner_management_command_pattern(
             CLIENT_ID, 

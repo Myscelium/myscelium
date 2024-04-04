@@ -70,13 +70,13 @@ class Senders:
             {"age": 10, "birth": 8, "name": "cristian"},
         )
 
-        result = mys_client.send(command, priority=10)
+        parity_id_assigned = mys_client.send(command, priority=10)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             step="Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1"
         )
 
-        print(result)
+        print(parity_id_assigned) # Print the parity id assigned to this command scheduled to send allowing to await the response by parity id later
 ```
 
 Then you will need to define you main workflow, this is the root of your client processing structure, the part that will do things with the commands received,here because of the way myscelium was developed to work you will need a queue because the commands that client will receive in response will be received using a async structure that can be called at any time to pass through limitaitons related to timeout, so, you willl need to have a queue that allows you to store the responses while a worker check if the response for some command was received
@@ -236,13 +236,13 @@ class Senders:
             {"age": 10, "birth": 8, "name": "cristian"},
         )
 
-        result = mys_client.send(command, priority=10)
+        parity_id_assigned = mys_client.send(command, priority=10)
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             step="Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1"
         )
 
-        print(result)
+        print(parity_id_assigned) # Print the parity id assigned to this command scheduled to send allowing to await the response by parity id later
 ```
 
 Above we have a example of a Sender class, we can see the basic definition of a sender that consists in a class with at least one function decorated as Static Method, this function needs to be a static method because if doesn't need the self parameter, the basic structure of a sender function consists in a function that uses a MysClient instance configured as secondary process that allows to schedule things inside myscelium buffer up, this processes includes:

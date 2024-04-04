@@ -10,11 +10,12 @@ from ..Logs.test_logs_manager import Events_Manager, System_Status
 
 CLIENT_KEY = "some_client_id"
 
-
 class Senders:
     @staticmethod
     def send_some_data():
         time.sleep(25)
+
+        EVManager = Events_Manager(Unit="Client1", path="Logs")
 
         mys_client = MysceliumClient(
             name="TestClient1",
@@ -30,20 +31,19 @@ class Senders:
         )
 
         #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
-        
-        # max_attempts = 10
-        # attemtps = 0
-        # while not mys_client.is_client_ready():
-        #     time.sleep(1)
-        #     attemtps += 1
-        #     if attemtps >= max_attempts:
-        #         Events_Manager(Unit="Client1", path="Logs").Set_Event(
-        #             step=f"Take too long to client be ready!", event_type="Exception"
-        #         )
-        #         assert False, "Take too long to client be ready"
-        #     continue
 
-        # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
+        max_attempts = 10
+        attemtps = 0
+        while not mys_client.is_client_ready():
+            time.sleep(1)
+            attemtps += 1
+            if attemtps >= max_attempts:
+                Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                    step=f"Take too long to client be ready!", event_type="Exception"
+                )
+                assert False, "Take too long to client be ready"
+            continue
+
         try:
             command = client_patterns.command_pattern(
                 origin_key=CLIENT_KEY,
@@ -54,13 +54,15 @@ class Senders:
                 response_type="ExternalFunction",
                 response_target="Origin",
                 response_actf="test_handler",
-                auto_collect_response=True,
+                auto_collect_response=False,
             )
         except ValueError as e:
             Events_Manager(Unit="Client1", path="Logs").Set_Event(
                 step=f"Error: {e}", event_type="Exception"
             )
             return
+
+        parity_id = ""
 
         try:
             parity_id = mys_client.send(command, priority=10)
@@ -72,47 +74,38 @@ class Senders:
                 step=f"Error: {e}", event_type="Exception"
             )
             return
-    
+        
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             step="Data Sended", event_type="Send", event_key="088p72pbv9Ozj7T1"
         )
 
-        print(parity_id)
+        response = {}
 
-
-class Receivers:
-    @staticmethod
-    def test_handler(info: dict):
-        EVManager = Events_Manager(Unit="Client1", path="Logs")
-        EVManager.Set_Event(
-            "Activate Basic Response Test callback handler",
+        try:
+            response = mys_client.wait_response(parity_id, timeout_in=80)
+        except Exception as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                step=f"Cant wait response, Error: {e}", event_type="Exception"
+            )
+            return
+        
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
+            step=f"Receive Response: {response}", event_type="Default"
+        )
+        
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
+            "Receive Inplace Response",
             event_type="Receive",
             event_key="74L648VZDI7J1GV5",
-        )
+        )        
 
-        if "status" in info:
-            pass
-        else:
-            return None
-
-        if info["status"] == "success":
-            pass
-        else:
-            return None
-
-        print("Received data: ", info)
-
-        time.sleep(5)
-
-        System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
-
+        print(parity_id)
 
 class MyClient:
     def __init__(self, debug_level):
         self.debug_level = debug_level
 
     def initializer(self):
-        receivers = Receivers()
 
         mys_client = MysceliumClient(
             name="TestClien1",
@@ -124,9 +117,7 @@ class MyClient:
 
         self.mys_client = mys_client
 
-        callbacks = [
-            callback_pattern(callback=receivers.test_handler),
-        ]
+        callbacks = []
 
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)

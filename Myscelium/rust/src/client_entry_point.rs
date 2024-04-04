@@ -3,14 +3,14 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-use OxidizedMyscelium::CommandType;
-use OxidizedMyscelium::{ClientState, StateManagerError};
+use OxidizedMyscelium::{ClientState, Command, StateManagerError};
+use OxidizedMyscelium::{CommandType, WatcherError};
 use OxidizedMyscelium::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
-use crate::common::functions::convert_to_pydict;
 use crate::common::functions::extract_arg_types;
 use crate::common::functions::translate_value_to_py;
 use crate::common::functions::wrap_py_function;
+use crate::common::functions::{convert_to_pydict, dict_to_object};
 use indexmap::IndexMap;
 use parking_lot::Mutex;
 use pyo3::exceptions;
@@ -260,11 +260,14 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
     let converted_command = handle_pyobject(py, command);
     println!("\nConverted Command to schedule: {:?}\n", converted_command);
 
+    let parity_id_assigned: String;
+
     match converted_command {
         ResultType::Map(m) => {
             println!("Scheduling to send {:?}", m);
-            let _ = match OxidizedMyscelium::client_send_hashmap(m, priority) {
+            parity_id_assigned = match OxidizedMyscelium::client_send_hashmap(m, priority) {
                 Ok(o) => o,
+                // TODO >>> Enhace This Error Handlings
                 Err(e) => match e {
                     OxidizedMyscelium::ClientError::ClientIsNotRunning => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't read client states, maybe not ready yet!")));
@@ -296,6 +299,10 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
                     OxidizedMyscelium::ClientError::ResponseHandlerDoesntExist => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>("Response handler does not exist in target!"));
                     },
+                    OxidizedMyscelium::ClientError::InvalidCommand(e) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't Schedule a invalid command, error case: {:?}!", e)));
+                    },
+                    // TODO >>> Add unreachable for cases that needs it
                     _ => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>("Unexpected Error not covered!"));
                     },
@@ -313,7 +320,25 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
         },
     }
 
-    Ok("Sended!".to_string().into_py(py))
+    Ok(parity_id_assigned.into_py(py))
+}
+
+#[pyfunction]
+pub fn wait_client_resp(py: Python, parity_id: String, timeout_in: u64) -> PyResult<Py<PyAny>> {
+    let command: Command = match OxidizedMyscelium::client_wait_response(parity_id, timeout_in) {
+        Ok(c) => c,
+        Err(e) => match e {
+            WatcherError::CommandNotFinded(pkey) => {
+                return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Command Response With ParityId: {} Not finded!", pkey)));
+            },
+            WatcherError::MaxTimeExceeded(pkey) => {
+                return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Time to get Response With ParityId: {} exceeded!", pkey)));
+            },
+        },
+    };
+
+    // This convertes the command into a hasmpa and converts to a python object in this case a dict
+    dict_to_object(py, &command.command_to_hashmap().unwrap())
 }
 
 /// Sets the log level for the client.
