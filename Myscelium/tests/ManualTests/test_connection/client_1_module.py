@@ -14,72 +14,44 @@ TEMP_PATH = "Temp/Client1Data/"
 LOG_LEVEL = "INFO"
 
 
-class Senders:
+class Handlers:
+
     @staticmethod
-    def send_some_data():
-        time.sleep(15)
+    def python_function(info:dict, age:int, birth:int, name:str):
+        print("Access python function")
 
-        mys_client = MysceliumClient(
-            name="TestClient1",
-            client_uid="some_client_id",
-            buffer_path="Temp/Client1Data/",
-            is_main_process = False
+        print(f"Info: {info}")
+        print(birth)
+        print(name)
+        print(age)
+
+        if "auto_collect" in info:
+            pass
+        else:
+            print("info don't have the auto_collect, sending none")
+            return None
+        
+        auto_collect = info["auto_collect"]
+
+        if auto_collect or "response_actf" in info: # only require response_actf if auto_collect is true
+            pass
+        else:
+            print("info don't have the response_actf, sending none")
+            return None
+        
+        response_actf = info["response_actf"]
+        
+        client_patterns = ClientPatterns()
+
+        response = client_patterns.response_pattern(
+            activation_function=response_actf, 
+            kwargs={"data": 'hello!'},
+            auto_collect=auto_collect,
         )
-
-        mys_client.running = True
-
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            print("Client not ready yet")
-            attemtps += 1
-            if attemtps >= max_attempts:
-                assert False, "Take too long to client be ready"
-            continue
-
-        # TODO >>> Add panic handler inside myscelium when something returns a error from python side
-            
-        # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
-        command = client_patterns.command_pattern(
-            origin_key=CLIENT_KEY,
-            command_function="python_function",
-            target_key="",  # Empty is default
-            kwargs={"age": 10, "birth": 8, "name": "cristian"},
-            message="",
-            response_type="ExternalFunction",
-            response_target="Origin",
-            response_actf="test_handler",
-        )
+        
     
-
-        result = mys_client.send(command, priority=10)
-
-        print(result)
-
-
-class Receivers:
-    @staticmethod
-    def test_handler(info: dict, arg1:str, arg2:int, arg3:dict):
-        print("Received data: ", info)
-
-        if "status" in info:
-            pass
-        else:
-            return None
-
-        if info["status"] == "success":
-            pass
-        else:
-            return None
-
-        print("Received data: ", info)
-
-        time.sleep(5)
-
-        return None
-
-
+        return response
+    
 class MyClient:
     def __init__(self, debug_level):
         self.debug_level = debug_level
