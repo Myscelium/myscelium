@@ -49,6 +49,39 @@ class Handlers:
 
         return response
 
+    @staticmethod
+    def sum (info:dict, num1:int, num2:int):
+        print("Access python function")
+
+        print(f"Info: {info}")
+        print(f"Sum num1: {num1} with num2: {num2}")
+
+        if "auto_collect" in info:
+            pass
+        else:
+            print("info don't have the auto_collect, sending none")
+            return None
+        
+        auto_collect = info["auto_collect"]
+
+        if auto_collect or "response_actf" in info: # only require response_actf if auto_collect is true
+            pass
+        else:
+            print("info don't have the response_actf, sending none")
+            return None
+        
+        response_actf = info["response_actf"]
+        
+        host_patterns = HostPatterns()
+
+        response = host_patterns.response_pattern(
+            activation_function=response_actf, 
+            kwargs={"data": num1 + num2},
+            auto_collect=auto_collect,
+        )
+    
+        return response
+
 class MyHost:
 
     def __init__(self, debug_level):
