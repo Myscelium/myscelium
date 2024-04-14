@@ -18,6 +18,11 @@ from .test_redirect.host_module import MyHost as MyHostToTestRedirect
 from .test_redirect.client_1_module import MyClient as MyClient1ToTestRedirect
 from .test_redirect.client_2_module import MyClient as MyClient2ToTestRedirect
 
+#> Test Inplace Response Redirect
+from .test_redirect_inplace.host_module import MyHost as MyHostToTestInplaceResponseRedirect
+from .test_redirect_inplace.client_1_module import MyClient as MyClient1ToTestInplaceResponseRedirect
+from .test_redirect_inplace.client_2_module import MyClient as MyClient2ToTestInplaceResponseRedirect
+
 # > Test Inner Management
 from .test_management.host_module import MyHost as MyHostToTestManagement
 from .test_management.client_1_module import MyClient as MyClient1ToTestManagement
@@ -278,7 +283,7 @@ def test_communication():
     #
 
 # > ------------------------------------------------------------------------------------------------------------------------------------
-# > Communication Test
+# > Inplace Response Test
 
 def host_thread_to_test_inplace_responses (event_host_received):
     print("Starting host thread...")
@@ -719,6 +724,231 @@ def test_redirect():
 
     pass
 
+# > ------------------------------------------------------------------------------------------------------------------------------------
+# > Inplace Response Redirect Test:
+
+
+def host_thread_to_test_inplace_response_redirect(event_host_received):
+    print("Starting host thread...")
+
+    # TODO >>> Add a mechanism to test every event and then resume both the host and client returning the successfully done events.
+
+    host_instance = MyHostToTestInplaceResponseRedirect(DEBUG_LEVEL).run(event=event_host_received)
+
+    print("Host thread finished.")
+
+
+def client_1_thread_to_test_inplace_response_redirect(event_client_received):
+    print("Waiting for host to be ready...")
+    time.sleep(5)
+    print("Starting client 1 thread...")
+
+    client_instance = MyClient1ToTestInplaceResponseRedirect(DEBUG_LEVEL)
+    client_instance.run()
+
+    print("Client1 thread finished.")
+
+
+def client_2_thread_to_test_inplace_response_redirect(event_client_received):
+    print("Waiting for host to be ready...")
+    time.sleep(5)
+    print("Starting client 2 thread...")
+
+    client_instance = MyClient2ToTestInplaceResponseRedirect(DEBUG_LEVEL)
+    client_instance.run()
+
+    print("Client2 thread finished.")
+
+
+def test_inplace_response_redirect():
+    time.sleep(5)
+
+    test_start_time = time.time()
+
+    Events_Manager(
+        Unit="Client1", path="Logs"
+    ).drop_events_table()  # To reset in the next iteration
+    Events_Manager(
+        Unit="Client2", path="Logs"
+    ).drop_events_table()  # To reset in the next iteration
+    Events_Manager(
+        Unit="Host", path="Logs"
+    ).drop_events_table()  # To reset in the next iteration
+
+    System_Status(path="Logs").create_unit("Client1")
+    System_Status(path="Logs").create_unit("Client2")
+    System_Status(path="Logs").create_unit("Host")
+
+    System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Client2", Status=True)
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=True)
+
+    if os.path.exists("Temp/Client1Data/"):
+        shutil.rmtree("Temp/Client1Data/")
+
+    if os.path.exists("Temp/Client2Data/"):
+        shutil.rmtree("Temp/Client2Data/")
+
+    if os.path.exists("Temp/Data/"):
+        shutil.rmtree("Temp/Data/")
+
+    t1 = Process(
+        target=host_thread_to_test_inplace_response_redirect, args=("main_event",)
+    )  # Passing event_key
+    t2 = Process(
+        target=client_1_thread_to_test_inplace_response_redirect, args=("main_event",)
+    )  # Passing event_key
+    t3 = Process(
+        target=client_2_thread_to_test_inplace_response_redirect, args=("main_event",)
+    )  # Passing event_key
+
+    t1.start()
+    t2.start()
+    t3.start()
+
+    t2.join()
+    t3.join()
+    t1.join()  # Wait for the process to finish
+
+    host_events = Events_Manager(Unit="Host", path="Logs").List_Events()
+    host_events_df = pd.DataFrame.from_dict(host_events)
+
+    client_1_events = Events_Manager(Unit="Client1", path="Logs").List_Events()
+    client_1_events_df = pd.DataFrame.from_dict(client_1_events)
+
+    client_2_events = Events_Manager(Unit="Client2", path="Logs").List_Events()
+    client_2_events_df = pd.DataFrame.from_dict(client_2_events)
+
+    # >----------------------------------------------------------------------------------------------------
+    # > Tests Controller
+
+    # > Host events:
+
+    client_2_contact = False
+    client_1_contact = False
+
+    # > Client 1 events:
+
+    client1_send_data = False
+    client1_receive_inplace_response = False
+    basic_response_handler = False
+    active_callback_remotely = False  # * Active callback from another client
+    remote_act_response_sended = (
+        False  # * Response of the remote activation (Another Redirect to client)
+    )
+
+    # > Client 2 events:
+
+    client2_activated_basic_callback = False
+    client2_send_response = False
+
+    send_data_to_redirect = False
+    # redirected_request_response = False #* Response from the remote callback activated
+
+    # >----------------------------------------------------------------------------------------------------
+
+    # -> Host Tests
+    for i in host_events_df.index:
+        event = host_events_df.loc[i, "StepCompleted"]
+
+        if "Contact received from Client: some_client_id" in event:
+            client_1_contact = True
+
+        if "Contact received from Client: randomsclientids" in event:
+            client_2_contact = True
+
+    # -> Client 1 Tests
+    for i in client_1_events_df.index:
+        event = client_1_events_df.loc[i, "StepCompleted"]
+
+        if "Data Sended" in event:
+            client1_send_data = True
+        
+        if "Receive Inplace Response" in event:
+            client1_receive_inplace_response = True
+
+    # -> Client 2 Tests
+    for i in client_2_events_df.index:
+        event = client_2_events_df.loc[i, "StepCompleted"]
+
+        if "Active Basic Callback" in event:
+            client2_activated_basic_callback = True
+
+        if "Send Response"in event:
+            client2_send_response = True
+
+    unified_events = host_events_df.merge(client_1_events_df, how="outer")
+    unified_events = unified_events.merge(client_2_events_df, how="outer")
+
+    tracking = {}
+    deltas = []
+
+    for i in unified_events.index:
+        event_type = unified_events.loc[i, "EventType"]
+        event_key = unified_events.loc[i, "EventKey"]
+        event_time = unified_events.loc[i, "Time"]
+
+        if event_type == "Send":
+            tracking[event_key] = event_time
+
+        elif event_type == "Receive":
+            if event_key in tracking:
+                start_ts = tracking[event_key]
+                deltas.append(event_time - start_ts)
+            else:
+                pass
+
+        else:
+            pass
+
+    test_end_time = time.time()
+
+    if len(deltas) > 0:
+        average_com_delta = sum(deltas) / len(deltas)
+    else:
+        # Handle the empty list case
+        average_com_delta = 0  # or any other default or error valu
+
+    test_run_time = test_end_time - test_start_time
+
+    if (
+        (client_1_contact and client_2_contact)
+        and (client1_send_data and client1_receive_inplace_response)
+        and (client2_activated_basic_callback and client2_send_response)
+    ):
+        History_Manager().store_history_point(
+            "test_redirect",
+            communications_speed=float(average_com_delta),
+            test_speed=float(test_run_time),
+            test_status="PASSED",
+            log_level=DEBUG_LEVEL,
+        )
+    else:
+        History_Manager().store_history_point(
+            "test_redirect",
+            communications_speed=float(average_com_delta),
+            test_speed=float(test_run_time),
+            test_status="FAILED",
+            log_level=DEBUG_LEVEL,
+        )
+
+    # -> Host
+    
+    assert client_1_contact, "Client 1 doesn't make any contact with host!"
+    assert client_2_contact, "Client 2 doesn't make any contact with host!"
+
+    # -> Client 1
+
+    assert client1_send_data, "Client 1 doesn't sended the command to Client 2"
+    assert client1_receive_inplace_response, "Client 1 doesn't received the response of the command sended to Client 2"
+
+
+    # -> Client 2
+
+    assert client2_activated_basic_callback, "Don't receive the command sended by Client 1 in Client 2"
+    assert client2_send_response, "Don't sended the response from Client 2 to Client 1"
+
+    pass
 
 # > ------------------------------------------------------------------------------------------------------------------------------------
 # > Inner Management Test:
@@ -1146,6 +1376,7 @@ def _test_messages(): #! Temporarly Deactivated
 
     assert receive_success_response_handler, "don't receive the success response!"
     assert receive_error_response_handler, "don't receive the error response!"
+
 
 
 # > ------------------------------------------------------------------------------------------------------------------------------------
