@@ -1,0 +1,22 @@
+["Host"]
+init = 0
+events=["event1", "event2", "event3"]
+in-except = "Resume" # Resume or Reload
+
+["Client1"]
+init = 1
+events=["event1", "event2", "event3"]
+in-except = "Resume" # Resume or Reload
+
+["Configs"]
+debug-modes = ["DEBUG", "INFO", "WARNING", "EXCEPT"]
+test-modes = ["DEBUG"] # Can be "<MODE>", ["<MODE1>", <"MODE2">, ...], "All"
+use-ai = false
+diagnostics = true
+detect-bad-behavior = true
+save-resume = true
+repeat = 0 # can be any between 0 - 10
+analitics = true
+save-analitics = true
+save-performance = true
+
