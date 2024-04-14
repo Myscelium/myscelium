@@ -137,9 +137,23 @@ class MyClient:
 
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
 
+        counter = 0 
+        max_time = 10 # x*5s (50s) Max time to the test occur, prevent infinite cicles
+
         while True:
             client_status = System_Status(path="Logs").get_unit_status(Unit="Client2")
             host_status = System_Status(path="Logs").get_unit_status(Unit="Host")
+
+            if counter > max_time:
+                System_Status(path="Logs").change_unit_status(
+                    Unit="Client1", Status=False
+                )
+                System_Status(path="Logs").change_unit_status(
+                    Unit="Client2", Status=False
+                )
+                pass
+            else:
+                counter += 1
 
             if (not client_status) or (not host_status):
                 print("Receive order to stop client 1")

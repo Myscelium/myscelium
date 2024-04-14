@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns, callback_pattern
+from myscelium import MysceliumClient, ClientPatterns, callback_pattern, CallbackCollector
 import os
 import time
 import signal
@@ -88,11 +88,11 @@ class MyClient:
 
         self.mys_client = mys_client
 
-        receivers = Receivers()
-
-        callbacks = [
-            callback_pattern(callback=receivers.test_handler),
-        ]
+        callbacks = CallbackCollector(
+            [
+                Receivers,
+            ]
+        ).get_callbacks()
 
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
@@ -131,7 +131,7 @@ class MyClient:
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
-        
+
         t3.start()
         t3.join()
 
