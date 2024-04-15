@@ -11,7 +11,6 @@ from ..Logs.test_logs_manager import Events_Manager, System_Status
 CLIENT_KEY = "some_client_key"
 CLIENT_NAME = "TestClient1"
 
-
 class Senders:
     def __init__(self):
         pass
