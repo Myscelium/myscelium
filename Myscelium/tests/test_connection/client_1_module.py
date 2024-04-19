@@ -10,6 +10,13 @@ from ..Logs.test_logs_manager import Events_Manager, System_Status
 
 CLIENT_KEY = "some_client_id"
 
+def shutdown ():
+    print("Receive order to stop client 1")
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+    System_Status(path="Logs").change_unit_status(
+        Unit="Client1", Status=False
+    )
+    return
 
 class Senders:
     @staticmethod
@@ -28,6 +35,16 @@ class Senders:
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             step=f"Waiting Client To Be Ready", event_type="Default"
         )
+        
+        try: #! Here is required see if client is ready
+            mys_client.ensure_client_ready(max_attempts=25, sleep_time=1)
+        except Exception as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"{e}",
+                event_type="Default",
+            )
+            shutdown() 
+            return
 
         #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
         

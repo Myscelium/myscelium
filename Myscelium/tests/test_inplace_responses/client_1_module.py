@@ -10,6 +10,14 @@ from ..Logs.test_logs_manager import Events_Manager, System_Status
 
 CLIENT_KEY = "some_client_id"
 
+def shutdown ():
+    print("Receive order to stop client 1")
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+    System_Status(path="Logs").change_unit_status(
+        Unit="Client1", Status=False
+    )
+    return
+
 class Senders:
     @staticmethod
     def send_some_data():
@@ -32,17 +40,15 @@ class Senders:
 
         #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                Events_Manager(Unit="Client1", path="Logs").Set_Event(
-                    step=f"Take too long to client be ready!", event_type="Exception"
-                )
-                assert False, "Take too long to client be ready"
-            continue
+        try: #! Here is required see if client is ready
+            mys_client.ensure_client_ready(max_attempts=25, sleep_time=1)
+        except Exception as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"{e}",
+                event_type="Default",
+            )
+            shutdown() 
+            return
 
         try:
             command = client_patterns.command_pattern(
