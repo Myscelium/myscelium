@@ -12,6 +12,14 @@ CLIENT_ID = "some_client_id"
 CLIENT_NAME = "TestClient1"
 
 
+def shutdown ():
+    print("Receive order to stop client 1")
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+    System_Status(path="Logs").change_unit_status(
+        Unit="Client1", Status=False
+    )
+    return
+
 class Senders:
     def __init__(self):
         pass
@@ -50,6 +58,8 @@ class Senders:
             Events_Manager(Unit="Client1", path="Logs").Set_Event(
                 f"Error: {e}", event_type="Exception"
             )
+            shutdown() 
+            return
 
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
             "Data Sended", event_type="Send", event_key="1dX2A63Rp7O79x6t"
