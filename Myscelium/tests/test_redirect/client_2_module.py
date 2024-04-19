@@ -55,7 +55,7 @@ class Senders:
             TARGET_KEY = "some_client_id"
 
             try: #! This require the target to be ready
-                mys_client.ensure_target_ready(target_key=TARGET_KEY)
+                mys_client.ensure_target_ready(target_key=TARGET_KEY, max_attempts=10, sleep_time=10)
             except Exception as e: 
                 Events_Manager(Unit="Client2", path="Logs").Set_Event(
                     f"{e}",
