@@ -8,8 +8,16 @@ client_patterns = ClientPatterns()
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 
-CLIENT_KEY = "some_client_key"
+CLIENT_KEY = "some_client_id"
 CLIENT_NAME = "TestClient1"
+
+def shutdown ():
+    print("Receive order to stop client 1")
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+    System_Status(path="Logs").change_unit_status(
+        Unit="Client1", Status=False
+    )
+    return
 
 class Senders:
     def __init__(self):
@@ -36,23 +44,38 @@ class Senders:
 
         #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
 
-        max_attempts = 10
-        attemtps = 0
-        while not mys_client.is_client_ready():
-            time.sleep(1)
-            attemtps += 1
-            if attemtps >= max_attempts:
-                Events_Manager(Unit="Client1", path="Logs").Set_Event(
-                    step=f"Take too long to client be ready!", event_type="Exception"
-                )
-                assert False, "Take too long to client be ready"
-            continue
+        TARGET_KEY = "randomsclientids" # -> target is client2
+
+        try: #! Here is required see if client is ready
+            mys_client.ensure_client_ready(max_attempts=10, sleep_time=10)
+        except Exception as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"{e}",
+                event_type="Default",
+            )
+            shutdown() 
+            return
+
+        Events_Manager(Unit="Client1", path="Logs").Set_Event(
+            "Client 2 is ready",
+            event_type="Default",
+        )
+        
+        try: #! This require the target to be ready
+            mys_client.ensure_target_ready(target_key=TARGET_KEY, max_attempts=10, sleep_time=10)
+        except Exception as e: 
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                f"{e}",
+                event_type="Default",
+            )
+            shutdown() 
+            return
 
         try:
             command = client_patterns.command_pattern(
                 origin_key=CLIENT_KEY,
                 command_function="python_function",
-                target_key="randomsclientids", # -> target is client2
+                target_key=TARGET_KEY, # -> target is client2
                 kwargs={"age": 10, "birth": 8, "name": "cristian"},
                 message="",
                 response_type="ExternalFunction",
@@ -64,6 +87,7 @@ class Senders:
             Events_Manager(Unit="Client1", path="Logs").Set_Event(
                 step=f"Error: {e}", event_type="Exception"
             )
+            shutdown() 
             return
 
         parity_id = ""
@@ -77,6 +101,7 @@ class Senders:
             Events_Manager(Unit="Client1", path="Logs").Set_Event(
                 step=f"Error: {e}", event_type="Exception"
             )
+            shutdown() 
             return
         
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
@@ -91,6 +116,7 @@ class Senders:
             Events_Manager(Unit="Client1", path="Logs").Set_Event(
                 step=f"Cant wait response, Error: {e}", event_type="Exception"
             )
+            shutdown() 
             return
         
         Events_Manager(Unit="Client1", path="Logs").Set_Event(
@@ -112,7 +138,7 @@ class MyClient:
     def initializer(self):
         mys_client = MysceliumClient(
             name=CLIENT_NAME,
-            client_uid="some_CLIENT_KEY",
+            client_uid=CLIENT_KEY,
             buffer_path="Temp/Client1Data/",
             log_level=self.debug_level,
             is_main_process = True

@@ -11,6 +11,14 @@ from ..Logs.test_logs_manager import Events_Manager, System_Status
 CLIENT_ID = "randomsclientids"
 CLIENT_NAME = "TestClient2"
 
+def shutdown ():
+    print("Receive order to stop client 2")
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+    System_Status(path="Logs").change_unit_status(
+        Unit="Client2", Status=False
+    )
+    return
+
 class Receivers:
 
     @staticmethod
@@ -25,24 +33,32 @@ class Receivers:
         if "auto_collect" in info:
             pass
         else:
-            print("info don't have the auto_collect, sending none")
-            return None
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                step=f"info don't have the auto_collect, sending none", event_type="Exception"
+            )
+            shutdown() 
+            return
         
         auto_collect = info["auto_collect"]
 
         if auto_collect or "response_actf" in info: # only require response_actf if auto_collect is true
             pass
         else:
-            print("info don't have the response_actf, sending none")
-            return None
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                step=f"info don't have the response_actf, sending none", event_type="Exception"
+            )
+            shutdown() 
+            return
         
         response_actf = info["response_actf"]
         
         client_patterns = ClientPatterns()
 
         response = client_patterns.response_pattern(
-            activation_function=response_actf, 
-            kwargs={"data": 'hello!'},
+            activation_function=response_actf,
+            origin=CLIENT_ID,
+            kwargs={"data": "hello!"},
+            target_key=info["origin"]['ClientKey'],
             auto_collect=auto_collect,
         )
 
