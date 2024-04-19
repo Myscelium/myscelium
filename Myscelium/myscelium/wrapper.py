@@ -141,7 +141,7 @@ def cast_response_command_instruction(
         "kwargs": command_kwargs,
         "message": command_message,
         "response_type": command_type,  # This is a duplication due to a temporary change in the Option downcast
-        "response_target": command_target,  # This is a duplication due to a temporary change in the Option downcast
+        "response_target": command_origin,  # This is a duplication due to a temporary change in the Option downcast
         "response_actf": command_actf,  # This is a duplication due to a temporary change in the Option downcast
         "collect_response": auto_collect,  # Default here is true, but if can be changed in the command that trigger this handler that send this response, if False it will not be automatically Transposed.
     }
