@@ -1,4 +1,9 @@
-from myscelium import MysceliumClient, ClientPatterns, CallbackCollector, callback_pattern
+from myscelium import (
+    MysceliumClient,
+    ClientPatterns,
+    CallbackCollector,
+    callback_pattern,
+)
 
 import os
 import time
@@ -15,9 +20,8 @@ LOG_LEVEL = "INFO"
 
 
 class Handlers:
-
     @staticmethod
-    def python_function(info:dict, age:int, birth:int, name:str):
+    def python_function(info: dict, age: int, birth: int, name: str):
         print("Access python function")
 
         print(f"Info: {info}")
@@ -30,30 +34,44 @@ class Handlers:
         else:
             print("info don't have the auto_collect, sending none")
             return None
-        
+
         auto_collect = info["auto_collect"]
 
-        if auto_collect or "response_actf" in info: # only require response_actf if auto_collect is true
+        if "origin" in info:
+            pass
+        else:
+            return None
+
+        if (
+            auto_collect or "response_actf" in info
+        ):  # only require response_actf if auto_collect is true
             pass
         else:
             print("info don't have the response_actf, sending none")
             return None
-        
-        response_actf = info["response_actf"]
-        
-        client_patterns = ClientPatterns()
 
+        response_actf = info["response_actf"]
+
+    
+        ty = type(info["origin"])
+        inf = info["origin"]
+
+        print(f"type: {ty} origin: {inf}")
+    
+        client_patterns = ClientPatterns()
+    
         response = client_patterns.response_pattern(
-            activation_function=response_actf, 
-            kwargs={"data": 'hello!'},
+            activation_function=response_actf,
+            origin=CLIENT_KEY,
+            kwargs={"data": "hello!"},
+            target_key=info["origin"]['ClientKey'],
             auto_collect=auto_collect,
         )
-        
-    
+
         return response
-    
+
     @staticmethod
-    def sum(info:dict, num1:int, num2:int):
+    def sum(info: dict, num1: int, num2: int):
         print("Access python function")
 
         print(f"Info: {info}")
@@ -64,53 +82,56 @@ class Handlers:
         else:
             print("info don't have the auto_collect, sending none")
             return None
-        
+
         auto_collect = info["auto_collect"]
 
-        if auto_collect or "response_actf" in info: # only require response_actf if auto_collect is true
+        if (
+            auto_collect or "response_actf" in info
+        ):  # only require response_actf if auto_collect is true
             pass
         else:
             print("info don't have the response_actf, sending none")
             return None
-        
+
         response_actf = info["response_actf"]
-        
+
         client_patterns = ClientPatterns()
 
         response = client_patterns.response_pattern(
-            activation_function=response_actf, 
+            activation_function=response_actf,
             kwargs={"data": num1 + num2},
             auto_collect=auto_collect,
         )
-        
-    
+
         return response
-    
+
+
 class MyClient:
     def __init__(self, debug_level):
         self.debug_level = debug_level
 
     def initializer(self):
-        receivers = Receivers()
 
         mys_client = MysceliumClient(
             name="TestClien1",
             client_uid=CLIENT_KEY,
             buffer_path="Temp/Client1Data/",
             log_level=self.debug_level,
-            is_main_process = True
+            is_main_process=True,
         )
 
         self.mys_client = mys_client
-
-        callbacks = [
-            callback_pattern(callback=receivers.test_handler),
-        ]
+        
+        callbacks = CallbackCollector(
+            [
+                Handlers,
+            ]
+        ).get_callbacks()
 
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
 
-        mys_client.initialize_client("127.0.0.1", 4444)
+        mys_client.initialize_client("127.0.0.1", 8000)
 
         return
 
@@ -123,15 +144,15 @@ class MyClient:
         return
 
     def run(self):
-        senders = Senders()
+        # senders = Senders()
 
         t1 = Process(target=self.initializer, args=())
-        t2 = Process(target=senders.send_some_data, args=())
+        # t2 = Process(target=senders.send_some_data, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
         time.sleep(5)
-        t2.start()
+        # t2.start()
         t3.start()
 
         t3.join()
@@ -148,7 +169,7 @@ class MyClient:
         return
 
 
-# if __name__ == "__main__":
-#     MyClient("INFO").run()
+if __name__ == "__main__":
+    MyClient("DEBUG").run()
 
-print(CallbackCollector([Receivers]).get_callbacks())
+# print(CallbackCollector([Receivers]).get_callbacks())

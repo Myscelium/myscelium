@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::result;
 use std::sync::MutexGuard;
 use OxidizedMyscelium::Command;
+use OxidizedMyscelium::CommandError;
 use OxidizedMyscelium::CommandInstructions;
 use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::ResultType;
@@ -229,22 +230,26 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
         let instructions = {
             // Check if the Value is an object and convert it to HashMap
             if let Some(obj) = value.as_object() {
-                match CommandInstructions::from_value_map(obj.clone().into_iter().collect()) {
-                    Ok(c) => c,
-                    Err(_) => {
-                        // TODO >>> Handle this error case
-                        // OxidizedMyscelium::ProcessResult::Error("callback return a non valid response!".to_string())
-                        return Box::new("callback return a non valid response!".to_string()) as Box<dyn Any>;
+                let map: HashMap<String, Value> = obj.clone().into_iter().collect();
+                match CommandInstructions::from_value_map(map) {
+                    Ok(c) => {
+                        println!("Instructions extracted in python briedge: {:?}", c);
+                        Box::new(c) as Box<dyn Any>
+                    }, // Successfully parsed CommandInstructions
+                    Err(e) => {
+                        // Handling parse failure with a more descriptive error
+                        println!("Error: callback returned a non-valid response: {:?}", e);
+                        Box::new(CommandError::InvalidResponse("callback returned a non-valid response".to_string())) as Box<dyn Any>
                     },
                 }
             } else {
-                // TODO >>> Handle this error case
-                // OxidizedMyscelium::ProcessResult::Error("The value is not a JSON object!".to_string())
-                return Box::new("The value is not a JSON object!".to_string()) as Box<dyn Any>;
+                // Handling the case where the expected JSON object is not an object
+                println!("Error: The value is not a JSON object!");
+                Box::new(CommandError::NotAJsonObject) as Box<dyn Any>
             }
         };
 
-        return Box::new(instructions) as Box<dyn Any>;
+        return instructions;
 
         // serde_json::to_string(value)instrctions.to_value_map();
 
@@ -413,7 +418,6 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
 
     if let Ok(dict) = obj.downcast::<PyDict>(py) {
         let mut rust_dict = serde_json::Map::new();
-
         for (key, value) in dict.iter() {
             let key_str = match key.extract::<String>() {
                 Ok(k) => k,
@@ -422,12 +426,9 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
                     continue; // Skip this key-value pair
                 },
             };
-
-            // Recursively extract the value
             let rust_value = extract_pyobject(py, value.to_object(py));
             rust_dict.insert(key_str, rust_value);
         }
-
         Value::Object(rust_dict)
     } else if let Ok(tuple) = obj.downcast::<PyTuple>(py) {
         let rust_list: Vec<_> = tuple.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
@@ -436,7 +437,6 @@ pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
         let rust_list: Vec<_> = list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
         Value::Array(rust_list)
     } else if let Ok(boolean) = obj.downcast::<PyBool>(py) {
-        //* THIS NEEDS TO BE PLACED BEFORE PyInt DOWNCAST TO AVOID BOOL TURN INTO NUMBER
         match boolean.extract::<bool>() {
             Ok(b) => Value::Bool(b),
             Err(e) => {
