@@ -11,6 +11,14 @@ from ..Logs.test_logs_manager import Events_Manager, System_Status
 CLIENT_ID = "randomsclientids"
 CLIENT_NAME = "TestClient2"
 
+def shutdown ():
+    print("Receive order to stop client 2")
+    System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+    System_Status(path="Logs").change_unit_status(
+        Unit="Client2", Status=False
+    )
+    return
+
 class Senders:
     @staticmethod
     def send_some_data_to_redirect():
@@ -36,6 +44,8 @@ class Senders:
                     f"{e}",
                     event_type="Default",
                 )
+                shutdown() 
+                return
 
             Events_Manager(Unit="Client2", path="Logs").Set_Event(
                 "Client 2 is ready",
@@ -45,12 +55,14 @@ class Senders:
             TARGET_KEY = "some_client_id"
 
             try: #! This require the target to be ready
-                mys_client.ensure_target_ready(target_key=TARGET_KEY)
+                mys_client.ensure_target_ready(target_key=TARGET_KEY, max_attempts=10, sleep_time=10)
             except Exception as e: 
                 Events_Manager(Unit="Client2", path="Logs").Set_Event(
                     f"{e}",
                     event_type="Default",
                 )
+                shutdown() 
+                return
 
             Events_Manager(Unit="Client2", path="Logs").Set_Event(
                 "Target Client 1 is ready",
@@ -73,12 +85,16 @@ class Senders:
                 Events_Manager(Unit="Client2", path="Logs").Set_Event(
                     f"Error: {e}", event_type="Exception"
                 )
+                shutdown() 
+                return
             
         except e as e:
             Events_Manager(Unit="Client2", path="Logs").Set_Event(
                 f"{e}",
                 event_type="Exception",
             )
+            shutdown() 
+            return
 
         Events_Manager(Unit="Client2", path="Logs").Set_Event(
             "Data To Redirect Sended",
