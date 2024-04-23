@@ -150,21 +150,10 @@ def cast_response_command_instruction(
 
     return command_instruction
 
+from pydantic import BaseModel, field_validator, model_validator
+from typing import Dict, Any
 
-def cast_command_instruction(
-    command_mode: str,
-    command_type: str,
-    command_target: str,
-    command_status: str,
-    command_origin: str,
-    command_actf: str,
-    command_kwargs: dict,
-    command_message: str,
-    response_type: str,
-    response_target: str,
-    response_actf: str,
-    auto_collect_response: bool,
-) -> dict:
+class CommandInstruction(BaseModel):
     """
     Constructs a command instruction dictionary from the given parameters.
 
@@ -198,107 +187,224 @@ def cast_command_instruction(
                                             "ClientKey(123)", "activate", {}, "Execute action")
     """
 
-    if command_mode not in ["Function", "Response"]:
-        raise ValueError(
-            "Command mode needs to be one of those: ['Function', 'Response']"
-        )
+    command_mode: str
+    command_type: str
+    command_target: str
+    command_status: str
+    command_origin: str
+    command_actf: str
+    command_kwargs: Dict[str, Any]
+    command_message: str
+    response_type: str
+    response_target: str
+    response_actf: str
+    auto_collect_response: bool
 
-    if command_type not in [
-        "SpecialFunction",
-        "DirectFunction",
-        "InternalManagement",
-        "ExternalFunction",
-    ]:
-        raise ValueError(
-            "Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
-        )
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Converts the model instance into a dictionary, with the ability to add custom
+        modifications or additional key-value pairs.
 
-    if command_target in ["Origin", "Host"]:
-        pass
+        Returns:
+            Dict[str, Any]: The dictionary representation of the model instance.
+        """
+        # Convert the model to a dictionary using Pydantic's built-in method
+        model_dict = self.dict()
 
-    # -> Validate the redirect cases:
-    elif command_target.startswith("ClientKey(") and command_target.endswith(")"):
-        # Extracting the part inside 'ClientKey()'
-        content = command_target[len("ClientKey(") : -1].strip()
+        # Example of adding a custom key-value pair or modifying the dict
+        model_dict['custom_key'] = 'custom_value'
+        
+        # You can also modify existing data if necessary
+        # For instance, transforming nested dictionaries or lists if needed
+        # model_dict['command_kwargs'] = custom_transform(model_dict['command_kwargs'])
 
-        # Validate the content inside the parentheses
-        if content == "":
-            raise ValueError("Command target ClientKey needs a valid ClientKey!")
+        return model_dict
 
-    else:
-        raise ValueError(
-            "Command target must be either 'Origin', 'Host', or 'ClientKey(some_value)'"
-        )
+    @field_validator('command_mode', 'command_status')
+    def check_fixed_choices(cls, v, field):
+        if field.field_name == 'command_mode' and v not in ['Function', 'Response']:
+            raise ValueError("Command mode must be one of ['Function', 'Response']")
+        if field.field_name == 'command_status' and v not in ['Success', 'Failure']:
+            raise ValueError("Command status must be one of ['Success', 'Failure']")
+        return v
 
-    if command_status not in ["Success", "Failure"]:
-        raise ValueError(
-            "Command status can only be one of those: ['Success', 'Failure']"
-        )
+    @field_validator('command_type', 'response_type')
+    def check_type_choices(cls, v, field):
+        allowed_types = ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction']
+        if field.field_name == 'response_type':
+            allowed_types = ['DirectFunction', 'InternalManagement', 'ExternalFunction']
+        if v not in allowed_types:
+            raise ValueError(f"{field.field_name} must be one of {allowed_types}")
+        return v
 
-    if command_origin == "Host":
-        pass
+    @model_validator(mode="after")
+    def check_keys_and_origin(cls, values):
+        print(values)
+        targets = ['command_target', 'response_target']
+        origins = ['command_origin']
+        for attribute_name in targets + origins:  
+            target = getattr(values, attribute_name, 'Attribute not found')
+            if target not in ['Origin', 'Host']:
+                if target.startswith('ClientKey(') and target.endswith(')'):
+                    content = target[len('ClientKey('):-1].strip()
+                    if content == "":
+                        raise ValueError(f"Command {attribute_name} needs a valid ClientKey not empty!")
+                else:
+                    raise ValueError(f"{attribute_name} must be either 'Origin', 'Host', or 'ClientKey(some_value)'")
+        if not getattr(values, 'command_actf', 'Attribute not found'):
+            raise ValueError("Command activation function can't be empty")
+        return values
 
-    # -> Validate the client cases:
-    elif command_origin.startswith("ClientKey(") and command_origin.endswith(")"):
-        # Extracting the part inside 'ClientKey()'
-        content = command_origin[len("ClientKey(") : -1].strip()
 
-        # Validate the content inside the parentheses
-        if content == "":
-            raise ValueError("Command target ClientKey needs a valid ClientKey!")
 
-    else:
-        raise ValueError(
-            "Command origin must be either 'Host' or 'ClientKey(some_value)'"
-        )
+# def cast_command_instruction(
+#     command_mode: str,
+#     command_type: str,
+#     command_target: str,
+#     command_status: str,
+#     command_origin: str,
+#     command_actf: str,
+#     command_kwargs: dict,
+#     command_message: str,
+#     response_type: str,
+#     response_target: str,
+#     response_actf: str,
+#     auto_collect_response: bool,
+# ) -> dict:
+#     """
+#     Constructs a command instruction dictionary from the given parameters.
 
-    if command_actf == "" or command_actf == None:
-        raise ValueError("Command activation function can't be empty")
+#     Validates the provided arguments against specific criteria for each command aspect
+#     (mode, type, target, status, origin, activation function). Raises an exception if
+#     any of the provided arguments do not meet the expected values or format.
 
-    # -> Response definitions:
+#     Parameters:
+#     - command_mode (str): Mode of the command, must be one of ['Function', 'Response'].
+#     - command_type (str): Type of the command, must be one of ['SpecialFunction', 'DirectFunction',
+#                       'InternalManagement', 'ExternalFunction'].
+#     - command_target (str): Target of the command, should follow the format 'Origin',
+#                             'ClientKey(String)', or 'Host'.
+#     - command_status (str): Status of the command, must be one of ['Success', 'Failure'].
+#     - command_origin (str): Origin of the command, must be 'Host' or 'ClientKey(String)'.
+#     - command_actf (str): Activation function for the command. Cannot be empty.
+#     - command_kwargs (dict): Additional keyword arguments for the command.
+#     - command_message (str): Message associated with the command.
+#     - response_type (str): The type of the response command that will be sended back to this node that is casting this command,
+#     - response_target (str): The target of the response that this command will produce,
+#     - response_actf (str): The handler that response will triger when arrive in the target
 
-    if response_type not in [
-        "DirectFunction",
-        "InternalManagement",
-        "ExternalFunction",
-    ]:
-        raise ValueError(
-            "Command response type needs to be one of those: [ 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
-        )
+#     Returns:
+#     dict: A dictionary representing the constructed command instruction.
 
-    if response_target in ["Origin", "Host"]:
-        pass
+#     Raises:
+#     Exception: If any parameter does not conform to its expected format or allowable values.
 
-    # -> Validate the redirect cases:
-    elif response_target.startswith("ClientKey(") and command_target.endswith(")"):
-        # Extracting the part inside 'ClientKey()'
-        content = response_target[len("ClientKey(") : -1].strip()
+#     Example:
+#     command_dict = cast_command_instruction("Function", "DirectFunction", "Host", "Success",
+#                                             "ClientKey(123)", "activate", {}, "Execute action")
+#     """
 
-        # Validate the content inside the parentheses
-        if content == "":
-            raise ValueError(
-                "Command response_target ClientKey needs a valid ClientKey!"
-            )
+#     if command_mode not in ["Function", "Response"]:
+#         raise ValueError(
+#             "Command mode needs to be one of those: ['Function', 'Response']"
+#         )
 
-    # if response_actf == "" or response_actf == None:
-    #     raise ValueError("Command activation function can't be empty")
+#     if command_type not in [
+#         "SpecialFunction",
+#         "DirectFunction",
+#         "InternalManagement",
+#         "ExternalFunction",
+#     ]:
+#         raise ValueError(
+#             "Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
+#         )
 
-    command_instruction = {
-        "mode": command_mode,
-        "type": command_type,
-        "target": command_target,
-        "status": command_status,
-        "origin": command_origin,
-        "actf": command_actf,
-        "kwargs": command_kwargs,
-        "message": command_message,
-        "response_type": response_type,
-        "response_target": response_target,
-        "response_actf": response_actf,
-        "collect_response": auto_collect_response,
-    }
+#     if command_target in ["Origin", "Host"]:
+#         pass
 
-    return command_instruction
+#     # -> Validate the redirect cases:
+#     elif command_target.startswith("ClientKey(") and command_target.endswith(")"):
+#         # Extracting the part inside 'ClientKey()'
+#         content = command_target[len("ClientKey(") : -1].strip()
+
+#         # Validate the content inside the parentheses
+#         if content == "":
+#             raise ValueError("Command target ClientKey needs a valid ClientKey!")
+
+#     else:
+#         raise ValueError(
+#             "Command target must be either 'Origin', 'Host', or 'ClientKey(some_value)'"
+#         )
+
+#     if command_status not in ["Success", "Failure"]:
+#         raise ValueError(
+#             "Command status can only be one of those: ['Success', 'Failure']"
+#         )
+
+#     if command_origin == "Host":
+#         pass
+
+#     # -> Validate the client cases:
+#     elif command_origin.startswith("ClientKey(") and command_origin.endswith(")"):
+#         # Extracting the part inside 'ClientKey()'
+#         content = command_origin[len("ClientKey(") : -1].strip()
+
+#         # Validate the content inside the parentheses
+#         if content == "":
+#             raise ValueError("Command target ClientKey needs a valid ClientKey!")
+
+#     else:
+#         raise ValueError(
+#             "Command origin must be either 'Host' or 'ClientKey(some_value)'"
+#         )
+
+#     if command_actf == "" or command_actf == None:
+#         raise ValueError("Command activation function can't be empty")
+
+#     # -> Response definitions:
+
+#     if response_type not in [
+#         "DirectFunction",
+#         "InternalManagement",
+#         "ExternalFunction",
+#     ]:
+#         raise ValueError(
+#             "Command response type needs to be one of those: [ 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
+#         )
+
+#     if response_target in ["Origin", "Host"]:
+#         pass
+
+#     # -> Validate the redirect cases:
+#     elif response_target.startswith("ClientKey(") and command_target.endswith(")"):
+#         # Extracting the part inside 'ClientKey()'
+#         content = response_target[len("ClientKey(") : -1].strip()
+
+#         # Validate the content inside the parentheses
+#         if content == "":
+#             raise ValueError(
+#                 "Command response_target ClientKey needs a valid ClientKey!"
+#             )
+
+#     # if response_actf == "" or response_actf == None:
+#     #     raise ValueError("Command activation function can't be empty")
+
+#     command_instruction = {
+#         "mode": command_mode,
+#         "type": command_type,
+#         "target": command_target,
+#         "status": command_status,
+#         "origin": command_origin,
+#         "actf": command_actf,
+#         "kwargs": command_kwargs,
+#         "message": command_message,
+#         "response_type": response_type,
+#         "response_target": response_target,
+#         "response_actf": response_actf,
+#         "collect_response": auto_collect_response,
+#     }
+
+#     return command_instruction
 
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1375,19 +1481,20 @@ class HostPatterns:
 
             response_actf = kwargs["response_actf"]
 
-            command_instructions = cast_command_instruction(
-                "Response",
-                "InternalManagement",
-                "Host",
-                "Success",
-                "Host",
-                "add_client",
-                kwargs,
-                "",
-                "InternalManagement",
-                "Origin",
-                response_actf,
-            )
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="InternalManagement",
+                command_target="Host",
+                command_status="Success",
+                command_origin="Host",
+                command_actf="add_client",
+                command_kwargs=kwargs,
+                command_message="",
+                response_type="InternalManagement",
+                response_target="Origin",
+                response_actf=response_actf,
+                auto_collect_response=True 
+            ).to_dict()
 
             return command_instructions
 
@@ -1442,19 +1549,20 @@ class HostPatterns:
 
             response_actf = kwargs["response_actf"]
 
-            command_instructions = cast_command_instruction(
-                "Response",
-                "InternalManagement",
-                "Host",
-                "Success",
-                "Host",
-                "update_client",
-                kwargs,
-                "",
-                "InternalManagement",
-                "Origin",
-                response_actf,
-            )
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="InternalManagement",
+                command_target="Host",
+                command_status="Success",
+                command_origin="Host",
+                command_actf="update_client",
+                command_kwargs=kwargs,
+                command_message="",
+                response_type="InternalManagement",
+                response_target="Origin",
+                response_actf=response_actf,
+                auto_collect_response=True
+            ).to_dict()
 
             return command_instructions
 
@@ -1489,19 +1597,20 @@ class HostPatterns:
 
             response_actf = kwargs["response_actf"]
 
-            command_instructions = cast_command_instruction(
-                "Response",
-                "InternalManagement",
-                "Host",
-                "Success",
-                "Host",
-                "remove_client",
-                kwargs,
-                "",
-                "InternalManagement",
-                "Origin",
-                response_actf,
-            )
+            command_instructions = CommandInstruction(   
+                command_mode="Response",
+                command_type="InternalManagement",
+                command_target="Host",
+                command_status="Success",
+                command_origin="Host",
+                command_actf="remove_client",
+                command_kwargs=kwargs,
+                command_message="",
+                response_type="InternalManagement",
+                response_target="Origin",
+                response_actf= response_actf,
+                auto_collect_response=True
+            ).to_dict()
 
             return command_instructions
 
@@ -2154,35 +2263,35 @@ class ClientPatterns:
         command_instruction = {}
 
         if target_key == "":
-            command_instruction = cast_command_instruction(
-                "Function",
-                "ExternalFunction",
-                "Host",
-                "Success",
-                f"ClientKey({origin_key})",
-                command_function,
-                kwargs,
-                message,
-                response_type,
-                response_target,
-                response_actf,
-                auto_collect_response,
-            )
+            command_instruction = CommandInstruction(
+                command_mode='Function',
+                command_type="ExternalFunction",
+                command_target="Host",
+                command_status="Success",
+                command_origin=f"ClientKey({origin_key})",
+                command_actf=command_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type=response_type,
+                response_target=response_target,
+                response_actf=response_actf,
+                auto_collect_response=auto_collect_response,
+            ).to_dict()
         else:
-            command_instruction = cast_command_instruction(
-                "Function",
-                "ExternalFunction",
-                f"ClientKey({target_key})",
-                "Success",
-                f"ClientKey({origin_key})",
-                command_function,
-                kwargs,
-                message,
-                response_type,
-                response_target,
-                response_actf,
-                auto_collect_response,
-            )
+            command_instruction = CommandInstruction(
+                command_mode='Function',
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({target_key})",
+                command_status="Success",
+                command_origin=f"ClientKey({origin_key})",
+                command_actf=command_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type=response_type,
+                response_target=response_target,
+                response_actf=response_actf,
+                auto_collect_response=auto_collect_response,
+            ).to_dict()
 
         return command_instruction
 
@@ -2252,20 +2361,20 @@ class ClientPatterns:
         # >
         # > basically creates a command to send to host, when the command arrives in host the command will execute something
 
-        command_instruction = cast_command_instruction(
-            "Function",  # Command Mode
-            "DirectFunction",  # Command Type
-            "Host",  # Command Target
-            "Success",  # Status
-            f"ClientKey({origin_key})",  # Origin
-            command_function,  # act function
-            kwargs,
-            message,
-            response_type,
-            response_target,
-            response_actf,
-            auto_collect_response=True,
-        )
+        command_instruction = CommandInstruction(
+            command_mode='Function',
+            command_type="DirectFunction",
+            command_target="Host",
+            command_status="Success",
+            command_origin= f"ClientKey({origin_key})",
+            command_actf=command_function,
+            command_kwargs=kwargs,
+            command_message=message,
+            response_type=response_type,
+            response_target=response_target,
+            response_actf=response_actf,
+            auto_collect_response=True
+        ).to_dict()
 
         return command_instruction
 
