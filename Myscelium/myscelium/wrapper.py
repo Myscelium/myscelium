@@ -200,6 +200,29 @@ class CommandInstruction(BaseModel):
     response_actf: str
     auto_collect_response: bool
 
+    def format(self) -> Dict[str, Any]:
+        """
+        Converts the model instance into a customized dictionary format,
+        based on specific attribute mappings.
+
+        Returns:
+            Dict[str, Any]: The dictionary representation of the model instance with custom keys.
+        """
+        return {
+            'mode': self.command_mode,
+            'type': self.command_type,
+            'target': self.command_target,
+            'status': self.command_status,
+            'origin': self.command_origin,
+            'actf': self.command_actf,
+            'kwargs': self.command_kwargs,
+            'message': self.command_message,
+            'response_type': self.response_type,
+            'response_target': self.response_target,
+            'response_actf': self.response_actf,
+            'collect_response': self.auto_collect_response
+        }
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Converts the model instance into a dictionary, with the ability to add custom
@@ -1494,7 +1517,7 @@ class HostPatterns:
                 response_target="Origin",
                 response_actf=response_actf,
                 auto_collect_response=True 
-            ).to_dict()
+            ).format()
 
             return command_instructions
 
@@ -1562,7 +1585,7 @@ class HostPatterns:
                 response_target="Origin",
                 response_actf=response_actf,
                 auto_collect_response=True
-            ).to_dict()
+            ).format()
 
             return command_instructions
 
@@ -1610,7 +1633,7 @@ class HostPatterns:
                 response_target="Origin",
                 response_actf= response_actf,
                 auto_collect_response=True
-            ).to_dict()
+            ).format()
 
             return command_instructions
 
@@ -2276,7 +2299,7 @@ class ClientPatterns:
                 response_target=response_target,
                 response_actf=response_actf,
                 auto_collect_response=auto_collect_response,
-            ).to_dict()
+            ).format()
         else:
             command_instruction = CommandInstruction(
                 command_mode='Function',
@@ -2291,7 +2314,7 @@ class ClientPatterns:
                 response_target=response_target,
                 response_actf=response_actf,
                 auto_collect_response=auto_collect_response,
-            ).to_dict()
+            ).format()
 
         return command_instruction
 
@@ -2374,7 +2397,7 @@ class ClientPatterns:
             response_target=response_target,
             response_actf=response_actf,
             auto_collect_response=True
-        ).to_dict()
+        ).format()
 
         return command_instruction
 
