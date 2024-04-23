@@ -20,4 +20,24 @@ command = client_patterns.command_pattern(
     auto_collect_response=True,
 )
 
+# What the base struct should looks like:
+base = {
+    'mode': 'Function', 
+    'type': 'ExternalFunction', 
+    'target': 'Host', 
+    'status': 'Success', 
+    'origin': 'ClientKey(some_client_id)', 
+    'actf': 'python_function', 
+    'kwargs': {
+        'age': 10, 
+        'birth': 8, 
+        'name': 'cristian'
+    }, 
+    'message': '', 
+    'response_type': 'ExternalFunction', 
+    'response_target': 'Origin', 
+    'response_actf': 'test_handler', 
+    'collect_response': True
+}
+
 print(command)
