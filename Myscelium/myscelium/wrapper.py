@@ -441,7 +441,6 @@ class GetHostClients:
     def __init__(self, db_path: str):
         self.pool = sql_pool.SQLiteConnectionPool(2, os.path.join(db_path, "Data.db"))
         connection = self.pool.get_connection()
-
         cur = connection.cursor()
         cur.execute(
             """CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY,
