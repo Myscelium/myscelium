@@ -274,6 +274,18 @@ class CommandInstruction(BaseModel):
                         raise ValueError(f"Command {attribute_name} needs a valid ClientKey not empty!")
                 else:
                     raise ValueError(f"{attribute_name} must be either 'Origin', 'Host', or 'ClientKey(some_value)'")
+            else:
+                if target != "Origin":
+                    collect_response = getattr(values, "collect_response", 'Attribute not found')  
+                    if not collect_response:
+                        raise ValueError(f"You only can send inplace responses to origin!")
+            
+        command_target = getattr(values, "command_target", 'Attribute not found')  
+        response_target = getattr(values, "response_target", 'Attribute not found')        
+        
+        if command_target == response_target:
+            raise ValueError(f"You can't schedule a command that the response points to self triggered node, command_target must be diferente than response_target")
+
         if not getattr(values, 'command_actf', 'Attribute not found'):
             raise ValueError("Command activation function can't be empty")
         return values

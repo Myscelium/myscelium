@@ -18,11 +18,11 @@ CLIENT_KEY = "some_client_id"
 command = client_patterns.command_pattern(
     origin_key=CLIENT_KEY,
     command_function="python_function",
-    target_key="",  # Empty is default
+    target_key=CLIENT_KEY,  # Empty is default
     kwargs={"age": 10, "birth": 8, "name": "cristian"},
     message="",
     response_type="ExternalFunction",
-    response_target="Origin",
+    response_target=f"ClientKey({CLIENT_KEY})",
     response_actf="test_handler",
     auto_collect_response=True,
 )
