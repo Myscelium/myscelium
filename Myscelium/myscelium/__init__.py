@@ -1,1 +1,1 @@
-from .wrapper import MysceliumClient, ClientPatterns, MysceliumClientInterface, MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector, GetHostClients, callback_pattern
+from .wrapper import MysceliumClient, ClientPatterns, MysceliumClientInterface, MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector, GetHostClients, callback_pattern, ClientPattern, HostConfigManager

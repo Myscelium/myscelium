@@ -1,4 +1,4 @@
-from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector, callback_pattern
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector, callback_pattern, ClientPattern, HostConfigManager
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
@@ -31,15 +31,15 @@ class Handlers:
 
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
-        new_client = HostPatterns().client_pattern(
-                client_name=str(client_name),
-                client_key=str(client_key),
-                client_type=str(client_type),
-                client_permission_group=str(permission_group),
-                client_is_super_user=bool(is_super_user),
-                max_sub_channels=int(max_sub_channels),
-                owned_sub_channels_keys=list(owned_sub_channels_keys)
-            )
+        new_client = ClientPattern(
+            client_name=str(client_name),
+            client_key=str(client_key),
+            client_type=str(client_type),
+            client_permission_group=str(permission_group),
+            client_is_super_user=bool(is_super_user),
+            max_sub_channels=int(max_sub_channels),
+            owned_sub_channels_keys=list(owned_sub_channels_keys)
+        ).format()
         
 
         Events_Manager(Unit="Host", path="Logs").Set_Event(
@@ -51,8 +51,9 @@ class Handlers:
         Events_Manager(Unit="Host", path="Logs").Set_Event(
             step=f"New Client: [{new_client}]"
         )
-
-        response = HostPatterns().update_host_configs(activation_function="add_client", new_client=new_client)
+        
+        # TODO >>> Add the response_actf it is required since myscelium v1.3.1 to send response back to origin
+        response = HostConfigManager().add_client(new_client=new_client, response_actf="")
 
         print(f"Response to send back to rust to inner management: {response}")
 
@@ -63,7 +64,7 @@ class Handlers:
 
         #! activation_function in this case is strictly defined as a internal function activated by callback responses
 
-        updated_client = HostPatterns().client_pattern(
+        updated_client = ClientPattern(
             client_name=str(client_name),
             client_key=str(client_key),
             client_type=str(client_type),
@@ -71,7 +72,7 @@ class Handlers:
             client_is_super_user=bool(is_super_user),
             max_sub_channels=int(max_sub_channels),
             owned_sub_channels_keys=list(owned_sub_channels_keys)
-        )	
+        ).format()
         
 
         Events_Manager(Unit="Host", path="Logs").Set_Event(
@@ -83,9 +84,14 @@ class Handlers:
         Events_Manager(Unit="Host", path="Logs").Set_Event(
             step=f"Updated Client: [{updated_client}]"
         )
-        
-        return HostPatterns().update_host_configs(activation_function="update_client", actual_client_key=actual_client_key, updated_client=updated_client)
 
+        # TODO >>> Add the response_actf it is required since myscelium v1.3.1 to send response back to origin
+        return HostConfigManager().update_client(
+            actual_client_key=actual_client_key,
+            updated_client=updated_client,
+            response_actf=""
+        )
+            
     @staticmethod
     def test_remove_client (info:dict, client_key:str):
 
@@ -100,8 +106,13 @@ class Handlers:
         Events_Manager(Unit="Host", path="Logs").Set_Event(
             step=f"Client Client: [{client_key}]"
         )
+        
+        # TODO >>> Add the response_actf it is required since myscelium v1.3.1 to send response back to origin
+        return HostConfigManager().remove_client(
+            client_key=client_key,
+            response_actf=""
+        )
 
-        return HostPatterns().update_host_configs(activation_function="remove_client", client_key=client_key)
 
 # -> CLIENT DB CHANGES WATCHER
 
@@ -292,22 +303,25 @@ class MyHost:
         # callbacks = CallbackCollector([Handlers,]).get_callbacks()
 
         allowed_clients = [
-            self.host_patterns.client_pattern(
+            
+            ClientPattern(
                 client_name="TestClient1", 
                 client_type="Interface", 
                 client_key="some_client_id", 
                 client_permission_group="", 
                 client_is_super_user=True, 
                 max_sub_channels=5
-            ),
-            self.host_patterns.client_pattern(
+            ).format(),
+            
+            ClientPattern(
                 client_name="TestClient2", 
                 client_type="Interface", 
                 client_key="randomsclientids", 
                 client_permission_group="", 
                 client_is_super_user=True, 
                 max_sub_channels=5
-            ),
+            ).format(),
+        
         ]
 
         print(allowed_clients)

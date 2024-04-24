@@ -1,4 +1,4 @@
-from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern, ClientPattern
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
@@ -125,23 +125,23 @@ class MyHost:
 
         allowed_clients = [
 
-            self.host_patterns.client_pattern(
+            ClientPattern(
                 client_name="TestClient1", 
                 client_type="Interface", 
                 client_key="some_client_id", 
                 client_permission_group="", 
                 client_is_super_user=True, 
                 max_sub_channels=5
-            ),
+            ).format(),
 
-            self.host_patterns.client_pattern(
+            ClientPattern(
                 client_name="TestClient2", 
                 client_type="Interface", 
                 client_key="randomsclientids", 
                 client_permission_group="", 
                 client_is_super_user=True, 
                 max_sub_channels=5
-            ),
+            ).format(),
 
         ]
 

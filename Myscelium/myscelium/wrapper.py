@@ -18,10 +18,11 @@ import os
 from . import sql_pool
 
 import inspect
+from pydantic import BaseModel, field_validator, model_validator
+from typing import Dict, Any, Optional
 
 
 # > Type Cast
-
 
 def cast_response_command_instruction(
     command_mode: str,
@@ -149,9 +150,6 @@ def cast_response_command_instruction(
     # TODO >>> Find a sulution to use None in the above struct casting in the `response_type`, `response_target`, `response_actf` and not a repetition of the act and other fields used to replace None
 
     return command_instruction
-
-from pydantic import BaseModel, field_validator, model_validator
-from typing import Dict, Any
 
 class CommandInstruction(BaseModel):
     """
@@ -290,158 +288,6 @@ class CommandInstruction(BaseModel):
             raise ValueError("Command activation function can't be empty")
         return values
 
-
-
-# def cast_command_instruction(
-#     command_mode: str,
-#     command_type: str,
-#     command_target: str,
-#     command_status: str,
-#     command_origin: str,
-#     command_actf: str,
-#     command_kwargs: dict,
-#     command_message: str,
-#     response_type: str,
-#     response_target: str,
-#     response_actf: str,
-#     auto_collect_response: bool,
-# ) -> dict:
-#     """
-#     Constructs a command instruction dictionary from the given parameters.
-
-#     Validates the provided arguments against specific criteria for each command aspect
-#     (mode, type, target, status, origin, activation function). Raises an exception if
-#     any of the provided arguments do not meet the expected values or format.
-
-#     Parameters:
-#     - command_mode (str): Mode of the command, must be one of ['Function', 'Response'].
-#     - command_type (str): Type of the command, must be one of ['SpecialFunction', 'DirectFunction',
-#                       'InternalManagement', 'ExternalFunction'].
-#     - command_target (str): Target of the command, should follow the format 'Origin',
-#                             'ClientKey(String)', or 'Host'.
-#     - command_status (str): Status of the command, must be one of ['Success', 'Failure'].
-#     - command_origin (str): Origin of the command, must be 'Host' or 'ClientKey(String)'.
-#     - command_actf (str): Activation function for the command. Cannot be empty.
-#     - command_kwargs (dict): Additional keyword arguments for the command.
-#     - command_message (str): Message associated with the command.
-#     - response_type (str): The type of the response command that will be sended back to this node that is casting this command,
-#     - response_target (str): The target of the response that this command will produce,
-#     - response_actf (str): The handler that response will triger when arrive in the target
-
-#     Returns:
-#     dict: A dictionary representing the constructed command instruction.
-
-#     Raises:
-#     Exception: If any parameter does not conform to its expected format or allowable values.
-
-#     Example:
-#     command_dict = cast_command_instruction("Function", "DirectFunction", "Host", "Success",
-#                                             "ClientKey(123)", "activate", {}, "Execute action")
-#     """
-
-#     if command_mode not in ["Function", "Response"]:
-#         raise ValueError(
-#             "Command mode needs to be one of those: ['Function', 'Response']"
-#         )
-
-#     if command_type not in [
-#         "SpecialFunction",
-#         "DirectFunction",
-#         "InternalManagement",
-#         "ExternalFunction",
-#     ]:
-#         raise ValueError(
-#             "Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
-#         )
-
-#     if command_target in ["Origin", "Host"]:
-#         pass
-
-#     # -> Validate the redirect cases:
-#     elif command_target.startswith("ClientKey(") and command_target.endswith(")"):
-#         # Extracting the part inside 'ClientKey()'
-#         content = command_target[len("ClientKey(") : -1].strip()
-
-#         # Validate the content inside the parentheses
-#         if content == "":
-#             raise ValueError("Command target ClientKey needs a valid ClientKey!")
-
-#     else:
-#         raise ValueError(
-#             "Command target must be either 'Origin', 'Host', or 'ClientKey(some_value)'"
-#         )
-
-#     if command_status not in ["Success", "Failure"]:
-#         raise ValueError(
-#             "Command status can only be one of those: ['Success', 'Failure']"
-#         )
-
-#     if command_origin == "Host":
-#         pass
-
-#     # -> Validate the client cases:
-#     elif command_origin.startswith("ClientKey(") and command_origin.endswith(")"):
-#         # Extracting the part inside 'ClientKey()'
-#         content = command_origin[len("ClientKey(") : -1].strip()
-
-#         # Validate the content inside the parentheses
-#         if content == "":
-#             raise ValueError("Command target ClientKey needs a valid ClientKey!")
-
-#     else:
-#         raise ValueError(
-#             "Command origin must be either 'Host' or 'ClientKey(some_value)'"
-#         )
-
-#     if command_actf == "" or command_actf == None:
-#         raise ValueError("Command activation function can't be empty")
-
-#     # -> Response definitions:
-
-#     if response_type not in [
-#         "DirectFunction",
-#         "InternalManagement",
-#         "ExternalFunction",
-#     ]:
-#         raise ValueError(
-#             "Command response type needs to be one of those: [ 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
-#         )
-
-#     if response_target in ["Origin", "Host"]:
-#         pass
-
-#     # -> Validate the redirect cases:
-#     elif response_target.startswith("ClientKey(") and command_target.endswith(")"):
-#         # Extracting the part inside 'ClientKey()'
-#         content = response_target[len("ClientKey(") : -1].strip()
-
-#         # Validate the content inside the parentheses
-#         if content == "":
-#             raise ValueError(
-#                 "Command response_target ClientKey needs a valid ClientKey!"
-#             )
-
-#     # if response_actf == "" or response_actf == None:
-#     #     raise ValueError("Command activation function can't be empty")
-
-#     command_instruction = {
-#         "mode": command_mode,
-#         "type": command_type,
-#         "target": command_target,
-#         "status": command_status,
-#         "origin": command_origin,
-#         "actf": command_actf,
-#         "kwargs": command_kwargs,
-#         "message": command_message,
-#         "response_type": response_type,
-#         "response_target": response_target,
-#         "response_actf": response_actf,
-#         "collect_response": auto_collect_response,
-#     }
-
-#     return command_instruction
-
-
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > Utilities
 
@@ -579,7 +425,6 @@ def callback_pattern(callback) -> dict:
     }
 
     return callback_pattern
-
 
 class CallbackCollector:
     """
@@ -729,17 +574,11 @@ class MysceliumHostInterface:
         """
 
         self.client_events_retriever_stats = False
-
         self.buffer_path = buffer_path
-
         self.clients_contact_retriever_callback = ""
-
         self.log_callback = ""
-
         self.stats = False
-
         self.process = ""
-
         self.transposition_threads = 1
 
         return
@@ -978,7 +817,7 @@ class MysceliumHostInterface:
 
         return
 
-    def allow_multi_handlers(self, workers_num=2):
+    def allow_multi_handlers(self, workers_num:int=2):
         """
         Activate multiple handlers for processing logs.
 
@@ -1182,6 +1021,39 @@ class MysceliumHost:
         pass
 
 
+from pydantic import BaseModel, Field
+from typing import List
+
+class ClientPattern(BaseModel):
+    client_name: str = Field(..., description="Name of the client (user).")
+    client_key: str = Field(..., description="Unique Key of the client.")
+    client_type: str = Field(..., description="Client purpose.")
+    client_permission_group: str = Field(..., description="Group that client inherits permission.")
+    client_is_super_user: bool = Field(..., description="If client has root privileges on myscelium.")
+    max_sub_channels: int = Field(..., description="Max sub-channels of stream that client are allowed to create and manage.")
+    owned_sub_channels_keys: List[str] = Field(default=[], description="Optional parameter to preinitialize host with client sub-channels keys allowed.")
+
+    def to_dict(self) -> dict:
+        """
+        Returns a dictionary representing the client pattern.
+        """
+        return self.dict()
+
+    def format(self) -> dict:
+        """
+        Returns a dictionary with modified key names to match a different format.
+        """
+        formatted_dict = {
+            "client_name": self.client_name,
+            "client_key": self.client_key,
+            "client_type": self.client_type,
+            "permission_group": self.client_permission_group,
+            "is_super_user": self.client_is_super_user,
+            "max_sub_channels": self.max_sub_channels,
+            "owned_sub_channels_keys": self.owned_sub_channels_keys
+        }
+        return formatted_dict
+
 class HostPatterns:
     def __init__(self) -> None:
         """
@@ -1189,42 +1061,6 @@ class HostPatterns:
         """
 
         pass
-
-    def client_pattern(
-        self,
-        client_name: str,
-        client_key: str,
-        client_type: str,
-        client_permission_group: str,
-        client_is_super_user: bool,
-        max_sub_channels: int,
-        owned_sub_channels_keys: list = [],
-    ) -> dict:
-        """
-        Create a client pattern.
-
-        Parameters:
-        - client_name: Name of the client (user).
-        - client_key: Unique Key of the client.
-        - client_type: Client purpose.
-        - client_permission_group: Group that client inherit permission.
-        - client_is_super_user: If client has root privileges on myscelium.
-        - client_max_sub_channels: Max sub-channels of stream that client are allowed to create and manage.
-        - client_owned_sub_channels_keys: Optional parameter to pre initialize host with client sub-channels keys allowed.
-
-        Returns:
-        - Dictionary representing the client pattern.
-        """
-
-        return {
-            "client_name": client_name,
-            "client_key": client_key,
-            "client_type": client_type,
-            "permission_group": client_permission_group,
-            "is_super_user": client_is_super_user,
-            "max_sub_channels": max_sub_channels,
-            "owned_sub_channels_keys": owned_sub_channels_keys,
-        }
 
     def response_pattern(
         self,
@@ -1425,235 +1261,298 @@ class HostPatterns:
 
     # TODO >>> Add a version of this to client since now it is possible to activate this types of fns remotelly
     # TODO >>> See if is worth to turn the update host configs functions DirectFunctions and not Internal Management functions
-    def update_host_configs(
-        self, activation_function: str, **kwargs
-    ):  # TODO >>> Need rust backend implementation!
-        """
-        Create a response pattern.
+    # def update_host_configs(
+    #     self, activation_function: str, **kwargs
+    # ):  # TODO >>> Need rust backend implementation!
+    #     """
+    #     Create a response pattern.
 
 
-        Parameters:
+    #     Parameters:
 
-            - add_client, needed kwrags:
+    #         - add_client, needed kwrags:
 
-                ```python
-                update_host_configs (self,
-                                     activation_function="add_client",
-                                     new_client=[client_patter])
+    #             ```python
+    #             update_host_configs (self,
+    #                                  activation_function="add_client",
+    #                                  new_client=[client_patter])
 
-                # - new_client:list[client_pattern] -> This is a list that contains the new client to add!
-                ```
+    #             # - new_client:list[client_pattern] -> This is a list that contains the new client to add!
+    #             ```
 
-            - update_client, needed kwargs:
+    #         - update_client, needed kwargs:
 
-                ```python
-                update_host_configs (self,
-                                     activation_function="update_client",
-                                     actual_client_key="xMsndkdlenfjedLj",
-                                     updated_client=[client_patter])
+    #             ```python
+    #             update_host_configs (self,
+    #                                  activation_function="update_client",
+    #                                  actual_client_key="xMsndkdlenfjedLj",
+    #                                  updated_client=[client_patter])
 
-                # - actual_client_key:str
-                # - updated_client:list[client_pattern] -> This is a list that contains the new client updated!
-                ```
+    #             # - actual_client_key:str
+    #             # - updated_client:list[client_pattern] -> This is a list that contains the new client updated!
+    #             ```
 
-            - remove_client, need kwargs:
+    #         - remove_client, need kwargs:
 
-                ```
-                update_host_configs (self,
-                                     activation_function="remove_client",
-                                     actual_client_key="xMsndkdlenfjedLj")
+    #             ```
+    #             update_host_configs (self,
+    #                                  activation_function="remove_client",
+    #                                  actual_client_key="xMsndkdlenfjedLj")
 
-                # - client_key:str -> The client key of the client that you want to remove.
-                ```
+    #             # - client_key:str -> The client key of the client that you want to remove.
+    #             ```
 
-        """
+    #     """
 
-        # -> This pattern is used to manipulate host configs remotely
-        # >
-        # > (Client 1)       [Host]
-        # >    |                |
-        # >    |--------------> |  (receive command)
-        # >    |               (|) (update some config)
-        # >    |<-------------- |  (return confirmation or exception)
-        # >    |                |
-        # > (Client 1)        [host]
-        # >
-        # > (|) This is this pattern
-        # >
-        # > The usage of this pattern is siple, you create a endpoint, then in the return
-        # > you create a response with this pattern and send back to the engine, remember, every response of
-        # > the endpoints will be sended to the engine again, if you don't want to send nothing just return None
+    #     # -> This pattern is used to manipulate host configs remotely
+    #     # >
+    #     # > (Client 1)       [Host]
+    #     # >    |                |
+    #     # >    |--------------> |  (receive command)
+    #     # >    |               (|) (update some config)
+    #     # >    |<-------------- |  (return confirmation or exception)
+    #     # >    |                |
+    #     # > (Client 1)        [host]
+    #     # >
+    #     # > (|) This is this pattern
+    #     # >
+    #     # > The usage of this pattern is siple, you create a endpoint, then in the return
+    #     # > you create a response with this pattern and send back to the engine, remember, every response of
+    #     # > the endpoints will be sended to the engine again, if you don't want to send nothing just return None
 
-        if activation_function == "add_client":
-            if "new_client" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "new client isn't in kwargs, so can't add client!",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
+    #     if activation_function == "add_client":
+    #         if "new_client" in kwargs:
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "new client isn't in kwargs, so can't add client!",
+    #                 "add_client_handler",  # TODO >>> Define a default error handler
+    #             )
 
-            new_client = kwargs["new_client"]
+    #         new_client = kwargs["new_client"]
 
-            if isinstance(new_client, dict):
-                pass
-            else:
-                return self.error_response_pattern(
-                    "New client needs to be a dict generated by client_pattern",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
+    #         if isinstance(new_client, dict):
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "New client needs to be a dict generated by client_pattern",
+    #                 "add_client_handler",  # TODO >>> Define a default error handler
+    #             )
 
-            kwargs = {"new_client": new_client}
+    #         kwargs = {"new_client": new_client}
 
-            if "response_actf" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "response_actf isn't in kwargs, so can't add client!",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
+    #         if "response_actf" in kwargs:
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "response_actf isn't in kwargs, so can't add client!",
+    #                 "add_client_handler",  # TODO >>> Define a default error handler
+    #             )
 
-            response_actf = kwargs["response_actf"]
+    #         response_actf = kwargs["response_actf"]
 
-            command_instructions = CommandInstruction(
-                command_mode="Response",
-                command_type="InternalManagement",
-                command_target="Host",
-                command_status="Success",
-                command_origin="Host",
-                command_actf="add_client",
-                command_kwargs=kwargs,
-                command_message="",
-                response_type="InternalManagement",
-                response_target="Origin",
-                response_actf=response_actf,
-                auto_collect_response=True 
-            ).format()
+    #         command_instructions = CommandInstruction(
+    #             command_mode="Response",
+    #             command_type="InternalManagement",
+    #             command_target="Host",
+    #             command_status="Success",
+    #             command_origin="Host",
+    #             command_actf="add_client",
+    #             command_kwargs=kwargs,
+    #             command_message="",
+    #             response_type="InternalManagement",
+    #             response_target="Origin",
+    #             response_actf=response_actf,
+    #             auto_collect_response=True 
+    #         ).format()
 
-            return command_instructions
+    #         return command_instructions
 
-        elif activation_function == "update_client":
-            if "actual_client_key" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "actual_client_key isn't in kwargs, so can't update client!",
-                    "update_client_handler",
-                )
+    #     elif activation_function == "update_client":
+    #         if "actual_client_key" in kwargs:
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "actual_client_key isn't in kwargs, so can't update client!",
+    #                 "update_client_handler",
+    #             )
 
-            actual_client_key = kwargs["actual_client_key"]
+    #         actual_client_key = kwargs["actual_client_key"]
 
-            if isinstance(actual_client_key, str):
-                pass
-            else:
-                return self.error_response_pattern(
-                    "client key needs to be a string!", "update_client_handler"
-                )
+    #         if isinstance(actual_client_key, str):
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "client key needs to be a string!", "update_client_handler"
+    #             )
 
-            if "updated_client" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "new client isn't in kwargs, so can't edit client!",
-                    "update_client_handler",  # TODO >>> Define a default error handler
-                )
+    #         if "updated_client" in kwargs:
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "new client isn't in kwargs, so can't edit client!",
+    #                 "update_client_handler",  # TODO >>> Define a default error handler
+    #             )
 
-            updated_client = kwargs["updated_client"]
+    #         updated_client = kwargs["updated_client"]
 
-            if isinstance(updated_client, dict):
-                pass
-            else:
-                return self.error_response_pattern(
-                    "New client needs to be a dict generated by client_pattern",
-                    "update_client_handler",  # TODO >>> Define a default error handler
-                )
+    #         if isinstance(updated_client, dict):
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "New client needs to be a dict generated by client_pattern",
+    #                 "update_client_handler",  # TODO >>> Define a default error handler
+    #             )
 
-            kwargs = {
-                "actual_client_key": actual_client_key,
-                "updated_client": updated_client,
-            }
+    #         kwargs = {
+    #             "actual_client_key": actual_client_key,
+    #             "updated_client": updated_client,
+    #         }
 
-            if "response_actf" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "response_actf isn't in kwargs, so can't add client!",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
+    #         if "response_actf" in kwargs:
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "response_actf isn't in kwargs, so can't add client!",
+    #                 "add_client_handler",  # TODO >>> Define a default error handler
+    #             )
 
-            response_actf = kwargs["response_actf"]
+    #         response_actf = kwargs["response_actf"]
 
-            command_instructions = CommandInstruction(
-                command_mode="Response",
-                command_type="InternalManagement",
-                command_target="Host",
-                command_status="Success",
-                command_origin="Host",
-                command_actf="update_client",
-                command_kwargs=kwargs,
-                command_message="",
-                response_type="InternalManagement",
-                response_target="Origin",
-                response_actf=response_actf,
-                auto_collect_response=True
-            ).format()
+    #         command_instructions = CommandInstruction(
+    #             command_mode="Response",
+    #             command_type="InternalManagement",
+    #             command_target="Host",
+    #             command_status="Success",
+    #             command_origin="Host",
+    #             command_actf="update_client",
+    #             command_kwargs=kwargs,
+    #             command_message="",
+    #             response_type="InternalManagement",
+    #             response_target="Origin",
+    #             response_actf=response_actf,
+    #             auto_collect_response=True
+    #         ).format()
 
-            return command_instructions
+    #         return command_instructions
 
-        elif activation_function == "remove_client":
-            if "client_key" in kwargs:
-                pass
-            else:
-                self.error_response_pattern(
-                    "client_key isn't in kwargs, so can't remove client!",
-                    "remove_client_handler",  # TODO >>> Define a default error handler
-                )
+    #     elif activation_function == "remove_client":
+    #         if "client_key" in kwargs:
+    #             pass
+    #         else:
+    #             self.error_response_pattern(
+    #                 "client_key isn't in kwargs, so can't remove client!",
+    #                 "remove_client_handler",  # TODO >>> Define a default error handler
+    #             )
 
-            client_key = kwargs["client_key"]
+    #         client_key = kwargs["client_key"]
 
-            if isinstance(client_key, str):
-                pass
-            else:
-                return self.error_response_pattern(
-                    "client key needs to be a string!",
-                    "remove_client_handler",  # TODO >>> Define a default error handler
-                )
+    #         if isinstance(client_key, str):
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "client key needs to be a string!",
+    #                 "remove_client_handler",  # TODO >>> Define a default error handler
+    #             )
 
-            kwargs = {"client_key": client_key}
+    #         kwargs = {"client_key": client_key}
 
-            if "response_actf" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "response_actf isn't in kwargs, so can't add client!",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
+    #         if "response_actf" in kwargs:
+    #             pass
+    #         else:
+    #             return self.error_response_pattern(
+    #                 "response_actf isn't in kwargs, so can't add client!",
+    #                 "add_client_handler",  # TODO >>> Define a default error handler
+    #             )
 
-            response_actf = kwargs["response_actf"]
+    #         response_actf = kwargs["response_actf"]
 
-            command_instructions = CommandInstruction(   
-                command_mode="Response",
-                command_type="InternalManagement",
-                command_target="Host",
-                command_status="Success",
-                command_origin="Host",
-                command_actf="remove_client",
-                command_kwargs=kwargs,
-                command_message="",
-                response_type="InternalManagement",
-                response_target="Origin",
-                response_actf= response_actf,
-                auto_collect_response=True
-            ).format()
+    #         command_instructions = CommandInstruction(   
+    #             command_mode="Response",
+    #             command_type="InternalManagement",
+    #             command_target="Host",
+    #             command_status="Success",
+    #             command_origin="Host",
+    #             command_actf="remove_client",
+    #             command_kwargs=kwargs,
+    #             command_message="",
+    #             response_type="InternalManagement",
+    #             response_target="Origin",
+    #             response_actf= response_actf,
+    #             auto_collect_response=True
+    #         ).format()
 
-            return command_instructions
+    #         return command_instructions
 
-        else:
-            return self.error_response_pattern(
-                f"activation_function: {activation_function} doesn't registered in the available host internal management commands!",
-                "remove_client_handler",
-            )
+    #     else:
+    #         return self.error_response_pattern(
+    #             f"activation_function: {activation_function} doesn't registered in the available host internal management commands!",
+    #             "remove_client_handler",
+    #         )
+            
+class HostConfigManager:
+    def add_client(self, new_client: ClientPattern, response_actf: str) -> Dict:
+        if not isinstance(new_client, ClientPattern):
+            return self.error_response("new_client must be an instance of ClientPattern.")
+        
+        if not response_actf:
+            return self.error_response("response_actf is required.")
+        
+        command = CommandInstruction(
+            command_mode="Response",
+            command_type="InternalManagement",
+            command_target="Host",
+            command_status="Success",
+            command_origin="Host",
+            command_actf="add_client",
+            command_kwargs={"new_client": new_client.format()},
+            response_type="InternalManagement",
+            response_target="Origin",
+            response_actf=response_actf
+        )
+        return command.format()
 
+    def update_client(self, actual_client_key: str, updated_client: ClientPattern, response_actf: str) -> Dict:
+        if not isinstance(updated_client, ClientPattern):
+            return self.error_response("updated_client must be an instance of ClientPattern.")
+        
+        if not response_actf:
+            return self.error_response("response_actf is required.")
+        
+        command = CommandInstruction(
+            command_mode="Response",
+            command_type="InternalManagement",
+            command_target="Host",
+            command_status="Success",
+            command_origin="Host",
+            command_actf="update_client",
+            command_kwargs={"actual_client_key": actual_client_key, "updated_client": updated_client.format()},
+            response_type="InternalManagement",
+            response_target="Origin",
+            response_actf=response_actf
+        )
+        return command.format()
+
+    def remove_client(self, client_key: str, response_actf: str) -> Dict:
+        if not response_actf:
+            return self.error_response("response_actf is required.")
+        
+        command = CommandInstruction(
+            command_mode="Response",
+            command_type="InternalManagement",
+            command_target="Host",
+            command_status="Success",
+            command_origin="Host",
+            command_actf="remove_client",
+            command_kwargs={"client_key": client_key},
+            response_type="InternalManagement",
+            response_target="Origin",
+            response_actf=response_actf
+        )
+        return command.format()
+
+    def error_response(self, message: str) -> Dict:
+        return {"error": message, "status": "failed"}
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > CLIENT

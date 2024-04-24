@@ -1,5 +1,5 @@
 
-from myscelium import MysceliumClient, ClientPatterns, callback_pattern
+from myscelium import MysceliumClient, ClientPatterns, callback_pattern, ClientPattern, HostPatterns
 import os
 import time
 import signal
@@ -22,7 +22,8 @@ command = client_patterns.command_pattern(
     kwargs={"age": 10, "birth": 8, "name": "cristian"},
     message="",
     response_type="ExternalFunction",
-    response_target=f"ClientKey({CLIENT_KEY})",
+    # response_target=f"ClientKey({CLIENT_KEY})", Should give an error
+    response_target="Origin",
     response_actf="test_handler",
     auto_collect_response=True,
 )
@@ -48,6 +49,21 @@ base = {
 }
 
 
+print(ClientPattern(
+    client_name="TestClient1", 
+    client_type="Interface", 
+    client_key="some_client_id", 
+    client_permission_group="", 
+    client_is_super_user=True, 
+    max_sub_channels=5
+).format())
 
+print(HostPatterns().client_pattern(
+    client_name="TestClient1", 
+    client_type="Interface", 
+    client_key="some_client_id", 
+    client_permission_group="", 
+    client_is_super_user=True, 
+    max_sub_channels=5
+))
 
-print(command)
