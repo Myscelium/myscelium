@@ -186,8 +186,14 @@ class MyHost:
 
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channels:int, client_owned_sub_channels_keys:list
 
-        mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Temp/Data/", n_workers=2, log_level=self.debug_level)
+        mys_host = MysceliumHost(
+            callbacks=callbacks, 
+            host_id="xnsmdkeflerpfsa",
+            allowed_clients=allowed_clients, 
+            buffer_path="Temp/Data/", 
+            n_workers=2, 
+            log_level=self.debug_level
+        )
 
         self.mys_host = mys_host
 

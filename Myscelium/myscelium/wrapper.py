@@ -151,6 +151,68 @@ def cast_response_command_instruction(
 
     return command_instruction
 
+# class ResponseInstruction(BaseModel):
+    
+#     command_mode: str
+#     command_type: str
+#     command_target: str
+#     command_status: str
+#     command_origin: str
+#     command_actf: str
+#     command_kwargs: dict
+#     command_message: str
+#     auto_collect_response: bool 
+    
+#     @field_validator('command_mode', 'command_status')
+#     def check_fixed_choices(cls, v, field):
+#         if field.field_name == 'command_mode' and v not in ['Function', 'Response']:
+#             raise ValueError("Command mode must be one of ['Function', 'Response']")
+#         if field.field_name == 'command_status' and v not in ['Success', 'Failure']:
+#             raise ValueError("Command status must be one of ['Success', 'Failure']")
+#         return v
+
+#     @field_validator('command_type', 'response_type')
+#     def check_type_choices(cls, v, field):
+#         allowed_types = ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction']
+#         if field.field_name == 'response_type':
+#             allowed_types = ['DirectFunction', 'InternalManagement', 'ExternalFunction']
+#         if v not in allowed_types:
+#             raise ValueError(f"{field.field_name} must be one of {allowed_types}")
+#         return v
+
+#     @model_validator(mode="after")
+#     def check_keys_and_origin(cls, values):
+#         print(values)
+#         targets = ['command_target', 'response_target']
+#         origins = ['command_origin']
+#         for attribute_name in targets + origins:  
+#             target = getattr(values, attribute_name, 'Attribute not found')
+#             if target not in ['Origin', 'Host']:
+#                 if target.startswith('ClientKey(') and target.endswith(')'):
+#                     content = target[len('ClientKey('):-1].strip()
+#                     if content == "":
+#                         raise ValueError(f"Command {attribute_name} needs a valid ClientKey not empty!")
+#                 else:
+#                     raise ValueError(f"{attribute_name} must be either 'Origin', 'Host', or 'ClientKey(some_value)'")
+#             else:
+#                 if target != "Origin":
+#                     collect_response = getattr(values, "collect_response", 'Attribute not found')  
+#                     if not collect_response:
+#                         raise ValueError(f"You only can send inplace responses to origin or some to some client!")
+            
+#         command_target = getattr(values, "command_target", 'Attribute not found')  
+#         response_target = getattr(values, "response_target", 'Attribute not found')        
+        
+#         if command_target == response_target:
+#             raise ValueError(f"You can't schedule a command that the response points to self triggered node, command_target must be diferente than response_target")
+
+#         if not getattr(values, 'command_actf', 'Attribute not found'):
+#             raise ValueError("Command activation function can't be empty")
+        # return values
+    
+
+    
+    
 class CommandInstruction(BaseModel):
     """
     Constructs a command instruction dictionary from the given parameters.
