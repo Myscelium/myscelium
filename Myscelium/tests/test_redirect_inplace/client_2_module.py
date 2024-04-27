@@ -51,7 +51,6 @@ class Receivers:
             return
         
         response_actf = info["response_actf"]
-        
         client_patterns = ClientPatterns()
 
         response = client_patterns.response_pattern(
