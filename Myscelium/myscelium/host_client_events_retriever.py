@@ -1,7 +1,7 @@
 
 import pandas as pd
 import time
-from . import sql_pool 
+from .common import sql_pool 
 
 class Clients_Retriever:
 

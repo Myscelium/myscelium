@@ -1,6 +1,7 @@
 from . import (
     myscelium_engine as mys,
 )  # Maybe change the rust myscelium lib to MysceliumEngine
+
 from . import host_logs_retriever
 from . import host_client_events_retriever
 from . import client_logs_retriever
@@ -15,11 +16,9 @@ import pandas as pd
 import time
 import os
 
-from . import sql_pool
+from .common import sql_pool
 
-import inspect
-from pydantic import BaseModel, field_validator, model_validator
-from typing import Dict, Any, Optional
+from typing import Dict
 
 from .common.patterns import ClientPattern
 from .common.patterns import CommandInstruction
@@ -27,103 +26,11 @@ from .common.patterns import CommandInstruction
 # > Type Cast
 
 from .common.functions import cast_response_command_instruction
+from .common.functions import split_dataframe
 
-# >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# > Utilities
-
-import pandas as pd
-from . import sql_pool
-
-
-class GetHostClients:
-    def __init__(self, db_path: str):
-        self.pool = sql_pool.SQLiteConnectionPool(2, os.path.join(db_path, "Data.db"))
-        connection = self.pool.get_connection()
-        cur = connection.cursor()
-        cur.execute(
-            """CREATE TABLE IF NOT EXISTS Clients (
-                ID INT PRIMARY KEY,
-                ClientName TEXT,
-                ClientKey TEXT,
-                ClientType TEXT,
-                PermissionGroup TEXT,
-                SuperUser BOOL,
-                LastContact FLOAT,
-                MaxSubChannels NUMBER,
-                OwnedSubChannelsKeys TEXT,
-                SubChannelsInUse NUMBER
-            )"""
-        )
-
-        self.pool.release_connection(connection)
-
-    def list_clients(self) -> dict:
-
-        connection = self.pool.get_connection()
-        cur = connection.cursor()
-        sqlite_select_query = """SELECT * FROM Clients"""
-        cur.execute(sqlite_select_query)
-        df = cur.fetchall()
-
-        self.pool.release_connection(connection)
-
-        df = pd.DataFrame(
-            df,
-            columns=[
-                "ID",
-                "ClientName",
-                "ClientKey",
-                "ClientType",
-                "PermissionGroup",
-                "SuperUser",
-                "LastContact",
-                "MaxSubChannels",
-                "OwnedSubChannelsKeys",
-                "SubChannelsInUse",
-            ],
-        )
-
-        dict_df = df.to_dict()
-
-        return dict_df
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
-
-
-def split_dataframe(df, num_chunks):
-    """
-    Split a DataFrame into num_chunks parts.
-
-    If the DataFrame cannot be split exactly into num_chunks, the remainder will be
-    distributed among the chunks.
-
-    Parameters:
-    - df: DataFrame to be split
-    - num_chunks: Number of chunks
-
-    Returns:
-    - List of DataFrames
-    """
-
-    n = len(df)
-    chunk_size = n // num_chunks
-    remainder = n % num_chunks
-
-    chunks = []
-    start = 0
-
-    for i in range(num_chunks):
-        end = start + chunk_size
-
-        if remainder:  # Distribute the remainder across the initial chunks
-            end += 1
-            remainder -= 1
-
-        chunks.append(df.iloc[start:end])
-        start = end
-
-    return chunks
 
 
 def transpose(logs_df, buffer_path, log_callback):

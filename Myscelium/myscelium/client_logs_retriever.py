@@ -1,6 +1,5 @@
 
 import pandas as pd
-from . import sql_pool 
 
 class Logs_Buffer_Retriever:
 

@@ -202,3 +202,36 @@ def callback_pattern(callback) -> dict:
     return callback_pattern
 
 
+def split_dataframe(df, num_chunks):
+    """
+    Split a DataFrame into num_chunks parts.
+
+    If the DataFrame cannot be split exactly into num_chunks, the remainder will be
+    distributed among the chunks.
+
+    Parameters:
+    - df: DataFrame to be split
+    - num_chunks: Number of chunks
+
+    Returns:
+    - List of DataFrames
+    """
+
+    n = len(df)
+    chunk_size = n // num_chunks
+    remainder = n % num_chunks
+
+    chunks = []
+    start = 0
+
+    for i in range(num_chunks):
+        end = start + chunk_size
+
+        if remainder:  # Distribute the remainder across the initial chunks
+            end += 1
+            remainder -= 1
+
+        chunks.append(df.iloc[start:end])
+        start = end
+
+    return chunks

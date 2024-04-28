@@ -6,7 +6,6 @@ myscelium/client_logs_retriever.py
 myscelium/custom_decorators.py
 myscelium/host_client_events_retriever.py
 myscelium/host_logs_retriever.py
-myscelium/sql_pool.py
 myscelium/wrapper.py
 myscelium.egg-info/PKG-INFO
 myscelium.egg-info/SOURCES.txt
