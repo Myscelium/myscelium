@@ -36,3 +36,4 @@ class Logs_Buffer_Retriever:
         cur.execute(sql_update_query, (int(ID),))
         self.connection.commit()
 
+
