@@ -2,8 +2,6 @@ README.md
 pyproject.toml
 setup.py
 myscelium/__init__.py
-myscelium/custom_decorators.py
-myscelium/host_client_events_retriever.py
 myscelium/wrapper.py
 myscelium.egg-info/PKG-INFO
 myscelium.egg-info/SOURCES.txt

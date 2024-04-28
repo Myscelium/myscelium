@@ -2,10 +2,10 @@ from . import (
     myscelium_engine as mys,
 )  # Maybe change the rust myscelium lib to MysceliumEngine
 
-from . import host_client_events_retriever
+from .server import host_client_events_retriever
 from .server import host_logs_retriever
 from .client import client_logs_retriever
-from .custom_decorators import experimental, stable
+from .common.custom_decorators import experimental, stable
 
 import functools
 import warnings
