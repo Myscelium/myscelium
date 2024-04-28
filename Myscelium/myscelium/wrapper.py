@@ -58,14 +58,11 @@ class GetHostClients:
         self.pool.release_connection(connection)
 
     def list_clients(self) -> dict:
+
         connection = self.pool.get_connection()
-
         cur = connection.cursor()
-
         sqlite_select_query = """SELECT * FROM Clients"""
-
         cur.execute(sqlite_select_query)
-
         df = cur.fetchall()
 
         self.pool.release_connection(connection)

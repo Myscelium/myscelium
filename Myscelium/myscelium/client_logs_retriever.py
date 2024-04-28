@@ -9,20 +9,21 @@ class Logs_Buffer_Retriever:
         self.connection = connection
     
         cur = self.connection.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS ClientLogs (ID INT PRIMARY KEY,
-                                                        NodeName TEXT,
-                                                        LogTime FLOAT,
-                                                        LogName TEXT,
-                                                        LogLevel TEXT,
-                                                        LogMsg TEXT 
-                                                        )''')
+        cur.execute(
+            '''CREATE TABLE IF NOT EXISTS ClientLogs (
+                ID INT PRIMARY KEY,
+                NodeName TEXT,
+                LogTime FLOAT,
+                LogName TEXT,
+                LogLevel TEXT,
+                LogMsg TEXT 
+            )'''
+        )
 
     def List_Logs(self) -> dict:
         
         cur = self.connection.cursor()
-        
         sqlite_select_query = """SELECT * FROM ClientLogs"""
-        
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
@@ -34,10 +35,7 @@ class Logs_Buffer_Retriever:
     def Remove_Log(self, ID:int):
         
         cur = self.connection.cursor()
-        
         sql_update_query = """DELETE from ClientLogs WHERE ID = ?"""
-        
         cur.execute(sql_update_query, (int(ID),))
-        
         self.connection.commit()
 
