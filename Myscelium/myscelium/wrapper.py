@@ -1,32 +1,32 @@
+
+#> Core:
 from . import (
     myscelium_engine as mys,
 )  # Maybe change the rust myscelium lib to MysceliumEngine
 
+#> Client:
+from .client import client_logs_retriever
+
+#> Server:
 from .server import host_client_events_retriever
 from .server import host_logs_retriever
-from .client import client_logs_retriever
-from .common.custom_decorators import experimental, stable
 
+#> Modules:
+from .common.custom_decorators import experimental, stable
+from .common import sql_pool
+from .common.patterns import ClientPattern
+from .common.patterns import CommandInstruction
+from .common.functions import cast_response_command_instruction
+from .common.functions import split_dataframe
+
+#> Extern:
 import functools
 import warnings
-
 from multiprocessing import Process
 import pandas as pd
 import time
 import os
-
-from .common import sql_pool
-
 from typing import Dict
-
-from .common.patterns import ClientPattern
-from .common.patterns import CommandInstruction
-
-# > Type Cast
-
-from .common.functions import cast_response_command_instruction
-from .common.functions import split_dataframe
-
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
@@ -633,7 +633,7 @@ class HostPatterns:
         if target_key == "":
             command_instructions = cast_response_command_instruction(
                 "Response",
-                "ExternalFunction", 
+                "ExternalFunction",
                 "Origin",
                 "Success",
                 "Host",
@@ -645,7 +645,7 @@ class HostPatterns:
         else:  # Redirect case
             command_instructions = cast_response_command_instruction(
                 "Response",
-                "ExternalFunction",  
+                "ExternalFunction",
                 f"ClientKey({target_key})",
                 "Success",
                 "Host",
@@ -734,15 +734,15 @@ class HostPatterns:
             )
 
         return command_instructions
-            
+
 class HostConfigManager:
     def add_client(self, new_client: ClientPattern, response_actf: str) -> Dict:
         if not isinstance(new_client, ClientPattern):
             return self.error_response("new_client must be an instance of ClientPattern.")
-        
+
         if not response_actf:
             return self.error_response("response_actf is required.")
-        
+
         command = CommandInstruction(
             command_mode="Response",
             command_type="InternalManagement",
@@ -760,10 +760,10 @@ class HostConfigManager:
     def update_client(self, actual_client_key: str, updated_client: ClientPattern, response_actf: str) -> Dict:
         if not isinstance(updated_client, ClientPattern):
             return self.error_response("updated_client must be an instance of ClientPattern.")
-        
+
         if not response_actf:
             return self.error_response("response_actf is required.")
-        
+
         command = CommandInstruction(
             command_mode="Response",
             command_type="InternalManagement",
@@ -781,7 +781,7 @@ class HostConfigManager:
     def remove_client(self, client_key: str, response_actf: str) -> Dict:
         if not response_actf:
             return self.error_response("response_actf is required.")
-        
+
         command = CommandInstruction(
             command_mode="Response",
             command_type="InternalManagement",
@@ -1349,7 +1349,7 @@ class ClientPatterns:
         if target_key == "":
             command_instructions = cast_response_command_instruction(
                 "Response",
-                "ExternalFunction", 
+                "ExternalFunction",
                 "Origin",
                 "Success",
                 f"ClientKey({origin})",
@@ -1361,7 +1361,7 @@ class ClientPatterns:
         else:  # Redirect case
             command_instructions = cast_response_command_instruction(
                 "Response",
-                "ExternalFunction",  
+                "ExternalFunction",
                 f"ClientKey({target_key})",
                 "Success",
                 f"ClientKey({origin})",
