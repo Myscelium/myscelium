@@ -10,6 +10,7 @@ myscelium.egg-info/not-zip-safe
 myscelium.egg-info/top_level.txt
 myscelium/client/__init__.py
 myscelium/client/client_logs_retriever.py
+myscelium/client/interfaces.py
 myscelium/common/__init__.py
 myscelium/common/custom_decorators.py
 myscelium/common/functions.py
