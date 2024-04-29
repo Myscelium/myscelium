@@ -1,2 +1,2 @@
 [build-system]
-requires = ["setuptools", "wheel", "setuptools_rust", "pytest", "pytest-timeout", "psutil", "pandas", "simplejson"]
+requires = ["setuptools", "wheel", "setuptools_rust", "pytest", "pytest-timeout", "psutil", "pandas", "simplejson", "pydantic"]

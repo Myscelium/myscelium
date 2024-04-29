@@ -1,12 +1,18 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools_rust import Binding, RustExtension
-
 
 setup(
     name="myscelium",
     version="1.3",
     rust_extensions=[RustExtension("myscelium.myscelium_engine", path="rust/Cargo.toml", binding=Binding.PyO3)],
-    packages=["myscelium"],
+    # packages=find_packages(),
+    packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests", "examples", "docs", "build"]),
+    # packages=[
+    #     "myscelium",
+    #     "myscelium.client",
+    #     "myscelium.server",
+    #     "myscelium.common",
+    #     ],
     zip_safe=False,
     description="Myscelium is a library designed to simplify the creation of large, interconnected networks of Python scripts through sockets. These scripts harmoniously run on different machines, yet synchronize with one another. Much like the hyphae in mycelium interconnect various mushrooms, the socket bridges in the Myscelium library interlink multiple machines, synchronizing commands and harnessing the power of modularity.",
     long_description=open('README.md').read(),
