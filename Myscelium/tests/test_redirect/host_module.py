@@ -1,4 +1,4 @@
-from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern, ClientPattern
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
@@ -161,16 +161,39 @@ class MyHost:
         ]
 
         allowed_clients = [
-            self.host_patterns.client_pattern(client_name="TestClient1", client_type="Interface", client_key="some_client_id", client_permission_group="", client_is_super_user=True, max_sub_channels=5),
-            self.host_patterns.client_pattern(client_name="TestClient2", client_type="Interface", client_key="randomsclientids", client_permission_group="", client_is_super_user=True, max_sub_channels=5),
+            
+            ClientPattern(
+                client_name="TestClient1", 
+                client_type="Interface", 
+                client_key="some_client_id", 
+                client_permission_group="", 
+                client_is_super_user=True, 
+                max_sub_channels=5
+            ).format(),
+            
+            ClientPattern(
+                client_name="TestClient2", 
+                client_type="Interface", 
+                client_key="randomsclientids", 
+                client_permission_group="", 
+                client_is_super_user=True, 
+                max_sub_channels=5
+            ).format(),
+        
         ]
 
         print(allowed_clients)
 
         # client_name:str, client_key:str, client_permission_group:str, client_is_super_user:bool, client_max_sub_channels:int, client_owned_sub_channels_keys:list
 
-        mys_host = MysceliumHost(callbacks=callbacks, host_id="xnsmdkeflerpfsa",
-                                 allowed_clients=allowed_clients, buffer_path="Temp/Data/", n_workers=2, log_level=self.debug_level)
+        mys_host = MysceliumHost(
+            callbacks=callbacks, 
+            host_id="xnsmdkeflerpfsa",
+            allowed_clients=allowed_clients, 
+            buffer_path="Temp/Data/", 
+            n_workers=2, 
+            log_level=self.debug_level
+        )
 
         self.mys_host = mys_host
 

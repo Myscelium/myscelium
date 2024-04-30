@@ -1,855 +1,27 @@
+
+#> Core:
 from . import (
     myscelium_engine as mys,
 )  # Maybe change the rust myscelium lib to MysceliumEngine
-from . import host_logs_retriever
-from . import host_client_events_retriever
-from . import client_logs_retriever
 
-from .custom_decorators import experimental, stable
+#> Modules:
+from .common.patterns import ClientPattern
+from .common.patterns import CommandInstruction
+from .common.functions import cast_response_command_instruction
 
+#> Extern:
 import functools
 import warnings
-
-from multiprocessing import Process
 import pandas as pd
 import time
 import os
+from typing import Dict
 
-from . import sql_pool
-
-import inspect
-
-
-# > Type Cast
-
-
-def cast_response_command_instruction(
-    command_mode: str,
-    command_type: str,
-    command_target: str,
-    command_status: str,
-    command_origin: str,
-    command_actf: str,
-    command_kwargs: dict,
-    command_message: str,
-    auto_collect: bool = True,
-) -> dict:
-    """
-    Constructs a command instruction dictionary from the given parameters.
-
-    Validates the provided arguments against specific criteria for each command aspect
-    (mode, type, target, status, origin, activation function). Raises an exception if
-    any of the provided arguments do not meet the expected values or format.
-
-    Parameters:
-    - command_mode (str): Mode of the command, must be one of ['Function', 'Response'].
-    - command_type (str): Type of the command, must be one of ['SpecialFunction', 'DirectFunction',
-                      'InternalManagement', 'ExternalFunction'].
-    - command_target (str): Target of the command, should follow the format 'Origin',
-                            'ClientKey(String)', or 'Host'.
-    - command_status (str): Status of the command, must be one of ['Success', 'Failure'].
-    - command_origin (str): Origin of the command, must be 'Host' or 'ClientKey(String)'.
-    - command_actf (str): Activation function for the command. Cannot be empty.
-    - command_kwargs (dict): Additional keyword arguments for the command.
-    - command_message (str): Message associated with the command.
-
-    Returns:
-    dict: A dictionary representing the constructed command instruction.
-
-    Raises:
-    Exception: If any parameter does not conform to its expected format or allowable values.
-
-    Example:
-    command_dict = cast_command_instruction("Function", "DirectFunction", "Host", "Success",
-                                            "ClientKey(123)", "activate", {}, "Execute action")
-    """
-
-    if command_mode not in ["Function", "Response"]:
-        raise ValueError(
-            "Command mode needs to be one of those: ['Function', 'Response']"
-        )
-
-    if command_type not in [
-        "SpecialFunction",
-        "DirectFunction",
-        "InternalManagement",
-        "ExternalFunction",
-    ]:
-        raise ValueError(
-            "Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
-        )
-
-    if command_target in ["Origin", "Host"]:
-        pass
-
-    # -> Validate the redirect cases:
-    elif command_target.startswith("ClientKey(") and command_target.endswith(")"):
-        # Extracting the part inside 'ClientKey()'
-        content = command_target[len("ClientKey(") : -1].strip()
-        
-        # Validate the content inside the parentheses
-        if content == "":
-            raise ValueError("Command target ClientKey needs a valid ClientKey!")
-        
-        command_target = content
-        
-
-    else:
-        raise ValueError(
-            "Command target must be either 'Origin', 'Host', or 'ClientKey(some_value)'"
-        )
-
-    if command_status not in ["Success", "Failure"]:
-        raise ValueError(
-            "Command status can only be one of those: ['Success', 'Failure']"
-        )
-
-    if command_origin == "Host":
-        pass
-
-    # -> Validate the client cases:
-    elif command_origin.startswith("ClientKey(") and command_origin.endswith(")"):
-        # Extracting the part inside 'ClientKey()'
-        content = command_origin[len("ClientKey(") : -1].strip()
-        
-        # Validate the content inside the parentheses
-        if content == "":
-            raise ValueError("Command target ClientKey needs a valid ClientKey!")
-        
-        command_origin = content
-
-    else:
-        raise ValueError(
-            "Command origin must be either 'Host' or 'ClientKey(some_value)'"
-        )
-
-    if (
-        auto_collect
-    ):  # command_actf definition is only required in cases where auto_collect is on
-        if command_actf == "" or command_actf == None:
-            raise ValueError("Command activation function can't be empty")
-    else:
-        pass
-
-    command_instruction = {
-        "mode": command_mode,
-        "type": command_type,
-        "target": command_target,
-        "status": command_status,
-        "origin": command_origin,
-        "actf": command_actf,
-        "kwargs": command_kwargs,
-        "message": command_message,
-        "response_type": command_type,  # This is a duplication due to a temporary change in the Option downcast
-        "response_target": command_origin,  # This is a duplication due to a temporary change in the Option downcast
-        "response_actf": command_actf,  # This is a duplication due to a temporary change in the Option downcast
-        "collect_response": auto_collect,  # Default here is true, but if can be changed in the command that trigger this handler that send this response, if False it will not be automatically Transposed.
-    }
-
-    # TODO >>> Find a sulution to use None in the above struct casting in the `response_type`, `response_target`, `response_actf` and not a repetition of the act and other fields used to replace None
-
-    return command_instruction
-
-
-def cast_command_instruction(
-    command_mode: str,
-    command_type: str,
-    command_target: str,
-    command_status: str,
-    command_origin: str,
-    command_actf: str,
-    command_kwargs: dict,
-    command_message: str,
-    response_type: str,
-    response_target: str,
-    response_actf: str,
-    auto_collect_response: bool,
-) -> dict:
-    """
-    Constructs a command instruction dictionary from the given parameters.
-
-    Validates the provided arguments against specific criteria for each command aspect
-    (mode, type, target, status, origin, activation function). Raises an exception if
-    any of the provided arguments do not meet the expected values or format.
-
-    Parameters:
-    - command_mode (str): Mode of the command, must be one of ['Function', 'Response'].
-    - command_type (str): Type of the command, must be one of ['SpecialFunction', 'DirectFunction',
-                      'InternalManagement', 'ExternalFunction'].
-    - command_target (str): Target of the command, should follow the format 'Origin',
-                            'ClientKey(String)', or 'Host'.
-    - command_status (str): Status of the command, must be one of ['Success', 'Failure'].
-    - command_origin (str): Origin of the command, must be 'Host' or 'ClientKey(String)'.
-    - command_actf (str): Activation function for the command. Cannot be empty.
-    - command_kwargs (dict): Additional keyword arguments for the command.
-    - command_message (str): Message associated with the command.
-    - response_type (str): The type of the response command that will be sended back to this node that is casting this command,
-    - response_target (str): The target of the response that this command will produce,
-    - response_actf (str): The handler that response will triger when arrive in the target
-
-    Returns:
-    dict: A dictionary representing the constructed command instruction.
-
-    Raises:
-    Exception: If any parameter does not conform to its expected format or allowable values.
-
-    Example:
-    command_dict = cast_command_instruction("Function", "DirectFunction", "Host", "Success",
-                                            "ClientKey(123)", "activate", {}, "Execute action")
-    """
-
-    if command_mode not in ["Function", "Response"]:
-        raise ValueError(
-            "Command mode needs to be one of those: ['Function', 'Response']"
-        )
-
-    if command_type not in [
-        "SpecialFunction",
-        "DirectFunction",
-        "InternalManagement",
-        "ExternalFunction",
-    ]:
-        raise ValueError(
-            "Command type needs to be one of those: ['SpecialFunction', 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
-        )
-
-    if command_target in ["Origin", "Host"]:
-        pass
-
-    # -> Validate the redirect cases:
-    elif command_target.startswith("ClientKey(") and command_target.endswith(")"):
-        # Extracting the part inside 'ClientKey()'
-        content = command_target[len("ClientKey(") : -1].strip()
-
-        # Validate the content inside the parentheses
-        if content == "":
-            raise ValueError("Command target ClientKey needs a valid ClientKey!")
-
-    else:
-        raise ValueError(
-            "Command target must be either 'Origin', 'Host', or 'ClientKey(some_value)'"
-        )
-
-    if command_status not in ["Success", "Failure"]:
-        raise ValueError(
-            "Command status can only be one of those: ['Success', 'Failure']"
-        )
-
-    if command_origin == "Host":
-        pass
-
-    # -> Validate the client cases:
-    elif command_origin.startswith("ClientKey(") and command_origin.endswith(")"):
-        # Extracting the part inside 'ClientKey()'
-        content = command_origin[len("ClientKey(") : -1].strip()
-
-        # Validate the content inside the parentheses
-        if content == "":
-            raise ValueError("Command target ClientKey needs a valid ClientKey!")
-
-    else:
-        raise ValueError(
-            "Command origin must be either 'Host' or 'ClientKey(some_value)'"
-        )
-
-    if command_actf == "" or command_actf == None:
-        raise ValueError("Command activation function can't be empty")
-
-    # -> Response definitions:
-
-    if response_type not in [
-        "DirectFunction",
-        "InternalManagement",
-        "ExternalFunction",
-    ]:
-        raise ValueError(
-            "Command response type needs to be one of those: [ 'DirectFunction', 'InternalManagement', 'ExternalFunction',]"
-        )
-
-    if response_target in ["Origin", "Host"]:
-        pass
-
-    # -> Validate the redirect cases:
-    elif response_target.startswith("ClientKey(") and command_target.endswith(")"):
-        # Extracting the part inside 'ClientKey()'
-        content = response_target[len("ClientKey(") : -1].strip()
-
-        # Validate the content inside the parentheses
-        if content == "":
-            raise ValueError(
-                "Command response_target ClientKey needs a valid ClientKey!"
-            )
-
-    # if response_actf == "" or response_actf == None:
-    #     raise ValueError("Command activation function can't be empty")
-
-    command_instruction = {
-        "mode": command_mode,
-        "type": command_type,
-        "target": command_target,
-        "status": command_status,
-        "origin": command_origin,
-        "actf": command_actf,
-        "kwargs": command_kwargs,
-        "message": command_message,
-        "response_type": response_type,
-        "response_target": response_target,
-        "response_actf": response_actf,
-        "collect_response": auto_collect_response,
-    }
-
-    return command_instruction
-
-
-# >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# > Utilities
-
-import pandas as pd
-from . import sql_pool
-
-
-class GetHostClients:
-    def __init__(self, db_path: str):
-        self.pool = sql_pool.SQLiteConnectionPool(2, os.path.join(db_path, "Data.db"))
-        connection = self.pool.get_connection()
-
-        cur = connection.cursor()
-        cur.execute(
-            """CREATE TABLE IF NOT EXISTS Clients (ID INT PRIMARY KEY,
-                                                        ClientName TEXT,
-                                                        ClientKey TEXT,
-                                                        ClientType TEXT,
-                                                        PermissionGroup TEXT,
-                                                        SuperUser BOOL,
-                                                        LastContact FLOAT,
-                                                        MaxSubChannels NUMBER,
-                                                        OwnedSubChannelsKeys TEXT,
-                                                        SubChannelsInUse NUMBER
-        )"""
-        )
-
-        self.pool.release_connection(connection)
-
-    def list_clients(self) -> dict:
-        connection = self.pool.get_connection()
-
-        cur = connection.cursor()
-
-        sqlite_select_query = """SELECT * FROM Clients"""
-
-        cur.execute(sqlite_select_query)
-
-        df = cur.fetchall()
-
-        self.pool.release_connection(connection)
-
-        df = pd.DataFrame(
-            df,
-            columns=[
-                "ID",
-                "ClientName",
-                "ClientKey",
-                "ClientType",
-                "PermissionGroup",
-                "SuperUser",
-                "LastContact",
-                "MaxSubChannels",
-                "OwnedSubChannelsKeys",
-                "SubChannelsInUse",
-            ],
-        )
-
-        dict_df = df.to_dict()
-
-        return dict_df
-
-
-import inspect
-
-# > ----------------------------------------------------------------------------------------------------------------------------------------------
-# > Callbacks
-
-
-def callback_pattern(callback) -> dict:
-    """
-    Create a callback pattern.
-
-    Parameters:
-    - callback: The callback function.
-
-    args and kwargs: Will be auto inferred by the wrapper, just add the notes to your functions.
-
-    Returns:
-    - Dictionary representing the callback pattern.
-    """
-
-    # > The idea of this pattern
-    # >
-    # > (Client 1)         [Host]
-    # >    |                 |
-    # >    | --------------> |
-    # >    |                [|]
-    # >   (|) <------------- |
-    # >    |                 |
-    # > (Client 1)         [Host]
-    # >
-    # > (|) This is this callback
-    # > [|] This is a host process
-    # >
-    # > Basically this creates a callable, that host can execute remotely by redirecting some command or sending some command
-
-    sig = inspect.signature(callback)
-    params = sig.parameters
-
-    args = {}
-
-    for name, param in params.items():
-        if param.annotation is inspect._empty:
-            function_name = callback.__name__
-            raise f"function: {function_name} has args or kwargs without the required notes!"
-        else:
-            pass
-
-        args[name] = str(param.annotation.__name__)
-
-    else:
-        pass
-
-    if "info" not in args:
-        function_name = callback.__name__
-        raise ValueError(
-            f"Fist argument must be info, ifnor is a carrier argument designed to send crutial info about then engine and general staus, you must define it inside function: {function_name}"
-        )
-    else:
-        pass
-
-    args.pop(
-        "info", None
-    )  # Remove the info carrier arg in the start of the callback argument
-
-    # Info carrier argument is only defined in the function as a delimiter to the
-    # information that will be sended by the engine to the callback, it isn't a
-    # requirement for remote call this argument, however this is necessary to delimit
-    # that space and say that the first arg is the info carrier. The engine know that
-    # too so it isn't required to be sended to inside the engine.
-
-    callback_pattern = {
-        "function": callback,
-        "args": args,
-    }
-
-    return callback_pattern
-
-
-class CallbackCollector:
-    """
-    Extract from a list of classes (Handlers, Receivers and Retransmiters) the methods and callbacks in it
-    And automatically creates the callback list, simplifiing even more the process of create new callbacks and
-    Methods for you host or to you client.
-
-    IMPORTANT!: This only extract static methods toa llow you to use other methods inside your class
-
-    Usage:
-
-    ```
-    callbacks_list = CallbackCollector([Handlers, Receivers, Retransmiters]).get_callbacks()
-    ```
-    """
-
-    def __init__(self, callback_containers):
-        self.callbacks = []
-        for container in callback_containers:
-            self._get_methods(container)
-
-    def _get_methods(self, callback_class):
-        # Get all attributes of Class
-        for name, obj in inspect.getmembers(callback_class):
-            # Check if it is a function/method
-            if (
-                inspect.isfunction(obj)
-                or inspect.ismethod(obj)
-                or isinstance(obj, staticmethod)
-            ):
-                # If it's a static method, get the underlying function
-                if isinstance(obj, staticmethod):
-                    obj = obj.__get__(None, None)
-
-                # Check if obj is not None before proceeding
-                if obj is not None:
-                    callback_pattern_result = callback_pattern(callback=obj)
-                    # Check if callback_pattern_result is not None before appending
-                    if callback_pattern_result is not None:
-                        self.callbacks.append(callback_pattern_result)
-
-    def get_callbacks(self):
-        """
-        Extract from a list of classes (Handlers, Receivers and Retransmiters) the methods and callbacks in it
-        And automatically creates the callback list, simplifiing even more the process of create new callbacks and
-        Methods for you host or to you client.
-
-        Usage:
-
-        ```
-        callbacks_list = CallbackCollector([Handlers, Receivers, Retransmiters]).get_callbacks()
-        ```
-        """
-        return self.callbacks
-
+from .server.interfaces import MysceliumHostInterface
+from .client.interfaces import MysceliumClientInterface
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
-
-
-def split_dataframe(df, num_chunks):
-    """
-    Split a DataFrame into num_chunks parts.
-
-    If the DataFrame cannot be split exactly into num_chunks, the remainder will be
-    distributed among the chunks.
-
-    Parameters:
-    - df: DataFrame to be split
-    - num_chunks: Number of chunks
-
-    Returns:
-    - List of DataFrames
-    """
-
-    n = len(df)
-    chunk_size = n // num_chunks
-    remainder = n % num_chunks
-
-    chunks = []
-    start = 0
-
-    for i in range(num_chunks):
-        end = start + chunk_size
-
-        if remainder:  # Distribute the remainder across the initial chunks
-            end += 1
-            remainder -= 1
-
-        chunks.append(df.iloc[start:end])
-        start = end
-
-    return chunks
-
-
-def transpose(logs_df, buffer_path, log_callback):
-    pool = sql_pool.SQLiteConnectionPool(2, os.path.join(buffer_path, "Logs.db"))
-    connection = pool.get_connection()
-    logs_retriever_access = host_logs_retriever.Logs_Buffer_retriever(connection)
-
-    for i in logs_df.index:
-        try:
-            log_id = logs_df.loc[i, "ID"]
-            log_time = logs_df.loc[i, "LogTime"]
-            log_from_node = logs_df.loc[i, "NodeName"]
-            log_level = logs_df.loc[i, "LogLevel"]
-            log_msg = logs_df.loc[i, "LogMsg"]
-
-            log_callback(
-                {
-                    "log_time": log_time,
-                    "log_level": log_level,
-                    "log_from_node": log_from_node,
-                    "log_msg": log_msg,
-                }
-            )
-        except:
-            pass
-
-        logs_retriever_access.Remove_Log(log_id)
-        continue
-
-    pool.release_connection(connection)
-    return
-
-
-def check_if_all_logs_was_transposed(pool):
-    connection = pool.get_connection()
-
-    logs_retriever_access = host_logs_retriever.Logs_Buffer_retriever(connection)
-    logs_dict_df = logs_retriever_access.List_Logs()
-
-    pool.release_connection(connection)
-
-    logs_df = pd.DataFrame.from_dict(logs_dict_df)
-
-    return logs_df.empty
-
-
-class MysceliumHostInterface:
-    def __init__(self, buffer_path: str) -> None:
-        """
-        Initialize the MysceliumHostInterface.
-
-        Parameters:
-        - buffer_path: Path to the buffer for logs retrieval.
-        """
-
-        self.client_events_retriever_stats = False
-
-        self.buffer_path = buffer_path
-
-        self.clients_contact_retriever_callback = ""
-
-        self.log_callback = ""
-
-        self.stats = False
-
-        self.process = ""
-
-        self.transposition_threads = 1
-
-        return
-
-    # -> -------------------------------------------------------------------------------------------
-    # -> LOGS RETRIEVER
-
-    def _retrieve_logs(self):
-        """
-        Retrieve logs and process them. If multiple threads are set, it will split the logs
-        and process them in parallel.
-        """
-
-        pool = sql_pool.SQLiteConnectionPool(
-            self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db")
-        )
-
-        connection = pool.get_connection()
-
-        logs_retriever_access = host_logs_retriever.Logs_Buffer_retriever(connection)
-
-        while True:
-            if not self.stats:
-                while True:
-                    if check_if_all_logs_was_transposed:
-                        break
-                    else:
-                        continue
-
-                break
-
-            else:
-                pass
-
-            logs_dict_df = logs_retriever_access.List_Logs()
-            logs_df = pd.DataFrame.from_dict(logs_dict_df)
-
-            if logs_df.empty:
-                time.sleep(2)
-                continue
-            else:
-                pass
-
-            logs_df = logs_df.sort_values("LogTime")
-            logs_df = logs_df.reset_index(drop=True)
-
-            if self.transposition_threads > 1:
-                logs_df_chunks = split_dataframe(logs_df, self.transposition_threads)
-
-                threads = []
-
-                for chunk in logs_df_chunks:
-                    threads.append(
-                        Process(
-                            target=transpose,
-                            args=(chunk, self.buffer_path, self.log_callback),
-                        )
-                    )
-                    continue
-
-                for t in threads:
-                    t.start()
-                    continue
-
-                for t in threads:
-                    t.join()
-                    continue
-
-                pass
-
-            else:
-                transpose(logs_df, self.buffer_path, self.log_callback)
-                pass
-
-            time.sleep(1)
-
-            continue
-
-        pool.release_connection(connection)
-
-        return
-
-    def set_logs_callback(self, callback: str):
-        """
-        Set the callback function for logs.
-
-        Parameters:
-        - callback: Callback function to be invoked for each log.
-        """
-
-        self.log_callback = callback
-
-        pass
-
-    def start_logs_retriever(self):
-        """
-        Start the logs retriever process in a separate process.
-        """
-
-        self.stats = True
-
-        self.process = Process(target=self._retrieve_logs, args=())
-        self.process.start()
-
-        return
-
-    def stop_logs_retriever(self):
-        """
-        Stop the logs retriever process.
-        """
-
-        self.stats = False
-        self.process.join()
-
-        return
-
-    # -> -------------------------------------------------------------------------------------------
-    # -> CLIENT CONTACT EVENT RETRIEVER
-
-    def watch_client_contact(self):
-        control = []
-
-        pool = sql_pool.SQLiteConnectionPool(
-            2, os.path.join(self.buffer_path, "Data.db")
-        )
-
-        while True:
-            time.sleep(2)
-
-            if not self.client_events_retriever_stats:
-                break
-            else:
-                pass
-
-            connection = pool.get_connection()
-
-            client_events_retriever = host_client_events_retriever.Clients_Retriever(
-                connection
-            )
-
-            clients_df = client_events_retriever.get_clients()
-            clients_pd_df = pd.DataFrame.from_dict(clients_df)
-
-            if clients_pd_df.empty:
-                print(
-                    "[Event retriever] - No clients to transpose contact, next checking in 10s"
-                )
-
-                pool.release_connection(connection)
-
-                continue
-
-            else:
-                pass
-
-            actual_control = clients_pd_df.values.tolist()
-
-            # print(f"Control group: {control}\n New group: {actual_control}")
-
-            if len(control) != len(actual_control):
-                control = actual_control
-            else:
-                pass
-
-            for i, n in enumerate(control):
-                actual_to_compare = actual_control[i]
-
-                if (n[6] != "" and actual_to_compare[6] != "") and (
-                    n[6] < actual_to_compare[6]
-                ):
-                    if not isinstance(self.clients_contact_retriever_callback, str):
-                        pass
-                    else:
-                        print(
-                            f"Client: {actual_to_compare[1]} of key: {actual_to_compare[2]} made contact but not find any valid callback to transpose it!"
-                        )
-
-                        pool.release_connection(connection)
-
-                        continue
-
-                    self.clients_contact_retriever_callback(
-                        actual_to_compare[1], actual_to_compare[2], actual_to_compare[6]
-                    )
-                    print(
-                        f"Client: {actual_to_compare[1]} of key: {actual_to_compare[2]} made contact"
-                    )
-
-                else:
-                    pass
-
-            control = actual_control
-            pool.release_connection(connection)
-
-            continue
-
-        return
-
-    def set_client_contact_retriever_callback(self, callback: str):
-        """
-        Set the callback function for client contacts transposition.
-
-        Parameters:
-        - callback: Callback function to be invoked for each client contact.
-        """
-
-        self.clients_contact_retriever_callback = callback
-
-        pass
-
-    def start_client_events_retriever(self):
-        """
-        Start the clients event retriever process.
-        """
-
-        print("client_events_retriever started!")
-
-        self.client_events_retriever_stats = True
-
-        self.client_events_retriever_process = Process(
-            target=self.watch_client_contact, args=()
-        )
-        self.client_events_retriever_process.start()
-
-        return
-
-    def stop_client_events_retriever(self):
-        """
-        Stop the clients event retriever process.
-        """
-
-        self.client_events_retriever_stats = False
-
-        self.client_events_retriever_process.kill()
-        self.client_events_retriever_process.join()
-
-        return
-
-    def allow_multi_handlers(self, workers_num=2):
-        """
-        Activate multiple handlers for processing logs.
-
-        Parameters:
-        - threads_num: Number of threads to be used for processing logs.
-        """
-
-        self.transposition_threads = workers_num
-
-        return
-
 
 class MysceliumHost:
     _instance = None  # Singleton instance
@@ -1035,12 +207,12 @@ class MysceliumHost:
         return
 
     def send(self):
+
         """
         Send data. (This method is currently a placeholder and needs to be implemented.)
         """
 
         pass
-
 
 class HostPatterns:
     def __init__(self) -> None:
@@ -1049,42 +221,6 @@ class HostPatterns:
         """
 
         pass
-
-    def client_pattern(
-        self,
-        client_name: str,
-        client_key: str,
-        client_type: str,
-        client_permission_group: str,
-        client_is_super_user: bool,
-        max_sub_channels: int,
-        owned_sub_channels_keys: list = [],
-    ) -> dict:
-        """
-        Create a client pattern.
-
-        Parameters:
-        - client_name: Name of the client (user).
-        - client_key: Unique Key of the client.
-        - client_type: Client purpose.
-        - client_permission_group: Group that client inherit permission.
-        - client_is_super_user: If client has root privileges on myscelium.
-        - client_max_sub_channels: Max sub-channels of stream that client are allowed to create and manage.
-        - client_owned_sub_channels_keys: Optional parameter to pre initialize host with client sub-channels keys allowed.
-
-        Returns:
-        - Dictionary representing the client pattern.
-        """
-
-        return {
-            "client_name": client_name,
-            "client_key": client_key,
-            "client_type": client_type,
-            "permission_group": client_permission_group,
-            "is_super_user": client_is_super_user,
-            "max_sub_channels": max_sub_channels,
-            "owned_sub_channels_keys": owned_sub_channels_keys,
-        }
 
     def response_pattern(
         self,
@@ -1181,7 +317,7 @@ class HostPatterns:
         if target_key == "":
             command_instructions = cast_response_command_instruction(
                 "Response",
-                "ExternalFunction", 
+                "ExternalFunction",
                 "Origin",
                 "Success",
                 "Host",
@@ -1193,7 +329,7 @@ class HostPatterns:
         else:  # Redirect case
             command_instructions = cast_response_command_instruction(
                 "Response",
-                "ExternalFunction",  
+                "ExternalFunction",
                 f"ClientKey({target_key})",
                 "Success",
                 "Host",
@@ -1283,234 +419,69 @@ class HostPatterns:
 
         return command_instructions
 
-    # TODO >>> Add a version of this to client since now it is possible to activate this types of fns remotelly
-    # TODO >>> See if is worth to turn the update host configs functions DirectFunctions and not Internal Management functions
-    def update_host_configs(
-        self, activation_function: str, **kwargs
-    ):  # TODO >>> Need rust backend implementation!
-        """
-        Create a response pattern.
+class HostConfigManager:
+    def add_client(self, new_client: ClientPattern, response_actf: str) -> Dict:
+        if not isinstance(new_client, ClientPattern):
+            return self.error_response("new_client must be an instance of ClientPattern.")
 
+        if not response_actf:
+            return self.error_response("response_actf is required.")
 
-        Parameters:
+        command = CommandInstruction(
+            command_mode="Response",
+            command_type="InternalManagement",
+            command_target="Host",
+            command_status="Success",
+            command_origin="Host",
+            command_actf="add_client",
+            command_kwargs={"new_client": new_client.format()},
+            response_type="InternalManagement",
+            response_target="Origin",
+            response_actf=response_actf
+        )
+        return command.format()
 
-            - add_client, needed kwrags:
+    def update_client(self, actual_client_key: str, updated_client: ClientPattern, response_actf: str) -> Dict:
+        if not isinstance(updated_client, ClientPattern):
+            return self.error_response("updated_client must be an instance of ClientPattern.")
 
-                ```python
-                update_host_configs (self,
-                                     activation_function="add_client",
-                                     new_client=[client_patter])
+        if not response_actf:
+            return self.error_response("response_actf is required.")
 
-                # - new_client:list[client_pattern] -> This is a list that contains the new client to add!
-                ```
+        command = CommandInstruction(
+            command_mode="Response",
+            command_type="InternalManagement",
+            command_target="Host",
+            command_status="Success",
+            command_origin="Host",
+            command_actf="update_client",
+            command_kwargs={"actual_client_key": actual_client_key, "updated_client": updated_client.format()},
+            response_type="InternalManagement",
+            response_target="Origin",
+            response_actf=response_actf
+        )
+        return command.format()
 
-            - update_client, needed kwargs:
+    def remove_client(self, client_key: str, response_actf: str) -> Dict:
+        if not response_actf:
+            return self.error_response("response_actf is required.")
 
-                ```python
-                update_host_configs (self,
-                                     activation_function="update_client",
-                                     actual_client_key="xMsndkdlenfjedLj",
-                                     updated_client=[client_patter])
+        command = CommandInstruction(
+            command_mode="Response",
+            command_type="InternalManagement",
+            command_target="Host",
+            command_status="Success",
+            command_origin="Host",
+            command_actf="remove_client",
+            command_kwargs={"client_key": client_key},
+            response_type="InternalManagement",
+            response_target="Origin",
+            response_actf=response_actf
+        )
+        return command.format()
 
-                # - actual_client_key:str
-                # - updated_client:list[client_pattern] -> This is a list that contains the new client updated!
-                ```
-
-            - remove_client, need kwargs:
-
-                ```
-                update_host_configs (self,
-                                     activation_function="remove_client",
-                                     actual_client_key="xMsndkdlenfjedLj")
-
-                # - client_key:str -> The client key of the client that you want to remove.
-                ```
-
-        """
-
-        # -> This pattern is used to manipulate host configs remotely
-        # >
-        # > (Client 1)       [Host]
-        # >    |                |
-        # >    |--------------> |  (receive command)
-        # >    |               (|) (update some config)
-        # >    |<-------------- |  (return confirmation or exception)
-        # >    |                |
-        # > (Client 1)        [host]
-        # >
-        # > (|) This is this pattern
-        # >
-        # > The usage of this pattern is siple, you create a endpoint, then in the return
-        # > you create a response with this pattern and send back to the engine, remember, every response of
-        # > the endpoints will be sended to the engine again, if you don't want to send nothing just return None
-
-        if activation_function == "add_client":
-            if "new_client" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "new client isn't in kwargs, so can't add client!",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
-
-            new_client = kwargs["new_client"]
-
-            if isinstance(new_client, dict):
-                pass
-            else:
-                return self.error_response_pattern(
-                    "New client needs to be a dict generated by client_pattern",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
-
-            kwargs = {"new_client": new_client}
-
-            if "response_actf" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "response_actf isn't in kwargs, so can't add client!",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
-
-            response_actf = kwargs["response_actf"]
-
-            command_instructions = cast_command_instruction(
-                "Response",
-                "InternalManagement",
-                "Host",
-                "Success",
-                "Host",
-                "add_client",
-                kwargs,
-                "",
-                "InternalManagement",
-                "Origin",
-                response_actf,
-            )
-
-            return command_instructions
-
-        elif activation_function == "update_client":
-            if "actual_client_key" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "actual_client_key isn't in kwargs, so can't update client!",
-                    "update_client_handler",
-                )
-
-            actual_client_key = kwargs["actual_client_key"]
-
-            if isinstance(actual_client_key, str):
-                pass
-            else:
-                return self.error_response_pattern(
-                    "client key needs to be a string!", "update_client_handler"
-                )
-
-            if "updated_client" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "new client isn't in kwargs, so can't edit client!",
-                    "update_client_handler",  # TODO >>> Define a default error handler
-                )
-
-            updated_client = kwargs["updated_client"]
-
-            if isinstance(updated_client, dict):
-                pass
-            else:
-                return self.error_response_pattern(
-                    "New client needs to be a dict generated by client_pattern",
-                    "update_client_handler",  # TODO >>> Define a default error handler
-                )
-
-            kwargs = {
-                "actual_client_key": actual_client_key,
-                "updated_client": updated_client,
-            }
-
-            if "response_actf" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "response_actf isn't in kwargs, so can't add client!",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
-
-            response_actf = kwargs["response_actf"]
-
-            command_instructions = cast_command_instruction(
-                "Response",
-                "InternalManagement",
-                "Host",
-                "Success",
-                "Host",
-                "update_client",
-                kwargs,
-                "",
-                "InternalManagement",
-                "Origin",
-                response_actf,
-            )
-
-            return command_instructions
-
-        elif activation_function == "remove_client":
-            if "client_key" in kwargs:
-                pass
-            else:
-                self.error_response_pattern(
-                    "client_key isn't in kwargs, so can't remove client!",
-                    "remove_client_handler",  # TODO >>> Define a default error handler
-                )
-
-            client_key = kwargs["client_key"]
-
-            if isinstance(client_key, str):
-                pass
-            else:
-                return self.error_response_pattern(
-                    "client key needs to be a string!",
-                    "remove_client_handler",  # TODO >>> Define a default error handler
-                )
-
-            kwargs = {"client_key": client_key}
-
-            if "response_actf" in kwargs:
-                pass
-            else:
-                return self.error_response_pattern(
-                    "response_actf isn't in kwargs, so can't add client!",
-                    "add_client_handler",  # TODO >>> Define a default error handler
-                )
-
-            response_actf = kwargs["response_actf"]
-
-            command_instructions = cast_command_instruction(
-                "Response",
-                "InternalManagement",
-                "Host",
-                "Success",
-                "Host",
-                "remove_client",
-                kwargs,
-                "",
-                "InternalManagement",
-                "Origin",
-                response_actf,
-            )
-
-            return command_instructions
-
-        else:
-            return self.error_response_pattern(
-                f"activation_function: {activation_function} doesn't registered in the available host internal management commands!",
-                "remove_client_handler",
-            )
-
+    def error_response(self, message: str) -> Dict:
+        return {"error": message, "status": "failed"}
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > CLIENT
@@ -1724,150 +695,6 @@ class MysceliumClient:
         """
         return mys.wait_client_resp(parity_id, timeout_in)
 
-
-class MysceliumClientInterface:
-    def __init__(self, buffer_path: str) -> None:
-        """
-        Initialize the MysceliumHostInterface.
-
-        Parameters:
-        - buffer_path: Path to the buffer for logs retrieval.
-        """
-
-        self.buffer_path = buffer_path
-
-        self.log_callback = ""
-
-        self.stats = False
-
-        self.process = ""
-
-        self.transposition_threads = 1
-
-        return
-
-    def retrieve_logs(self):
-        """
-        Retrieve logs and process them. If multiple threads are set, it will split the logs
-        and process them in parallel.
-        """
-
-        pool = sql_pool.SQLiteConnectionPool(
-            self.transposition_threads + 2, os.path.join(self.buffer_path, "Logs.db")
-        )
-
-        connection = pool.get_connection()
-
-        logs_retriever_access = client_logs_retriever.Logs_Buffer_retriever(connection)
-
-        while True:
-            if not self.stats:
-                while True:
-                    if check_if_all_logs_was_transposed:
-                        break
-                    else:
-                        continue
-
-                break
-
-            else:
-                pass
-
-            logs_dict_df = logs_retriever_access.List_Logs()
-            logs_df = pd.DataFrame.from_dict(logs_dict_df)
-
-            if logs_df.empty:
-                time.sleep(2)
-                continue
-            else:
-                pass
-
-            logs_df = logs_df.sort_values("LogTime")
-            logs_df = logs_df.reset_index(drop=True)
-
-            if self.transposition_threads > 1:
-                logs_df_chunks = split_dataframe(logs_df, self.transposition_threads)
-
-                threads = []
-
-                for chunk in logs_df_chunks:
-                    threads.append(
-                        Process(
-                            target=transpose,
-                            args=(chunk, self.buffer_path, self.log_callback),
-                        )
-                    )
-                    continue
-
-                for t in threads:
-                    t.start()
-                    continue
-
-                for t in threads:
-                    t.join()
-                    continue
-
-                pass
-
-            else:
-                transpose(logs_df, self.buffer_path, self.log_callback)
-                pass
-
-            time.sleep(1)
-
-            continue
-
-        pool.release_connection(connection)
-
-        return
-
-    def allow_multi_handlers(self, workers_num=2):
-        """
-        Activate multiple handlers for processing logs.
-
-        Parameters:
-        - threads_num: Number of threads to be used for processing logs.
-        """
-
-        self.transposition_threads = workers_num
-
-        return
-
-    def set_logs_callback(self, callback: str):
-        """
-        Set the callback function for logs.
-
-        Parameters:
-        - callback: Callback function to be invoked for each log.
-        """
-
-        self.log_callback = callback
-
-        pass
-
-    def stop_logs_retriever(self):
-        """
-        Stop the logs retriever process.
-        """
-
-        self.stats = False
-        self.process.join()
-
-        return
-
-    def start_logs_retriever(self):
-        """
-        Start the logs retriever process in a separate process.
-        """
-
-        self.stats = True
-
-        self.process = Process(target=self.retrieve_logs, args=())
-        self.process.start()
-
-        return
-
-
 class ClientPatterns:
     def __init__(self) -> None:
         """
@@ -2062,7 +889,7 @@ class ClientPatterns:
         if target_key == "":
             command_instructions = cast_response_command_instruction(
                 "Response",
-                "ExternalFunction", 
+                "ExternalFunction",
                 "Origin",
                 "Success",
                 f"ClientKey({origin})",
@@ -2074,7 +901,7 @@ class ClientPatterns:
         else:  # Redirect case
             command_instructions = cast_response_command_instruction(
                 "Response",
-                "ExternalFunction",  
+                "ExternalFunction",
                 f"ClientKey({target_key})",
                 "Success",
                 f"ClientKey({origin})",
@@ -2154,35 +981,35 @@ class ClientPatterns:
         command_instruction = {}
 
         if target_key == "":
-            command_instruction = cast_command_instruction(
-                "Function",
-                "ExternalFunction",
-                "Host",
-                "Success",
-                f"ClientKey({origin_key})",
-                command_function,
-                kwargs,
-                message,
-                response_type,
-                response_target,
-                response_actf,
-                auto_collect_response,
-            )
+            command_instruction = CommandInstruction(
+                command_mode='Function',
+                command_type="ExternalFunction",
+                command_target="Host",
+                command_status="Success",
+                command_origin=f"ClientKey({origin_key})",
+                command_actf=command_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type=response_type,
+                response_target=response_target,
+                response_actf=response_actf,
+                auto_collect_response=auto_collect_response,
+            ).format()
         else:
-            command_instruction = cast_command_instruction(
-                "Function",
-                "ExternalFunction",
-                f"ClientKey({target_key})",
-                "Success",
-                f"ClientKey({origin_key})",
-                command_function,
-                kwargs,
-                message,
-                response_type,
-                response_target,
-                response_actf,
-                auto_collect_response,
-            )
+            command_instruction = CommandInstruction(
+                command_mode='Function',
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({target_key})",
+                command_status="Success",
+                command_origin=f"ClientKey({origin_key})",
+                command_actf=command_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type=response_type,
+                response_target=response_target,
+                response_actf=response_actf,
+                auto_collect_response=auto_collect_response,
+            ).format()
 
         return command_instruction
 
@@ -2252,20 +1079,20 @@ class ClientPatterns:
         # >
         # > basically creates a command to send to host, when the command arrives in host the command will execute something
 
-        command_instruction = cast_command_instruction(
-            "Function",  # Command Mode
-            "DirectFunction",  # Command Type
-            "Host",  # Command Target
-            "Success",  # Status
-            f"ClientKey({origin_key})",  # Origin
-            command_function,  # act function
-            kwargs,
-            message,
-            response_type,
-            response_target,
-            response_actf,
-            auto_collect_response=True,
-        )
+        command_instruction = CommandInstruction(
+            command_mode='Function',
+            command_type="DirectFunction",
+            command_target="Host",
+            command_status="Success",
+            command_origin= f"ClientKey({origin_key})",
+            command_actf=command_function,
+            command_kwargs=kwargs,
+            command_message=message,
+            response_type=response_type,
+            response_target=response_target,
+            response_actf=response_actf,
+            auto_collect_response=True
+        ).format()
 
         return command_instruction
 

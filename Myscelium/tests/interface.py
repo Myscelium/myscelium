@@ -154,7 +154,6 @@ elif option == 'Test Interface':
     selected_tests = st.selectbox('Choose an Option', ['test_myscelium.py::test_communication', 'test_myscelium.py::test_mannangement', 'test_myscelium.py::test_redirect', 'all'])
     select_debug_level = st.selectbox('Choose an DEBUG level', ["DEBUG", "INFO", "WARN", "EXCEPTION",])
 
-
     def get_test_results(tests_to_run):
 
          # Set DEBUG_LEVEL as an environment variable

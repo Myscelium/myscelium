@@ -194,8 +194,9 @@ class MyClient:
         return
 
     def run(self):
+        
         t1 = Process(target=self.initializer, args=())
-
+        
         t2 = Process(target=Senders().send_some_data, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
