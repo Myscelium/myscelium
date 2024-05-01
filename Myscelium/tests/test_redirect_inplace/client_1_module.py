@@ -145,7 +145,6 @@ class MyClient:
         )
 
         self.mys_client = mys_client
-
         callbacks = []
 
         mys_client.set_callbacks(callbacks=callbacks)
