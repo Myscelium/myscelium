@@ -33,37 +33,6 @@ use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::{Client, ClientError};
 use OxidizedMyscelium::{HandlerStatus, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
-// lazy_static! {
-//     pub static ref CLIENTS_SYNC_CONTROLLER: Arc<Mutex<Clients>> = Arc::new(Mutex::new(Clients::new()));
-// }
-
-// #[pyfunction]
-// fn registry_socket_host_callbacks (py: Python, commands: &PyList) -> PyResult<()> {
-
-//     for command in commands.iter() {
-//         let command_dict: &PyDict = command.downcast().unwrap();
-//         let function: &PyAny = command_dict.get_item("function").unwrap();
-//         let args_dict: &PyDict = command_dict.get_item("args").unwrap().downcast().unwrap();
-
-//         // Extract the Python function name
-//         let function_name: &str = function.getattr("__name__")?.extract()?;
-
-//         let mut command_patterns = HashMap::new();
-//         command_patterns.insert(function_name.to_string(), Value::String(args_dict.to_string()));
-
-//         set_socket_host_callbacks (command_patterns);
-
-//         // Convert the args dict to a Vec and then to a tuple
-//         let args_vec: Vec<&PyAny> = args_dict.values().extract::<Vec<&PyAny>>()?;
-//         let args_tuple: &PyTuple = PyTuple::new(py, args_vec);
-
-//         // Call the Python function with the args
-//         let _result = function.call1(args_tuple)?;
-//     }
-
-//     Ok(())
-// }
-
 macro_rules! process_commands {
     ($py:expr, $commands:expr, $callback_pattern:expr) => {
         for command in $commands.iter() {
@@ -112,87 +81,6 @@ pub fn setup_socket_host(buffer_path: String, log_level: String, n_workers: u32,
 }
 
 // TODO >>> Chang eset workers num, max conns, buffer initialization, socket host level
-
-// #[pyfunction]
-// pub fn set_socket_host_transposer_num_of_workers(n_workers: &PyInt) {
-//     let workers_num: u32 = n_workers.extract().unwrap();
-
-//     OxidizedMyscelium::set_socket
-
-//     set_socket_host_transposer_workers_num(workers_num);
-
-//     return;
-// }
-// #[pyfunction]
-// pub fn set_socket_host_max_connections(n_max_conns: &PyInt) {
-//     let max_conns: u32 = n_max_conns.extract().unwrap();
-
-//     set_host_clients_manager__pool_workers_num(max_conns.clone());
-//     set_max_conns(max_conns);
-
-//     return;
-// }
-
-// #[pyfunction]
-// pub fn initialize_host_buffer_tables(path: &PyString) {
-//     let buffer_path: String = path.extract().unwrap();
-
-//     initialize_host_logs_database_dir(buffer_path.clone());
-//     initialize_host_buffer(buffer_path.clone());
-//     clients_manager_initialize_table(buffer_path.clone());
-
-//     return;
-// }
-
-// #[pyfunction]
-// pub fn set_socket_host_log_level(log_level: &PyString) {
-//     let log_level: String = log_level.extract().unwrap();
-
-//     set_host_log_level(log_level);
-
-//     return;
-// }
-
-// -> --------------------------------------------------------------------------------------------------------------
-
-// #[pyfunction]
-// fn registry_host_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
-//     let mut callback_pattern = HashMap::new();
-
-//     process_commands!(py, commands, callback_pattern);
-
-//     set_host_logs_handler_callback(callback_pattern);
-
-//     println!("set the log callback");
-
-//     Ok(())
-// }
-
-/// Registers a callback function for the socket host to trigger when a client sends a heartbeat message.
-///
-/// This function updates the global callback that will be called each time the socket host receives a heartbeat
-/// message from a client.
-///
-/// # Parameters
-///
-/// - `py`: The Python interpreter.
-/// - `commands`: A Python list of dictionaries containing the callback function and its expected arguments.
-///
-/// # Returns
-///
-/// Returns an empty result if successful, or a Python error if there's a problem with the provided list.
-///
-/// # Python Binding
-///
-/// This function is exposed to Python and can be called from a Python script.
-// #[pyfunction]
-// pub fn registry_socket_host_client_heartbeat_contact_callback(py: Python, commands: &PyList) -> PyResult<()> {
-//     let mut callback_pattern = HashMap::new();
-//     process_commands!(py, commands, callback_pattern);
-//     OxidizedMyscelium::set_heartbeat_callback(callback_pattern);
-
-//     Ok(())
-// }
 
 /// Stops the socket host.
 ///
@@ -545,24 +433,3 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
 fn remove_all_allowed_clients(allowed_client_list: &PyList) {
     let _ = Client::delete_all();
 }
-
-// fn set_socket_host_allowed_clients(allowed_clients_list: &PyList) -> PyResult<()> {
-//     for client_allowed in allowed_clients_list.iter() {
-//         let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
-
-//         let client_type: &PyAny = allowed_clients_dict.get_item("client_type").unwrap();
-//         let client_id: &PyAny = allowed_clients_dict.get_item("client_id").unwrap();
-
-//         if let Ok(extracted_client_type) = client_type.extract::<String>() {
-//             if let Ok(extracted_client_id) = client_id.extract::<String>() {
-//                 register_client(extracted_client_id, extracted_client_type);
-//             } else {
-//                 return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_id must be a String with 16 characters!"));
-//             }
-//         } else {
-//             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error: client_type must be a String!"));
-//         }
-//     }
-
-//     Ok(())
-// }

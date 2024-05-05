@@ -40,34 +40,6 @@ fn convert_indexmap_to_pydict(py: Python<'_>, data: &IndexMap<String, String>) -
     Ok(py_dict.into())
 }
 
-// fn convert_boxed_any_to_pyany(py: Python, boxed_any: Box<Value>) -> PyResult<PyObject> {
-//     if let Some(value) = boxed_any.downcast_ref::<bool>() {
-//         Ok(value.into_py(py))
-//     } else if let Some(value) = boxed_any.downcast_ref::<f64>() {
-//         Ok(value.into_py(py))
-//     } else if let Some(value) = boxed_any.downcast_ref::<String>() {
-//         Ok(value.into_py(py))
-//     } else if let Some(vec) = boxed_any.downcast_ref::<Vec<Box<dyn Any>>>() {
-//         let py_list = PyList::empty(py);
-//         for item in vec {
-//             let py_item = convert_boxed_any_to_pyany(py, item)?;
-//             py_list.append(py_item)?;
-//         }
-//         Ok(py_list.into_py(py))
-//     } else if let Some(hash_map) = boxed_any.downcast_ref::<HashMap<String, Value>>() {
-//         let py_dict = PyDict::new(py);
-//         for (key, value) in hash_map {
-//             let py_value = convert_json_value_to_pyobject(py, value)?;
-//             py_dict.set_item(key, py_value)?;
-//         }
-//         Ok(py_dict.into_py(py))
-//     } else if boxed_any.is::<()>() {
-//         Ok(py.None())
-//     } else {
-//         Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unsupported type: {:?}", boxed_any)))
-//     }
-// }
-
 fn convert_json_value_to_pyobject(py: Python, value: &Value) -> PyResult<PyObject> {
     match value {
         Value::Object(map) => {
@@ -495,23 +467,6 @@ pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexG
 
     let inner_hash_map: HashMap<_, _> = command.kwargs.clone().into_iter().collect();
     let kwargs_map: HashMap<String, Py<PyAny>> = dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?;
-
-    // let kwargs_map = match command.command_type() {
-    //     CommandType::Response(_) => {
-    //         let command = &command.command;
-
-    //         let inner_hash_map: HashMap<_, _> = command.kwargs.clone().into_iter().collect();
-    //         dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
-    //     },
-    //     CommandType::Function(_) => {
-    //         let command = &command.command;
-
-    //         let inner_hash_map: HashMap<_, _> = command.kwargs.clone().into_iter().collect();
-    //         dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
-    //     },
-
-    //     _ => dict_to_kwargs(py, &command.command).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?,
-    // };
 
     println!("Converted to Python kwargs_map: {:?}", kwargs_map);
 

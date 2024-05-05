@@ -27,15 +27,6 @@ use OxidizedMyscelium::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY,
 
 // -> Socket Client main-points:
 
-// use crate::socket_client::scheduler::{self, schedule};
-// use crate::socket_client::socket_client;
-// use crate::socket_client::socket_client::get_available_handlers_registered;
-// use crate::socket_client::socket_client::{initialize_client, initialize_client_buffer};
-// use crate::socket_client::transposer::{initialize_socket_client_transposer, set_socket_client_transposer_callbacks, set_socket_client_transposer_workers_num};
-
-// use crate::common::functions::python_functions::extract_arg_types;
-// use crate::common::functions::python_functions::translate_value_to_py;
-
 use OxidizedMyscelium;
 
 /// Sets the number of worker threads for the socket client transposer.
@@ -67,26 +58,6 @@ pub fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
 fn stop_socket_client() {
     OxidizedMyscelium::CLIENT_IS_RUNNING.store(false, Ordering::SeqCst);
 }
-
-/// Initializes the buffer tables for the client.
-///
-/// # Parameters
-///
-/// - `path`: The path to the location where buffer tables should be initialized.
-///
-/// # Behavior
-///
-/// Initializes the directories and tables required for client logs and buffer management.
-///
-/// # Python Binding
-///
-/// This function is exposed to Python and can be called from a Python script.
-// #[pyfunction]
-// pub fn initialize_client_buffer_tables(path: &PyString) {
-//     let buffer_path: String = path.extract().unwrap();
-//     OxidizedMyscelium::initialize_client_buffer_tables(&buffer_path);
-//     return;
-// }
 
 #[derive(Debug, Clone)]
 enum ResultType {
@@ -368,19 +339,6 @@ pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject
     convert_to_pydict(py, &commands)
 }
 
-// #[pyfunction]
-// fn registry_client_logs_handler(py: Python, commands: &PyList) -> PyResult<()> {
-//     let mut callback_pattern = HashMap::new();
-
-//     process_commands!(py, commands, callback_pattern);
-
-//     set_client_logs_handler_callback(callback_pattern);
-
-//     println!("set the log callback");
-
-//     Ok(())
-// }
-
 /// Registers Python callback functions for the socket client.
 ///
 /// This function allows the registration of Python callback functions to handle specific commands from the server.
@@ -488,15 +446,6 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
         Ok(PyBool::new(py, false).into())
     }
 }
-
-// #[pyfunction]
-// pub fn set_client_key(client_key: String) {
-//     OxidizedMyscelium::set_client_key(client_key.clone());
-//     {
-//         let mut key = CLIENT_NODE_KEY.lock();
-//         *key = client_key.clone();
-//     }
-// }
 
 // use RustPyNet::python_pool::pool::PythonTaskError;
 // use RustPyNet::python_pool::pool::PythonTaskQueue;
