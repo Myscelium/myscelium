@@ -362,6 +362,14 @@ pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject
 pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut callbacks: Vec<Callback> = Vec::new();
 
+    let mut client_uid: String = "".to_string();
+    {
+        let node = CLIENT_NODE_CONFIGS.lock();
+        if let Some(key) = &node.key {
+            client_uid = key.clone()
+        }
+    }
+
     for command in commands.iter() {
         // Safely casting the command to a Python dictionary
         let command_dict: &PyDict = command.downcast().unwrap();
@@ -407,7 +415,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
 
         // Converting the Python function to a form that can be stored and called later
         let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
-        let wrapped_function = Box::new(wrap_py_function(function));
+        let wrapped_function = Box::new(wrap_py_function(function, client_uid.clone()));
 
         callbacks.push(Callback::new(
             function_name.to_string(),

@@ -115,7 +115,7 @@ fn convert_to_tuple<'a>(py: Python<'a>, obj: &'a PyObject) -> PyResult<&'a PyTup
 }
 
 /// Wraps a Python function into a Rust closure that can be executed with dynamic parameters.
-pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any + 'static>>) -> Box<dyn Any> + Send + Sync> {
+pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn(Vec<Box<dyn Any + 'static>>) -> Box<dyn Any> + Send + Sync> {
     Box::new(move |args: Vec<Box<dyn Any + 'static>>| -> Box<dyn Any> {
         // Convert args to Python objects here. You might need to dynamically check types and convert them accordingly.
         // This is a placeholder showing the concept, actual implementation may vary based on your specific needs.
@@ -129,19 +129,6 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
             let getting_py = unsafe { Python::assume_gil_acquired() };
             let gil_pool = unsafe { getting_py.clone().new_pool() };
             let py = gil_pool.python();
-
-            // for any in args {
-            //     let downcasted_args: Result<Box<Value>, Box<dyn Any>> = any.downcast::<Value>();
-            //     match downcasted_args {
-            //         Ok(value_box) => {
-            //             println!("String value: {}", value_box);
-            //             let val = *value_box;
-            //             let converted_map: HashMap<String, Value> = serde_json::from_value(val).unwrap();
-            //             let instructions = CommandInstructions::from_value_map(converted_map).unwrap();
-            //         },
-            //         Err(_) => println!("Not a string"),
-            //     }
-            // }
 
             // Convert Rust `args` into Python objects. This might involve type checking and conversion.
             let py_args = match convert_boxed_anys_to_pyany(py, args) {
@@ -202,7 +189,17 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
         let instructions = {
             // Check if the Value is an object and convert it to HashMap
             if let Some(obj) = value.as_object() {
-                let map: HashMap<String, Value> = obj.clone().into_iter().collect();
+                let mut map: HashMap<String, Value> = obj.clone().into_iter().collect();
+
+                // > Set the origin of the response as the self key, since the response needs to have
+                // > the origin pointing to the place that generate it, don't mattering from were
+                // > comes the command that triggered the handler that generated it
+
+                // TODO >>> Add a special case to the cases were the response is redirected to
+                // TODO other clients this cases we need to keep the origin of the command
+
+                map.insert("origin".to_string(), Value::from(Value::String(self_key.clone())));
+
                 match CommandInstructions::from_value_map(map) {
                     Ok(c) => {
                         println!("Instructions extracted in python briedge: {:?}", c);
