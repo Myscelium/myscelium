@@ -158,7 +158,7 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
         let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
 
         // Wrap the Python function to match CallbackClosure signature
-        let wrapped_function = Box::new(wrap_py_function(function, "host".to_string()));
+        let wrapped_function = Box::new(wrap_py_function(function, "Host".to_string()));
 
         // Assuming `my_callbacks` is an instance of MyCallbacks
         callbacks_patterns.insert(function_name.to_string(), wrapped_function);

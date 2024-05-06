@@ -55,7 +55,6 @@ class Receivers:
 
         response = client_patterns.response_pattern(
             activation_function=response_actf,
-            origin=CLIENT_ID,
             kwargs={"data": "hello!"},
             target_key=info["origin"]['ClientKey'],
             auto_collect=auto_collect,
