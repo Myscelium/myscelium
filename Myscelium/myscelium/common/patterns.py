@@ -140,20 +140,59 @@ class CommandInstruction(BaseModel):
     def check_keys_and_origin(cls, values):
         print(values)
         targets = ['command_target', 'response_target']
-        for attribute_name in targets:  
-            target = getattr(values, attribute_name, 'Attribute not found')
-            if target not in ['Origin', 'Host']:
-                if target.startswith('ClientKey(') and target.endswith(')'):
-                    content = target[len('ClientKey('):-1].strip()
-                    if content == "":
-                        raise ValueError(f"Command {attribute_name} needs a valid ClientKey not empty!")
+        # for attribute_name in targets:  
+
+        command_target = getattr(values, 'command_target', 'Attribute not found')
+        response_target = getattr(values, 'response_target', 'Attribute not found')
+
+        mode = getattr(values, 'command_mode', 'Attribute not found')
+        
+        match mode:
+
+            case "Function":
+
+                if command_target != "Host":
+                    if command_target.startswith('ClientKey(') and command_target.endswith(')'):
+                        content = command_target[len('ClientKey('):-1].strip()
+                        if content == "":
+                            raise ValueError(f"Command target needs a valid ClientKey not empty!")
+                    else:
+                        raise ValueError(f"Command target must be either 'Host', or 'ClientKey(some_value)'")
                 else:
-                    raise ValueError(f"{attribute_name} must be either 'Origin', 'Host', or 'ClientKey(some_value)'")
+                    pass
+
+                # TODO >>> Do the validation of the response target
+            
+            case "Response":
+
+        #-> Command:
+        #   > command_target
+        #         * ClientKey(string)
+        #         * Host
+        #   > response_target
+        #         * Origin              |
+        #         * Host                | Auto collect == true
+        #         * ClientKey(String)   | Auto collect == false
+
+        #-> Response:
+        #   > command_target
+        #         * ClientKey(string)   | Auto collect == true
+        #         * Host
+        #   > response_target
+        #         * Empty
+        
+        if target not in ['Origin', 'Host']:
+            if target.startswith('ClientKey(') and target.endswith(')'):
+                content = target[len('ClientKey('):-1].strip()
+                if content == "":
+                    raise ValueError(f"Command {attribute_name} needs a valid ClientKey not empty!")
             else:
-                if target != "Origin":
-                    collect_response = getattr(values, "collect_response", 'Attribute not found')  
-                    if not collect_response:
-                        raise ValueError(f"You only can send inplace responses to origin!")
+                raise ValueError(f"{attribute_name} must be either 'Origin', 'Host', or 'ClientKey(some_value)'")
+        else:
+            if target != "Origin":
+                collect_response = getattr(values, "collect_response", 'Attribute not found')  
+                if not collect_response:
+                    raise ValueError(f"You only can send inplace responses to origin!")
             
         command_target = getattr(values, "command_target", 'Attribute not found')  
         response_target = getattr(values, "response_target", 'Attribute not found')        
