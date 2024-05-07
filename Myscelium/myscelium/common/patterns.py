@@ -144,6 +144,7 @@ class CommandInstruction(BaseModel):
 
         command_target = getattr(values, 'command_target', 'Attribute not found')
         response_target = getattr(values, 'response_target', 'Attribute not found')
+        collect_response = getattr(values, 'collect_response', 'Attribute not found')
 
         mode = getattr(values, 'command_mode', 'Attribute not found')
         
@@ -161,8 +162,22 @@ class CommandInstruction(BaseModel):
                 else:
                     pass
 
-                # TODO >>> Do the validation of the response target
-            
+                if response_target != "Origin":
+                    if collect_response: # If the collect response is false we can't use Host nor ClientKey(String)             
+                        if response_target == "Host":
+                            pass
+                        elif response_target.startswith('ClientKey(') and response_target.endswith(')'):
+                            content = response_target[len('ClientKey('):-1].strip()
+                            if content == "":
+                                raise ValueError(f"Command target needs a valid ClientKey not empty!")
+                        else:
+                            raise ValueError(f"Command target must be either 'Origin', 'Host', or 'ClientKey(some_value)'")
+                    else:
+                        raise ValueError("To use inplace responses (collect_response == false) you must have the response target as Origin")
+                else:
+                    # If the response is == Origin this is correct!
+                    pass
+                    
             case "Response":
 
         #-> Command:
@@ -171,7 +186,7 @@ class CommandInstruction(BaseModel):
         #         * Host
         #   > response_target
         #         * Origin              |
-        #         * Host                | Auto collect == true
+        #         * Host                | Auto collect == false
         #         * ClientKey(String)   | Auto collect == false
 
         #-> Response:
