@@ -153,7 +153,6 @@ class Senders:
         
         try:
             command = client_patterns.inner_management_command_pattern(
-                origin_key=CLIENT_ID,  # origin
                 command_function="add_client",  # actf
                 kwargs={
                     "client_name": "test_client",
@@ -223,7 +222,6 @@ class Senders:
         
         try:
             command = client_patterns.inner_management_command_pattern(
-                CLIENT_ID,  # origin
                 "update_client",  # actf
                 kwargs={
                     "actual_client_key": "xMndjslwpedcnfe",
@@ -289,7 +287,6 @@ class Senders:
         
         try:
             command = client_patterns.inner_management_command_pattern(
-                origin_key=CLIENT_ID, 
                 command_function="remove_client", 
                 kwargs={"client_key": "xMndjslwpedcnfe"},
                 response_type="ExternalFunction",
@@ -336,7 +333,6 @@ class Senders:
         #     continue
 
         command = client_patterns.inner_management_command_pattern(
-            origin_key=CLIENT_ID,  # origin
             command_function="test_add_client",  # actf
             kwargs={
                 "client_name": "test_client",
@@ -381,7 +377,6 @@ class Senders:
         #     continue
 
         command = client_patterns.inner_management_command_pattern(
-            origin_key=CLIENT_ID,  # origin
             command_function="test_update_client",  # actf
             kwargs={
                 "actual_client_key": "xMndjslwpedcnfe",
@@ -428,7 +423,6 @@ class Senders:
         #     continue
 
         command = client_patterns.inner_management_command_pattern(
-            CLIENT_ID, 
             "test_remove_client", 
             kwargs={"client_key": "xMndjslwpedcnfe"}
         )

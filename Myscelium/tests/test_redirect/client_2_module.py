@@ -70,7 +70,6 @@ class Senders:
             )   
             
             command = client_patterns.command_pattern(
-                origin_key=CLIENT_ID,
                 command_function="test_redirect_handler",
                 target_key=TARGET_KEY,  # This is part of the smart redirect mechanism to redirect commands
                 kwargs={"data": 8},

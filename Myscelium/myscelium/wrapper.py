@@ -430,7 +430,6 @@ class HostConfigManager:
             command_type="InternalManagement",
             command_target="Host",
             command_status="Success",
-            command_origin="Host",
             command_actf="add_client",
             command_kwargs={"new_client": new_client.format()},
             response_type="InternalManagement",
@@ -451,7 +450,6 @@ class HostConfigManager:
             command_type="InternalManagement",
             command_target="Host",
             command_status="Success",
-            command_origin="Host",
             command_actf="update_client",
             command_kwargs={"actual_client_key": actual_client_key, "updated_client": updated_client.format()},
             response_type="InternalManagement",
@@ -469,7 +467,6 @@ class HostConfigManager:
             command_type="InternalManagement",
             command_target="Host",
             command_status="Success",
-            command_origin="Host",
             command_actf="remove_client",
             command_kwargs={"client_key": client_key},
             response_type="InternalManagement",
@@ -911,7 +908,6 @@ class ClientPatterns:
 
     def command_pattern(
         self,
-        origin_key: str,
         command_function: str,
         target_key: str = "",
         kwargs: dict = {},
@@ -981,7 +977,6 @@ class ClientPatterns:
                 command_type="ExternalFunction",
                 command_target="Host",
                 command_status="Success",
-                command_origin=f"ClientKey({origin_key})",
                 command_actf=command_function,
                 command_kwargs=kwargs,
                 command_message=message,
@@ -996,7 +991,6 @@ class ClientPatterns:
                 command_type="ExternalFunction",
                 command_target=f"ClientKey({target_key})",
                 command_status="Success",
-                command_origin=f"ClientKey({origin_key})",
                 command_actf=command_function,
                 command_kwargs=kwargs,
                 command_message=message,
@@ -1010,7 +1004,6 @@ class ClientPatterns:
 
     def inner_management_command_pattern(
         self,
-        origin_key: str,
         command_function: str,
         kwargs: dict = {},
         message: str = "",
@@ -1079,7 +1072,6 @@ class ClientPatterns:
             command_type="DirectFunction",
             command_target="Host",
             command_status="Success",
-            command_origin= f"ClientKey({origin_key})",
             command_actf=command_function,
             command_kwargs=kwargs,
             command_message=message,
