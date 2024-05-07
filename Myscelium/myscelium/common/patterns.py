@@ -152,6 +152,18 @@ class CommandInstruction(BaseModel):
 
             case "Function":
 
+                #-> Command:
+                #   > command_target
+                #         * ClientKey(string)
+                #         * Host
+                #   > response_target
+                #         * Origin              |
+                #         * Host                | Auto collect == false
+                #         * ClientKey(String)   | Auto collect == false
+
+                if command_target == response_target:
+                    raise ValueError(f"You can't schedule a command that the response points to self triggered node, command_target must be diferente than response_target")
+
                 if command_target != "Host":
                     if command_target.startswith('ClientKey(') and command_target.endswith(')'):
                         content = command_target[len('ClientKey('):-1].strip()
@@ -180,40 +192,31 @@ class CommandInstruction(BaseModel):
                     
             case "Response":
 
-        #-> Command:
-        #   > command_target
-        #         * ClientKey(string)
-        #         * Host
-        #   > response_target
-        #         * Origin              |
-        #         * Host                | Auto collect == false
-        #         * ClientKey(String)   | Auto collect == false
+                #-> Response:
+                #   > command_target
+                #         * ClientKey(string)   | Auto collect == true
+                #         * Host
+                #   > response_target
+                #         * Empty
 
-        #-> Response:
-        #   > command_target
-        #         * ClientKey(string)   | Auto collect == true
-        #         * Host
-        #   > response_target
-        #         * Empty
-        
-        if target not in ['Origin', 'Host']:
-            if target.startswith('ClientKey(') and target.endswith(')'):
-                content = target[len('ClientKey('):-1].strip()
-                if content == "":
-                    raise ValueError(f"Command {attribute_name} needs a valid ClientKey not empty!")
-            else:
-                raise ValueError(f"{attribute_name} must be either 'Origin', 'Host', or 'ClientKey(some_value)'")
-        else:
-            if target != "Origin":
-                collect_response = getattr(values, "collect_response", 'Attribute not found')  
-                if not collect_response:
-                    raise ValueError(f"You only can send inplace responses to origin!")
-            
-        command_target = getattr(values, "command_target", 'Attribute not found')  
-        response_target = getattr(values, "response_target", 'Attribute not found')        
-        
-        if command_target == response_target:
-            raise ValueError(f"You can't schedule a command that the response points to self triggered node, command_target must be diferente than response_target")
+                if command_target != "Origin":
+
+                    if collect_response:
+                        raise ValueError(f"Can't send a inplace response to places that isn't the Origin!")
+
+                    if command_target == "Host":
+                        pass
+                    elif command_target.startswith('ClientKey(') and command_target.endswith(')'):
+                        content = command_target[len('ClientKey('):-1].strip()
+                        if content == "":
+                            raise ValueError(f"Command target needs a valid ClientKey not empty!")
+                    else:
+                        raise ValueError(f"Command target must be either 'Host', 'Origin', or 'ClientKey(some_value)'")
+
+                else:
+                    pass
+
+                # TODO >>> Add the validation of the response target if necessary, but it should be empty here
 
         if not getattr(values, 'command_actf', 'Attribute not found'):
             raise ValueError("Command activation function can't be empty")
