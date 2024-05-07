@@ -73,7 +73,6 @@ class Senders:
 
         try:
             command = client_patterns.command_pattern(
-                origin_key=CLIENT_KEY,
                 command_function="python_function",
                 target_key=TARGET_KEY, # -> target is client2
                 kwargs={"age": 10, "birth": 8, "name": "cristian"},

@@ -44,7 +44,6 @@ class Senders:
         #     continue
 
         command = client_patterns.command_pattern(
-            origin_key=CLIENT_ID,
             command_function="python_function",
             kwargs={"age": 10, "birth": 8, "name": "cristian"},
             response_type="ExternalFunction",

@@ -5,3 +5,6 @@ streamlit
 seaborn 
 matplotlib
 ollama
+wheel 
+setuptools 
+setuptools-rust

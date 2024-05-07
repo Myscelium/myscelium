@@ -40,34 +40,6 @@ fn convert_indexmap_to_pydict(py: Python<'_>, data: &IndexMap<String, String>) -
     Ok(py_dict.into())
 }
 
-// fn convert_boxed_any_to_pyany(py: Python, boxed_any: Box<Value>) -> PyResult<PyObject> {
-//     if let Some(value) = boxed_any.downcast_ref::<bool>() {
-//         Ok(value.into_py(py))
-//     } else if let Some(value) = boxed_any.downcast_ref::<f64>() {
-//         Ok(value.into_py(py))
-//     } else if let Some(value) = boxed_any.downcast_ref::<String>() {
-//         Ok(value.into_py(py))
-//     } else if let Some(vec) = boxed_any.downcast_ref::<Vec<Box<dyn Any>>>() {
-//         let py_list = PyList::empty(py);
-//         for item in vec {
-//             let py_item = convert_boxed_any_to_pyany(py, item)?;
-//             py_list.append(py_item)?;
-//         }
-//         Ok(py_list.into_py(py))
-//     } else if let Some(hash_map) = boxed_any.downcast_ref::<HashMap<String, Value>>() {
-//         let py_dict = PyDict::new(py);
-//         for (key, value) in hash_map {
-//             let py_value = convert_json_value_to_pyobject(py, value)?;
-//             py_dict.set_item(key, py_value)?;
-//         }
-//         Ok(py_dict.into_py(py))
-//     } else if boxed_any.is::<()>() {
-//         Ok(py.None())
-//     } else {
-//         Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unsupported type: {:?}", boxed_any)))
-//     }
-// }
-
 fn convert_json_value_to_pyobject(py: Python, value: &Value) -> PyResult<PyObject> {
     match value {
         Value::Object(map) => {
@@ -143,7 +115,7 @@ fn convert_to_tuple<'a>(py: Python<'a>, obj: &'a PyObject) -> PyResult<&'a PyTup
 }
 
 /// Wraps a Python function into a Rust closure that can be executed with dynamic parameters.
-pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any + 'static>>) -> Box<dyn Any> + Send + Sync> {
+pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn(Vec<Box<dyn Any + 'static>>) -> Box<dyn Any> + Send + Sync> {
     Box::new(move |args: Vec<Box<dyn Any + 'static>>| -> Box<dyn Any> {
         // Convert args to Python objects here. You might need to dynamically check types and convert them accordingly.
         // This is a placeholder showing the concept, actual implementation may vary based on your specific needs.
@@ -157,19 +129,6 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
             let getting_py = unsafe { Python::assume_gil_acquired() };
             let gil_pool = unsafe { getting_py.clone().new_pool() };
             let py = gil_pool.python();
-
-            // for any in args {
-            //     let downcasted_args: Result<Box<Value>, Box<dyn Any>> = any.downcast::<Value>();
-            //     match downcasted_args {
-            //         Ok(value_box) => {
-            //             println!("String value: {}", value_box);
-            //             let val = *value_box;
-            //             let converted_map: HashMap<String, Value> = serde_json::from_value(val).unwrap();
-            //             let instructions = CommandInstructions::from_value_map(converted_map).unwrap();
-            //         },
-            //         Err(_) => println!("Not a string"),
-            //     }
-            // }
 
             // Convert Rust `args` into Python objects. This might involve type checking and conversion.
             let py_args = match convert_boxed_anys_to_pyany(py, args) {
@@ -230,7 +189,17 @@ pub fn wrap_py_function(py_func: Py<PyFunction>) -> Box<dyn Fn(Vec<Box<dyn Any +
         let instructions = {
             // Check if the Value is an object and convert it to HashMap
             if let Some(obj) = value.as_object() {
-                let map: HashMap<String, Value> = obj.clone().into_iter().collect();
+                let mut map: HashMap<String, Value> = obj.clone().into_iter().collect();
+
+                // > Set the origin of the response as the self key, since the response needs to have
+                // > the origin pointing to the place that generate it, don't mattering from were
+                // > comes the command that triggered the handler that generated it
+
+                // TODO >>> Add a special case to the cases were the response is redirected to
+                // TODO other clients this cases we need to keep the origin of the command
+
+                map.insert("origin".to_string(), Value::from(Value::String(self_key.clone())));
+
                 match CommandInstructions::from_value_map(map) {
                     Ok(c) => {
                         println!("Instructions extracted in python briedge: {:?}", c);
@@ -495,23 +464,6 @@ pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexG
 
     let inner_hash_map: HashMap<_, _> = command.kwargs.clone().into_iter().collect();
     let kwargs_map: HashMap<String, Py<PyAny>> = dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?;
-
-    // let kwargs_map = match command.command_type() {
-    //     CommandType::Response(_) => {
-    //         let command = &command.command;
-
-    //         let inner_hash_map: HashMap<_, _> = command.kwargs.clone().into_iter().collect();
-    //         dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
-    //     },
-    //     CommandType::Function(_) => {
-    //         let command = &command.command;
-
-    //         let inner_hash_map: HashMap<_, _> = command.kwargs.clone().into_iter().collect();
-    //         dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?
-    //     },
-
-    //     _ => dict_to_kwargs(py, &command.command).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?,
-    // };
 
     println!("Converted to Python kwargs_map: {:?}", kwargs_map);
 

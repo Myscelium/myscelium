@@ -47,7 +47,6 @@ class CommandInstruction(BaseModel):
     - command_target (str): Target of the command, should follow the format 'Origin',
                             'ClientKey(String)', or 'Host'.
     - command_status (str): Status of the command, must be one of ['Success', 'Failure'].
-    - command_origin (str): Origin of the command, must be 'Host' or 'ClientKey(String)'.
     - command_actf (str): Activation function for the command. Cannot be empty.
     - command_kwargs (dict): Additional keyword arguments for the command.
     - command_message (str): Message associated with the command.
@@ -70,7 +69,6 @@ class CommandInstruction(BaseModel):
     command_type: str
     command_target: str
     command_status: str
-    command_origin: str
     command_actf: str
     command_kwargs: Dict[str, Any]
     command_message: str
@@ -92,7 +90,6 @@ class CommandInstruction(BaseModel):
             'type': self.command_type,
             'target': self.command_target,
             'status': self.command_status,
-            'origin': self.command_origin,
             'actf': self.command_actf,
             'kwargs': self.command_kwargs,
             'message': self.command_message,
@@ -143,8 +140,7 @@ class CommandInstruction(BaseModel):
     def check_keys_and_origin(cls, values):
         print(values)
         targets = ['command_target', 'response_target']
-        origins = ['command_origin']
-        for attribute_name in targets + origins:  
+        for attribute_name in targets:  
             target = getattr(values, attribute_name, 'Attribute not found')
             if target not in ['Origin', 'Host']:
                 if target.startswith('ClientKey(') and target.endswith(')'):
