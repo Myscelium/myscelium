@@ -315,27 +315,36 @@ class HostPatterns:
         command_instructions = {}
 
         if target_key == "":
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                "Origin",
-                "Success",
-                activation_function,
-                kwargs,
-                message,
-                auto_collect=auto_collect,
-            )
+
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target="Origin",
+                command_status="Success",
+                command_actf=activation_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=activation_function,
+                auto_collect_response=auto_collect,
+            ).format()
+
         else:  # Redirect case
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                f"ClientKey({target_key})",
-                "Success",
-                activation_function,
-                kwargs,
-                message,
-                auto_collect=auto_collect,
-            )
+
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({target_key})",
+                command_status="Success",
+                command_actf=activation_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=activation_function,
+                auto_collect_response=auto_collect,
+            ).format()
 
         return command_instructions
 
@@ -392,28 +401,36 @@ class HostPatterns:
         command_instructions = {}
 
         if error_handler == "":
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "DirectFunction",
-                "Origin",
-                "Failure",
-                "Host",
-                "error_handler",  # ExternalFunction error handler
-                kwargs,
-                error_message,
-            )
+
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="DirectFunction",
+                command_target="Origin",
+                command_status="Failure",
+                command_actf="error_handler",
+                command_kwargs=kwargs,
+                command_message=error_message,
+                response_type="DirectFunction",
+                response_target="Origin",
+                response_actf="error_handler",
+                auto_collect_response=True,
+            ).format()
 
         else:
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                "Origin",
-                "Failure",
-                "Host",
-                error_handler,  ## TODO  >>> See what to do in this case since we can use the default actf as a reponse actf
-                kwargs,
-                error_message,
-            )
+
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target="Origin",
+                command_status="Failure",
+                command_actf=error_handler,
+                command_kwargs=kwargs,
+                command_message=error_message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=error_handler,
+                auto_collect_response=True,
+            ).format()
 
         return command_instructions
 
@@ -881,27 +898,34 @@ class ClientPatterns:
         command_instructions = {}
 
         if target_key == "":
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                "Origin",
-                "Success",
-                activation_function,
-                kwargs,
-                message,
-                auto_collect=auto_collect,
-            )
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target="Origin",
+                command_status="Success",
+                command_actf=activation_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=activation_function,
+                auto_collect_response=auto_collect,
+            ).format()
+
         else:  # Redirect case
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                f"ClientKey({target_key})",
-                "Success",
-                activation_function,
-                kwargs,
-                message,
-                auto_collect=auto_collect,
-            )
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({target_key})",
+                command_status="Success",
+                command_actf=activation_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=activation_function,
+                auto_collect_response=auto_collect,
+            ).format()
 
         return command_instructions
 

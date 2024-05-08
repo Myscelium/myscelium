@@ -139,7 +139,6 @@ class CommandInstruction(BaseModel):
     @model_validator(mode="after")
     def check_keys_and_origin(cls, values):
         print(values)
-        targets = ['command_target', 'response_target']
         # for attribute_name in targets:  
 
         command_target = getattr(values, 'command_target', 'Attribute not found')
@@ -201,7 +200,7 @@ class CommandInstruction(BaseModel):
 
                 if command_target != "Origin":
 
-                    if collect_response:
+                    if not collect_response:
                         raise ValueError(f"Can't send a inplace response to places that isn't the Origin!")
 
                     if command_target == "Host":
@@ -218,9 +217,12 @@ class CommandInstruction(BaseModel):
 
                 # TODO >>> Add the validation of the response target if necessary, but it should be empty here
 
-        if not getattr(values, 'command_actf', 'Attribute not found'):
-            raise ValueError("Command activation function can't be empty")
+        if collect_response: # If auto collect == true `command_actf` needs to be defined!
+            if not getattr(values, 'command_actf', 'Attribute not found'):
+                raise ValueError("Command activation function can't be empty")
+            
         return values
+        
     
 
 # class ResponseInstruction(BaseModel):

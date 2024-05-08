@@ -43,11 +43,21 @@ class Handlers:
         
         host_patterns = HostPatterns()
 
-        response = host_patterns.response_pattern(
-            activation_function=response_actf, 
-            kwargs={"data": 'hello!'},
-            auto_collect=auto_collect,
-        )
+        try:
+            response = host_patterns.response_pattern(
+                activation_function=response_actf, 
+                target_key="Origin",
+                kwargs={"data": 'hello!'},
+                auto_collect=auto_collect,
+            )
+        except ValueError as e:
+            Events_Manager(
+                Unit="Host", 
+                path="Logs"
+            ).Set_Event(
+                step=f"Error trying to cast inplace response: {e}", 
+                event_type="Exception"
+            )
 
         Events_Manager(
             Unit="Host", 
