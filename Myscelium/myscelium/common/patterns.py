@@ -143,7 +143,7 @@ class CommandInstruction(BaseModel):
 
         command_target = getattr(values, 'command_target', 'Attribute not found')
         response_target = getattr(values, 'response_target', 'Attribute not found')
-        collect_response = getattr(values, 'collect_response', 'Attribute not found')
+        collect_response = getattr(values, 'auto_collect_response', 'Attribute not found')
 
         mode = getattr(values, 'command_mode', 'Attribute not found')
         
@@ -217,10 +217,26 @@ class CommandInstruction(BaseModel):
 
                 # TODO >>> Add the validation of the response target if necessary, but it should be empty here
 
-        if collect_response: # If auto collect == true `command_actf` needs to be defined!
+        if collect_response: # If auto collect == True `command_actf` needs to be defined!
             if not getattr(values, 'command_actf', 'Attribute not found'):
-                raise ValueError("Command activation function can't be empty")
+                raise ValueError("Command activation function can't be empty for this case!")
             
+        if collect_response:
+
+            #> If Command == Funtion and collect_response == True, then we need to have define response_actf!
+            # This is required because the tranposer collector needs something to be able to tranpose and call a function
+
+            # TODO >>> Add the requirements of defining ExternalFunction and other
+            # TODO >>> Also currently myscelium only supports inplace responses for External Functions 
+
+            if not getattr(values, 'command_mode', 'Attribute not found'):
+                raise ValueError("command_mode can't be empty!")
+            
+            command_mode = getattr(values, 'command_mode', 'Attribute not found')
+            if command_mode == "Function":
+                if not getattr(values, 'response_actf', 'Atrribute not found'):
+                    raise ValueError("Response activation function can't be empty!")
+
         return values
         
     
