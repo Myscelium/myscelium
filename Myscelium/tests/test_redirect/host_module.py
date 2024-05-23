@@ -116,17 +116,23 @@ class MyHost:
         # -> Define how much time host will be alive!
         # TODO >>> In the future change to use 100% timeout
         n = 0 
-        COUNTER = 62 # Each counter is 5 secs of waiting
+        COUNTER = 17 # Each counter is 5 secs of waiting
         
         mys_host_interface = MysceliumHostInterface("Temp/Data/")
-
         mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
-
         mys_host_interface.start_client_events_retriever()
 
         time.sleep(30)
 
         while True:
+
+            if n >= COUNTER:
+                print("Time to run test exceeded killing all processes!")
+                System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
+                System_Status(path="Logs").change_unit_status(Unit="Client2", Status=False)
+                mys_host_interface.stop_client_events_retriever()
+                System_Status(path="Logs").change_unit_status(Unit="Host", Status=False)
+                break
 
             client_1_status = System_Status(path="Logs").get_unit_status(Unit="Client1")
             client_2_status = System_Status(path="Logs").get_unit_status(Unit="Client2")

@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns, callback_pattern, CallbackCollector
+from myscelium import MysceliumClient, ClientPatterns, callback_pattern, CallbackCollector, CommandInstruction
 import os
 import time
 import signal
@@ -51,14 +51,36 @@ class Receivers:
             return
         
         response_actf = info["response_actf"]
-        client_patterns = ClientPatterns()
+        # client_patterns = ClientPatterns()
 
-        response = client_patterns.response_pattern(
-            activation_function=response_actf,
-            kwargs={"data": "hello!"},
-            target_key=info["origin"]['ClientKey'],
-            auto_collect=auto_collect,
-        )
+        # response = client_patterns.response_pattern(
+        #     activation_function=response_actf,
+        #     kwargs={"data": "hello!"},
+        #     target_key=info["origin"]['ClientKey'],
+        #     auto_collect=auto_collect,
+        # )
+
+        try:
+            response = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target="Origin",
+                command_status="Success",
+                command_actf=response_actf,
+                command_kwargs={"data": 'hello!'},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=response_actf,
+                auto_collect_response=auto_collect,
+            ).format()
+        except ValueError as e:
+            Events_Manager(Unit="Client1", path="Logs").Set_Event(
+                step=f"can't cast response, error: {e}", event_type="Exception"
+            )
+            shutdown() 
+            return
+
 
         Events_Manager(
             Unit="Client2", 
@@ -67,6 +89,13 @@ class Receivers:
             step="Active Basic Callback", 
             event_type="Receive", 
             event_key="088p72pbv9Ozj7T1"
+        )
+
+        Events_Manager(
+            Unit="Client2", 
+            path="Logs"
+        ).Set_Event(
+            step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
         )
         
         Events_Manager(
@@ -78,13 +107,6 @@ class Receivers:
             event_key="74L648VZDI7J1GV5"
         )
         
-        Events_Manager(
-            Unit="Client2", 
-            path="Logs"
-        ).Set_Event(
-            step=f"Base callback - Receive Data: [{age}, {birth}, {name}]"
-        )
-
         return response
 
 class MyClient:

@@ -126,6 +126,7 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
         let value: Value;
 
         {
+            // < Because of this block we need to execute python tasks sequentially!
             let getting_py = unsafe { Python::assume_gil_acquired() };
             let gil_pool = unsafe { getting_py.clone().new_pool() };
             let py = gil_pool.python();
@@ -164,7 +165,6 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
             }
 
             // let args = convert_to_tuple(py, &py_args).unwrap();
-
             // let py_tuple = PyTuple::new(py, &args);
             result = py_func.call(py, args, None);
 
@@ -199,7 +199,6 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
                 // TODO other clients this cases we need to keep the origin of the command
 
                 map.insert("origin".to_string(), Value::from(Value::String(self_key.clone())));
-
                 match CommandInstructions::from_value_map(map) {
                     Ok(c) => {
                         println!("Instructions extracted in python briedge: {:?}", c);
@@ -488,11 +487,8 @@ pub fn client_call_callback(py: Python<'_>, command: &Command, callback_patterns
 
     // Get the function and args_types from the CALLBACK_PATTERNS
     let (function, _) = callback_patterns.get(function_name).unwrap();
-
     let command: &CommandInstructions = &command.command;
-
     let inner_hash_map: HashMap<String, Value> = command.convert_to_hashmap_string_value();
-
     let mut kwargs_dict: HashMap<String, Value> = HashMap::new();
 
     kwargs_dict.insert("data".to_string(), Value::Object(serde_json::Map::from_iter(inner_hash_map)));

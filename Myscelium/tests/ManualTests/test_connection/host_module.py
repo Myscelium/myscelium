@@ -1,4 +1,4 @@
-from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern, CallbackCollector
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern, CallbackCollector, CommandInstruction, ClientPattern
 from multiprocessing import Process, Event, Manager
 import os
 import signal
@@ -39,13 +39,37 @@ class Handlers:
         
         response_actf = info["response_actf"]
         
-        host_patterns = HostPatterns()
-
-        response = host_patterns.response_pattern(
-            activation_function=response_actf, 
-            kwargs={"data": 'hello!'},
-            auto_collect=auto_collect,
-        )
+        if auto_collect:
+        
+            response = CommandInstruction (
+                command_mode='Response',
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({info['origin']['ClientKey']})", # -> target is client2
+                command_status="Success",
+                command_actf=f"{response_actf}",
+                command_kwargs={"data": "hello!"},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=f"{response_actf}", 
+                auto_collect_response=True,
+            ).format()
+            
+        else:
+            
+            response = CommandInstruction (
+                command_mode='Response',
+                command_type="ExternalFunction",
+                command_target=f"Origin", # -> target is client2
+                command_status="Success",
+                command_actf=f"", # -> Don't need actf when auto collect is False
+                command_kwargs={"data": "hello!"},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=f"", # -> Don't need response actf when auto collect is False
+                auto_collect_response=False,
+            ).format()
 
         return response
 
@@ -72,13 +96,39 @@ class Handlers:
         
         response_actf = info["response_actf"]
         
-        host_patterns = HostPatterns()
-
-        response = host_patterns.response_pattern(
-            activation_function=response_actf, 
-            kwargs={"data": num1 + num2},
-            auto_collect=auto_collect,
-        )
+        if auto_collect:
+        
+            response = CommandInstruction (
+                command_mode='Response',
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({info['origin']['ClientKey']})", # -> target is client2
+                command_status="Success",
+                command_actf=f"{response_actf}",
+                command_kwargs={"data": num1 + num2},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=f"{response_actf}",
+                auto_collect_response=True,
+            ).format()
+        
+        else:
+            
+            response = CommandInstruction (
+                command_mode='Response',
+                command_type="ExternalFunction",
+                command_target=f"Origin", # -> target is client2
+                command_status="Success",
+                command_actf=f"", # -> Don't need actf when auto collect is False
+                command_kwargs={"data": num1 + num2},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=f"", # -> Don't need response actf when auto collect is False
+                auto_collect_response=False,
+            ).format()
+            
+            
     
         return response
 
@@ -118,32 +168,33 @@ class MyHost:
 
         allowed_clients = [
 
-            self.host_patterns.client_pattern(
+            ClientPattern(
                 client_name="TestClient1", 
                 client_type="Worker", 
                 client_key="some_client_id", 
                 client_permission_group="", 
                 client_is_super_user=True, 
                 max_sub_channels=5
-            ),
+            ).format(),
+   
 
-            self.host_patterns.client_pattern(
+            ClientPattern(
                 client_name="TestClient2", 
                 client_type="Worker", 
                 client_key="randomsclientids", 
                 client_permission_group="", 
                 client_is_super_user=True, 
                 max_sub_channels=5
-            ),
+            ).format(),
             
-            self.host_patterns.client_pattern(
+            ClientPattern(
                 client_name="Interface1", 
                 client_type="Interface", 
                 client_key="InitialHostKey", 
                 client_permission_group="", 
                 client_is_super_user=True, 
                 max_sub_channels=5
-            ),
+            ).format(),
 
         ]
 
@@ -185,7 +236,7 @@ class MyHost:
 
 
 if __name__ == "__main__":
-    MyHost("INFO").run()           
+    MyHost("DEBUG").run()           
                 
         
 
