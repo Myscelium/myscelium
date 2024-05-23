@@ -107,8 +107,6 @@ class Receivers:
             event_key="74L648VZDI7J1GV5"
         )
         
-        
-
         return response
 
 class MyClient:
