@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns, callback_pattern
+from myscelium import MysceliumClient, ClientPatterns, callback_pattern, CommandInstruction
 import os
 import time
 import signal
@@ -69,15 +69,28 @@ class Senders:
                 event_type="Default",
             )   
             
-            command = client_patterns.command_pattern(
-                origin_key=CLIENT_ID,
-                command_function="test_redirect_handler",
-                target_key=TARGET_KEY,  # This is part of the smart redirect mechanism to redirect commands
-                kwargs={"data": 8},
+            # command = client_patterns.command_pattern(
+            #     command_function="test_redirect_handler",
+            #     target_key=TARGET_KEY,  # This is part of the smart redirect mechanism to redirect commands
+            #     kwargs={"data": 8},
+            #     response_type="ExternalFunction",
+            #     response_target= "Origin",
+            #     response_actf="", # Isn't defined a handler to this here yet
+            # )
+
+            command = CommandInstruction(
+                command_mode="Function",
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({TARGET_KEY})",
+                command_status="Success",
+                command_actf="test_redirect_handler",
+                command_kwargs={"data": 8},
+                command_message="",
                 response_type="ExternalFunction",
-                response_target= "Origin",
-                response_actf="", # Isn't defined a handler to this here yet
-            )
+                response_target="Origin",
+                response_actf="test_handler",
+                auto_collect_response=True,
+            ).format()
 
             try:
                 result = mys_client.send(command, priority=10)

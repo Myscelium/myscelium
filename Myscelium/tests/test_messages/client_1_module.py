@@ -23,7 +23,6 @@ class Senders:
         mys_client.running = True
 
         command = client_patterns.command_pattern(
-            CLIENT_KEY,
             "python_function", 
             kwargs={"age": 20, "birth": 8, "name": "cristian"}
         )
@@ -46,7 +45,6 @@ class Senders:
         mys_client.running = True
 
         command = client_patterns.command_pattern(
-            CLIENT_KEY,
             "python_function", 
             kwargs={"age": 5, "birth": 5, "name": "potato"}
         )

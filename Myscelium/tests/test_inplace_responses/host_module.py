@@ -1,4 +1,5 @@
 from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern, ClientPattern
+from myscelium import CommandInstruction
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
 import os
@@ -25,6 +26,14 @@ class Handlers:
         print(name)
         print(age)
 
+        Events_Manager(
+            Unit="Host", 
+            path="Logs"
+        ).Set_Event(
+            step=f"Info received: {info}", 
+            event_type="Default"
+        )
+
         if "auto_collect" in info:
             pass
         else:
@@ -33,6 +42,14 @@ class Handlers:
         
         auto_collect = info["auto_collect"]
 
+        Events_Manager(
+            Unit="Host", 
+            path="Logs"
+        ).Set_Event(
+            step=f"auto_collect: {auto_collect}", 
+            event_type="Default"
+        )
+
         if auto_collect or "response_actf" in info: # only require response_actf if auto_collect is true
             pass
         else:
@@ -40,14 +57,29 @@ class Handlers:
             return None
         
         response_actf = info["response_actf"]
-        
-        host_patterns = HostPatterns()
 
-        response = host_patterns.response_pattern(
-            activation_function=response_actf, 
-            kwargs={"data": 'hello!'},
-            auto_collect=auto_collect,
-        )
+        try:
+            response = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target="Origin",
+                command_status="Success",
+                command_actf=response_actf,
+                command_kwargs={"data": 'hello!'},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=response_actf,
+                auto_collect_response=auto_collect,
+            ).format()
+        except ValueError as e:
+            Events_Manager(
+                Unit="Host", 
+                path="Logs"
+            ).Set_Event(
+                step=f"Error trying to cast inplace response: {e}", 
+                event_type="Exception"
+            )
 
         Events_Manager(
             Unit="Host", 

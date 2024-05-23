@@ -83,69 +83,69 @@ def pytest_sessionfinish(session, exitstatus):
     
     # Received: Command { client_key: \"some_client_id\", parity_id: \"itisaspecialcase\", priority: 11, command: CommandInstructions { mode: Response, command_type: SpecialFunction, target: Origin, status: Success, origin: Host, actf: \"C207\", kwargs: {}, message: \"\", response_type: None, response_target: None, response_actf: None, collect_response: true } }
     
-    try:
-        client = Client(host='http://127.0.0.1:11434')
+    # try:
+    #     client = Client(host='http://127.0.0.1:11434')
         
-        log_lines_dict = {}
-        for owner, logs in ALL_LOG_ENTRIES.items():
+    #     log_lines_dict = {}
+    #     for owner, logs in ALL_LOG_ENTRIES.items():
         
-            for log in logs:
+    #         for log in logs:
                 
-                if log["log_msg"] == "Nothing in the schedule, skipping >>>":
-                    continue
+    #             if log["log_msg"] == "Nothing in the schedule, skipping >>>":
+    #                 continue
             
-                if log["log_msg"] == "\nSchedule to process:\n[]\n":
-                    continue
+    #             if log["log_msg"] == "\nSchedule to process:\n[]\n":
+    #                 continue
                 
-                # -> Remove C206 Ping and C207 Pong they are not necessary for this task and will overflow the model
-                if 'C206' not in log["log_msg"] and 'C207' not in log["log_msg"]:
-                    pass
-                else:
-                    continue
+    #             # -> Remove C206 Ping and C207 Pong they are not necessary for this task and will overflow the model
+    #             if 'C206' not in log["log_msg"] and 'C207' not in log["log_msg"]:
+    #                 pass
+    #             else:
+    #                 continue
      
-                if log["log_time"] == "":
-                    continue
+    #             if log["log_time"] == "":
+    #                 continue
 
-                log_lines_dict[log["log_time"]] = f"{owner}: " + log["log_msg"] + "\n"
+    #             log_lines_dict[log["log_time"]] = f"{owner}: " + log["log_msg"] + "\n"
 
-        # Sorting the dictionary by its keys (timestamps)
-        sorted_dict = {k: log_lines_dict[k] for k in sorted(log_lines_dict)}
+    #     # Sorting the dictionary by its keys (timestamps)
+    #     sorted_dict = {k: log_lines_dict[k] for k in sorted(log_lines_dict)}
 
-        log_lines = ""
+    #     log_lines = ""
     
-        for val in sorted_dict.values():
-            log_lines += val
+    #     for val in sorted_dict.values():
+    #         log_lines += val
             
-        # TODO >>> Maybe implement Crewai here to better analyse the logs
+    #     # TODO >>> Maybe implement Crewai here to better analyse the logs
 
-        # print(log_lines)
+    #     # print(log_lines)
     
-        print("\n")
+    #     print("\n")
 
-        response = client.chat(model='mistral', messages=[
-            {
-                'role': 'user',
-                'content': f"Please review the following log messages from a test between a Central Node and adjacent nodes in a distributed system. Your task is to identify any anomalies, errors, or unusual patterns in these log lines, you will encounter seval commands, like C206 and C207 that are ping and pong, and other CXXX commands that are especial commands, also another type of commands and responses too, in middle of that will have some other kind of log messages, the order here matters to understand it! Note that you do not need to provide explanations or solutions for these issues. Simply identify and list any irregularities or notable errors you find in the log data. The log lines are as follows: \n{log_lines} \n Focus on discrepancies, things that looks like errors, or any pattern breaks in these log messages and do not foucus inconsistencies because the logs logs various behaviors that do diferent things and also, don't focus in the timestamp order because they are already are in order! Good job.",
-            },
-        ])
+    #     response = client.chat(model='mistral', messages=[
+    #         {
+    #             'role': 'user',
+    #             'content': f"Please review the following log messages from a test between a Central Node and adjacent nodes in a distributed system. Your task is to identify any anomalies, errors, or unusual patterns in these log lines, you will encounter seval commands, like C206 and C207 that are ping and pong, and other CXXX commands that are especial commands, also another type of commands and responses too, in middle of that will have some other kind of log messages, the order here matters to understand it! Note that you do not need to provide explanations or solutions for these issues. Simply identify and list any irregularities or notable errors you find in the log data. The log lines are as follows: \n{log_lines} \n Focus on discrepancies, things that looks like errors, or any pattern breaks in these log messages and do not foucus inconsistencies because the logs logs various behaviors that do diferent things and also, don't focus in the timestamp order because they are already are in order! Good job.",
+    #         },
+    #     ])
 
-        message = response["message"]["content"]
+    #     message = response["message"]["content"]
         
-        analise_file = os.path.join(TEMP_DIR, "auto_analise.txt")
+    #     analise_file = os.path.join(TEMP_DIR, "auto_analise.txt")
         
-        # Remove old analise file
-        os.remove(analise_file)
+    #     # Remove old analise file
+    #     os.remove(analise_file)
         
-        with open (analise_file , "w") as file:
-            file.write(message + "\n")
-            file.close()
+    #     with open (analise_file , "w") as file:
+    #         file.write(message + "\n")
+    #         file.close()
             
-        print("-="*50)
-        print(f"AI: {message}")
+    #     print("-="*50)
+    #     print(f"AI: {message}")
 
-    except BaseException as e:
-        print(f"Error calling the llm for custom analisis, the error is: \n{e}")
-        pass
+    # except BaseException as e:
+    #     print(f"Error calling the llm for custom analisis, the error is: \n{e}")
+    #     pass
     
     print("\n")
 

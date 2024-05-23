@@ -30,9 +30,7 @@ class MyHost:
         COUNTER = 62 # Each counter is 5 secs of waiting
         
         mys_host_interface = MysceliumHostInterface("Temp/Data/")
-
         mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
-
         mys_host_interface.start_client_events_retriever()
 
         time.sleep(30)

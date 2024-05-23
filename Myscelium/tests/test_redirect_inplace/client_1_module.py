@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns, callback_pattern
+from myscelium import MysceliumClient, ClientPatterns, callback_pattern, CommandInstruction
 import os
 import time
 import signal
@@ -72,17 +72,21 @@ class Senders:
             return
 
         try:
-            command = client_patterns.command_pattern(
-                origin_key=CLIENT_KEY,
-                command_function="python_function",
-                target_key=TARGET_KEY, # -> target is client2
-                kwargs={"age": 10, "birth": 8, "name": "cristian"},
-                message="",
+
+            command = CommandInstruction(
+                command_mode='Function',
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({TARGET_KEY})", # -> target is client2
+                command_status="Success",
+                command_actf="python_function",
+                command_kwargs={"age": 10, "birth": 8, "name": "cristian"},
+                command_message="",
                 response_type="ExternalFunction",
                 response_target="Origin",
-                response_actf="test_handler",
+                response_actf="", # -> Don't need response actf when auto collect is False
                 auto_collect_response=False,
-            )
+            ).format()
+
         except ValueError as e:
             Events_Manager(Unit="Client1", path="Logs").Set_Event(
                 step=f"Error: {e}", event_type="Exception"

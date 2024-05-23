@@ -315,29 +315,36 @@ class HostPatterns:
         command_instructions = {}
 
         if target_key == "":
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                "Origin",
-                "Success",
-                "Host",
-                activation_function,
-                kwargs,
-                message,
-                auto_collect=auto_collect,
-            )
+
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target="Origin",
+                command_status="Success",
+                command_actf=activation_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=activation_function,
+                auto_collect_response=auto_collect,
+            ).format()
+
         else:  # Redirect case
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                f"ClientKey({target_key})",
-                "Success",
-                "Host",
-                activation_function,
-                kwargs,
-                message,
-                auto_collect=auto_collect,
-            )
+
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({target_key})",
+                command_status="Success",
+                command_actf=activation_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=activation_function,
+                auto_collect_response=auto_collect,
+            ).format()
 
         return command_instructions
 
@@ -394,28 +401,36 @@ class HostPatterns:
         command_instructions = {}
 
         if error_handler == "":
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "DirectFunction",
-                "Origin",
-                "Failure",
-                "Host",
-                "error_handler",  # ExternalFunction error handler
-                kwargs,
-                error_message,
-            )
+
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="DirectFunction",
+                command_target="Origin",
+                command_status="Failure",
+                command_actf="error_handler",
+                command_kwargs=kwargs,
+                command_message=error_message,
+                response_type="DirectFunction",
+                response_target="Origin",
+                response_actf="error_handler",
+                auto_collect_response=True,
+            ).format()
 
         else:
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                "Origin",
-                "Failure",
-                "Host",
-                error_handler,  ## TODO  >>> See what to do in this case since we can use the default actf as a reponse actf
-                kwargs,
-                error_message,
-            )
+
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target="Origin",
+                command_status="Failure",
+                command_actf=error_handler,
+                command_kwargs=kwargs,
+                command_message=error_message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=error_handler,
+                auto_collect_response=True,
+            ).format()
 
         return command_instructions
 
@@ -432,7 +447,6 @@ class HostConfigManager:
             command_type="InternalManagement",
             command_target="Host",
             command_status="Success",
-            command_origin="Host",
             command_actf="add_client",
             command_kwargs={"new_client": new_client.format()},
             response_type="InternalManagement",
@@ -453,7 +467,6 @@ class HostConfigManager:
             command_type="InternalManagement",
             command_target="Host",
             command_status="Success",
-            command_origin="Host",
             command_actf="update_client",
             command_kwargs={"actual_client_key": actual_client_key, "updated_client": updated_client.format()},
             response_type="InternalManagement",
@@ -471,7 +484,6 @@ class HostConfigManager:
             command_type="InternalManagement",
             command_target="Host",
             command_status="Success",
-            command_origin="Host",
             command_actf="remove_client",
             command_kwargs={"client_key": client_key},
             response_type="InternalManagement",
@@ -796,7 +808,6 @@ class ClientPatterns:
     def response_pattern(
         self,
         activation_function: str,
-        origin: str = "",
         target_key: str = "",
         kwargs: dict = {},
         message="",
@@ -887,36 +898,40 @@ class ClientPatterns:
         command_instructions = {}
 
         if target_key == "":
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                "Origin",
-                "Success",
-                f"ClientKey({origin})",
-                activation_function,
-                kwargs,
-                message,
-                auto_collect=auto_collect,
-            )
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target="Origin",
+                command_status="Success",
+                command_actf=activation_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=activation_function,
+                auto_collect_response=auto_collect,
+            ).format()
+
         else:  # Redirect case
-            command_instructions = cast_response_command_instruction(
-                "Response",
-                "ExternalFunction",
-                f"ClientKey({target_key})",
-                "Success",
-                f"ClientKey({origin})",
-                activation_function,
-                kwargs,
-                message,
-                auto_collect=auto_collect,
-            )
+            command_instructions = CommandInstruction(
+                command_mode="Response",
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({target_key})",
+                command_status="Success",
+                command_actf=activation_function,
+                command_kwargs=kwargs,
+                command_message=message,
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf=activation_function,
+                auto_collect_response=auto_collect,
+            ).format()
 
         return command_instructions
 
 
     def command_pattern(
         self,
-        origin_key: str,
         command_function: str,
         target_key: str = "",
         kwargs: dict = {},
@@ -986,7 +1001,6 @@ class ClientPatterns:
                 command_type="ExternalFunction",
                 command_target="Host",
                 command_status="Success",
-                command_origin=f"ClientKey({origin_key})",
                 command_actf=command_function,
                 command_kwargs=kwargs,
                 command_message=message,
@@ -1001,7 +1015,6 @@ class ClientPatterns:
                 command_type="ExternalFunction",
                 command_target=f"ClientKey({target_key})",
                 command_status="Success",
-                command_origin=f"ClientKey({origin_key})",
                 command_actf=command_function,
                 command_kwargs=kwargs,
                 command_message=message,
@@ -1015,7 +1028,6 @@ class ClientPatterns:
 
     def inner_management_command_pattern(
         self,
-        origin_key: str,
         command_function: str,
         kwargs: dict = {},
         message: str = "",
@@ -1084,7 +1096,6 @@ class ClientPatterns:
             command_type="DirectFunction",
             command_target="Host",
             command_status="Success",
-            command_origin= f"ClientKey({origin_key})",
             command_actf=command_function,
             command_kwargs=kwargs,
             command_message=message,

@@ -172,12 +172,11 @@ class MyClient:
     
     def start_data_sending_routine (self):
 
-        senders = Senders()
-
+        # senders = Senders()
         time.sleep(5)
-        senders.send_some_data()
+        # senders.send_some_data()
         time.sleep(10)
-        senders.send_some_incorrect_data()
+        # senders.send_some_incorrect_data()
 
     def run(self):
 

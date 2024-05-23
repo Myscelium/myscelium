@@ -1,4 +1,4 @@
-from myscelium import MysceliumClient, ClientPatterns, callback_pattern
+from myscelium import MysceliumClient, ClientPatterns, callback_pattern, CommandInstruction
 import os
 import time
 import signal
@@ -43,14 +43,27 @@ class Senders:
         #         assert False, "Take too long to client be ready"
         #     continue
 
-        command = client_patterns.command_pattern(
-            origin_key=CLIENT_ID,
-            command_function="python_function",
-            kwargs={"age": 10, "birth": 8, "name": "cristian"},
+        # command = client_patterns.command_pattern(
+        #     command_function="python_function",
+        #     kwargs={"age": 10, "birth": 8, "name": "cristian"},
+        #     response_type="ExternalFunction",
+        #     response_target= "Origin",
+        #     response_actf="test_handler",
+        # )
+
+        command = CommandInstruction(
+            command_mode='Function',
+            command_type="ExternalFunction",
+            command_target="Host", # -> target is self
+            command_status="Success",
+            command_actf="python_function",
+            command_kwargs={"age": 10, "birth": 8, "name": "cristian"},
+            command_message="",
             response_type="ExternalFunction",
-            response_target= "Origin",
-            response_actf="test_handler",
-        )
+            response_target="Origin",
+            response_actf="test_handler", 
+            auto_collect_response=True,
+        ).format()
 
         try:
             result = mys_client.send(command, priority=10)
@@ -111,7 +124,6 @@ class Receivers:
             return None
 
         print("Received redirected data: ", info)
-
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=False)
 
         return None

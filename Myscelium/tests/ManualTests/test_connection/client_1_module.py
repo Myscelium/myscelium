@@ -3,6 +3,7 @@ from myscelium import (
     ClientPatterns,
     CallbackCollector,
     callback_pattern,
+    CommandInstruction
 )
 
 import os
@@ -59,15 +60,40 @@ class Handlers:
         print(f"type: {ty} origin: {inf}")
     
         client_patterns = ClientPatterns()
+        
+        if auto_collect:
+        
+            response = CommandInstruction (
+                command_mode='Response',
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({info['origin']['ClientKey']})", # -> target is client2
+                command_status="Success",
+                command_actf="",
+                command_kwargs={"data": "hello!"},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf="", # -> Don't need response actf when auto collect is False
+                auto_collect_response=True,
+            ).format()
+            
+        else:
+            
+            response = CommandInstruction (
+                command_mode='Response',
+                command_type="ExternalFunction",
+                command_target=f"Origin", # -> target is client2
+                command_status="Success",
+                command_actf="",
+                command_kwargs={"data": "hello!"},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf="", # -> Don't need response actf when auto collect is False
+                auto_collect_response=False,
+            ).format()
+            
     
-        response = client_patterns.response_pattern(
-            activation_function=response_actf,
-            origin=CLIENT_KEY,
-            kwargs={"data": "hello!"},
-            target_key=info["origin"]['ClientKey'],
-            auto_collect=auto_collect,
-        )
-
         return response
 
     @staticmethod
@@ -93,16 +119,39 @@ class Handlers:
             print("info don't have the response_actf, sending none")
             return None
 
-        response_actf = info["response_actf"]
 
-        client_patterns = ClientPatterns()
-
-        response = client_patterns.response_pattern(
-            activation_function=response_actf,
-            kwargs={"data": num1 + num2},
-            auto_collect=auto_collect,
-        )
-
+        if auto_collect:
+            
+            response = CommandInstruction (
+                command_mode='Response',
+                command_type="ExternalFunction",
+                command_target=f"ClientKey({info['origin']['ClientKey']})", # -> target is client2
+                command_status="Success",
+                command_actf="",
+                command_kwargs={"data": num1 + num2},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf="", # -> Don't need response actf when auto collect is False
+                auto_collect_response=True,
+            ).format()
+        
+        else:
+            
+            response = CommandInstruction (
+                command_mode='Response',
+                command_type="ExternalFunction",
+                command_target=f"Origin", # -> target is client2
+                command_status="Success",
+                command_actf="",
+                command_kwargs={"data": num1 + num2},
+                command_message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf="", # -> Don't need response actf when auto collect is False
+                auto_collect_response=False,
+            ).format()
+            
         return response
 
 class MyClient:
