@@ -110,28 +110,28 @@ fn handle_dict(py: Python, dict: &PyDict) -> HashMap<String, String> {
 /// Returns a `ResultType` indicating the outcome of the handling and any extracted data.
 ///
 fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
-    if let Ok(dict) = obj.cast_as::<PyDict>(py) {
+    if let Ok(dict) = obj.downcast::<PyDict>(py) {
         return ResultType::Map(handle_dict(py, &dict));
-    } else if let Ok(tuple) = obj.cast_as::<PyTuple>(py) {
+    } else if let Ok(tuple) = obj.downcast::<PyTuple>(py) {
         // Handle tuple
         for item in tuple {
             println!("Item: {}", item);
         }
-    } else if let Ok(list) = obj.cast_as::<PyList>(py) {
+    } else if let Ok(list) = obj.downcast::<PyList>(py) {
         // Handle list
         for item in list {
             println!("Item: {}", item);
         }
-    } else if let Ok(int) = obj.cast_as::<PyInt>(py) {
+    } else if let Ok(int) = obj.downcast::<PyInt>(py) {
         // Handle int
         println!("Integer: {}", int);
-    } else if let Ok(float) = obj.cast_as::<PyFloat>(py) {
+    } else if let Ok(float) = obj.downcast::<PyFloat>(py) {
         // Handle float
         println!("Float: {}", float);
-    } else if let Ok(string) = obj.cast_as::<PyString>(py) {
+    } else if let Ok(string) = obj.downcast::<PyString>(py) {
         // Handle string
         println!("String: {}", string);
-    } else if let Ok(boolean) = obj.cast_as::<PyBool>(py) {
+    } else if let Ok(boolean) = obj.downcast::<PyBool>(py) {
         // Handle bool
         println!("Boolean: {}", boolean);
     } else if obj.is_none(py) {

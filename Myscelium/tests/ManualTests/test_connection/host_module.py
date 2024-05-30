@@ -1,9 +1,7 @@
-from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, callback_pattern, CallbackCollector, CommandInstruction, ClientPattern
-from multiprocessing import Process, Event, Manager
+from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector, CommandInstruction, ClientPattern
+from multiprocessing import Process
 import os
 import signal
-import time
-
 import time
 
 # actual_to_compare['ClientName'], actual_to_compare['ClientKey'], actual_to_compare['LastContact']
@@ -135,19 +133,11 @@ class Handlers:
 class MyHost:
 
     def __init__(self, debug_level):
-        self.host_patterns = HostPatterns()
         self.debug_level = debug_level
         
-    def monitor_stop_event(self):
+    def _monitor_events(self):
 
         time.sleep(5)
-
-        # -> Define how much time host will be alive!
-        # TODO >>> In the future change to use 100% timeout
-        
-        n = 0 
-        COUNTER = 12 # Each counter is 5 secs of waiting
-
 
         mys_host_interface = MysceliumHostInterface("Temp/Data/")
         mys_host_interface.set_client_contact_retriever_callback(client_contact_event_handler)
@@ -220,7 +210,7 @@ class MyHost:
     def run(self, ip="127.0.0.1", port=8000, event=None):
 
         host_process = Process(target=self.run_host, args=(ip, port))
-        monitor_process = Process(target=self.monitor_stop_event)
+        monitor_process = Process(target=self._monitor_events)
 
         host_process.start()
         monitor_process.start()

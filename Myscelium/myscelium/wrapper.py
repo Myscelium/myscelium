@@ -94,10 +94,7 @@ class MysceliumHost:
             # This will call your __init__, so you don't have to duplicate code
         return cls._instance
 
-    def registry_new_allowed_clients(
-        self,
-        allowed_clients: list,
-    ):
+    def registry_new_allowed_clients(self, allowed_clients: list):
         """
         Registry New Clients Allowed Into Clients Table.
 
@@ -105,7 +102,6 @@ class MysceliumHost:
         - allowed_clients: List of clients allowed to connect. This is obtained by put HostPatterns.client_pattern into a list
 
         """
-
         mys.registry_new_allowed_clients(allowed_clients)
 
     @classmethod
@@ -148,9 +144,6 @@ class MysceliumHost:
 
         return
 
-    # def set_client_heartbeat_handler (self, callback): #! THIS WILL NOT WORK UNTIL PYTHON POOL IS FINISHED
-    #     mys.registry_socket_host_client_heartbeat_contact_callback(callback)
-
     def get_registered_commands(self) -> dict:
         """
         Retrieve the registered commands.
@@ -160,7 +153,6 @@ class MysceliumHost:
         """
 
         print("Activated the get registered commands")
-
         return mys.get_socket_host_available_commands()
 
     def initialize_host(self, ip: str, port: int):
@@ -206,13 +198,6 @@ class MysceliumHost:
 
         return
 
-    def send(self):
-
-        """
-        Send data. (This method is currently a placeholder and needs to be implemented.)
-        """
-
-        pass
 
 class HostPatterns:
     def __init__(self) -> None:
@@ -554,23 +539,6 @@ class MysceliumClient:
     def clone(self):
         return self
 
-    # def set_logs_callback_handler (self, logs_handler_callback:list):
-    #     print("active py set log callback")
-    #     mys.registry_client_logs_handler(logs_handler_callback)
-
-    # def set_client_uid (self, client_uid):
-
-    #     """
-    #     Set the client's unique identifier.
-
-    #     Parameters:
-    #     - client_uid: Unique identifier for the client.
-    #     """
-
-    #     mys.set_client_uid(client_uid)
-
-    #     return
-
     def is_client_ready(self):
         return mys.is_client_ready()
 
@@ -652,7 +620,6 @@ class MysceliumClient:
         """
 
         print("Activated the get registered commands")
-
         return mys.get_socket_client_available_handlers()
 
     def initialize_client(self, ip: str, port: int):
@@ -692,11 +659,6 @@ class MysceliumClient:
         - ParityId assigned to the command scheduled, this helps to waith the response using this parity id when needed
         """
 
-        # if not mys.is_client_ready():
-        #     raise "Client need to be running before try to send something"
-        # else:
-        #     pass
-
         return mys.client_send(command, priority)
 
     @wait_for_client_ready(max_attempts=5, sleep_time=2)
@@ -714,82 +676,6 @@ class ClientPatterns:
         """
 
         pass
-
-    # def redirect_error_pattern (self, error_message:str, expected_remote_error_handler:str, redirect_to:str):
-
-    #    #! This isn't a good idea to be implemented wright now since this can create confusions
-    #    #! The way that the redirects are working now is in a restrict mode, using the host Retransmiters in a declarative way
-    #    #> To use redirect create a Retransmiters, then send data from the client 1 to Retransmiters retransmit to client 2
-    #    #* In the future, Retransmiters will be non-declarative with the impl of the smart redirects, this feature will allow to smart manage the clients that has
-    #    #* Permission to retransmit and those that now, and then Myscelium will auto retransmit commands and responses without the need to create a Retransmiters manualy
-    #    #* But this will come only when these feature of Smart Retransmiters come out, that will allow to each client see all the other clients functions if this client has permission and all the other clients handlers that this client has permission
-    #    #* This also will provide a nice interface that allow to see what Sender are compatible with what receiver and connect them remotely via software like a wire in block programing, allowing to easy manage the myscelium network in flight
-
-    #     # TODO >>> Create a test for this
-
-    #     # > A possible impl is something like a data arg and in this arg will have sub kwargs in the dict that will formulate the response\
-    #     # > So the client response will be something like:
-
-    #     # "command" {
-    #     #     "command_type":"response",
-    #     #     "status": "success"
-    #     #     "response_activation_function":"",
-    #     #     "message":"",
-    #     #     "kwargs":{"arg1": [], "arg2": "", "arg3": {}}
-    #     #     "response_mode":"",
-    #     # }
-
-    #     # so basically what we will do in this case is to send all the command or remove like the response_activation_function
-    #     # and keep the other things to alow the client Handler to extract the status, message, kwargs and response from the function
-    #     # This aay host dont need to keep track of the client args in the handler, cause if this give a exception will be the client mistake
-    #     # also if we need to check the status to take some action in case of error it also will be possible, and then if receive a act_fn that doesn't
-    #     # we simple can give it a exception.
-
-    #     # In a more extreme case we can only require one handler named router in the client side and then if this doesn't exist dont even start client
-    #     # This router will be responsible to receive a entire command, so he will decide how to process it and what activation function to call
-    #     # Then this will be able to send a response for host redirect if something is wrong redirecting the error for the client tha cause it and keep going
-
-    #     # > The idea of this pattern
-    #     # >
-    #     # > (Client 1)     (Client 2)   [Host]
-    #     # >    |                |         |
-    #     # >    |--------------- | ------> |
-    #     # >    |                |        [|] (retransmit the command from client 1 to client 2 via retransmiters)
-    #     # >    |                | <------ |
-    #     # >    | return rd err (|)        |
-    #     # >    |                | ------> |
-    #     # >    |                |        [|] (retransmit error - This is an internal thing)
-    #     # >    |<-------------- | ------- |
-    #     # >    |                |         |
-    #     # > (Client 1)     (Client 2)   [Host]
-    #     # >
-    #     # > (|) This is this pattern
-    #     # > [|] This is a host process
-    #     # >
-
-    #     if not isinstance(error_message, str):
-    #         print("Error message needs to be a string!")
-
-    #     if not isinstance(expected_remote_error_handler, str):
-    #         print("Expected remote error handler needs to be a string!")
-
-    #     # {"command_type":"response", "response_mode":"retransmit", "kwargs":kwargs, "redirect_to":retransmit_to_client_id}
-
-    #     kwargs = []
-
-    #     response = {
-    #         "command_type":"response",
-    #         "response_mode":"retransmit", # > Retransmit to the origin client
-    #         "redirect_to":redirect_to,
-    #         "status": "error",
-    #         "activation_function":expected_remote_error_handler,
-    #         "message":error_message,
-    #         "kwargs":kwargs,
-    #     }
-
-    #     #! Here Doesn't need to add the origin because for cases of redirect this is done inside the host engine
-
-    #     return response
 
     def client_pattern(self, client_type: str, client_id: str) -> dict:
         """
@@ -1115,6 +1001,7 @@ host_patterns = HostPatterns()
 
 
 def get_registered_commands() -> dict:
+    
     """
     Retrieve the registered commands and format the response.
 
@@ -1135,19 +1022,4 @@ def get_registered_commands() -> dict:
     )
 
     print(f"Response to return to rust myscelium engine: {response}")
-
     return response
-
-
-# def get_registered_commands (self) -> dict:
-
-#         """
-#         Retrieve the registered commands.
-
-#         Returns:
-#         - Dictionary of registered commands.
-#         """
-
-#         print("Activated the get registered commands")
-
-#         return mys.get_socket_client_available_handlers()

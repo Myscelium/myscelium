@@ -3,30 +3,17 @@
 use std::collections::HashMap;
 
 use crate::common::functions::convert_to_pydict;
-use crate::common::functions::extract_arg_types;
-use crate::common::functions::translate_value_to_py;
 use crate::common::functions::wrap_py_function;
 
 use OxidizedMyscelium::{HOST_COMMAND_PATTERNS, HOST_IS_RUNNING};
 
-use lazy_static::lazy_static;
-use parking_lot::Mutex;
-
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
+use pyo3::types::{PyDict, PyFunction, PyList};
 
 use serde_json::Value;
 
-use std::sync;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::sync::MutexGuard;
-use std::thread;
-use std::time::Duration;
-
 use indexmap::IndexMap;
-
-use OxidizedMyscelium::{ClientStatusPoolError, Clients};
+use std::sync::atomic::Ordering;
 
 use OxidizedMyscelium::registry_new_client;
 use OxidizedMyscelium::CommandType;
@@ -341,12 +328,6 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
 
         let client_max_sub_channels = extract_unsigned_int!(allowed_clients_dict.get_item("max_sub_channels").unwrap(), "Error: max_sub_channels must be a String!");
         let client_owned_sub_channels_keys = extract_string_vector!(allowed_clients_dict.get_item("owned_sub_channels_keys").unwrap(), "Error: owned_sub_channels_keys must be a String!");
-
-        // {
-        //     let mut controller = CLIENTS_SYNC_CONTROLLER.lock();
-        //     let _ = controller.add_new_client(client_key.clone().to_string(), 10);
-        //     println!("\nSet clients sync controler to:\n{:?}\n", controller);
-        // }
 
         let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 

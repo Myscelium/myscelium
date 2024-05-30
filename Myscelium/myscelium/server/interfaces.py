@@ -104,9 +104,7 @@ class MysceliumHostInterface:
                         break
                     else:
                         continue
-
                 break
-
             else:
                 pass
 
