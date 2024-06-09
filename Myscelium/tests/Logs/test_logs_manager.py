@@ -97,10 +97,8 @@ class Events_Manager:
 
         self.Unit = Unit
 
-        self.AutoId = Interface_Unique_ID_Generator(length=9999, registered=[])
-
         cur = self.connection.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS Events (ID INT PRIMARY KEY,
+        cur.execute('''CREATE TABLE IF NOT EXISTS Events (ID INTEGER PRIMARY KEY AUTOINCREMENT,
                                                         Unit TEXT,
                                                         StepCompleted TEXT,
                                                         EventType TEXT, 
@@ -180,10 +178,6 @@ class Events_Manager:
 
         cur = self.connection.cursor()
 
-        self.AutoId.Update_registered(registered = self.List_Events())
-
-        ID = self.AutoId.Gen()
-
         ts = time.time()
 
         event_key = ""
@@ -197,9 +191,9 @@ class Events_Manager:
 
             event_key = kwargs["event_key"]
 
-        Data = ((ID, self.Unit, step, event_type, event_key, ts))
+        Data = ((self.Unit, step, event_type, event_key, ts))
 
-        sqlite_insert_with_param = """INSERT INTO Events (ID, Unit, StepCompleted, EventType, EventKey, Time) VALUES (?, ?, ?, ?, ?, ?);"""
+        sqlite_insert_with_param = """INSERT INTO Events (Unit, StepCompleted, EventType, EventKey, Time) VALUES (?, ?, ?, ?, ?);"""
         cur.execute(sqlite_insert_with_param, Data)
         self.connection.commit()
 
@@ -213,11 +207,9 @@ class System_Status:
 
         pool = SQLiteConnectionPool(3, os.path.join(path, "Data.db"))
         self.connection = pool.get_connection()
-
-        self.AutoId = Interface_Unique_ID_Generator(length=9999, registered=[])
         
         cur = self.connection.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS SystemStatus (ID INT PRIMARY KEY,
+        cur.execute('''CREATE TABLE IF NOT EXISTS SystemStatus (ID INTEGER PRIMARY KEY AUTOINCREMENT,
                                                                 Unit TEXT,
                                                                 RunningStatus BOOL)''')
 
@@ -248,13 +240,9 @@ class System_Status:
 
         cur = self.connection.cursor()
 
-        self.AutoId.Update_registered(registered = self.list_units())
+        Data = ((Unit, False))
 
-        ID = self.AutoId.Gen()
-
-        Data = ((ID, Unit, False))
-
-        sqlite_insert_with_param = """INSERT INTO SystemStatus (ID, Unit, RunningStatus) VALUES (?, ?, ?);"""
+        sqlite_insert_with_param = """INSERT INTO SystemStatus (ID, Unit, RunningStatus) VALUES (?, ?);"""
         cur.execute(sqlite_insert_with_param, Data)
         self.connection.commit()
 
