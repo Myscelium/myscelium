@@ -242,7 +242,7 @@ class System_Status:
 
         Data = ((Unit, False))
 
-        sqlite_insert_with_param = """INSERT INTO SystemStatus (ID, Unit, RunningStatus) VALUES (?, ?);"""
+        sqlite_insert_with_param = """INSERT INTO SystemStatus (Unit, RunningStatus) VALUES (?, ?);"""
         cur.execute(sqlite_insert_with_param, Data)
         self.connection.commit()
 
