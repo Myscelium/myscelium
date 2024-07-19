@@ -57,10 +57,6 @@ And then do:
 python setup.py bdist_wheel
 ```
 
-```shell
-python setup.py bdist_wheel
-```
-
 and then
 
 ```shell
