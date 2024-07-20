@@ -226,7 +226,7 @@ class MyHost:
 
 
 if __name__ == "__main__":
-    MyHost("DEBUG").run()           
+    MyHost("INFO").run()           
                 
         
 

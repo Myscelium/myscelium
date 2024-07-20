@@ -218,6 +218,6 @@ class MyClient:
 
 
 if __name__ == "__main__":
-    MyClient("DEBUG").run()
+    MyClient("INFO").run()
 
 # print(CallbackCollector([Receivers]).get_callbacks())
