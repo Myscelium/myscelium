@@ -74,7 +74,7 @@ class MysceliumHost:
 
             if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION", ""]:
                 raise ValueError(
-                    f"Client log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+                    f"Client log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION', "") log level cant be: {log_level}"
                 )
             else:
                 pass
@@ -507,9 +507,9 @@ class MysceliumClient:
 
         self.client_uid = client_uid
 
-        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION"]:
+        if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION", ""]:
             raise ValueError(
-                f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION') log level cant be: {log_level}"
+                f"Log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION', '') log level cant be: {log_level}"
             )
         else:
             pass
