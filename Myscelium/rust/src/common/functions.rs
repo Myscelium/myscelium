@@ -202,7 +202,7 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
                 match CommandInstructions::from_value_map(map) {
                     Ok(c) => {
                         println!("Instructions extracted in python briedge: {:?}", c);
-                        Box::new(c) as Box<dyn Any>
+                        Box::new(Some(c)) as Box<dyn Any>
                     }, // Successfully parsed CommandInstructions
                     Err(e) => {
                         // Handling parse failure with a more descriptive error
