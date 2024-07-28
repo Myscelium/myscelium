@@ -1,6 +1,6 @@
 {
     "rust-analyzer.linkedProjects": [
-        ".\\Myscelium\\rust\\Cargo.toml",
+        "D:\\Zarpyon\\PrivateGit\\Repos\\Myscelium\\Myscelium\\rust\\Cargo.toml",
     ],
     "rust-analyzer.showUnlinkedFileNotification": false
 }
