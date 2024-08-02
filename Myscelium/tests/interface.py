@@ -12,6 +12,11 @@ import os
 
 import json
 
+import numpy as np
+from scipy.ndimage import gaussian_filter1d
+import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
+
 # Define the root directory where the Temp folders are located
 TEMP_DIR = os.path.join(os.path.dirname(__file__), "Temp")
 
@@ -27,6 +32,16 @@ df['Time'] = df['Time'].apply(datetime.datetime.fromtimestamp)
 # Handle missing values (optional based on your requirement)
 df = df.dropna(subset=['Time'])
 
+# Smoothing functions
+def moving_average(data, window_size):
+    return np.convolve(data, np.ones(window_size) / window_size, mode='valid')
+
+def exponential_moving_average(data, alpha):
+    ema = [data[0]]
+    for point in data[1:]:
+        ema.append(ema[-1] * (1 - alpha) + point * alpha)
+    return ema
+
 # Sidebar menu
 st.sidebar.title("Menu")
 option = st.sidebar.selectbox('Choose an Option', ['Test Results Visualization', 'Test Interface', 'Logs Navigator'])
@@ -38,7 +53,7 @@ if option == 'Test Results Visualization':
 
     pd_dict_df = History_Manager().list_history()
     df = pd.DataFrame.from_dict(pd_dict_df)
-
+    
     # Convert 'Time' to datetime if it's not
     df['Time'] = df['Time'].apply(datetime.datetime.fromtimestamp)
 
@@ -47,20 +62,60 @@ if option == 'Test Results Visualization':
 
     # Streamlit UI
     st.title('Test Results Visualization')
-    st.write('Displaying DataFrame:')
+    st.write('Displaying Raw Data Frame:')
     st.dataframe(df)  # Displaying original df for reference
 
     # Add a selection box at the top for log level
     selected_log_level = st.selectbox('Select Log Level', options=df['LogLevel'].unique())
     
-    df = df.dropna()
+    # df = df.dropna()
+    
+    # Applying smoothing techniques to the 'CommunicationSpeed' and 'TestSpeed' columns
+    data_noise_filter = st.selectbox('Select Noise Filter', options=["DISABLE", "MA", "EMA", "GAUSIAN", "SAVITZKY-GOLAY"])
+    
+    window_size = 5
+    alpha = 0.2
+    
+    if data_noise_filter == "MA": 
+        df['CommunicationSpeed'] = pd.Series(moving_average(df['CommunicationSpeed'], window_size))
+        df['TestSpeed'] = pd.Series(moving_average(df['TestSpeed'], window_size))
+    if data_noise_filter == "EMA": 
+        df['CommunicationSpeed'] = pd.Series(exponential_moving_average(df['CommunicationSpeed'], alpha))
+        df['TestSpeed'] = pd.Series(exponential_moving_average(df['TestSpeed'], alpha))
+    if data_noise_filter == "GAUSIAN":
+        df['CommunicationSpeed'] = pd.Series(gaussian_filter1d(df['CommunicationSpeed'], sigma=2))
+        df['TestSpeed'] = pd.Series(gaussian_filter1d(df['TestSpeed'], sigma=2))
+        
+    window_length = 11  # Choose an odd number
+    polyorder = 2
+    if data_noise_filter == "SAVITZKY-GOLAY":
+        df['CommunicationSpeed'] = pd.Series(savgol_filter(df['CommunicationSpeed'], window_length, polyorder))
+        df['TestSpeed'] = pd.Series(savgol_filter(df['TestSpeed'], window_length, polyorder))
         
     selected_test_node_name = st.selectbox('Select Test Node', options=df['TestNodeName'].unique())
     
+    if selected_test_node_name is None:
+        filtered_df = df 
+    else:
+        filtered_df = df[df['TestNodeName'] == selected_test_node_name]
+        
+    selected_node_disk_name = st.selectbox('Select Node Disk', options=filtered_df['NodeDisk'].unique())
+        
+    if selected_node_disk_name is None:
+        filtered_df = df 
+    else:
+        filtered_df = df[df['NodeDisk'] == selected_node_disk_name]
+    
     # Filter the data based on the selected log level
-    filtered_df = df[df['TestNodeName'] ==  selected_test_node_name]
     filtered_df = filtered_df[filtered_df['LogLevel'] == selected_log_level]
+    
+    # Select tests that will be represented in the graph
+    categories = df['TestName'].unique()
+    selected_categories = st.multiselect('Select Tests:', categories, default=categories)
 
+    # Apply filters to the DataFrame
+    filtered_df = filtered_df[filtered_df['TestName'].isin(selected_categories)]
+    
     # Create columns
     col1, col2 = st.columns([1,1])
 
@@ -152,6 +207,72 @@ if option == 'Test Results Visualization':
         plt.xticks(rotation=45)
         plt.tight_layout()
         st.pyplot(fig)
+        
+    # TODO >>> Create an algorith to understand the base curve of each machine and try to fix the old ones that was not in that format
+        
+    import streamlit as st
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from sklearn.preprocessing import PolynomialFeatures
+    from sklearn.linear_model import LinearRegression
+
+    # Function to fit a quadratic curve
+    def fit_quadratic_curve(data, feature, target):
+        poly = PolynomialFeatures(degree=2)
+        X_poly = poly.fit_transform(data[[feature]])
+        model = LinearRegression().fit(X_poly, data[target])
+        return model
+    
+    filtered_df['Time'] = pd.to_datetime(filtered_df['Time'])
+    filtered_df = filtered_df.sort_values(by='Time').reset_index(drop=True)
+
+    # Convert time to seconds for polynomial fitting
+    filtered_df['TimeSeconds'] = (filtered_df['Time'] - filtered_df['Time'].min()).dt.total_seconds()
+
+    # Fit quadratic curves (assuming initial labeling)
+    machine_a_data = filtered_df[filtered_df['TestNodeName'] == 'DesktopPrimary']
+    machine_b_data = filtered_df[filtered_df['TestNodeName'] == 'DesktopSecondary']
+    
+    if len(machine_a_data) > 0 and len(machine_b_data) > 0:
+
+        model_a = fit_quadratic_curve(machine_a_data, 'TimeSeconds', 'TestSpeed')
+        model_b = fit_quadratic_curve(machine_b_data, 'TimeSeconds', 'TestSpeed')
+
+        # Predict and classify based on deviations
+        poly = PolynomialFeatures(degree=2)
+        filtered_df['Predicted_A'] = model_a.predict(poly.fit_transform(filtered_df[['TimeSeconds']]))
+        filtered_df['Predicted_B'] = model_b.predict(poly.fit_transform(filtered_df[['TimeSeconds']]))
+
+        filtered_df['Deviation_A'] = abs(filtered_df['TestSpeed'] - filtered_df['Predicted_A'])
+        filtered_df['Deviation_B'] = abs(filtered_df['TestSpeed'] - filtered_df['Predicted_B'])
+
+        filtered_df['Machine_Predicted'] = np.where(filtered_df['Deviation_A'] < filtered_df['Deviation_B'], 'Machine A', 'Machine B')
+
+        # Filter outliers
+        threshold = 2 * filtered_df[['Deviation_A', 'Deviation_B']].mean().mean()  # Example threshold
+        filtered_df['Outlier'] = (filtered_df['Deviation_A'] > threshold) & (filtered_df['Deviation_B'] > threshold)
+
+        # Visualization
+        fig, ax = plt.subplots(figsize=(12, 6))
+        for label, color in zip(['Machine A', 'Machine B'], ['red', 'orange']):
+            subset = filtered_df[filtered_df['Machine_Predicted'] == label]
+            ax.plot(subset['Time'], subset['TestSpeed'], 'o-', label=label, color=color)
+        ax.set_xlabel('Time')
+        ax.set_ylabel('TestSpeed')
+        ax.legend()
+        ax.set_title('Classified Test Speeds by Machine')
+
+        # Display the plot in Streamlit
+        st.pyplot(fig)
+
+        # Display the DataFrame with predicted classification and outliers
+        st.write("DataFrame with Predicted Classification and Outliers:")
+        st.write(filtered_df)
+
+        # Display the plot in Streamlit
+        st.pyplot(fig)
+
 
 elif option == 'Test Interface':
 

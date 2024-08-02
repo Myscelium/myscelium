@@ -39,6 +39,5 @@ myscelium/server/host_client_events_retriever.py
 myscelium/server/host_logs_retriever.py
 myscelium/server/interfaces.py
 tests/conftest.py
-tests/interface copy.py
 tests/interface.py
 tests/test_myscelium.py

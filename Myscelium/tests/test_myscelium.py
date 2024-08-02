@@ -58,6 +58,7 @@ from . configs_loader import load_configs
 
 CONFIGS = load_configs()['configs']
 TEST_NODE_NAME = CONFIGS['test_node_name']
+NODE_DISK_NAME = CONFIGS['node_disk_name']
 
 # # Argument parsing setup
 # parser = argparse.ArgumentParser(description="Set the debug level for the script.")
@@ -247,6 +248,7 @@ def test_communication():
     if (client_contact and basic_callback) and (send_data and basic_response_handler):
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_communication",
             communications_speed=float(average_com_delta),
             test_speed=test_run_time,
@@ -256,6 +258,7 @@ def test_communication():
     else:
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_communication",
             communications_speed=float(average_com_delta),
             test_speed=test_run_time,
@@ -449,6 +452,7 @@ def test_inplace_responses ():
     if (client_contact and basic_callback) and (send_data and basic_inplace_response):
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_inplace_responses",
             communications_speed=float(average_com_delta),
             test_speed=test_run_time,
@@ -458,6 +462,7 @@ def test_inplace_responses ():
     else:
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_inplace_responses",
             communications_speed=float(average_com_delta),
             test_speed=test_run_time,
@@ -686,6 +691,7 @@ def test_redirect():
     ):
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_redirect",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -695,6 +701,7 @@ def test_redirect():
     else:
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_redirect",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -928,6 +935,7 @@ def test_inplace_response_redirect():
     ):
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_redirect",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -937,6 +945,7 @@ def test_inplace_response_redirect():
     else:
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_redirect",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -1165,6 +1174,7 @@ def test_management():
     ):
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_management",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -1174,6 +1184,7 @@ def test_management():
     else:
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_management",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -1362,6 +1373,7 @@ def _test_messages(): #! Temporarly Deactivated
     ):
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_management",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -1371,6 +1383,7 @@ def _test_messages(): #! Temporarly Deactivated
     else:
         History_Manager().store_history_point(
             TEST_NODE_NAME,
+            NODE_DISK_NAME,
             "test_management",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),

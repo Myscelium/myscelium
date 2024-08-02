@@ -10,14 +10,19 @@ def validate_config(config_data, default_config):
                 raise ValueError(f"Missing key: {key} in section: {section}")
             if not isinstance(config_data[section][key], type(default_value)):
                 raise TypeError(f"Incorrect type for key: {key} in section: {section}. Expected {type(default_value).__name__}, got {type(config_data[section][key]).__name__}")
-            if key == 'node_name' and config_data[section][key] == "":
-                raise ValueError(f"'node_name' in section: {section} cannot be an empty string.")
+            if key == 'test_node_name' and config_data[section][key] == "":
+                raise ValueError(f"'test_node_name' in section: {section} cannot be an empty string.")
+            if key == 'node_disk_name' and config_data[section][key] == "":
+                raise ValueError(f"'node_disk_name' in section: {section} cannot be an empty string.")
+
+# TODO >>> Add one more field to the disk, so you can set what disk you is using since disk impacts this project
 
 def load_configs (config_path='config.toml'):
     # Define default configuration
     default_config = {
         'configs': {
-            'test_node_name': ''
+            'test_node_name': '',
+            'node_disk_name': '',
         }
     }
 
