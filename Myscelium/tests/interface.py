@@ -52,9 +52,14 @@ if option == 'Test Results Visualization':
 
     # Add a selection box at the top for log level
     selected_log_level = st.selectbox('Select Log Level', options=df['LogLevel'].unique())
-
+    
+    df = df.dropna()
+        
+    selected_test_node_name = st.selectbox('Select Test Node', options=df['TestNodeName'].unique())
+    
     # Filter the data based on the selected log level
-    filtered_df = df[df['LogLevel'] == selected_log_level]
+    filtered_df = df[df['TestNodeName'] ==  selected_test_node_name]
+    filtered_df = filtered_df[filtered_df['LogLevel'] == selected_log_level]
 
     # Create columns
     col1, col2 = st.columns([1,1])

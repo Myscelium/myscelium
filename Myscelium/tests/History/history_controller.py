@@ -91,7 +91,6 @@ class History_Manager:
     # > Date Time |        Test          | Communication speed | Test Speed | Test Status   
     #   102392039 |  test communication  |         1s          |     65s    |   PASSED
 
-
     def __init__(self): 
 
         pool = SQLiteConnectionPool(3, DATABASE)
@@ -100,7 +99,7 @@ class History_Manager:
         self.AutoId = Interface_Unique_ID_Generator(length=9999999999, registered_ids=[])
 
         cur = self.connection.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS History (ID INT PRIMARY KEY, Time NUMBER, TestName TEXT, CommunicationSpeed NUMBER, TestSpeed NUMBER, TestStatus TEXT, LogLevel TEXT)''')
+        cur.execute('''CREATE TABLE IF NOT EXISTS History (ID INT PRIMARY KEY, Time NUMBER, TestName TEXT, TestNodeName TEXT, CommunicationSpeed NUMBER, TestSpeed NUMBER, TestStatus TEXT, LogLevel TEXT)''')
         
         
     def drop_events_table(self) -> None:
@@ -128,16 +127,19 @@ class History_Manager:
         cur.execute(sqlite_select_query)
         
         df = cur.fetchall()
-        df = pd.DataFrame(df, columns=['ID', 'Time', 'TestName', 'CommunicationSpeed', 'TestSpeed', 'TestStatus', 'LogLevel'])
+        df = pd.DataFrame(df, columns=['ID', 'Time', 'TestNodeName', 'TestName', 'CommunicationSpeed', 'TestSpeed', 'TestStatus', 'LogLevel'])
         dict_df = df.to_dict()
         
         return dict_df
     
-    def store_history_point (self, test_name:str, communications_speed:float, test_speed:float, test_status:str, log_level:str):    
+    def store_history_point (self, test_node_name:str, test_name:str, communications_speed:float, test_speed:float, test_status:str, log_level:str):    
 
         cur = self.connection.cursor()
         
         self.AutoId.Update_registered_ids(registered_ids = self.list_history())
+        
+        if not isinstance(test_node_name, str):
+            raise ValueError("test_node_name needs to be a string with the name of the machine that is running it!")
 
         if not isinstance(test_name, str):
             raise ValueError("test_name needs to be a string with the test name!")
@@ -163,8 +165,8 @@ class History_Manager:
         ID = self.AutoId.Gen() 
         ts = datetime.datetime.now()
 
-        sqlite_insert_with_param = """INSERT INTO History (ID, Time, TestName, CommunicationSpeed, TestSpeed, TestStatus, LogLevel) VALUES (?, ?, ?, ?, ?, ?, ?);"""
-        cur.execute(sqlite_insert_with_param, (ID, ts.timestamp(), test_name, communications_speed, test_speed, test_status, log_level))
+        sqlite_insert_with_param = """INSERT INTO History (ID, Time, TestNodeName, TestName, CommunicationSpeed, TestSpeed, TestStatus, LogLevel) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
+        cur.execute(sqlite_insert_with_param, (ID, ts.timestamp(), test_node_name, test_name, communications_speed, test_speed, test_status, log_level))
         self.connection.commit()
 
         return

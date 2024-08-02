@@ -54,6 +54,10 @@ Events_Manager(
 ).drop_events_table()  # To reset in the next iteration
 
 import argparse
+from . configs_loader import load_configs
+
+CONFIGS = load_configs()['configs']
+TEST_NODE_NAME = CONFIGS['test_node_name']
 
 # # Argument parsing setup
 # parser = argparse.ArgumentParser(description="Set the debug level for the script.")
@@ -242,6 +246,7 @@ def test_communication():
 
     if (client_contact and basic_callback) and (send_data and basic_response_handler):
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_communication",
             communications_speed=float(average_com_delta),
             test_speed=test_run_time,
@@ -250,6 +255,7 @@ def test_communication():
         )
     else:
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_communication",
             communications_speed=float(average_com_delta),
             test_speed=test_run_time,
@@ -442,6 +448,7 @@ def test_inplace_responses ():
 
     if (client_contact and basic_callback) and (send_data and basic_inplace_response):
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_inplace_responses",
             communications_speed=float(average_com_delta),
             test_speed=test_run_time,
@@ -450,6 +457,7 @@ def test_inplace_responses ():
         )
     else:
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_inplace_responses",
             communications_speed=float(average_com_delta),
             test_speed=test_run_time,
@@ -677,6 +685,7 @@ def test_redirect():
         and send_data_to_redirect
     ):
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_redirect",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -685,6 +694,7 @@ def test_redirect():
         )
     else:
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_redirect",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -917,6 +927,7 @@ def test_inplace_response_redirect():
         and (client2_activated_basic_callback and client2_send_response)
     ):
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_redirect",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -925,6 +936,7 @@ def test_inplace_response_redirect():
         )
     else:
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_redirect",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -1152,6 +1164,7 @@ def test_management():
         and receive_remove_client_conf
     ):
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_management",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -1160,6 +1173,7 @@ def test_management():
         )
     else:
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_management",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -1347,6 +1361,7 @@ def _test_messages(): #! Temporarly Deactivated
         and (receive_success_response_handler and receive_error_response_handler)
     ):
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_management",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),
@@ -1355,6 +1370,7 @@ def _test_messages(): #! Temporarly Deactivated
         )
     else:
         History_Manager().store_history_point(
+            TEST_NODE_NAME,
             "test_management",
             communications_speed=float(average_com_delta),
             test_speed=float(test_run_time),

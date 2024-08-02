@@ -7,3 +7,4 @@ target/
 build
 myscelium.egg-info
 Temp/
+config.toml
