@@ -10,3 +10,5 @@ setuptools
 setuptools-rust
 scipy
 scikit-learn
+dash
+dash-bootstrap-components
