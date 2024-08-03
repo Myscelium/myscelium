@@ -8,3 +8,5 @@ ollama
 wheel 
 setuptools 
 setuptools-rust
+scipy
+scikit-learn
