@@ -5,7 +5,7 @@ import streamlit as st
 import datetime
 from History.history_controller import History_Manager
 from Logs.test_logs_manager import Events_Manager, System_Status
-
+import plotly.express as px
 import pytest
 import xml.etree.ElementTree as ET
 import os
@@ -116,6 +116,122 @@ if option == 'Test Results Visualization':
     # Apply filters to the DataFrame
     filtered_df = filtered_df[filtered_df['TestName'].isin(selected_categories)]
     
+    # fail_rate_df = filtered_df
+    
+    # # Create a new column to indicate if the test failed (1 for Fail, 0 for Pass)
+    # fail_rate_df['Failed'] = fail_rate_df['TestStatus'].apply(lambda x: 1 if x == 'Fail' else 0)
+
+    col1, col2 = st.columns([1,1])
+    
+    recent_tests = filtered_df
+    use_last_n_tests = 5
+    
+    with col1:
+        
+        selected_selector= st.selectbox('Selet Date Range:', ["All", "DateRange"])
+        
+        if selected_selector == "All":
+            pass
+        
+        if selected_selector == "DateRange":
+            # Ensure you're passing a list of two dates to allow date range selection
+            date_range = st.date_input(
+                "Select a date range",
+                [recent_tests['Time'].min(), recent_tests['Time'].max()],
+                min_value=recent_tests['Time'].min(),
+                max_value=recent_tests['Time'].max()
+            )
+            
+            # Check if the date range input returns two dates (start_date, end_date)
+            if len(date_range) == 2:
+                start_date, end_date = date_range
+                if start_date >= end_date:
+                    # Display a warning message
+                    warning_message = """
+                    <div style="
+                        padding: 10px; 
+                        border-radius: 5px; 
+                        background-color: #FFF3CD; 
+                        color: #856404; 
+                        border: 1px solid #FFEEBA;
+                        text-align: center;
+                    ">
+                        <strong>Warning:</strong> Please select a valid date range where the start date is before the end date.
+                    </div>
+                    """
+                    st.markdown(warning_message, unsafe_allow_html=True)
+                else:
+                    # Filter the DataFrame based on the selected date range
+                    recent_tests = recent_tests[(recent_tests['Time'] >= pd.to_datetime(start_date)) & (recent_tests['Time'] <= pd.to_datetime(end_date))]
+                    st.write(f"Data filtered from {start_date} to {end_date}.")
+            else:
+                # If the user didn't select a range, display a warning message
+                warning_message = """
+                <div style="
+                    padding: 10px; 
+                    border-radius: 5px; 
+                    background-color: #FFF3CD; 
+                    color: #856404; 
+                    border: 1px solid #FFEEBA;
+                    text-align: center;
+                ">
+                    <strong>Warning:</strong> Please select a valid date range.
+                </div>
+                """
+                st.markdown(warning_message, unsafe_allow_html=True)
+
+        use_last_n_tests = st.selectbox('Selet Number Of Test Samples From Now To Past Time:', [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5])
+
+        # Filter the df
+        recent_tests = recent_tests.tail(use_last_n_tests)
+
+        enable_as_filter = st.checkbox('Enable As Filter To Consecutive Tests')
+         
+        if enable_as_filter:
+            filtered_df = recent_tests
+        
+    with col2:
+        
+        # You can either use all data or the last n tests
+        if len(recent_tests) >= use_last_n_tests:
+
+            # Calculate the counts of Pass and Fail
+            pass_count = recent_tests['TestStatus'].value_counts().get(0, 0)
+            fail_count = recent_tests['TestStatus'].value_counts().get(1, 0)
+
+            # Create a DataFrame for plotting
+            summary_df = pd.DataFrame({
+                'Result': ['Pass', 'Fail'],
+                'Count': [pass_count, fail_count]
+            })
+
+            # Create the pie chart
+            fig = px.pie(summary_df, values='Count', names='Result', title='Test Results Distribution')
+
+            # Display the pie chart in Streamlit
+            st.plotly_chart(fig)
+        
+        else:
+            
+            # Define the custom HTML and CSS for the warning message
+            warning_message = """
+            <div style="
+                padding: 10px; 
+                border-radius: 5px; 
+                background-color: #FFF3CD; 
+                color: #856404; 
+                border: 1px solid #FFEEBA;
+                text-align: center;
+            ">
+                <strong>Warning:</strong> Insufficient data for average.
+            </div>
+            """
+
+            # Display the warning message in Streamlit
+            st.markdown(warning_message, unsafe_allow_html=True)
+    
+    
+                
     # Create columns
     col1, col2 = st.columns([1,1])
 
