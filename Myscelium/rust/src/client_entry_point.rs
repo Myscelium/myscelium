@@ -273,6 +273,14 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
                     OxidizedMyscelium::ClientError::InvalidCommand(e) => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't Schedule a invalid command, error case: {:?}!", e)));
                     },
+                    OxidizedMyscelium::ClientError::CannotObtainValidIpcnsAddr => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!(
+                            "Can't schedule CommandInstructions because cannot obtain a valid ipcns address, it is initializing?",
+                        )));
+                    },
+                    OxidizedMyscelium::ClientError::IpcnsError(e) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't schedule command isntructions because a ipcns error happened, error case: {:?}!", e)));
+                    },
                     // TODO >>> Add unreachable for cases that needs it
                     _ => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>("Unexpected Error not covered!"));
@@ -304,6 +312,15 @@ pub fn wait_client_resp(py: Python, parity_id: String, timeout_in: u64) -> PyRes
             },
             WatcherError::MaxTimeExceeded(pkey) => {
                 return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Time to get Response With ParityId: {} exceeded!", pkey)));
+            },
+            WatcherError::AnErrorHappenedInTheIpcn(e) => {
+                return Err(PyErr::new::<exceptions::PyValueError, _>(format!("An error happened in the ipcns network, the error is the following one: {:?}", e)));
+            },
+            WatcherError::CannotConnectToIpcn(e) => {
+                return Err(PyErr::new::<exceptions::PyValueError, _>(format!(
+                    "An error happened while trying to connect into the ipcns network, the error was the following one: {:?}",
+                    e
+                )))
             },
         },
     };
