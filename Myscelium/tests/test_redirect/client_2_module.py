@@ -101,7 +101,7 @@ class Senders:
                 shutdown() 
                 return
             
-        except e as e:
+        except BaseException as e:
             Events_Manager(Unit="Client2", path="Logs").Set_Event(
                 f"{e}",
                 event_type="Exception",
