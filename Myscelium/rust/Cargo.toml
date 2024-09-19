@@ -14,16 +14,16 @@ path = "src/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-indexmap = { version = "2.2.3", features = ["serde"] }
+serde_json = "1.0.128"
+serde = { version = "1.0.210", features = ["derive"] }
+indexmap = { version = "2.5.0", features = ["serde"] }
 rusqlite = { version = "*", features = ["bundled"] }
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 rand = "0.8.5"
-chrono = "0.4"
-ctrlc = "3.1.9"
-cpython = "0.5"
-parking_lot = { version = "0.11.1", features = ["deadlock_detection"] }
+chrono = "0.4.38"
+ctrlc = "3.4.5"
+cpython = "0.7.2"
+parking_lot = { version = "0.12.3", features = ["deadlock_detection"] }
 OxidizedMyscelium = { path = "../OxidizedMysceliumCore/OxidizedMyscelium" }
 oxidized_myscelium_macros = { path = "../OxidizedMysceliumCore/oxidized_myscelium_macros" }
 RustPyNet = { path = "../RustPyNet/RustPyNet" }
