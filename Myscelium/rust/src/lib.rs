@@ -11,6 +11,8 @@ use client_entry_point::*;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
+mod ipcns;
+
 extern crate chrono;
 
 // TODO >>> Add a protocol id in the host to check if the client is outdated compared to the host
