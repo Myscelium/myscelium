@@ -8,22 +8,10 @@ use host_entry_point::*;
 mod client_entry_point;
 use client_entry_point::*;
 
-use lazy_static::lazy_static;
-use parking_lot::Mutex;
-
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
-
-use OxidizedMyscelium::AllowedNetWorkController;
-use OxidizedMyscelium::ClientState;
-use OxidizedMyscelium::NetworkMap;
-use OxidizedMyscelium::Node;
-
 extern crate chrono;
-use crate::chrono::TimeZone;
 
 // TODO >>> Add a protocol id in the host to check if the client is outdated compared to the host
 // TODO >> Create a configs file that automatically be created by Host to configure, client key, or host ip, credentials, data dir, etc..

@@ -1,32 +1,22 @@
 // use socket_client;
 
-use std::any::Any;
 use std::collections::HashMap;
 
-use OxidizedMyscelium::{ClientState, Command, StateManagerError};
+use OxidizedMyscelium::HandlerStatus;
+use OxidizedMyscelium::{ClientState, Command};
 use OxidizedMyscelium::{CommandType, WatcherError};
-use OxidizedMyscelium::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
-use crate::common::functions::extract_arg_types;
-use crate::common::functions::translate_value_to_py;
 use crate::common::functions::wrap_py_function;
 use crate::common::functions::{convert_to_pydict, dict_to_object};
 use indexmap::IndexMap;
-use parking_lot::Mutex;
 use pyo3::exceptions;
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
-use serde_json::Value;
+use pyo3::types::{PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 use std::sync::atomic::Ordering;
-use std::thread;
-use std::time::Duration;
-
 use OxidizedMyscelium::Callback;
-
-use OxidizedMyscelium::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY, CLIENT_NODE_NAME, CLIENT_STATE_MANAGER};
+use OxidizedMyscelium::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS};
 
 // -> Socket Client main-points:
-
 use OxidizedMyscelium;
 
 /// Sets the number of worker threads for the socket client transposer.
@@ -486,21 +476,3 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
 pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32) {
     OxidizedMyscelium::initialize_socket_client(ip, port);
 }
-
-// / Sets the unique identifier (UID) for the client.
-// /
-// / This function updates the global client UID which can be used to identify this client instance
-// / in communications with the server.
-// /
-// / # Parameters
-// /
-// / - `py`: Python interpreter instance.
-// / - `client_uid`: The new unique identifier for the client.
-// /
-// / # Python Binding
-// /
-// / This function is exposed to Python and can be called from a Python script.
-// #[pyfunction]
-// pub fn set_client_uid(py: Python<'_>, client_uid: String) {
-
-// }
