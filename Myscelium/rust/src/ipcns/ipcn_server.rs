@@ -1,3 +1,4 @@
+use crate::ipcns::ipcn_client::schedule_up_command_instructions;
 use crate::ipcns::structs_and_types::{IpcnsError, OrderResponse, OrderVariant};
 
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,7 @@ use std::{
     net::{TcpListener, TcpStream},
     panic, thread,
 };
-use OxidizedMyscelium::DownCommand;
+use OxidizedMyscelium::{DownCommand, CLIENT_IS_RUNNING};
 
 use super::structs_and_types::StreamError;
 
@@ -54,6 +55,8 @@ pub fn initialize_ipcns(client_key: String) {
     println!("Server is listening on {:?}", addr);
 
     // let logger: Logger = acquire_logger!("IPCNS SERVER");
+
+    // TODO >>> Find a better way to send the addr to this thread (maybe use FIFOs)
 
     // Set the addr of the ipcns server into the sqlite3
     {
@@ -112,34 +115,29 @@ pub fn initialize_ipcns(client_key: String) {
                 // This mechanism allows to match a parity id in order to find if a inplace response has arrived
                 OrderVariant::MatchParityId(pid) => {
                     // > This should not break this connection while the parity id wasn't received
+
                     // This should be a reactive mechanism
-                    let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_manager::buffer_down_list_schedule();
+                    // let mut schedule: Vec<DownCommand> = enhanced_buffer::buffer_down_manager::buffer_down_list_schedule();
 
-                    // -> Sort commands by priority in ascending order
-                    schedule.sort_by(|a, b| b.priority.cmp(&a.priority));
+                    // // -> Sort commands by priority in ascending order
+                    // schedule.sort_by(|a, b| b.priority.cmp(&a.priority));
 
-                    // -> Filter only auto collect == false (that are commands to not autocollect)
-                    schedule.retain(|s| !s.auto_collect);
+                    // // -> Filter only auto collect == false (that are commands to not autocollect)
+                    // schedule.retain(|s| !s.auto_collect);
 
-                    response = OrderResponse::IncplaceResponseNotArrivedYet;
-                    for command in schedule {
-                        if command.parity_id == pid {
-                            response = OrderResponse::MatchingDownCommand(command);
-                        }
-                    }
+                    // response = OrderResponse::IncplaceResponseNotArrivedYet;
+                    // for command in schedule {
+                    //     if command.parity_id == pid {
+                    //         response = OrderResponse::MatchingDownCommand(command);
+                    //     }
+                    // }
+
+                    // TODO >>> Verify if there is a method that may allow to wathc for a parity id response inside the core
+                    //* If don't have this method, then implement it and then link it to this
                 },
                 // Used to schedule command instructions
-                OrderVariant::ScheduleCommandInstructions(ci, p) => {
-                    match schedule_in_memmory(ci, p) {
-                        Ok(parity_id) => {
-                            // logger.info(format!("IPCNS Server scheduled the command: {:?} successfully!", parity_id));
-                            response = OrderResponse::Confirmed(parity_id);
-                        },
-                        Err(e) => {
-                            // logger.exception(format!("IPCNS Server failed to schedule in memory, the error was: {:?}", e));
-                            response = OrderResponse::Error(e);
-                        },
-                    };
+                OrderVariant::ScheduleCommandInstructions(uci, p) => {
+                    schedule_up_command_instructions(uci, p);
                 },
             }
 

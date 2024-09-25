@@ -31,7 +31,7 @@ lazy_static! {
 // }
 
 fn connect(address: String) -> Option<TcpStream> {
-    let mut stream = match TcpStream::connect(address.clone()) {
+    let stream = match TcpStream::connect(address.clone()) {
         Ok(s) => s,
         Err(e) => match e.kind() {
             ErrorKind::ConnectionRefused => {
@@ -51,14 +51,6 @@ const MAX_DATA_SIZE: usize = 10 * 1024 * 1024;
 
 fn send(stream: &mut TcpStream, order: &OrderVariant, priority: u8) -> Result<Option<OrderResponse>, StreamError> {
     println!("Sending: {:?}", order);
-
-    // {
-    //     let conn: bool = verify_connection(stream, &command.client_key);
-    //     if !conn {
-    //         logger.info(format!("Not connected!"));
-    //         return Response::None;
-    //     }
-    // }
 
     {
         let command = json!(order).to_string();
@@ -123,9 +115,9 @@ fn send(stream: &mut TcpStream, order: &OrderVariant, priority: u8) -> Result<Op
 }
 
 fn get_init() -> bool {
-    let mut client_states = match ClientState::load_from_storage() {
+    let client_states = match ClientState::load_from_storage() {
         Ok(st) => st,
-        Err(e) => return false,
+        Err(_) => return false,
     };
     if let Some(init) = client_states.is_ready {
         CLIENT_WAS_ONLINE.store(true, Ordering::SeqCst);
@@ -140,6 +132,8 @@ fn connect_in_ipcns() -> Result<TcpStream, IpcnsError> {
     let mut last_attempt_time: Instant = Instant::now() - Duration::from_secs(30);
 
     let address: String;
+
+    // TODO >>> Find a bette way to send the addr to this thread (maybe using FIFOs)
 
     {
         let client_states = CLIENT_STATE_MANAGER.lock();
