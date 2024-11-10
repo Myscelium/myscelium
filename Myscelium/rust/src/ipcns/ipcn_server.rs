@@ -56,7 +56,7 @@ pub fn initialize_ipcns(client_key: String) {
 
     // let logger: Logger = acquire_logger!("IPCNS SERVER");
 
-    // TODO >>> Find a better way to send the addr to this thread (maybe use FIFOs)
+    // TODO >>> Validate the data being received from trust source, it should have the key and the token
 
     // Set the addr of the ipcns server into the sqlite3
     {
@@ -69,8 +69,6 @@ pub fn initialize_ipcns(client_key: String) {
         // TODO >>> Create a mechanism that allow schedule things in buffer up
         // TODO >>> Filter the schdule things using some rules (to doesn't need to store the network map inside the buffer up)
         // TODO >>> Create a way to receive here a parity id to look for a response to the parity id + client key that allow us to return a response that will be used as a inplace response
-
-        // let logger: Logger = acquire_logger!("IPCNS CLIENT");
 
         const MAX_DATA_SIZE: usize = 10 * 1024 * 1024; // For example, 10 MB
 
