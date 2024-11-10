@@ -10,7 +10,7 @@ use std::{
     io::{ErrorKind, Read, Write},
     net::TcpStream,
 };
-use OxidizedMyscelium::{ClientState, Command, CommandInstructions, DownCommand};
+use OxidizedMyscelium::{ClientState, Command, CommandInstructions, DownCommand, CLIENT_STATE_MANAGER};
 
 use super::structs_and_types::{IpcnsError, OrderResponse, OrderVariant, StreamError};
 
@@ -137,7 +137,7 @@ fn connect_in_ipcns() -> Result<TcpStream, IpcnsError> {
 
     {
         let client_states = CLIENT_STATE_MANAGER.lock();
-        if let Some(addr) = client_states.ipcns_address.clone() {
+        if let Some(addr) = client_states.ipcns_addr.clone() {
             address = addr.clone()
         } else {
             return Err(IpcnsError::CannotObtainValidIpcnsAddr);

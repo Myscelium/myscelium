@@ -9,7 +9,7 @@ use std::{
     net::{TcpListener, TcpStream},
     panic, thread,
 };
-use OxidizedMyscelium::{DownCommand, CLIENT_IS_RUNNING};
+use OxidizedMyscelium::{DownCommand, CLIENT_IS_RUNNING, CLIENT_STATE_MANAGER};
 
 use super::structs_and_types::StreamError;
 

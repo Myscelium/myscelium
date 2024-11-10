@@ -1,13 +1,15 @@
 // use socket_client;
 
 use std::collections::HashMap;
+use std::thread;
 
-use OxidizedMyscelium::HandlerStatus;
 use OxidizedMyscelium::{ClientState, Command};
 use OxidizedMyscelium::{CommandType, WatcherError};
+use OxidizedMyscelium::{HandlerStatus, CLIENT_NODE_KEY};
 
 use crate::common::functions::wrap_py_function;
 use crate::common::functions::{convert_to_pydict, dict_to_object};
+use crate::ipcns::ipcn_server::initialize_ipcns;
 use indexmap::IndexMap;
 use pyo3::exceptions;
 use pyo3::prelude::*;
@@ -473,6 +475,16 @@ pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn initialize_socket_client(py: Python<'_>, ip: String, port: i32) {
+pub fn initialize_socket_client(ip: String, port: i32) {
+    let client_key: String;
+
+    {
+        let key = CLIENT_NODE_KEY.lock();
+        client_key = key.clone();
+    }
+
+    thread::spawn(|| initialize_ipcns(client_key));
+
+    // Intialize the socket client main core:
     OxidizedMyscelium::initialize_socket_client(ip, port);
 }
