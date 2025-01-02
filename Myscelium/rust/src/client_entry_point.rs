@@ -9,6 +9,7 @@ use OxidizedMyscelium::{HandlerStatus, CLIENT_NODE_KEY};
 
 use crate::common::functions::wrap_py_function;
 use crate::common::functions::{convert_to_pydict, dict_to_object};
+use crate::ipcns::ipcn_client::connect_in_ipcns;
 use crate::ipcns::ipcn_server::initialize_ipcns;
 use indexmap::IndexMap;
 use pyo3::exceptions;
@@ -185,6 +186,15 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
 
 #[pyfunction]
 pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String, is_main_process: bool) {
+    match connect_in_ipcns() {
+        Ok(_) => {
+            println!("Connected in the IPCN Server!");
+        },
+        Err(e) => {
+            panic!("Can't connect in the IPCN Server, error: {:?}", e);
+        },
+    };
+
     OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level, is_main_process)
 }
 

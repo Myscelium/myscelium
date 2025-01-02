@@ -150,7 +150,7 @@ fn get_init() -> bool {
     }
 }
 
-fn connect_in_ipcns() -> Result<(), IpcncError> {
+pub fn connect_in_ipcns() -> Result<(), IpcncError> {
     let mut last_attempt_time: Instant = Instant::now() - Duration::from_secs(30);
     let _ = IPCNS_CONNECTION.get_or_init(|| Arc::new(std::sync::Mutex::new(None)));
 
