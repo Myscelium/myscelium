@@ -61,7 +61,7 @@ pub fn initialize_ipcns(client_key: String) {
     // Set the addr of the ipcns server into the sqlite3
     {
         let mut client_mannager = CLIENT_STATE_MANAGER.lock();
-        client_mannager.set_ipcns_server_address(addr.unwrap().to_string());
+        let _ = client_mannager.set_ipcns_server_address(addr.unwrap().to_string()).unwrap();
         client_mannager.update_storage_with_self().unwrap();
     }
 
@@ -135,7 +135,7 @@ pub fn initialize_ipcns(client_key: String) {
                 },
                 // Used to schedule command instructions
                 OrderVariant::ScheduleCommandInstructions(uci, p) => {
-                    schedule_up_command_instructions(uci, p);
+                    let _ = schedule_up_command_instructions(uci, p).unwrap();
                 },
             }
 
