@@ -232,7 +232,7 @@ pub fn schedule_up_command_instructions(up_command_instructions: CommandInstruct
                 return Err(IpcnsError::Error(format!("Had a scheduling error: {:?}", e)));
             },
             _ => {
-                panic!() // TODO >>> This was not expected here so it is an error
+                panic!() // > This was not expected here so it is an error
             },
         }
     }

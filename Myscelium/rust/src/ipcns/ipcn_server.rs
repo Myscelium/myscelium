@@ -130,7 +130,7 @@ pub fn initialize_ipcns(client_key: String) {
                     //     }
                     // }
 
-                    // TODO >>> Verify if there is a method that may allow to wathc for a parity id response inside the core
+                    // TODO >>> Verify if there is a method that may allow to watch for a parity id response inside the core
                     //* If don't have this method, then implement it and then link it to this
                 },
                 // Used to schedule command instructions

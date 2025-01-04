@@ -18,7 +18,70 @@ CLIENT_KEY = "some_client_id"
 CLIENT_NAME = "TestClient1"
 TEMP_PATH = "Temp/Client1Data/"
 LOG_LEVEL = "INFO"
+CLIENT_ONLINE = True
 
+def shutdown ():
+    print("Receive order to stop client 1")
+    CLIENT_ONLINE = False
+    return
+
+class Senders:
+    @staticmethod
+    def send_some_data():
+        time.sleep(5)
+        
+        print("Starting sender threads")
+
+        mys_client = MysceliumClient(
+            name="TestClient1",
+            client_uid="some_client_id",
+            buffer_path="Temp/Client1Data/",
+            is_main_process = False
+        )
+
+        mys_client.running = True
+
+        try: #! Here is required see if client is ready
+            mys_client.ensure_client_ready(max_attempts=25, sleep_time=1)
+        except Exception as e:
+            shutdown() 
+            return
+
+        #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
+        
+        # max_attempts = 10
+        # attemtps = 0
+        # while not mys_client.is_client_ready():
+        #     time.sleep(1)
+        #     attemtps += 1
+        #     if attemtps >= max_attempts:
+        #         Events_Manager(Unit="Client1", path="Logs").Set_Event(
+        #             step=f"Take too long to client be ready!", event_type="Exception"
+        #         )
+        #         assert False, "Take too long to client be ready"
+        #     continue
+
+        # origin_key:str, command_function:str, target_key:str="", kwargs:dict={}, message:str=""
+        try:
+            command = client_patterns.command_pattern(
+                command_function="python_function",
+                target_key="",  # Empty is default
+                kwargs={"age": 10, "birth": 8, "name": "cristian"},
+                message="",
+                response_type="ExternalFunction",
+                response_target="Origin",
+                response_actf="test_handler",
+                auto_collect_response=True,
+            )
+        except ValueError as e:
+            return
+        
+        try:
+            parity_id = mys_client.send(command, priority=10)
+        except ValueError as e:
+            return
+
+        print(parity_id)
 
 class Handlers:
     @staticmethod
@@ -187,20 +250,22 @@ class MyClient:
         time.sleep(5)
 
         while True:
+            if not CLIENT_ONLINE:
+                break
             continue
 
         return
 
     def run(self):
-        # senders = Senders()
+        senders = Senders()
 
         t1 = Process(target=self.initializer, args=())
-        # t2 = Process(target=senders.send_some_data, args=())
+        t2 = Process(target=senders.send_some_data, args=())
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
         time.sleep(5)
-        # t2.start()
+        t2.start()
         t3.start()
 
         t3.join()
