@@ -6,6 +6,8 @@ from myscelium import (
     CommandInstruction
 )
 
+from ...Logs.test_logs_manager import Events_Manager, System_Status
+
 import os
 import time
 import signal
@@ -18,17 +20,15 @@ CLIENT_KEY = "some_client_id"
 CLIENT_NAME = "TestClient1"
 TEMP_PATH = "Temp/Client1Data/"
 LOG_LEVEL = "INFO"
-CLIENT_ONLINE = True
 
 def shutdown ():
     print("Receive order to stop client 1")
-    CLIENT_ONLINE = False
+    System_Status("Logs").change_unit_status(Unit="Client1", Status=False)
     return
 
 class Senders:
     @staticmethod
     def send_some_data():
-        time.sleep(5)
         
         print("Starting sender threads")
 
@@ -250,13 +250,18 @@ class MyClient:
         time.sleep(5)
 
         while True:
-            if not CLIENT_ONLINE:
+            time.sleep(2)
+            if not System_Status(path="Logs").get_unit_status(Unit="Client1"):
                 break
             continue
 
         return
 
     def run(self):
+        
+        system_status = System_Status(path="Logs")
+        system_status.change_unit_status(Unit="Client1", Status=True)
+        
         senders = Senders()
 
         t1 = Process(target=self.initializer, args=())

@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::thread;
+use std::time::Duration;
 
 use OxidizedMyscelium::{ClientState, Command};
 use OxidizedMyscelium::{CommandType, WatcherError};
@@ -9,7 +10,7 @@ use OxidizedMyscelium::{HandlerStatus, CLIENT_NODE_KEY};
 
 use crate::common::functions::wrap_py_function;
 use crate::common::functions::{convert_to_pydict, dict_to_object};
-use crate::ipcns::ipcn_client::connect_in_ipcns;
+use crate::ipcns::ipcn_client::{connect_in_ipcns, IpcncError};
 use crate::ipcns::ipcn_server::initialize_ipcns;
 use indexmap::IndexMap;
 use pyo3::exceptions;
@@ -187,14 +188,21 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
 #[pyfunction]
 pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String, is_main_process: bool) {
     if !is_main_process {
-        match connect_in_ipcns() {
-            Ok(_) => {
-                println!("Connected in the IPCN Server!");
-            },
-            Err(e) => {
-                panic!("Can't connect in the IPCN Server, error: {:?}", e);
-            },
-        };
+        loop {
+            thread::sleep(Duration::from_secs(1u64));
+            match connect_in_ipcns() {
+                Ok(_) => {
+                    println!("Connected in the IPCN Server!");
+                    break;
+                },
+                Err(e) => match e {
+                    IpcncError::CannotObtainValidIpcnsAddr => continue,
+                    IpcncError::CantConnect(e) => panic!("Can't connect in the IPCN Server"),
+                    IpcncError::ConnectionNotInitialized => panic!("Error, this error is not correct!"),
+                    IpcncError::Error(e) => panic!("Error, while trying to connect in the ipcns server, error: {:?}", e),
+                },
+            };
+        }
     }
 
     OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level, is_main_process)
