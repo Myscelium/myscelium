@@ -6,7 +6,7 @@ from myscelium import (
     CommandInstruction
 )
 
-from ...Logs.test_logs_manager import Events_Manager, System_Status
+from test_logs_manager import Events_Manager, System_Status
 
 import os
 import time
@@ -115,7 +115,6 @@ class Handlers:
             return None
 
         response_actf = info["response_actf"]
-
     
         ty = type(info["origin"])
         inf = info["origin"]
@@ -282,6 +281,7 @@ class MyClient:
         os.kill(t1.pid, signal.SIGINT)
 
         t1.join()  # Wait for the process to finish
+        system_status.change_unit_status(Unit="Client1", Status=False)
         t2.join()
 
         return

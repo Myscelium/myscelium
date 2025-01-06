@@ -151,6 +151,8 @@ fn get_init() -> bool {
 }
 
 pub fn connect_in_ipcns() -> Result<(), IpcncError> {
+    println!("🛜🔁 >>> Initializing IPCN Client ");
+
     let mut last_attempt_time: Instant = Instant::now() - Duration::from_secs(30);
     let _ = IPCNS_CONNECTION.get_or_init(|| Arc::new(std::sync::Mutex::new(None)));
 
@@ -214,6 +216,8 @@ pub fn connect_in_ipcns() -> Result<(), IpcncError> {
             println!("Trying to connect again in: {} secs", dif.as_secs());
         }
     }
+
+    println!("🛜🟢 >>> Scheduler Unity Connected in the IPCNS! ");
 
     return Ok(());
 }
