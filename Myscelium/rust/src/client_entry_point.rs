@@ -188,6 +188,7 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
 #[pyfunction]
 pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String, is_main_process: bool) {
     if !is_main_process {
+        println!(">>> Initializing IPCN Client ");
         loop {
             thread::sleep(Duration::from_secs(1u64));
             match connect_in_ipcns() {

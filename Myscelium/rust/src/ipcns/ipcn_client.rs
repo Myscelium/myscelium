@@ -151,7 +151,7 @@ fn get_init() -> bool {
 }
 
 pub fn connect_in_ipcns() -> Result<(), IpcncError> {
-    println!("🛜🔁 >>> Initializing IPCN Client ");
+    println!("🛜🔁 >>> Trying to connect in the IPCN Client ");
 
     let mut last_attempt_time: Instant = Instant::now() - Duration::from_secs(30);
     let _ = IPCNS_CONNECTION.get_or_init(|| Arc::new(std::sync::Mutex::new(None)));
