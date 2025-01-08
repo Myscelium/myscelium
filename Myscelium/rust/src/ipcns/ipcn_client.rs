@@ -159,7 +159,8 @@ pub fn connect_in_ipcns() -> Result<(), IpcncError> {
     let address: String;
 
     {
-        let client_states = CLIENT_STATE_MANAGER.lock();
+        let mut client_states = CLIENT_STATE_MANAGER.lock();
+        // let client_states = ClientState::load_from_storage().unwrap();
         if let Some(addr) = client_states.ipcns_addr.clone() {
             address = addr.clone()
         } else {
