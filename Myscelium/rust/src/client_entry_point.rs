@@ -1,9 +1,12 @@
 // use socket_client;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
 use OxidizedMyscelium::{ClientState, Command};
 use OxidizedMyscelium::{CommandType, WatcherError};
 use OxidizedMyscelium::{HandlerStatus, CLIENT_NODE_KEY};
@@ -22,6 +25,10 @@ use OxidizedMyscelium::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS};
 
 // -> Socket Client main-points:
 use OxidizedMyscelium;
+
+lazy_static! {
+    pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+}
 
 /// Sets the number of worker threads for the socket client transposer.
 ///
@@ -187,6 +194,10 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
 
 #[pyfunction]
 pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String, is_main_process: bool) {
+    // Set wrapper log level
+    let mut current_log_level = CLIENT_LOG_LEVEL.lock();
+    *current_log_level = log_level.clone();
+
     OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level, is_main_process);
     if !is_main_process {
         println!(">>> Initializing IPCN Client ");

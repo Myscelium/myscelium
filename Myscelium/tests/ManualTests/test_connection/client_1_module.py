@@ -81,11 +81,15 @@ class Senders:
                 auto_collect_response=True,
             )
         except ValueError as e:
+            print(f"Error trying send command. The error was: {e}")
+            System_Status("Logs").change_unit_status(Unit="Client1", Status=False)
             return
         
         try:
             parity_id = mys_client.send(command, priority=10)
         except ValueError as e:
+            print(f"Error trying send command. The error was: {e}")
+            System_Status("Logs").change_unit_status(Unit="Client1", Status=False)
             return
 
         print(parity_id)
@@ -247,7 +251,6 @@ class MyClient:
 
         mys_client.set_callbacks(callbacks=callbacks)
         mys_client.set_workers_num(n_workers=2)
-
         mys_client.initialize_client("127.0.0.1", 8000)
 
         return
@@ -266,6 +269,7 @@ class MyClient:
     def run(self):
         
         system_status = System_Status(path="Logs")
+        system_status.create_unit("Client1")
         system_status.change_unit_status(Unit="Client1", Status=True)
         
         senders = Senders()
@@ -275,7 +279,7 @@ class MyClient:
         t3 = Process(target=self.monitor_stop_event, args=())
 
         t1.start()
-        time.sleep(5)
+        time.sleep(15)
         t2.start()
         t3.start()
 

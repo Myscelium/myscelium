@@ -1,0 +1,3 @@
+{"log_level":"DEBUG","log_msg":"[CLIENT][GLOBAL][Try Lock] - CLIENT_ID","log_name":"Core","log_time":1736636377.2700567,"node_name":""}
+{"log_level":"DEBUG","log_msg":"[CLIENT][GLOBAL][Lock] - CLIENT_ID","log_name":"Core","log_time":1736636377.2703598,"node_name":""}
+{"log_level":"DEBUG","log_msg":"[CLIENT][GLOBAL][Release] - CLIENT_ID","log_name":"Core","log_time":1736636377.2704878,"node_name":""}

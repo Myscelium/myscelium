@@ -96,7 +96,6 @@ fn stop_socket_host() {
 #[pyfunction]
 pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
     let mut host_node_handlers: Vec<NodeHandler> = Vec::new();
-
     let mut callbacks_patterns = HashMap::new();
 
     for command in commands.iter() {

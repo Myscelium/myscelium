@@ -13,6 +13,17 @@ use OxidizedMyscelium::{DownCommand, CLIENT_IS_RUNNING, CLIENT_STATE_MANAGER};
 
 use super::structs_and_types::StreamError;
 
+macro_rules! acquire_logger {
+    ($section_name:expr) => {{
+        let client_log_level;
+        {
+            let log_level = CLIENT_LOG_LEVEL.lock().clone();
+            client_log_level = log_level.clone();
+        }
+        Logger::new(client_log_level, $section_name)
+    }};
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WatcherError {
     MaxTimeExceeded(String),
