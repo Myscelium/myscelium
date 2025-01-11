@@ -32,19 +32,26 @@ class Senders:
         
         print("Starting sender threads")
 
-        mys_client = MysceliumClient(
-            name="TestClient1",
-            client_uid="some_client_id",
-            buffer_path="Temp/Client1Data/",
-            is_main_process = False
-        )
+        
+        try:
+            mys_client = MysceliumClient(
+                name="TestClient1",
+                client_uid="some_client_id",
+                buffer_path="Temp/Client1Data/",
+                is_main_process = False
+            )
+        except BaseException as e:
+            print(f"Error trying to initialize the scheduler thread of the myscelium system. The error was: {e}")
+            System_Status("Logs").change_unit_status(Unit="Client1", Status=False)
+            return
 
         mys_client.running = True
 
         try: #! Here is required see if client is ready
             mys_client.ensure_client_ready(max_attempts=25, sleep_time=1)
-        except Exception as e:
-            shutdown() 
+        except BaseException as e:
+            print(f"Error trying to verify if the client is ready. The error was: {e}")
+            System_Status("Logs").change_unit_status(Unit="Client1", Status=False)
             return
 
         #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
