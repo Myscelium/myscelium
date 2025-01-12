@@ -1,5 +1,9 @@
+use super::structs_and_types::{IpcnsError, OrderResponse, OrderVariant, StreamError};
+use crate::common::client_logger::log_handler::Logger;
+use crate::CLIENT_LOG_LEVEL;
 use chrono::Utc;
 use indexmap::IndexMap;
+use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, json, Value};
@@ -14,10 +18,6 @@ use std::{
 };
 use OxidizedMyscelium::{ClientState, Command, CommandInstructions, DownCommand, CLIENT_STATE_MANAGER};
 
-use super::structs_and_types::{IpcnsError, OrderResponse, OrderVariant, StreamError};
-
-use lazy_static::lazy_static;
-
 lazy_static! {
     pub static ref CLIENT_WAS_ONLINE: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 }
@@ -25,15 +25,15 @@ lazy_static! {
 // Share state to store the TcpStream connection
 static IPCNS_CONNECTION: OnceLock<Arc<std::sync::Mutex<Option<TcpStream>>>> = OnceLock::new();
 
-// macro_rules! acquire_logger {
-//     ($section_name:expr) => {{
-//         let client_log_level;
-//         {
-//             client_log_level = CLIENT_LOG_LEVEL.lock().clone();
-//         }
-//         Logger::new(client_log_level, $section_name)
-//     }};
-// }
+macro_rules! acquire_logger {
+    ($section_name:expr) => {{
+        let client_log_level;
+        {
+            client_log_level = CLIENT_LOG_LEVEL.lock().clone();
+        }
+        Logger::new(client_log_level, $section_name)
+    }};
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum IpcncError {
@@ -152,6 +152,9 @@ fn get_init() -> bool {
 
 pub fn connect_in_ipcns() -> Result<(), IpcncError> {
     println!("🛜🔁 >>> Trying to connect in the IPCN Client ");
+
+    let mut logger = acquire_logger!("[CLIENT][SENDER]");
+    logger.info("🛜🔁 >>> Trying to connect in the IPCN Client ".to_string());
 
     let mut last_attempt_time: Instant = Instant::now() - Duration::from_secs(30);
     let _ = IPCNS_CONNECTION.get_or_init(|| Arc::new(std::sync::Mutex::new(None)));

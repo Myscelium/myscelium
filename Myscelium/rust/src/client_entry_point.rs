@@ -27,6 +27,7 @@ use OxidizedMyscelium::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS};
 use OxidizedMyscelium;
 
 lazy_static! {
+    pub static ref CLIENT_NODE_NAME: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
     pub static ref CLIENT_LOG_LEVEL: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
 }
 
@@ -198,9 +199,13 @@ pub fn setup_client(client_name: String, client_uid: String, buffer_path: String
     let mut current_log_level = CLIENT_LOG_LEVEL.lock();
     *current_log_level = log_level.clone();
 
+    let mut client_node_name = CLIENT_NODE_NAME.lock();
+    *client_node_name = client_name.clone();
+
     OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level, is_main_process);
     if !is_main_process {
         println!(">>> Initializing IPCN Client ");
+
         loop {
             thread::sleep(Duration::from_secs(1u64));
             match connect_in_ipcns() {
