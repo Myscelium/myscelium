@@ -112,10 +112,10 @@ pub fn registry_socket_host_callbacks(py: Python, commands: Bound<PyList>) -> Py
         };
 
         // Check if args_item is a dict or a string with the value "None"
-        let mut args_dict: Option<Bound<PyDict>> = None;
+        let args_dict: Option<Bound<PyDict>>;
 
         if let Ok(args_as_dict) = args_item.downcast::<PyDict>() {
-            args_dict = Some((*args_as_dict).clone()); // ✅ Deref and clone to get owned `Bound<PyDict>`
+            args_dict = Some((*args_as_dict).clone());
         } else if let Ok(args_as_str) = args_item.extract::<String>() {
             if args_as_str == "None" {
                 args_dict = None;

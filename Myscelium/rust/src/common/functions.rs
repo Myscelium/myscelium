@@ -140,12 +140,12 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
 
             let args;
 
-            if let Ok(tuple) = py_args.extract::<&PyTuple>(py) {
+            if let Ok(tuple) = py_args.downcast_bound::<PyTuple>(py) {
                 args = tuple;
             }
             // If obj is a dict, convert its values to a tuple.
-            else if let Ok(dict) = py_args.extract::<&PyDict>(py) {
-                let values = dict.values().into_iter().map(|v| v.to_object(py)).collect::<Vec<_>>();
+            else if let Ok(dict) = py_args.downcast_bound::<PyDict>(py) {
+                let values = dict.values().into_iter().map(|v| v.into_pyobject(py)).collect::<Vec<_>>();
                 let tuple = PyTuple::new(py, &values);
                 args = tuple;
             }
@@ -178,6 +178,8 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
             };
 
             value = extract_pyobject(py, response);
+
+            return Box::new(value) as Box<dyn Any>;
         });
 
         println!("Value map extracted from callback response: {:?}", value);
