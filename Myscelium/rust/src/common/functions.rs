@@ -43,39 +43,6 @@ fn convert_indexmap_to_pydict(py: Python<'_>, data: &IndexMap<String, String>) -
     Ok(py_dict.into())
 }
 
-fn convert_json_value_to_pyobject(py: Python, value: &Value) -> PyResult<PyObject> {
-    match value {
-        Value::Object(map) => {
-            let py_dict = PyDict::new(py);
-            for (key, val) in map.iter() {
-                let py_val = convert_json_value_to_pyobject(py, val)?;
-                py_dict.set_item(key, py_val)?;
-            }
-            Ok(py_dict.into_py(py))
-        },
-        Value::Array(arr) => {
-            let py_list = PyList::empty(py);
-            for val in arr {
-                let py_val = convert_json_value_to_pyobject(py, val)?;
-                py_list.append(py_val)?;
-            }
-            Ok(py_list.into_py(py))
-        },
-        Value::String(s) => Ok(s.into_py(py)),
-        Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Ok(i.into_py(py))
-            } else if let Some(f) = n.as_f64() {
-                Ok(f.into_py(py))
-            } else {
-                Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Unsupported number type"))
-            }
-        },
-        Value::Bool(b) => Ok(b.into_py(py)),
-        Value::Null => Ok(py.None()),
-    }
-}
-
 fn convert_boxed_anys_to_pylist<'py>(py: Python<'py>, boxed_anys: Vec<Box<dyn Any>>) -> PyResult<Bound<'py, PyList>> {
     let py_list: Bound<'py, PyList> = PyList::empty(py); // Already GIL-bound
 
@@ -83,10 +50,10 @@ fn convert_boxed_anys_to_pylist<'py>(py: Python<'py>, boxed_anys: Vec<Box<dyn An
         match boxed_any.downcast::<Value>() {
             Ok(value_box) => {
                 let val = value_box.clone();
-                let py_item = convert_json_value_to_pyobject(py, &val)?;
+                let py_item = translate_value_to_py(py, *val)?;
                 py_list.append(py_item)?;
             },
-            Err(_) => println!("Not a value"),
+            Err(_) => println!("Not a value"), // TODO >>> Improve the error handling here!
         }
     }
 
@@ -304,52 +271,6 @@ pub fn extract_arg_types<'py>(arg: Bound<'py, PyAny>) -> PyResult<Value> {
         let arg_type: String = arg.extract()?;
         Ok(json!(arg_type))
     }
-}
-
-pub fn dict_to_kwargs<'py>(py: Python<'py>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, Bound<'py, PyAny>>> {
-    let mut kwargs: HashMap<String, Bound<'py, PyAny>> = HashMap::new();
-
-    for (key, value) in dict.iter() {
-        let py_value: Bound<'py, PyAny> = translate_value_to_py(py, value.clone())?; // Ensure correct type
-        kwargs.insert(key.clone(), py_value);
-    }
-
-    Ok(kwargs)
-}
-
-pub fn dict_to_object<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<Bound<'l, PyDict>> {
-    let kwargs = PyDict::new(py); // Create a new Python dictionary
-
-    for (key, value) in dict.iter() {
-        let py_value: Bound<'_, PyAny> = translate_value_to_py(py, value.clone())?; // Assume this function converts Rust `Value` to `PyObject`
-        kwargs.set_item(key, py_value)?; // Insert the key-value pair into the PyDict
-    }
-
-    kwargs.into_py_dict(py) // Convert the PyDict to PyObject and return
-}
-
-pub fn dict_to_tuple<'py>(py: Python<'py>, dict: &HashMap<String, Value>) -> PyResult<Bound<'py, PyTuple>> {
-    // Check if the dict contains the function name as a key
-    if !dict.contains_key("kwargs") {
-        // If it does not, return an empty tuple since there are no arguments
-        return Ok(PyTuple::empty(py));
-    }
-
-    // Extract "kwargs" value and parse it as a JSON string
-    let args_string = match dict.get("kwargs") {
-        Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<pyo3::exceptions::PyException, _>("The kwargs key is not found or not a string.")),
-    };
-
-    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("Failed to parse kwargs as JSON."))?;
-
-    let mut values: Vec<Bound<'py, PyAny>> = Vec::new();
-    for value in sub_dict.values() {
-        let py_value = translate_value_to_py(py, value.clone())?; // Use translate_value_to_py
-        values.push(py_value);
-    }
-
-    PyTuple::new(py, values) // Create a bound PyTuple
 }
 
 pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {

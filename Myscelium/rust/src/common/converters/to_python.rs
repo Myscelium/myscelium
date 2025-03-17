@@ -8,6 +8,7 @@ use pyo3::{PyErr, PyObject, PyResult, Python};
 use serde_json::Number;
 use serde_json::Value as JsonValue;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::os::raw::c_ulonglong;
 
 /// A trait to convert Rust numeric types into a Bound<'py, PyAny> safely.
@@ -109,6 +110,52 @@ pub fn translate_value_to_py(py: pyo3::Python, value: JsonValue) -> PyResult<Bou
             Ok(py_dict.into_bound_py_any(py)?)
         },
     }
+}
+
+pub fn dict_to_kwargs<'py>(py: Python<'py>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, Bound<'py, PyAny>>> {
+    let mut kwargs: HashMap<String, Bound<'py, PyAny>> = HashMap::new();
+
+    for (key, value) in dict.iter() {
+        let py_value: Bound<'py, PyAny> = translate_value_to_py(py, value.clone())?; // Ensure correct type
+        kwargs.insert(key.clone(), py_value);
+    }
+
+    Ok(kwargs)
+}
+
+pub fn dict_to_object<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<Bound<'l, PyDict>> {
+    let kwargs = PyDict::new(py); // Create a new Python dictionary
+
+    for (key, value) in dict.iter() {
+        let py_value: Bound<'_, PyAny> = translate_value_to_py(py, value.clone())?; // Assume this function converts Rust `Value` to `PyObject`
+        kwargs.set_item(key, py_value)?; // Insert the key-value pair into the PyDict
+    }
+
+    kwargs.into_py_dict(py) // Convert the PyDict to PyObject and return
+}
+
+pub fn dict_to_tuple<'py>(py: Python<'py>, dict: &HashMap<String, Value>) -> PyResult<Bound<'py, PyTuple>> {
+    // Check if the dict contains the function name as a key
+    if !dict.contains_key("kwargs") {
+        // If it does not, return an empty tuple since there are no arguments
+        return Ok(PyTuple::empty(py));
+    }
+
+    // Extract "kwargs" value and parse it as a JSON string
+    let args_string = match dict.get("kwargs") {
+        Some(Value::String(s)) => s,
+        _ => return Err(PyErr::new::<pyo3::exceptions::PyException, _>("The kwargs key is not found or not a string.")),
+    };
+
+    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("Failed to parse kwargs as JSON."))?;
+
+    let mut values: Vec<Bound<'py, PyAny>> = Vec::new();
+    for value in sub_dict.values() {
+        let py_value = translate_value_to_py(py, value.clone())?; // Use translate_value_to_py
+        values.push(py_value);
+    }
+
+    PyTuple::new(py, values) // Create a bound PyTuple
 }
 
 #[cfg(test)]

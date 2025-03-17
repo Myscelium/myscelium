@@ -6,8 +6,9 @@ use OxidizedMyscelium::HandlerStatus;
 use OxidizedMyscelium::{ClientState, Command};
 use OxidizedMyscelium::{CommandType, WatcherError};
 
+use crate::common::converters::to_python::dict_to_object;
+use crate::common::functions::convert_to_pydict;
 use crate::common::functions::wrap_py_function;
-use crate::common::functions::{convert_to_pydict, dict_to_object};
 use indexmap::IndexMap;
 
 use pyo3::exceptions;
