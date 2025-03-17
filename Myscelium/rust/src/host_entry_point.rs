@@ -94,22 +94,28 @@ fn stop_socket_host() {
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
+pub fn registry_socket_host_callbacks(py: Python, commands: Bound<PyList>) -> PyResult<()> {
     let mut host_node_handlers: Vec<NodeHandler> = Vec::new();
 
     let mut callbacks_patterns = HashMap::new();
 
     for command in commands.iter() {
-        let command_dict: &PyDict = command.downcast().unwrap();
-        let function: &PyAny = command_dict.get_item("function").unwrap();
+        let command_dict: &Bound<PyDict> = command.downcast::<PyDict>()?;
+        let function: Bound<PyAny> = match command_dict.get_item("function")? {
+            Some(f) => f,
+            None => return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>("Missing key: function")),
+        };
 
-        let args_item: &PyAny = command_dict.get_item("args").unwrap();
+        let args_item: Bound<PyAny> = match command_dict.get_item("args")? {
+            Some(f) => f,
+            None => return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>("Missing key: args")),
+        };
 
         // Check if args_item is a dict or a string with the value "None"
-        let args_dict: Option<&PyDict>;
+        let mut args_dict: Option<Bound<PyDict>> = None;
 
         if let Ok(args_as_dict) = args_item.downcast::<PyDict>() {
-            args_dict = Some(args_as_dict);
+            args_dict = Some((*args_as_dict).clone()); // ✅ Deref and clone to get owned `Bound<PyDict>`
         } else if let Ok(args_as_str) = args_item.extract::<String>() {
             if args_as_str == "None" {
                 args_dict = None;
@@ -121,7 +127,8 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
         }
 
         // Extract the Python function name
-        let function_name: &str = function.getattr("__name__")?.extract()?;
+        let function_name_obj = function.getattr("__name__")?; // Store the temporary object
+        let function_name: String = function_name_obj.extract()?; // Extract the value safely
 
         //> Extract the argument types (This are extracted from the function args requirements)
         let mut args_types_value = IndexMap::new();
@@ -142,7 +149,7 @@ pub fn registry_socket_host_callbacks(py: Python, commands: &PyList) -> PyResult
         host_node_handlers.push(host_handler);
 
         // Inside your loop over commands
-        let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
+        let function: Py<PyFunction> = function.downcast::<PyFunction>()?.extract()?;
 
         // Wrap the Python function to match CallbackClosure signature
         let wrapped_function = Box::new(wrap_py_function(function, "Host".to_string()));
@@ -315,9 +322,11 @@ use OxidizedMyscelium::handle_manager_client_error;
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult<()> {
+pub fn set_socket_host_allowed_clients(allowed_client_list: Bound<PyList>) -> PyResult<()> {
+    // Bound<T> ensures that Python objects remain valid and prevents borrowing issues.
+
     for client_allowed in allowed_client_list.iter() {
-        let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
+        let allowed_clients_dict = client_allowed.downcast::<PyDict>()?.as_ref();
 
         let client_name = extract_string!(allowed_clients_dict.get_item("client_name").unwrap(), "Error: client_name must be a String!");
         let client_key = extract_string!(allowed_clients_dict.get_item("client_key").unwrap(), "Error: client_key must be a String with 16 characters!");
@@ -363,9 +372,9 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: &PyList) -> PyResult
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResult<()> {
+pub fn registry_new_allowed_clients(new_allowed_clients_list: Bound<PyList>) -> PyResult<()> {
     for client_allowed in new_allowed_clients_list.iter() {
-        let allowed_clients_dict: &PyDict = client_allowed.downcast().unwrap();
+        let allowed_clients_dict = client_allowed.downcast::<PyDict>()?.as_ref();
 
         let client_name = extract_string!(allowed_clients_dict.get_item("client_name").unwrap(), "Error: client_name must be a String!");
         let client_key = extract_string!(allowed_clients_dict.get_item("client_key").unwrap(), "Error: client_key must be a String with 16 characters!");
@@ -411,6 +420,6 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: &PyList) -> PyResu
 /// # Python Binding
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-fn remove_all_allowed_clients(allowed_client_list: &PyList) {
+fn remove_all_allowed_clients(allowed_client_list: Bound<PyList>) {
     let _ = Client::delete_all();
 }

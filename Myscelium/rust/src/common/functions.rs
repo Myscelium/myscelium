@@ -125,12 +125,7 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
         let result: Result<Py<PyAny>, PyErr>;
         let value: Value;
 
-        {
-            // < Because of this block we need to execute python tasks sequentially!
-            let getting_py = unsafe { Python::assume_gil_acquired() };
-            let gil_pool = unsafe { getting_py.clone().new_pool() };
-            let py = gil_pool.python();
-
+        Python::with_gil(|py| {
             // Convert Rust `args` into Python objects. This might involve type checking and conversion.
             let py_args = match convert_boxed_anys_to_pyany(py, args) {
                 Ok(r) => r,
@@ -183,7 +178,7 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
             };
 
             value = extract_pyobject(py, response);
-        }
+        });
 
         println!("Value map extracted from callback response: {:?}", value);
         let instructions = {
@@ -473,7 +468,7 @@ pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexG
     }
 
     // Call the Python function with the converted arguments
-    let result = function.call(py, (), Some(kwargs)).map_err(|e| e)?;
+    let result = function.call_with_kwargs((), Some(kwargs))?;
 
     let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
 
@@ -504,7 +499,7 @@ pub fn client_call_callback(py: Python<'_>, command: &Command, callback_patterns
     }
 
     // Call the Python function with the converted arguments
-    let result = function.call(py, (), Some(kwargs)).map_err(|e| e)?;
+    let result = function.call_with_kwargs((), Some(kwargs))?;
 
     let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
 
