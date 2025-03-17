@@ -22,7 +22,9 @@ use OxidizedMyscelium::CommandInstructions;
 use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::ResultType;
 
+use crate::common::converters::to_python::dict_to_kwargs;
 use crate::common::converters::to_python::translate_value_to_py;
+use crate::common::converters::to_rust::extract_pyobject;
 
 use indexmap::IndexMap;
 
@@ -180,19 +182,21 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
             if let Some(result) = result {
                 let response = match result {
                     Ok(py_result) => {
-                        // Convert the Python result back to Rust
-                        // This is a placeholder, actual conversion logic will depend on the expected result type
+                        // `py_result` is a Py<PyAny> (an owning pointer).
                         py_result
                     },
                     Err(e) => {
-                        // Handle error, maybe convert to a Rust error type
                         println!("Error calling Python function: {:?}", e);
-                        // TODO >>> Create a better error handling mechanism
                         return Box::new(e) as Box<dyn Any>;
                     },
                 };
 
-                value = Some(extract_pyobject(py, response));
+                // Convert the owning Py<PyAny> into a Bound<'_, PyAny> by borrowing it.
+                // This is safe as long as `response` remains alive for the lifetime of `py`.
+                let response_bound = unsafe { Bound::from_borrowed_ptr(py, response.as_ptr()) };
+
+                // Now extract the Python object to a serde_json::Value.
+                value = Some(extract_pyobject(py, response_bound));
                 return Box::new(value.clone()) as Box<dyn Any>;
             } else {
                 let e = PyErr::new::<pyo3::exceptions::PyValueError, _>("Function calling result isn't Some!");
@@ -256,94 +260,24 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
     })
 }
 
-pub fn extract_arg_types<'py>(arg: Bound<'py, PyAny>) -> PyResult<Value> {
-    if let Ok(arg_dict) = arg.downcast::<PyDict>() {
-        // If the argument is a dictionary, recursively extract the argument types
-        let mut args_types = HashMap::new();
-        for (arg_name, arg_type) in arg_dict.iter() {
-            let arg_name: String = arg_name.extract()?;
-            let arg_type_value = extract_arg_types(arg_type)?;
-            args_types.insert(arg_name, arg_type_value);
-        }
-        Ok(json!(args_types))
-    } else {
-        // If the argument is not a dictionary, extract it as a string
-        let arg_type: String = arg.extract()?;
-        Ok(json!(arg_type))
-    }
-}
+// pub fn extract_arg_types<'py>(arg: Bound<'py, PyAny>) -> PyResult<Value> {
+//     if let Ok(arg_dict) = arg.downcast::<PyDict>() {
+//         // If the argument is a dictionary, recursively extract the argument types
+//         let mut args_types = HashMap::new();
+//         for (arg_name, arg_type) in arg_dict.iter() {
+//             let arg_name: String = arg_name.extract()?;
+//             let arg_type_value = extract_arg_types(arg_type)?;
+//             args_types.insert(arg_name, arg_type_value);
+//         }
+//         Ok(json!(args_types))
+//     } else {
+//         // If the argument is not a dictionary, extract it as a string
+//         let arg_type: String = arg.extract()?;
+//         Ok(json!(arg_type))
+//     }
+// }
 
-pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
-    use serde_json::Value;
-
-    if let Ok(dict) = obj.downcast::<PyDict>(py) {
-        let mut rust_dict = serde_json::Map::new();
-        for (key, value) in dict.iter() {
-            let key_str = match key.extract::<String>() {
-                Ok(k) => k,
-                Err(e) => {
-                    println!("Failed to extract key as string: {:?}", e);
-                    continue; // Skip this key-value pair
-                },
-            };
-            let rust_value = extract_pyobject(py, value.to_object(py));
-            rust_dict.insert(key_str, rust_value);
-        }
-        Value::Object(rust_dict)
-    } else if let Ok(tuple) = obj.downcast::<PyTuple>(py) {
-        let rust_list: Vec<_> = tuple.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
-        Value::Array(rust_list)
-    } else if let Ok(list) = obj.downcast::<PyList>(py) {
-        let rust_list: Vec<_> = list.iter().map(|item| extract_pyobject(py, item.to_object(py))).collect();
-        Value::Array(rust_list)
-    } else if let Ok(boolean) = obj.downcast::<PyBool>(py) {
-        match boolean.extract::<bool>() {
-            Ok(b) => Value::Bool(b),
-            Err(e) => {
-                println!("Failed to extract boolean: {:?}", e);
-                Value::Null
-            },
-        }
-    } else if let Ok(int) = obj.downcast::<PyInt>(py) {
-        match int.extract::<i64>() {
-            Ok(i) => Value::Number(serde_json::Number::from(i)),
-            Err(e) => {
-                println!("Failed to extract integer: {:?}", e);
-                Value::Null
-            },
-        }
-    } else if let Ok(float) = obj.downcast::<PyFloat>(py) {
-        match float.extract::<f64>() {
-            Ok(i) => {
-                if let Some(num) = serde_json::Number::from_f64(i) {
-                    Value::Number(num)
-                } else {
-                    println!("Failed to extract float!");
-                    Value::Null
-                }
-            },
-            Err(e) => {
-                println!("Failed to extract float: {:?}", e);
-                Value::Null
-            },
-        }
-    } else if let Ok(string) = obj.downcast::<PyString>(py) {
-        match string.extract() {
-            Ok(s) => Value::String(s),
-            Err(e) => {
-                println!("Failed to extract string: {:?}", e);
-                Value::Null
-            },
-        }
-    } else if obj.is_none(py) {
-        Value::Null
-    } else {
-        println!("Unmatched type for object: {:?}", obj);
-        Value::Null
-    }
-}
-
-pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<PyObject> {
+pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<Bound<PyObject>> {
     println!("Command to call a callback: {:?}", command);
 
     let function_name: &String = &command.command.actf;
