@@ -25,6 +25,7 @@ use OxidizedMyscelium::ResultType;
 use crate::common::converters::to_python::dict_to_kwargs;
 use crate::common::converters::to_python::translate_value_to_py;
 use crate::common::converters::to_rust::extract_pyobject;
+use crate::common::converters::to_rust::handle_dict;
 
 use indexmap::IndexMap;
 
@@ -87,28 +88,6 @@ fn convert_boxed_anys_to_pylist<'py>(py: Python<'py>, boxed_anys: Vec<Box<dyn An
 //     let tuple = PyTuple::new(py, &[obj]);
 //     Ok(tuple)
 // }
-
-fn handle_dict(py: Python, dict: Bound<PyDict>) -> HashMap<String, String> {
-    let mut rust_dict = HashMap::new();
-
-    for (key, value) in dict.iter() {
-        let key_str: String = key.extract().unwrap();
-
-        if let Ok(value_str) = value.extract::<String>() {
-            rust_dict.insert(key_str, value_str);
-        } else if let Ok(value_int) = value.extract::<i32>() {
-            rust_dict.insert(key_str, value_int.to_string());
-        } else if let Ok(value_list) = value.extract::<Vec<String>>() {
-            rust_dict.insert(key_str, format!("{:?}", value_list));
-        } else if let Ok(nested_dict) = value.downcast::<PyDict>() {
-            rust_dict.insert(key_str, format!("{:?}", handle_dict(py, (*nested_dict).clone())));
-        } else {
-            // Handle other types as needed
-        }
-    }
-
-    rust_dict
-}
 
 /// Wraps a Python function into a Rust closure that can be executed with dynamic parameters.
 pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn(Vec<Box<dyn Any + 'static>>) -> Box<dyn Any> + Send + Sync> {
@@ -277,33 +256,43 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
 //     }
 // }
 
-pub fn call_callback(py: Python<'_>, command: Command, callback_patterns: MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<Bound<PyObject>> {
+pub fn call_callback<'py>(py: Python<'py>, command: Command, callback_patterns: std::sync::MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<Bound<'py, PyAny>> {
     println!("Command to call a callback: {:?}", command);
 
-    let function_name: &String = &command.command.actf;
+    let function_name = &command.command.actf;
 
-    // Get the function and args_types from the CALLBACK_PATTERNS
-    let (function, _) = callback_patterns.get(function_name).unwrap();
+    // Get the function (and any associated args types) from the callback_patterns map.
+    let (function, _) = callback_patterns
+        .get(function_name)
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Function {} not found in callback_patterns", function_name)))?;
 
-    let command: &CommandInstructions = &command.command;
+    // Convert the owning Py<PyFunction> to a Bound for safe use in this call.
+    let function_bound: Bound<'_, PyAny> = unsafe { Bound::from_borrowed_ptr(py, function.as_ptr()) };
 
-    let inner_hash_map: HashMap<_, _> = command.kwargs.clone().into_iter().collect();
-    let kwargs_map: HashMap<String, Py<PyAny>> = dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?;
+    let command_instr: &CommandInstructions = &command.command;
+
+    let inner_hash_map: HashMap<_, _> = command_instr.kwargs.clone().into_iter().collect();
+    // Use our updated dict_to_kwargs that returns Bound values.
+    let kwargs_map: HashMap<String, Bound<'py, PyAny>> = dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?;
 
     println!("Converted to Python kwargs_map: {:?}", kwargs_map);
 
-    // -> Convert to py dict
+    // Create a Python dict and fill it with our kwargs.
     let kwargs = PyDict::new(py);
     for (key, value) in kwargs_map {
-        kwargs.set_item(key, value).unwrap();
+        // value is a Bound<'py, PyAny> so pass a reference.
+        kwargs.set_item(key, value.as_ref())?;
     }
 
-    // Call the Python function with the converted arguments
-    let result = function.call_with_kwargs((), Some(kwargs))?;
+    // Call the Python function with the kwargs.
+    let function_ptr = function_bound.as_ptr();
+    let py_function: &PyAny = unsafe { PyAny::from_borrowed_ptr(py, function_ptr) };
+    let result_py: Py<PyAny> = py_function.call_with_kwargs((), Some(kwargs))?;
 
-    let result_obj: PyObject = result.clone().into(); // Convert the result into a PyObject
+    // Convert the owning Py<PyAny> into a Bound by borrowing its pointer.
+    let result_bound = unsafe { Bound::from_borrowed_ptr(py, result_py.as_ptr()) };
 
-    Ok(result_obj) // Return the PyObject
+    Ok(result_bound)
 }
 
 pub fn client_call_callback(py: Python<'_>, command: &Command, callback_patterns: &HashMap<std::string::String, (pyo3::Py<PyFunction>, serde_json::Value)>) -> PyResult<PyObject> {

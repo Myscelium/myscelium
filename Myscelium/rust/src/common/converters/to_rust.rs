@@ -108,3 +108,42 @@ pub fn extract_pyobject<'py>(py: Python<'py>, obj: Bound<'py, PyAny>) -> Value {
         Value::Null
     }
 }
+
+pub fn handle_dict(py: Python, dict: Bound<PyDict>) -> HashMap<String, String> {
+    let mut rust_dict = HashMap::new();
+
+    for (key, value) in dict.iter() {
+        let key_str: String = key.extract().unwrap();
+
+        if let Ok(value_str) = value.extract::<String>() {
+            rust_dict.insert(key_str, value_str);
+        } else if let Ok(value_int) = value.extract::<i32>() {
+            rust_dict.insert(key_str, value_int.to_string());
+        } else if let Ok(value_list) = value.extract::<Vec<String>>() {
+            rust_dict.insert(key_str, format!("{:?}", value_list));
+        } else if let Ok(nested_dict) = value.downcast::<PyDict>() {
+            rust_dict.insert(key_str, format!("{:?}", handle_dict(py, (*nested_dict).clone())));
+        } else {
+            // Handle other types as needed
+        }
+    }
+
+    rust_dict
+}
+
+// pub fn extract_arg_types<'py>(arg: Bound<'py, PyAny>) -> PyResult<Value> {
+//     if let Ok(arg_dict) = arg.downcast::<PyDict>() {
+//         // If the argument is a dictionary, recursively extract the argument types
+//         let mut args_types = HashMap::new();
+//         for (arg_name, arg_type) in arg_dict.iter() {
+//             let arg_name: String = arg_name.extract()?;
+//             let arg_type_value = extract_arg_types(arg_type)?;
+//             args_types.insert(arg_name, arg_type_value);
+//         }
+//         Ok(json!(args_types))
+//     } else {
+//         // If the argument is not a dictionary, extract it as a string
+//         let arg_type: String = arg.extract()?;
+//         Ok(json!(arg_type))
+//     }
+// }
