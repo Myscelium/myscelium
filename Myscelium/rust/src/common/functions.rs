@@ -271,9 +271,9 @@ pub fn call_callback<'py>(py: Python<'py>, command: Command, callback_patterns: 
     let result = function.call(py, (), Some(&kwargs));
 
     // Convert the owning Py<PyAny> into a Bound by borrowing its pointer.
-    let result_bound = unsafe { Bound::from_borrowed_ptr(py, result_py.as_ptr()) };
+    let result_bound = result.map(|owned| unsafe { Bound::from_owned_ptr(py, owned.into_ptr()) });
 
-    Ok(result_bound)
+    result_bound
 }
 
 pub fn client_call_callback(py: Python<'_>, command: &Command, callback_patterns: &HashMap<std::string::String, (pyo3::Py<PyFunction>, serde_json::Value)>) -> PyResult<PyObject> {
