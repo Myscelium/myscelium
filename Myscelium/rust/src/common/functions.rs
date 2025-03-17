@@ -22,7 +22,7 @@ use OxidizedMyscelium::CommandInstructions;
 use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::ResultType;
 
-use crate::common::converters::translate_value_to_py;
+use crate::common::converters::to_python::translate_value_to_py;
 
 use indexmap::IndexMap;
 
@@ -306,10 +306,11 @@ pub fn extract_arg_types<'py>(arg: Bound<'py, PyAny>) -> PyResult<Value> {
     }
 }
 
-pub fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
-    let mut kwargs: HashMap<String, PyObject> = HashMap::new();
+pub fn dict_to_kwargs<'py>(py: Python<'py>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, Bound<'py, PyAny>>> {
+    let mut kwargs: HashMap<String, Bound<'py, PyAny>> = HashMap::new();
+
     for (key, value) in dict.iter() {
-        let py_value = translate_value_to_py(py, value)?;
+        let py_value: Bound<'py, PyAny> = translate_value_to_py(py, value.clone())?; // Ensure correct type
         kwargs.insert(key.clone(), py_value);
     }
 
@@ -327,49 +328,28 @@ pub fn dict_to_object<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyRe
     kwargs.into_py_dict(py) // Convert the PyDict to PyObject and return
 }
 
-pub fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<&'l PyTuple> {
-    // let logger = acquire_logger!("Transposer - Py Dict to Tuple Converter");
-
+pub fn dict_to_tuple<'py>(py: Python<'py>, dict: &HashMap<String, Value>) -> PyResult<Bound<'py, PyTuple>> {
     // Check if the dict contains the function name as a key
     if !dict.contains_key("kwargs") {
-        // If it does not, return an empty Vec since there are no arguments
-        let mut values: Vec<PyObject> = Vec::new();
-        return Ok(PyTuple::new(py, values));
+        // If it does not, return an empty tuple since there are no arguments
+        return Ok(PyTuple::empty(py));
     }
 
+    // Extract "kwargs" value and parse it as a JSON string
     let args_string = match dict.get("kwargs") {
         Some(Value::String(s)) => s,
-        _ => return Err(PyErr::new::<PyException, _>("The kwargs key is not found or not a string.")),
+        _ => return Err(PyErr::new::<pyo3::exceptions::PyException, _>("The kwargs key is not found or not a string.")),
     };
 
-    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).unwrap();
+    let sub_dict: HashMap<String, Value> = serde_json::from_str(args_string).map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("Failed to parse kwargs as JSON."))?;
 
-    // logger.debug(format!("Args extracted: {:?}", sub_dict));
-
-    let mut values: Vec<PyObject> = Vec::new();
+    let mut values: Vec<Bound<'py, PyAny>> = Vec::new();
     for value in sub_dict.values() {
-        let py_value = match value {
-            Value::String(s) => s.into_py(py),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    i.into_py(py)
-                } else if let Some(f) = n.as_f64() {
-                    f.into_py(py)
-                } else {
-                    return Err(PyErr::new::<PyException, _>("Unsupported number type."));
-                }
-            },
-            Value::Bool(b) => b.into_py(py),
-            _ => return Err(PyErr::new::<PyException, _>("Unsupported value type.")),
-        };
+        let py_value = translate_value_to_py(py, value.clone())?; // Use translate_value_to_py
         values.push(py_value);
     }
 
-    let py_tuple = PyTuple::new(py, &values);
-
-    // logger.debug(format!("py_tuple: {}", py_tuple));
-
-    Ok(py_tuple)
+    PyTuple::new(py, values) // Create a bound PyTuple
 }
 
 pub fn extract_pyobject(py: Python, obj: PyObject) -> serde_json::Value {
