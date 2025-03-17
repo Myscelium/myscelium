@@ -239,23 +239,6 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
     })
 }
 
-// pub fn extract_arg_types<'py>(arg: Bound<'py, PyAny>) -> PyResult<Value> {
-//     if let Ok(arg_dict) = arg.downcast::<PyDict>() {
-//         // If the argument is a dictionary, recursively extract the argument types
-//         let mut args_types = HashMap::new();
-//         for (arg_name, arg_type) in arg_dict.iter() {
-//             let arg_name: String = arg_name.extract()?;
-//             let arg_type_value = extract_arg_types(arg_type)?;
-//             args_types.insert(arg_name, arg_type_value);
-//         }
-//         Ok(json!(args_types))
-//     } else {
-//         // If the argument is not a dictionary, extract it as a string
-//         let arg_type: String = arg.extract()?;
-//         Ok(json!(arg_type))
-//     }
-// }
-
 pub fn call_callback<'py>(py: Python<'py>, command: Command, callback_patterns: std::sync::MutexGuard<'_, HashMap<String, (Py<PyFunction>, Value)>>) -> PyResult<Bound<'py, PyAny>> {
     println!("Command to call a callback: {:?}", command);
 
@@ -270,8 +253,8 @@ pub fn call_callback<'py>(py: Python<'py>, command: Command, callback_patterns: 
     let function_bound: Bound<'_, PyAny> = unsafe { Bound::from_borrowed_ptr(py, function.as_ptr()) };
 
     let command_instr: &CommandInstructions = &command.command;
-
     let inner_hash_map: HashMap<_, _> = command_instr.kwargs.clone().into_iter().collect();
+
     // Use our updated dict_to_kwargs that returns Bound values.
     let kwargs_map: HashMap<String, Bound<'py, PyAny>> = dict_to_kwargs(py, &inner_hash_map).map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("Error converting arguments to kwargs to call client callback: {:?}", e)))?;
 
@@ -285,9 +268,7 @@ pub fn call_callback<'py>(py: Python<'py>, command: Command, callback_patterns: 
     }
 
     // Call the Python function with the kwargs.
-    let function_ptr = function_bound.as_ptr();
-    let py_function: &PyAny = unsafe { PyAny::from_borrowed_ptr(py, function_ptr) };
-    let result_py: Py<PyAny> = py_function.call_with_kwargs((), Some(kwargs))?;
+    let result = function.call(py, (), Some(&kwargs));
 
     // Convert the owning Py<PyAny> into a Bound by borrowing its pointer.
     let result_bound = unsafe { Bound::from_borrowed_ptr(py, result_py.as_ptr()) };
