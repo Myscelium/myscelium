@@ -1,15 +1,19 @@
-use cpython::ToPyObject;
-use pyo3::exceptions;
 use pyo3::exceptions::PyException;
+use pyo3::exceptions::PyValueError;
+use pyo3::ffi;
+use pyo3::prelude::*;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 use pyo3::wrap_pyfunction;
 use pyo3::Py;
+use pyo3::{exceptions, IntoPyObjectExt};
 use pyo3::{PyErr, PyObject, PyResult, Python};
+use serde_json::Number;
 use serde_json::Value as JsonValue;
 use serde_json::{json, Value};
 use std::any::Any;
 use std::collections::HashMap;
+use std::os::raw::c_ulonglong;
 use std::result;
 use std::sync::MutexGuard;
 use OxidizedMyscelium::Command;
@@ -18,7 +22,7 @@ use OxidizedMyscelium::CommandInstructions;
 use OxidizedMyscelium::CommandType;
 use OxidizedMyscelium::ResultType;
 
-use pyo3::prelude::*;
+use crate::common::converters::translate_value_to_py;
 
 use indexmap::IndexMap;
 
@@ -285,47 +289,7 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
     })
 }
 
-/// Converts a JSON value to its corresponding Python object.
-///
-/// This helper function takes in a JSON value and recursively converts it to the corresponding Python object.
-/// This can be useful for translating between Rust and Python data structures.
-///
-/// # Parameters
-///
-/// - `py`: The Python interpreter.
-/// - `value`: The JSON value to convert.
-///
-/// # Returns
-///
-/// Returns the converted Python object.
-pub fn translate_value_to_py(py: Python<'_>, value: JsonValue) -> PyResult<PyObject> {
-    // Convert the JSON value to the appropriate Python object
-    match value {
-        JsonValue::Null => Ok(py.None()),
-        JsonValue::Bool(b) => Ok(b.into_py(py)),
-        JsonValue::Number(num) => Ok(num.as_f64().unwrap().into_py(py)),
-        JsonValue::String(s) => Ok(s.into_py(py)),
-        JsonValue::Array(arr) => {
-            let py_list = PyList::empty(py);
-            for item in arr {
-                let py_item = translate_value_to_py(py, item)?;
-                py_list.append(py_item)?;
-            }
-            Ok(py_list.into())
-        },
-        JsonValue::Object(obj) => {
-            let py_dict: &PyDict = PyDict::new(py);
-            for (k, v) in obj {
-                let py_key = k.into_py(py);
-                let py_value = translate_value_to_py(py, v)?;
-                py_dict.set_item(py_key, py_value)?;
-            }
-            Ok(py_dict.into())
-        },
-    }
-}
-
-pub fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
+pub fn extract_arg_types<'py>(arg: Bound<'py, PyAny>) -> PyResult<Value> {
     if let Ok(arg_dict) = arg.downcast::<PyDict>() {
         // If the argument is a dictionary, recursively extract the argument types
         let mut args_types = HashMap::new();
@@ -342,53 +306,25 @@ pub fn extract_arg_types(arg: &PyAny) -> PyResult<Value> {
     }
 }
 
-pub fn json_value_to_py_object(py: Python, value: &Value) -> PyResult<PyObject> {
-    match value {
-        Value::Null => Ok(py.None()),
-        Value::Bool(b) => Ok(b.into_py(py)),
-        Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Ok(i.into_py(py))
-            } else if let Some(f) = n.as_f64() {
-                Ok(f.into_py(py))
-            } else {
-                Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid number type"))
-            }
-        },
-        Value::String(s) => Ok(s.clone().into_py(py)),
-        Value::Array(arr) => {
-            let py_list = PyList::new(py, arr.iter().map(|v| json_value_to_py_object(py, v).unwrap()));
-            Ok(py_list.into())
-        },
-        Value::Object(obj) => {
-            let py_dict = PyDict::new(py);
-            for (k, v) in obj {
-                py_dict.set_item(k, json_value_to_py_object(py, v)?.to_object(py))?;
-            }
-            Ok(py_dict.into())
-        },
-    }
-}
-
 pub fn dict_to_kwargs<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<HashMap<String, PyObject>> {
     let mut kwargs: HashMap<String, PyObject> = HashMap::new();
     for (key, value) in dict.iter() {
-        let py_value = json_value_to_py_object(py, value)?;
+        let py_value = translate_value_to_py(py, value)?;
         kwargs.insert(key.clone(), py_value);
     }
 
     Ok(kwargs)
 }
 
-pub fn dict_to_object<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<PyObject> {
+pub fn dict_to_object<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<Bound<'l, PyDict>> {
     let kwargs = PyDict::new(py); // Create a new Python dictionary
 
     for (key, value) in dict.iter() {
-        let py_value = json_value_to_py_object(py, value)?; // Assume this function converts Rust `Value` to `PyObject`
+        let py_value: Bound<'_, PyAny> = translate_value_to_py(py, value.clone())?; // Assume this function converts Rust `Value` to `PyObject`
         kwargs.set_item(key, py_value)?; // Insert the key-value pair into the PyDict
     }
 
-    Ok(kwargs.to_object(py)) // Convert the PyDict to PyObject and return
+    kwargs.into_py_dict(py) // Convert the PyDict to PyObject and return
 }
 
 pub fn dict_to_tuple<'l>(py: Python<'l>, dict: &HashMap<String, Value>) -> PyResult<&'l PyTuple> {
