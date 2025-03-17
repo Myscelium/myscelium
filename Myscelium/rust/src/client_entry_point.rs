@@ -201,7 +201,7 @@ pub fn setup_client(client_name: String, client_uid: String, buffer_path: String
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn client_send(py: Python, command: PyObject, priority: Bound<PyInt>) -> PyResult<Py<PyAny>> {
+pub fn client_send<'py>(py: Python<'py>, command: PyObject, priority: Bound<PyInt>) -> PyResult<Bound<'py, PyString>> {
     if !OxidizedMyscelium::is_client_ready() {
         println!("Error, client isn't running, pls run the client before try to send something!");
         return Err(PyErr::new::<exceptions::PyValueError, _>("Client isn't running! Please start client before try to send something."));
@@ -279,11 +279,11 @@ pub fn client_send(py: Python, command: PyObject, priority: Bound<PyInt>) -> PyR
         },
     }
 
-    Ok(parity_id_assigned.into_py(py))
+    Ok(PyString::new(py, parity_id_assigned.as_str()))
 }
 
 #[pyfunction]
-pub fn wait_client_resp(py: Python, parity_id: String, timeout_in: u64) -> PyResult<Py<PyAny>> {
+pub fn wait_client_resp<'py>(py: Python<'py>, parity_id: String, timeout_in: u64) -> PyResult<Bound<'py, PyDict>> {
     let command: Command = match OxidizedMyscelium::client_wait_response(parity_id, timeout_in) {
         Ok(c) => c,
         Err(e) => match e {
