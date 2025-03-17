@@ -1,11 +1,10 @@
+use cpython::ToPyObject;
 use pyo3::exceptions;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyAny, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
 use pyo3::wrap_pyfunction;
-use pyo3::IntoPy;
 use pyo3::Py;
-use pyo3::ToPyObject;
 use pyo3::{PyErr, PyObject, PyResult, Python};
 use serde_json::Value as JsonValue;
 use serde_json::{json, Value};
@@ -73,12 +72,12 @@ fn convert_json_value_to_pyobject(py: Python, value: &Value) -> PyResult<PyObjec
     }
 }
 
-fn convert_boxed_anys_to_pyany(py: Python, boxed_anys: Vec<Box<dyn Any>>) -> PyResult<PyObject> {
-    let py_list = PyList::empty(py);
+fn convert_boxed_anys_to_pylist<'py>(py: Python<'py>, boxed_anys: Vec<Box<dyn Any>>) -> PyResult<Bound<'py, PyList>> {
+    let py_list: Bound<'py, PyList> = PyList::empty(py); // Already GIL-bound
+
     for boxed_any in boxed_anys {
         match boxed_any.downcast::<Value>() {
             Ok(value_box) => {
-                println!("String value: {}", value_box.clone());
                 let val = value_box.clone();
                 let py_item = convert_json_value_to_pyobject(py, &val)?;
                 py_list.append(py_item)?;
@@ -86,32 +85,56 @@ fn convert_boxed_anys_to_pyany(py: Python, boxed_anys: Vec<Box<dyn Any>>) -> PyR
             Err(_) => println!("Not a value"),
         }
     }
-    Ok(py_list.into_py(py))
+
+    Ok(py_list)
 }
 
-fn convert_to_tuple<'a>(py: Python<'a>, obj: &'a PyObject) -> PyResult<&'a PyTuple> {
-    // If obj is a tuple, return it directly.
-    if let Ok(tuple) = obj.extract::<&PyTuple>(py) {
-        return Ok(tuple);
+// fn convert_to_tuple<'a>(py: Python<'a>, obj: Bound<PyObject>) -> PyResult<&'a PyTuple> {
+//     // If obj is a tuple, return it directly.
+
+//     if let Ok(tuple) = obj.extract::<PyTuple>(py) {
+//         return Ok(tuple);
+//     }
+
+//     // If obj is a dict, convert its values to a tuple.
+//     if let Ok(dict) = obj.extract::<&PyDict>(py) {
+//         let values = dict.values().into_iter().map(|v| v.to_object(py)).collect::<Vec<_>>();
+//         let tuple = PyTuple::new(py, &values);
+//         return Ok(tuple);
+//     }
+
+//     // If obj is a list, convert it to a tuple by iterating over its elements.
+//     if let Ok(list) = obj.extract::<&PyList>(py) {
+//         let elements = list.into_iter().map(|item| item.to_object(py)).collect::<Vec<_>>();
+//         let tuple = PyTuple::new(py, &elements);
+//         return Ok(tuple);
+//     }
+
+//     // For any other type, wrap the obj in a tuple.
+//     let tuple = PyTuple::new(py, &[obj]);
+//     Ok(tuple)
+// }
+
+fn handle_dict(py: Python, dict: Bound<PyDict>) -> HashMap<String, String> {
+    let mut rust_dict = HashMap::new();
+
+    for (key, value) in dict.iter() {
+        let key_str: String = key.extract().unwrap();
+
+        if let Ok(value_str) = value.extract::<String>() {
+            rust_dict.insert(key_str, value_str);
+        } else if let Ok(value_int) = value.extract::<i32>() {
+            rust_dict.insert(key_str, value_int.to_string());
+        } else if let Ok(value_list) = value.extract::<Vec<String>>() {
+            rust_dict.insert(key_str, format!("{:?}", value_list));
+        } else if let Ok(nested_dict) = value.downcast::<PyDict>() {
+            rust_dict.insert(key_str, format!("{:?}", handle_dict(py, (*nested_dict).clone())));
+        } else {
+            // Handle other types as needed
+        }
     }
 
-    // If obj is a dict, convert its values to a tuple.
-    if let Ok(dict) = obj.extract::<&PyDict>(py) {
-        let values = dict.values().into_iter().map(|v| v.to_object(py)).collect::<Vec<_>>();
-        let tuple = PyTuple::new(py, &values);
-        return Ok(tuple);
-    }
-
-    // If obj is a list, convert it to a tuple by iterating over its elements.
-    if let Ok(list) = obj.extract::<&PyList>(py) {
-        let elements = list.into_iter().map(|item| item.to_object(py)).collect::<Vec<_>>();
-        let tuple = PyTuple::new(py, &elements);
-        return Ok(tuple);
-    }
-
-    // For any other type, wrap the obj in a tuple.
-    let tuple = PyTuple::new(py, &[obj]);
-    Ok(tuple)
+    rust_dict
 }
 
 /// Wraps a Python function into a Rust closure that can be executed with dynamic parameters.
@@ -122,12 +145,12 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
 
         println!("[MYSCELIUM][HOST][PYTHON BRIDGE] - Callback args: {:?}", args);
 
-        let result: Result<Py<PyAny>, PyErr>;
-        let value: Value;
+        let mut result: Option<Result<Py<PyAny>, PyErr>> = None;
+        let mut value: Option<Value> = None;
 
         Python::with_gil(|py| {
             // Convert Rust `args` into Python objects. This might involve type checking and conversion.
-            let py_args = match convert_boxed_anys_to_pyany(py, args) {
+            let py_args = match convert_boxed_anys_to_pylist(py, args) {
                 Ok(r) => r,
                 Err(e) => {
                     // Handle error, maybe convert to a Rust error type
@@ -138,53 +161,88 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
 
             println!("[MYSCELIUM][HOST][PYTHON BRIDGE] - py_args: {:?}", py_args);
 
-            let args;
-
-            if let Ok(tuple) = py_args.downcast_bound::<PyTuple>(py) {
-                args = tuple;
+            let mut args: Option<Bound<'_, PyTuple>> = None;
+            if let Ok(tuple) = py_args.extract::<Bound<'_, PyTuple>>() {
+                args = Some(tuple);
             }
             // If obj is a dict, convert its values to a tuple.
-            else if let Ok(dict) = py_args.downcast_bound::<PyDict>(py) {
-                let values = dict.values().into_iter().map(|v| v.into_pyobject(py)).collect::<Vec<_>>();
-                let tuple = PyTuple::new(py, &values);
-                args = tuple;
+            else if let Ok(dict) = py_args.extract::<Bound<'_, PyDict>>() {
+                let rust_dict = handle_dict(py, dict);
+
+                // Convert the HashMap values into a Python tuple
+                let values: Vec<Bound<PyString>> = rust_dict
+                    .values()
+                    .map(|v| PyString::new(py, v)) // ✅ Explicitly convert `String` to `PyString`
+                    .collect();
+
+                let tuple = PyTuple::new(py, values);
+                if let Ok(tuple) = tuple {
+                    args = Some(tuple);
+                }
             }
             // If obj is a list, convert it to a tuple by iterating over its elements.
-            else if let Ok(list) = py_args.extract::<&PyList>(py) {
-                let elements = list.into_iter().map(|item| item.to_object(py)).collect::<Vec<_>>();
-                let tuple = PyTuple::new(py, &elements);
-                args = tuple;
+            else if let Ok(list) = py_args.extract::<Bound<'_, PyList>>() {
+                let tuple = PyTuple::new(py, list);
+                if let Ok(tuple) = tuple {
+                    args = Some(tuple);
+                }
             } else {
                 // For any other type, wrap the obj in a tuple.
-                args = PyTuple::new(py, &[py_args]);
+                args = match PyTuple::new(py, &[py_args]) {
+                    Ok(tuple) => Some(tuple),
+                    Err(e) => {
+                        println!("Error creating Python tuple: {:?}", e);
+                        return Box::new(e) as Box<dyn Any>;
+                    },
+                };
             }
 
-            // let args = convert_to_tuple(py, &py_args).unwrap();
-            // let py_tuple = PyTuple::new(py, &args);
-            result = py_func.call(py, args, None);
+            // -> Call the function
+            if let Some(args) = args {
+                result = Some(py_func.call(py, args, None));
+            } else {
+                let e = PyErr::new::<pyo3::exceptions::PyValueError, _>("Args isn't some, impossible to call function!");
+                println!("Error calling function: {:?}", e);
+                return Box::new(e) as Box<dyn Any>;
+            }
 
-            let response = match result {
-                Ok(py_result) => {
-                    // Convert the Python result back to Rust
-                    // This is a placeholder, actual conversion logic will depend on the expected result type
-                    py_result
-                },
-                Err(e) => {
-                    // Handle error, maybe convert to a Rust error type
-                    println!("Error calling Python function: {:?}", e);
-                    // TODO >>> Create a better error handling mechanism
-                    return Box::new(e) as Box<dyn Any>;
-                },
-            };
+            if let Some(result) = result {
+                let response = match result {
+                    Ok(py_result) => {
+                        // Convert the Python result back to Rust
+                        // This is a placeholder, actual conversion logic will depend on the expected result type
+                        py_result
+                    },
+                    Err(e) => {
+                        // Handle error, maybe convert to a Rust error type
+                        println!("Error calling Python function: {:?}", e);
+                        // TODO >>> Create a better error handling mechanism
+                        return Box::new(e) as Box<dyn Any>;
+                    },
+                };
 
-            value = extract_pyobject(py, response);
-
-            return Box::new(value) as Box<dyn Any>;
+                value = Some(extract_pyobject(py, response));
+                return Box::new(value.clone()) as Box<dyn Any>;
+            } else {
+                let e = PyErr::new::<pyo3::exceptions::PyValueError, _>("Function calling result isn't Some!");
+                println!("Error calling function: {:?}", e);
+                return Box::new(e) as Box<dyn Any>;
+            }
         });
+
+        // Verify if value is some:
+        if !value.is_some() {
+            let e = PyErr::new::<pyo3::exceptions::PyValueError, _>("Function calling result isn't Some!");
+            println!("Error calling function: {:?}", e);
+            return Box::new(e) as Box<dyn Any>;
+        }
+
+        let value = value.unwrap(); // Synce value is some, unwrap it!
 
         println!("Value map extracted from callback response: {:?}", value);
         let instructions = {
             // Check if the Value is an object and convert it to HashMap
+
             if let Some(obj) = value.as_object() {
                 let mut map: HashMap<String, Value> = obj.clone().into_iter().collect();
 

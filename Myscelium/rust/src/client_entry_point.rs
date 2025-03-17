@@ -86,7 +86,6 @@ fn handle_dict(py: Python, dict: Bound<PyDict>) -> HashMap<String, String> {
             rust_dict.insert(key_str, format!("{:?}", value_list));
         } else if let Ok(nested_dict) = value.downcast::<PyDict>() {
             rust_dict.insert(key_str, format!("{:?}", handle_dict(py, (*nested_dict).clone())));
-        // ✅ Fix: Remove `&` when passing `Bound<PyDict>`
         } else {
             // Handle other types as needed
         }
