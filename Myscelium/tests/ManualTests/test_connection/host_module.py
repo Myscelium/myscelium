@@ -207,7 +207,7 @@ class MyHost:
 
         return
 
-    def run(self, ip="127.0.0.1", port=8000, event=None):
+    def run(self, ip="127.0.0.1", port=8800, event=None):
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self._monitor_events)
@@ -226,7 +226,7 @@ class MyHost:
 
 
 if __name__ == "__main__":
-    MyHost("INFO").run()           
+    MyHost("DEBUG").run()           
                 
         
 

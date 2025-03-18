@@ -1,29 +1,25 @@
 // use socket_client;
 
-use std::any::Any;
 use std::collections::HashMap;
 
-use OxidizedMyscelium::{ClientState, Command, StateManagerError};
+use OxidizedMyscelium::HandlerStatus;
+use OxidizedMyscelium::{ClientState, Command};
 use OxidizedMyscelium::{CommandType, WatcherError};
-use OxidizedMyscelium::{HandlerStatus, NetworkMap, Node, NodeHandler, NodeStatus, NodeVersion, VersionIndentifier};
 
-use crate::common::functions::extract_arg_types;
-use crate::common::functions::translate_value_to_py;
+use crate::common::converters::to_python::dict_to_object;
+use crate::common::functions::convert_to_pydict;
 use crate::common::functions::wrap_py_function;
-use crate::common::functions::{convert_to_pydict, dict_to_object};
 use indexmap::IndexMap;
-use parking_lot::Mutex;
+
 use pyo3::exceptions;
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
-use serde_json::Value;
+use pyo3::types::{PyBool, PyDict, PyFloat, PyFunction, PyInt, PyList, PyString, PyTuple};
+
 use std::sync::atomic::Ordering;
-use std::thread;
-use std::time::Duration;
 
 use OxidizedMyscelium::Callback;
 
-use OxidizedMyscelium::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS, CLIENT_NODE_KEY, CLIENT_NODE_NAME, CLIENT_STATE_MANAGER};
+use OxidizedMyscelium::{CLIENT_IS_RUNNING, CLIENT_NODE_CONFIGS};
 
 // -> Socket Client main-points:
 
@@ -43,7 +39,7 @@ use OxidizedMyscelium;
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn set_socket_client_transposer_num_of_workers(n_workers: &PyInt) {
+pub fn set_socket_client_transposer_num_of_workers(n_workers: Bound<PyInt>) {
     let workers_num: u32 = n_workers.extract().unwrap();
     OxidizedMyscelium::set_socket_client_transposer_num_of_workers(workers_num);
     return;
@@ -77,19 +73,20 @@ enum ResultType {
 ///
 /// Returns a `HashMap<String, String>` representation of the provided Python dictionary.
 ///
-fn handle_dict(py: Python, dict: &PyDict) -> HashMap<String, String> {
+fn handle_dict(py: Python, dict: Bound<PyDict>) -> HashMap<String, String> {
     let mut rust_dict = HashMap::new();
 
     for (key, value) in dict.iter() {
         let key_str: String = key.extract().unwrap();
+
         if let Ok(value_str) = value.extract::<String>() {
             rust_dict.insert(key_str, value_str);
         } else if let Ok(value_int) = value.extract::<i32>() {
             rust_dict.insert(key_str, value_int.to_string());
         } else if let Ok(value_list) = value.extract::<Vec<String>>() {
             rust_dict.insert(key_str, format!("{:?}", value_list));
-        } else if let Ok(nested_dict) = value.cast_as::<PyDict>() {
-            rust_dict.insert(key_str, format!("{:?}", handle_dict(py, &nested_dict)));
+        } else if let Ok(nested_dict) = value.downcast::<PyDict>() {
+            rust_dict.insert(key_str, format!("{:?}", handle_dict(py, (*nested_dict).clone())));
         } else {
             // Handle other types as needed
         }
@@ -110,31 +107,33 @@ fn handle_dict(py: Python, dict: &PyDict) -> HashMap<String, String> {
 /// Returns a `ResultType` indicating the outcome of the handling and any extracted data.
 ///
 fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
-    if let Ok(dict) = obj.downcast::<PyDict>(py) {
-        return ResultType::Map(handle_dict(py, &dict));
-    } else if let Ok(tuple) = obj.downcast::<PyTuple>(py) {
+    let bound_obj: Bound<PyAny> = obj.into_bound(py); // ✅ Correct conversion to Bound<PyAny>
+
+    if let Ok(dict) = bound_obj.downcast::<PyDict>() {
+        return ResultType::Map(handle_dict(py, (*dict).clone())); // ✅ No need for `.as_ref()`
+    } else if let Ok(tuple) = bound_obj.downcast::<PyTuple>() {
         // Handle tuple
-        for item in tuple {
+        for item in tuple.iter() {
             println!("Item: {}", item);
         }
-    } else if let Ok(list) = obj.downcast::<PyList>(py) {
+    } else if let Ok(list) = bound_obj.downcast::<PyList>() {
         // Handle list
-        for item in list {
+        for item in list.iter() {
             println!("Item: {}", item);
         }
-    } else if let Ok(int) = obj.downcast::<PyInt>(py) {
+    } else if let Ok(int) = bound_obj.downcast::<PyInt>() {
         // Handle int
         println!("Integer: {}", int);
-    } else if let Ok(float) = obj.downcast::<PyFloat>(py) {
+    } else if let Ok(float) = bound_obj.downcast::<PyFloat>() {
         // Handle float
         println!("Float: {}", float);
-    } else if let Ok(string) = obj.downcast::<PyString>(py) {
+    } else if let Ok(string) = bound_obj.downcast::<PyString>() {
         // Handle string
         println!("String: {}", string);
-    } else if let Ok(boolean) = obj.downcast::<PyBool>(py) {
+    } else if let Ok(boolean) = bound_obj.downcast::<PyBool>() {
         // Handle bool
         println!("Boolean: {}", boolean);
-    } else if obj.is_none(py) {
+    } else if bound_obj.is_none() {
         // Handle None
         println!("None");
     } else {
@@ -145,50 +144,40 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 }
 
 #[pyfunction]
-pub fn is_target_ready(py: Python, node_key: String) -> PyResult<Py<PyBool>> {
+pub fn is_target_ready(_py: Python, node_key: String) -> PyResult<bool> {
+    // Load client status
     let client_status = match ClientState::load_from_storage() {
         Ok(c) => c,
-        Err(_) => {
-            return Ok(PyBool::new(py, false).into());
-        },
+        Err(_) => return Ok(false),
     };
 
-    if let Some(net_map) = client_status.network_map {
-        let mut net_map = net_map;
-        {
-            match net_map.target_is_reachable(&node_key) {
-                Ok(reachable) => {
-                    if !reachable {
-                        return Ok(PyBool::new(py, false).into());
-                    }
-                },
-                Err(_) => {
-                    return Ok(PyBool::new(py, false).into());
-                },
-            };
-        }
-        {
-            match net_map.target_is_ready(&node_key) {
-                Ok(redy) => {
-                    if !redy {
-                        return Ok(PyBool::new(py, false).into());
-                    }
-                },
-                Err(_) => {
-                    return Ok(PyBool::new(py, false).into());
-                },
-            };
-        }
-    } else {
-        return Ok(PyBool::new(py, false).into());
+    // Check if network map exists
+    let mut net_map = match client_status.network_map {
+        Some(map) => map,
+        None => return Ok(false),
+    };
+
+    // Check if target is reachable
+    let reachable = match net_map.target_is_reachable(&node_key) {
+        Ok(r) => r,
+        Err(_) => return Ok(false),
+    };
+    if !reachable {
+        return Ok(false);
     }
 
-    return Ok(PyBool::new(py, true).into());
+    // Check if target is ready
+    let ready = match net_map.target_is_ready(&node_key) {
+        Ok(r) => r,
+        Err(_) => return Ok(false),
+    };
+
+    Ok(ready)
 }
 
 #[pyfunction]
 pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
-    return Ok(PyBool::new(py, OxidizedMyscelium::is_client_ready()).into());
+    return Ok(PyBool::new(py, OxidizedMyscelium::is_client_ready()).extract()?);
 }
 
 #[pyfunction]
@@ -212,7 +201,7 @@ pub fn setup_client(client_name: String, client_uid: String, buffer_path: String
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<Py<PyAny>> {
+pub fn client_send<'py>(py: Python<'py>, command: PyObject, priority: Bound<PyInt>) -> PyResult<Bound<'py, PyString>> {
     if !OxidizedMyscelium::is_client_ready() {
         println!("Error, client isn't running, pls run the client before try to send something!");
         return Err(PyErr::new::<exceptions::PyValueError, _>("Client isn't running! Please start client before try to send something."));
@@ -290,11 +279,11 @@ pub fn client_send(py: Python, command: PyObject, priority: &PyInt) -> PyResult<
         },
     }
 
-    Ok(parity_id_assigned.into_py(py))
+    Ok(PyString::new(py, parity_id_assigned.as_str()))
 }
 
 #[pyfunction]
-pub fn wait_client_resp(py: Python, parity_id: String, timeout_in: u64) -> PyResult<Py<PyAny>> {
+pub fn wait_client_resp<'py>(py: Python<'py>, parity_id: String, timeout_in: u64) -> PyResult<Bound<'py, PyDict>> {
     let command: Command = match OxidizedMyscelium::client_wait_response(parity_id, timeout_in) {
         Ok(c) => c,
         Err(e) => match e {
@@ -358,7 +347,7 @@ pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject
 ///
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
-pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResult<()> {
+pub fn registry_socket_client_callbacks(py: Python, commands: Bound<PyList>) -> PyResult<()> {
     let mut callbacks: Vec<Callback> = Vec::new();
 
     let mut client_uid: String = "".to_string();
@@ -371,34 +360,43 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
 
     for command in commands.iter() {
         // Safely casting the command to a Python dictionary
-        let command_dict: &PyDict = command.downcast().unwrap();
+        let command_dict: Bound<PyDict>;
+        if let Ok(command_as_dict) = command.downcast::<PyDict>() {
+            command_dict = (*command_as_dict).clone(); // Deref and clone to get owned `Bound<PyDict>`
+        } else {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Error downcasting commands, is the structure right?"));
+        }
 
         // Extracting the "function" item from the command dictionary
-        let function: &PyAny = command_dict.get_item("function").unwrap();
+        let function: Bound<PyAny> = match command_dict.get_item("function")? {
+            Some(f) => f,
+            None => return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>("Missing key: function")),
+        };
 
-        // Extracting the "args" item from the command dictionary
-        let args_item: &PyAny = command_dict.get_item("args").unwrap();
+        let args_item: Bound<PyAny> = match command_dict.get_item("args")? {
+            Some(f) => f,
+            None => return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>("Missing key: args")),
+        };
 
         // Initializing an optional variable to hold the arguments dictionary
-        let args_dict: Option<&PyDict>;
+        let args_dict: Option<Bound<PyDict>>;
 
         // Checking if the args item is a dictionary or a string with the value "None"
         if let Ok(args_as_dict) = args_item.downcast::<PyDict>() {
-            args_dict = Some(args_as_dict);
+            args_dict = Some((*args_as_dict).clone()); // Deref and clone to get owned `Bound<PyDict>`
         } else if let Ok(args_as_str) = args_item.extract::<String>() {
             if args_as_str == "None" {
                 args_dict = None;
             } else {
-                // Returning an error if the args item does not meet the expected conditions
                 return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
             }
         } else {
-            // Returning an error if the args item cannot be processed
             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("args must be a dict or the string 'None'"));
         }
 
         // Extracting the Python function name for use in the handler
-        let function_name: &str = function.getattr("__name__")?.extract()?;
+        let function_name_obj = function.getattr("__name__")?; // Store the temporary object
+        let function_name: String = function_name_obj.extract()?; // Extract the value safely
 
         // Preparing a map to hold argument types, if any
         let mut args_types_value = IndexMap::new();
@@ -413,7 +411,7 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
         }
 
         // Converting the Python function to a form that can be stored and called later
-        let function: Py<PyFunction> = function.downcast::<PyFunction>()?.into_py(py);
+        let function: Py<PyFunction> = function.downcast::<PyFunction>()?.extract()?;
         let wrapped_function = Box::new(wrap_py_function(function, client_uid.clone()));
 
         callbacks.push(Callback::new(
@@ -446,12 +444,9 @@ pub fn registry_socket_client_callbacks(py: Python, commands: &PyList) -> PyResu
 }
 
 #[pyfunction]
-pub fn get_client_state(py: Python) -> PyResult<Py<PyBool>> {
-    if CLIENT_IS_RUNNING.load(Ordering::SeqCst) {
-        Ok(PyBool::new(py, true).into())
-    } else {
-        Ok(PyBool::new(py, false).into())
-    }
+pub fn get_client_state(_py: Python) -> PyResult<bool> {
+    let is_running = CLIENT_IS_RUNNING.load(Ordering::SeqCst);
+    Ok(is_running)
 }
 
 // use RustPyNet::python_pool::pool::PythonTaskError;
