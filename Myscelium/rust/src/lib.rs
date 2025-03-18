@@ -31,27 +31,27 @@ use crate::chrono::TimeZone;
 // -> Entries:
 
 #[pymodule]
-fn myscelium_engine(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn myscelium_engine(_py: Python<'_>, m: Bound<PyModule>) -> PyResult<()> {
     // -> Host
-    m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, m)?)?;
-    m.add_function(wrap_pyfunction!(initialize_socket_host, m)?)?;
-    m.add_function(wrap_pyfunction!(get_socket_host_available_commands, m)?)?;
-    m.add_function(wrap_pyfunction!(set_socket_host_allowed_clients, m)?)?;
-    m.add_function(wrap_pyfunction!(setup_socket_host, m)?)?;
-    m.add_function(wrap_pyfunction!(registry_new_allowed_clients, m)?)?;
+    m.add_function(wrap_pyfunction!(registry_socket_host_callbacks, &m)?)?;
+    m.add_function(wrap_pyfunction!(initialize_socket_host, &m)?)?;
+    m.add_function(wrap_pyfunction!(get_socket_host_available_commands, &m)?)?;
+    m.add_function(wrap_pyfunction!(set_socket_host_allowed_clients, &m)?)?;
+    m.add_function(wrap_pyfunction!(setup_socket_host, &m)?)?;
+    m.add_function(wrap_pyfunction!(registry_new_allowed_clients, &m)?)?;
 
     // -> Client
-    m.add_function(wrap_pyfunction!(registry_socket_client_callbacks, m)?)?;
-    m.add_function(wrap_pyfunction!(initialize_socket_client, m)?)?;
-    m.add_function(wrap_pyfunction!(get_client_state, m)?)?;
+    m.add_function(wrap_pyfunction!(registry_socket_client_callbacks, &m)?)?;
+    m.add_function(wrap_pyfunction!(initialize_socket_client, &m)?)?;
+    m.add_function(wrap_pyfunction!(get_client_state, &m)?)?;
 
-    m.add_function(wrap_pyfunction!(set_socket_client_transposer_num_of_workers, m)?)?;
-    m.add_function(wrap_pyfunction!(client_send, m)?)?;
-    m.add_function(wrap_pyfunction!(wait_client_resp, m)?)?;
-    m.add_function(wrap_pyfunction!(setup_client, m)?)?;
-    m.add_function(wrap_pyfunction!(get_socket_client_available_handlers, m)?)?;
-    m.add_function(wrap_pyfunction!(is_client_ready, m)?)?;
-    m.add_function(wrap_pyfunction!(is_target_ready, m)?)?;
+    m.add_function(wrap_pyfunction!(set_socket_client_transposer_num_of_workers, &m)?)?;
+    m.add_function(wrap_pyfunction!(client_send, &m)?)?;
+    m.add_function(wrap_pyfunction!(wait_client_resp, &m)?)?;
+    m.add_function(wrap_pyfunction!(setup_client, &m)?)?;
+    m.add_function(wrap_pyfunction!(get_socket_client_available_handlers, &m)?)?;
+    m.add_function(wrap_pyfunction!(is_client_ready, &m)?)?;
+    m.add_function(wrap_pyfunction!(is_target_ready, &m)?)?;
 
     Ok(())
 }
