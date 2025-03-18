@@ -100,7 +100,9 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
         let mut result: Option<Result<Py<PyAny>, PyErr>> = None;
         let mut value: Option<Value> = None;
 
-        Python::with_gil(|py| {
+        {
+            let py = unsafe { Python::assume_gil_acquired() };
+
             // Convert Rust `args` into Python objects. This might involve type checking and conversion.
             let py_args = match convert_boxed_anys_to_pylist(py, args) {
                 Ok(r) => r,
@@ -176,13 +178,12 @@ pub fn wrap_py_function(py_func: Py<PyFunction>, self_key: String) -> Box<dyn Fn
 
                 // Now extract the Python object to a serde_json::Value.
                 value = Some(extract_pyobject(py, response_bound));
-                return Box::new(value.clone()) as Box<dyn Any>;
             } else {
                 let e = PyErr::new::<pyo3::exceptions::PyValueError, _>("Function calling result isn't Some!");
                 println!("Error calling function: {:?}", e);
                 return Box::new(e) as Box<dyn Any>;
             }
-        });
+        };
 
         // Verify if value is some:
         if !value.is_some() {
