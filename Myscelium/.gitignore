@@ -1,5 +1,5 @@
-.myenv
-myenv
+.venv-3.10
+venv-3.10
 .venv
 venv
 __pycache__/

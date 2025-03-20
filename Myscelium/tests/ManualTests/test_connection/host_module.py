@@ -196,7 +196,7 @@ class MyHost:
                         callbacks=callbacks, 
                         host_id="xnsmdkeflerpfsa",
                         allowed_clients=allowed_clients, 
-                        buffer_path="Temp/Data/", 
+                        buffer_path="Temp/Host/", 
                         n_workers=2, 
                         log_level=self.debug_level
                     )
@@ -207,7 +207,7 @@ class MyHost:
 
         return
 
-    def run(self, ip="127.0.0.1", port=8800, event=None):
+    def run(self, ip="127.0.0.1", port=8000, event=None):
 
         host_process = Process(target=self.run_host, args=(ip, port))
         monitor_process = Process(target=self._monitor_events)

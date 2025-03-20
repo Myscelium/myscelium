@@ -3,7 +3,7 @@
 import json
 import pytest
 import os
-from ollama import Client
+# from ollama import Client
 
 # This fixture will be automatically used by all tests.
 @pytest.fixture(autouse=True)
