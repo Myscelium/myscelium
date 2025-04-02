@@ -2,9 +2,9 @@ import sqlite3
 from queue import Queue
 from threading import Lock
 
-class SQLiteConnectionPool:
-    def __init__(self, max_connections:int, database_path:str):
 
+class SQLiteConnectionPool:
+    def __init__(self, max_connections: int, database_path: str):
         self.data_base = database_path
         self.max_connections = max_connections
         self.connections = Queue(max_connections)
@@ -20,7 +20,7 @@ class SQLiteConnectionPool:
                 raise Exception("No available connections in the pool")
             connection = self.connections.get()
         return connection
-    
+
     def release_connection(self, connection):
         with self.lock:
             self.connections.put(connection)
@@ -29,3 +29,4 @@ class SQLiteConnectionPool:
         while not self.connections.empty():
             connection = self.connections.get()
             connection.close()
+
