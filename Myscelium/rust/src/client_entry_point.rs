@@ -181,8 +181,12 @@ pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
 }
 
 #[pyfunction]
-pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String, is_main_process: bool) {
-    OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level, is_main_process)
+pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String, is_main_process: bool) -> PyResult<bool> {
+    match OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level, is_main_process) {
+        Ok(_) => {},
+        Err(e) => return Err(PyErr::new::<exceptions::PyBaseException, _>(format!("Error trying to setup the client: {}", e))),
+    }
+    return Ok(true);
 }
 
 /// Sends a c:ommand from the client.

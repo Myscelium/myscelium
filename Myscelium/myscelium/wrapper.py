@@ -513,8 +513,11 @@ class MysceliumClient:
             )
         else:
             pass
-
-        mys.setup_client(name, client_uid, buffer_path, log_level, is_main_process)
+        
+        try:
+            mys.setup_client(name, client_uid, buffer_path, log_level, is_main_process)
+        except BaseException as e:
+            raise e
 
         time.sleep(5)
 
