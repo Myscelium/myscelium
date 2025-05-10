@@ -26,6 +26,8 @@ cpython = "0.5"
 parking_lot = { version = "0.11.2", features = ["deadlock_detection"] }
 OxidizedMyscelium = { path = "../OxidizedMysceliumCore/OxidizedMyscelium" }
 oxidized_myscelium_macros = { path = "../OxidizedMysceliumCore/oxidized_myscelium_macros" }
+tokio = { version = "1.28", features = ["net", "sync", "io-util", "rt-multi-thread", "macros", "signal", "time"] }
+
 
 [dependencies.pyo3]
 version = "0.24.0"

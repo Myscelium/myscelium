@@ -1,15 +1,14 @@
-
-#> Core:
+# > Core:
 from . import (
     myscelium_engine as mys,
 )  # Maybe change the rust myscelium lib to MysceliumEngine
 
-#> Modules:
+# > Modules:
 from .common.patterns import ClientPattern
 from .common.patterns import CommandInstruction
 from .common.functions import cast_response_command_instruction
 
-#> Extern:
+# > Extern:
 import functools
 import warnings
 import pandas as pd
@@ -22,6 +21,7 @@ from .client.interfaces import MysceliumClientInterface
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > HOST
+
 
 class MysceliumHost:
     _instance = None  # Singleton instance
@@ -74,15 +74,21 @@ class MysceliumHost:
 
             if log_level not in ["DEBUG", "INFO", "WARN", "EXCEPTION", ""]:
                 raise ValueError(
-                    f"Client log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION', "") log level cant be: {log_level}"
+                    f"Client log must be some of this: ('DEBUG', 'INFO', 'WARN', 'EXCEPTION', "
+                    ") log level cant be: {log_level}"
                 )
             else:
                 pass
 
-            mys.setup_socket_host(buffer_path, log_level, n_workers, n_max_conns)
-
-            mys.registry_socket_host_callbacks(callbacks)
-            mys.set_socket_host_allowed_clients(self.allowed_clients)
+            try:
+                mys.setup_socket_host(buffer_path, log_level, n_workers, n_max_conns)
+                print("Setup socket host complete!")
+                mys.registry_socket_host_callbacks(callbacks)
+                print("Callback registrered successfully!")
+                mys.set_socket_host_allowed_clients(self.allowed_clients)
+                print("Set socket host allowed clients successfully")
+            except BaseException as e:
+                raise e
 
             self.host_thread = None
 
@@ -300,7 +306,6 @@ class HostPatterns:
         command_instructions = {}
 
         if target_key == "":
-
             command_instructions = CommandInstruction(
                 command_mode="Response",
                 command_type="ExternalFunction",
@@ -316,7 +321,6 @@ class HostPatterns:
             ).format()
 
         else:  # Redirect case
-
             command_instructions = CommandInstruction(
                 command_mode="Response",
                 command_type="ExternalFunction",
@@ -386,7 +390,6 @@ class HostPatterns:
         command_instructions = {}
 
         if error_handler == "":
-
             command_instructions = CommandInstruction(
                 command_mode="Response",
                 command_type="DirectFunction",
@@ -402,7 +405,6 @@ class HostPatterns:
             ).format()
 
         else:
-
             command_instructions = CommandInstruction(
                 command_mode="Response",
                 command_type="ExternalFunction",
@@ -419,10 +421,13 @@ class HostPatterns:
 
         return command_instructions
 
+
 class HostConfigManager:
     def add_client(self, new_client: ClientPattern, response_actf: str) -> Dict:
         if not isinstance(new_client, ClientPattern):
-            return self.error_response("new_client must be an instance of ClientPattern.")
+            return self.error_response(
+                "new_client must be an instance of ClientPattern."
+            )
 
         if not response_actf:
             return self.error_response("response_actf is required.")
@@ -436,13 +441,17 @@ class HostConfigManager:
             command_kwargs={"new_client": new_client.format()},
             response_type="InternalManagement",
             response_target="Origin",
-            response_actf=response_actf
+            response_actf=response_actf,
         )
         return command.format()
 
-    def update_client(self, actual_client_key: str, updated_client: ClientPattern, response_actf: str) -> Dict:
+    def update_client(
+        self, actual_client_key: str, updated_client: ClientPattern, response_actf: str
+    ) -> Dict:
         if not isinstance(updated_client, ClientPattern):
-            return self.error_response("updated_client must be an instance of ClientPattern.")
+            return self.error_response(
+                "updated_client must be an instance of ClientPattern."
+            )
 
         if not response_actf:
             return self.error_response("response_actf is required.")
@@ -453,10 +462,13 @@ class HostConfigManager:
             command_target="Host",
             command_status="Success",
             command_actf="update_client",
-            command_kwargs={"actual_client_key": actual_client_key, "updated_client": updated_client.format()},
+            command_kwargs={
+                "actual_client_key": actual_client_key,
+                "updated_client": updated_client.format(),
+            },
             response_type="InternalManagement",
             response_target="Origin",
-            response_actf=response_actf
+            response_actf=response_actf,
         )
         return command.format()
 
@@ -473,12 +485,13 @@ class HostConfigManager:
             command_kwargs={"client_key": client_key},
             response_type="InternalManagement",
             response_target="Origin",
-            response_actf=response_actf
+            response_actf=response_actf,
         )
         return command.format()
 
     def error_response(self, message: str) -> Dict:
         return {"error": message, "status": "failed"}
+
 
 # >-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # > CLIENT
@@ -513,7 +526,7 @@ class MysceliumClient:
             )
         else:
             pass
-        
+
         try:
             mys.setup_client(name, client_uid, buffer_path, log_level, is_main_process)
         except BaseException as e:
@@ -672,6 +685,7 @@ class MysceliumClient:
         """
         return mys.wait_client_resp(parity_id, timeout_in)
 
+
 class ClientPatterns:
     def __init__(self) -> None:
         """
@@ -818,7 +832,6 @@ class ClientPatterns:
 
         return command_instructions
 
-
     def command_pattern(
         self,
         command_function: str,
@@ -886,7 +899,7 @@ class ClientPatterns:
 
         if target_key == "":
             command_instruction = CommandInstruction(
-                command_mode='Function',
+                command_mode="Function",
                 command_type="ExternalFunction",
                 command_target="Host",
                 command_status="Success",
@@ -900,7 +913,7 @@ class ClientPatterns:
             ).format()
         else:
             command_instruction = CommandInstruction(
-                command_mode='Function',
+                command_mode="Function",
                 command_type="ExternalFunction",
                 command_target=f"ClientKey({target_key})",
                 command_status="Success",
@@ -981,7 +994,7 @@ class ClientPatterns:
         # > basically creates a command to send to host, when the command arrives in host the command will execute something
 
         command_instruction = CommandInstruction(
-            command_mode='Function',
+            command_mode="Function",
             command_type="DirectFunction",
             command_target="Host",
             command_status="Success",
@@ -991,7 +1004,7 @@ class ClientPatterns:
             response_type=response_type,
             response_target=response_target,
             response_actf=response_actf,
-            auto_collect_response=True
+            auto_collect_response=True,
         ).format()
 
         return command_instruction
@@ -1004,7 +1017,6 @@ host_patterns = HostPatterns()
 
 
 def get_registered_commands() -> dict:
-    
     """
     Retrieve the registered commands and format the response.
 
@@ -1026,3 +1038,4 @@ def get_registered_commands() -> dict:
 
     print(f"Response to return to rust myscelium engine: {response}")
     return response
+

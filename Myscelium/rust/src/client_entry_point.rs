@@ -2,9 +2,9 @@
 
 use std::collections::HashMap;
 
-use OxidizedMyscelium::HandlerStatus;
 use OxidizedMyscelium::{ClientState, Command};
 use OxidizedMyscelium::{CommandType, WatcherError};
+use OxidizedMyscelium::{HandlerStatus, StateManagerError};
 
 use crate::common::converters::to_python::dict_to_object;
 use crate::common::functions::convert_to_pydict;
@@ -145,8 +145,9 @@ fn handle_pyobject(py: Python, obj: PyObject) -> ResultType {
 
 #[pyfunction]
 pub fn is_target_ready(_py: Python, node_key: String) -> PyResult<bool> {
-    // Load client status
-    let client_status = match ClientState::load_from_storage() {
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+    let get_client_state: Result<ClientState, StateManagerError> = rt.block_on(ClientState::load_from_storage()); // TODO >>> Enhance this error handling!
+    let client_status = match get_client_state {
         Ok(c) => c,
         Err(_) => return Ok(false),
     };
@@ -177,12 +178,15 @@ pub fn is_target_ready(_py: Python, node_key: String) -> PyResult<bool> {
 
 #[pyfunction]
 pub fn is_client_ready(py: Python) -> PyResult<Py<PyBool>> {
-    return Ok(PyBool::new(py, OxidizedMyscelium::is_client_ready()).extract()?);
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+    let client_ready: bool = rt.block_on(OxidizedMyscelium::is_client_ready());
+    return Ok(PyBool::new(py, client_ready).extract()?);
 }
 
 #[pyfunction]
 pub fn setup_client(client_name: String, client_uid: String, buffer_path: String, log_level: String, is_main_process: bool) -> PyResult<bool> {
-    match OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level, is_main_process) {
+    let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().expect("Failed to create Tokio runtime");
+    match rt.block_on(OxidizedMyscelium::setup_socket_client(client_name, client_uid, buffer_path, log_level, is_main_process)) {
         Ok(_) => {},
         Err(e) => return Err(PyErr::new::<exceptions::PyBaseException, _>(format!("Error trying to setup the client: {}", e))),
     }
@@ -206,7 +210,10 @@ pub fn setup_client(client_name: String, client_uid: String, buffer_path: String
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn client_send<'py>(py: Python<'py>, command: PyObject, priority: Bound<PyInt>) -> PyResult<Bound<'py, PyString>> {
-    if !OxidizedMyscelium::is_client_ready() {
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+    let client_ready: bool = rt.block_on(OxidizedMyscelium::is_client_ready());
+
+    if !client_ready {
         println!("Error, client isn't running, pls run the client before try to send something!");
         return Err(PyErr::new::<exceptions::PyValueError, _>("Client isn't running! Please start client before try to send something."));
     }
@@ -229,15 +236,15 @@ pub fn client_send<'py>(py: Python<'py>, command: PyObject, priority: Bound<PyIn
     match converted_command {
         ResultType::Map(m) => {
             println!("Scheduling to send {:?}", m);
-            parity_id_assigned = match OxidizedMyscelium::client_send_hashmap(m, priority) {
+            parity_id_assigned = match rt.block_on(OxidizedMyscelium::client_send_hashmap(m, priority)) {
                 Ok(o) => o,
                 // TODO >>> Enhace This Error Handlings
                 Err(e) => match e {
-                    OxidizedMyscelium::ClientError::ClientIsNotRunning => {
-                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't read client states, maybe not ready yet!")));
+                    OxidizedMyscelium::ClientError::ClientIsNotRunning(c) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't read client: {:?} states, maybe not ready yet!", c)));
                     },
-                    OxidizedMyscelium::ClientError::ClientNotFullyInitialized => {
-                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client isn't fully initialized yet, pls wait!")));
+                    OxidizedMyscelium::ClientError::ClientIsNotFullyInitialized(c) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client: {:?} isn't fully initialized yet, pls wait!", c)));
                     },
                     OxidizedMyscelium::ClientError::NotAbleToReadClientStates => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client isn't fully initialized yet, pls wait!")));
@@ -245,14 +252,14 @@ pub fn client_send<'py>(py: Python<'py>, command: PyObject, priority: Bound<PyIn
                     OxidizedMyscelium::ClientError::ClientDoesNotExist(c) => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Client {} doesn't exists!", c)));
                     },
-                    OxidizedMyscelium::ClientError::TargetDoesntExists => {
-                        return Err(PyErr::new::<exceptions::PyValueError, _>("Can't send a command nor a response to a target that doens't exist!"));
+                    OxidizedMyscelium::ClientError::TargetDoesntExists(t) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't send a command nor a response to a target: {:?} that doens't exist!", t)));
                     },
                     OxidizedMyscelium::ClientError::CantScheduleCommandsToItself => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>("Cant schedule a command to from this node to this node!"));
                     },
-                    OxidizedMyscelium::ClientError::HandlerDoesntExist => {
-                        return Err(PyErr::new::<exceptions::PyValueError, _>("Handler does not exist in target!"));
+                    OxidizedMyscelium::ClientError::HandlerDoesntExist(h) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Handler: {:?}does not exist in target!", h)));
                     },
                     OxidizedMyscelium::ClientError::HostCantSendResponseToItself => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>("Host cant send a response to itself!"));
@@ -260,8 +267,8 @@ pub fn client_send<'py>(py: Python<'py>, command: PyObject, priority: Bound<PyIn
                     OxidizedMyscelium::ClientError::TargetCantSendResponseToItself => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>("Target can't send a response to itself!"));
                     },
-                    OxidizedMyscelium::ClientError::ResponseHandlerDoesntExist => {
-                        return Err(PyErr::new::<exceptions::PyValueError, _>("Response handler does not exist in target!"));
+                    OxidizedMyscelium::ClientError::ResponseHandlerDoesntExist(rh) => {
+                        return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Response handler: {:?} does not exist in target!", rh)));
                     },
                     OxidizedMyscelium::ClientError::InvalidCommand(e) => {
                         return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Can't Schedule a invalid command, error case: {:?}!", e)));
@@ -288,7 +295,8 @@ pub fn client_send<'py>(py: Python<'py>, command: PyObject, priority: Bound<PyIn
 
 #[pyfunction]
 pub fn wait_client_resp<'py>(py: Python<'py>, parity_id: String, timeout_in: u64) -> PyResult<Bound<'py, PyDict>> {
-    let command: Command = match OxidizedMyscelium::client_wait_response(parity_id, timeout_in) {
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+    let command: Command = match rt.block_on(OxidizedMyscelium::client_wait_response(parity_id, timeout_in)) {
         Ok(c) => c,
         Err(e) => match e {
             WatcherError::CommandNotFinded(pkey) => {
@@ -296,6 +304,9 @@ pub fn wait_client_resp<'py>(py: Python<'py>, parity_id: String, timeout_in: u64
             },
             WatcherError::MaxTimeExceeded(pkey) => {
                 return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Time to get Response With ParityId: {} exceeded!", pkey)));
+            },
+            WatcherError::BufferError(e) => {
+                return Err(PyErr::new::<exceptions::PyValueError, _>(format!("Buffer error trying to retrieve, the error was: {:?}", e)));
             },
         },
     };
@@ -441,8 +452,12 @@ pub fn registry_socket_client_callbacks(py: Python, commands: Bound<PyList>) -> 
     // }
 
     // OxidizedMyscelium::set_client_callbacks(callbacks_patterns);
-    OxidizedMyscelium::set_client_callbacks(callbacks);
-    OxidizedMyscelium::change_client_to_initialized();
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+
+    rt.block_on(async {
+        OxidizedMyscelium::set_client_callbacks(callbacks).await;
+        OxidizedMyscelium::change_client_to_initialized().await;
+    });
 
     Ok(())
 }

@@ -26,7 +26,7 @@ class Senders:
 
     @staticmethod
     def send_some_data():
-        # time.sleep(10)
+        time.sleep(3)
         mys_client = MysceliumClient(
             name=CLIENT_NAME, client_uid=CLIENT_ID, buffer_path="Temp/Client1Data/", is_main_process = False
         )

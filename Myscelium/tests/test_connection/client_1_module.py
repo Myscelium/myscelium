@@ -21,7 +21,7 @@ def shutdown ():
 class Senders:
     @staticmethod
     def send_some_data():
-        time.sleep(25)
+        time.sleep(3)
 
         mys_client = MysceliumClient(
             name="TestClient1",
@@ -36,6 +36,7 @@ class Senders:
             step=f"Waiting Client To Be Ready", event_type="Default"
         )
         
+        # TODO >>> The verification that the client is ready can be inside the sender with singleton pattern to make the code more optimized
         try: #! Here is required see if client is ready
             mys_client.ensure_client_ready(max_attempts=25, sleep_time=1)
         except Exception as e:

@@ -5,6 +5,12 @@ use std::collections::HashMap;
 use crate::common::functions::convert_to_pydict;
 use crate::common::functions::wrap_py_function;
 
+use pyo3::exceptions::PyAttributeError;
+use pyo3::exceptions::PyBufferError;
+use pyo3::exceptions::PyIOError;
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::PyValueError;
 use OxidizedMyscelium::{HOST_COMMAND_PATTERNS, HOST_IS_RUNNING};
 
 use pyo3::prelude::*;
@@ -63,8 +69,19 @@ macro_rules! process_commands {
 }
 
 #[pyfunction]
-pub fn setup_socket_host(buffer_path: String, log_level: String, n_workers: u32, n_max_conns: u32) {
-    OxidizedMyscelium::setup_socket_host(&buffer_path, &log_level, &n_workers, &n_max_conns);
+pub fn setup_socket_host(buffer_path: String, log_level: String, n_workers: u32, n_max_conns: u32) -> PyResult<()> {
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+    match rt.block_on(OxidizedMyscelium::setup_socket_host(&buffer_path, &log_level, &n_workers, &n_max_conns)) {
+        Ok(_) => {
+            println!("Setup completed!");
+        },
+        Err(e) => {
+            eprintln!("An error happened trying to setup the socket host, the error is: {:?}", e);
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("An error happened trying to setup the socket host, the error is: {:?}", e)));
+        },
+    }
+
+    Ok(())
 }
 
 // TODO >>> Chang eset workers num, max conns, buffer initialization, socket host level
@@ -159,7 +176,8 @@ pub fn registry_socket_host_callbacks(py: Python, commands: Bound<PyList>) -> Py
     }
 
     // Now you can use the command_patterns
-    OxidizedMyscelium::set_host_callbacks(callbacks_patterns);
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+    rt.block_on(OxidizedMyscelium::set_host_callbacks(callbacks_patterns));
 
     // -> REGISTRY THE DIRECT MANAGEMENT FUNCTIONS INTO THE HANDLERS
 
@@ -200,11 +218,8 @@ pub fn registry_socket_host_callbacks(py: Python, commands: Bound<PyList>) -> Py
         //> Remove Client
         {
             let mut args_types_value: IndexMap<String, String> = IndexMap::new();
-
             args_types_value.insert("client_key".to_string(), "str".to_string());
-
             let host_remove_client_handler: NodeHandler = NodeHandler::new("remove_client".to_string(), args_types_value.clone(), CommandType::DirectFunction, HandlerStatus::Working, HashMap::new(), "".to_string());
-
             host_node_handlers.push(host_remove_client_handler);
         }
     }
@@ -212,10 +227,12 @@ pub fn registry_socket_host_callbacks(py: Python, commands: Bound<PyList>) -> Py
     // TODO >>> Create a mechanism that allows to only update the necessary information to avoid need update all what can cause isues
 
     // -> UPDATE HOST NODE WITH THE HANDLERS
-    let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock();
-    let node_version = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
-    let host_node: Node = Node::new("host".to_string(), "host".to_string(), "".to_string(), node_version, host_node_handlers, NodeStatus::Online);
-    global_command_patterns.add_or_update_if_exists(host_node);
+    rt.block_on(async {
+        let mut global_command_patterns = HOST_COMMAND_PATTERNS.lock().await;
+        let node_version = NodeVersion::cast_version(1, 3, 0, VersionIndentifier::ReleaseCandidate);
+        let host_node: Node = Node::new("host".to_string(), "host".to_string(), "".to_string(), node_version, host_node_handlers, NodeStatus::Online);
+        global_command_patterns.add_or_update_if_exists(host_node);
+    });
 
     Ok(())
 }
@@ -257,7 +274,8 @@ pub fn initialize_socket_host(py: Python<'_>, ip: String, port: i32, client_id: 
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn get_socket_host_available_commands(py: Python<'_>) -> PyResult<PyObject> {
-    let commands = OxidizedMyscelium::get_socket_host_available_commands();
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+    let commands = rt.block_on(OxidizedMyscelium::get_socket_host_available_commands());
     convert_to_pydict(py, &commands)
 }
 
@@ -296,8 +314,6 @@ macro_rules! extract_boolean {
     };
 }
 
-use OxidizedMyscelium::handle_manager_client_error;
-
 /// Sets the list of clients allowed to connect to the socket host.
 ///
 /// This function updates the global list of clients that are permitted to connect to the socket host.
@@ -325,6 +341,9 @@ use OxidizedMyscelium::handle_manager_client_error;
 pub fn set_socket_host_allowed_clients(allowed_client_list: Bound<PyList>) -> PyResult<()> {
     // Bound<T> ensures that Python objects remain valid and prevents borrowing issues.
 
+    // 1) build your runtime _once_
+    let rt = tokio::runtime::Runtime::new().expect("failed to init Tokio runtime");
+
     for client_allowed in allowed_client_list.iter() {
         let allowed_clients_dict = client_allowed.downcast::<PyDict>()?.as_ref();
 
@@ -340,19 +359,27 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: Bound<PyList>) -> Py
 
         let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 
-        registry_new_client(
-            client_name.clone(),
-            client_key.clone(),
-            client_type,
-            client_permission_group,
-            client_is_super_user,
-            client_max_sub_channels,
-            client_owned_sub_channels_keys,
-            client_handlers,
-        );
+        let _ = rt
+            .block_on(registry_new_client(
+                client_name.clone(),
+                client_key.clone(),
+                client_type,
+                client_permission_group,
+                client_is_super_user,
+                client_max_sub_channels,
+                client_owned_sub_channels_keys,
+                client_handlers,
+            ))
+            .map_err(|e| match e {
+                ClientError::ClientAlreadyExist(c) => PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Error: client `{}` already exists", c)),
+                ClientError::ClientDoesNotExist(c) => PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Error: client `{}` doesn't exist", c)),
+                ClientError::UnexpectedError(err) => PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unexpected error: {}", err)),
+                other => PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Unknown client error: {:?}", other)),
+            })?;
 
         println!("Successfully created client: {} of key: {}", client_name, client_key)
     }
+
     Ok(())
 }
 
@@ -373,6 +400,8 @@ pub fn set_socket_host_allowed_clients(allowed_client_list: Bound<PyList>) -> Py
 /// This function is exposed to Python and can be called from a Python script.
 #[pyfunction]
 pub fn registry_new_allowed_clients(new_allowed_clients_list: Bound<PyList>) -> PyResult<()> {
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+
     for client_allowed in new_allowed_clients_list.iter() {
         let allowed_clients_dict = client_allowed.downcast::<PyDict>()?.as_ref();
 
@@ -388,20 +417,54 @@ pub fn registry_new_allowed_clients(new_allowed_clients_list: Bound<PyList>) -> 
 
         let client_handlers: Vec<HashMap<String, Value>> = Vec::new();
 
-        if !OxidizedMyscelium::check_if_client_key_exists(client_key.clone()) {
-            let client = handle_manager_client_error!(Client::new(
-                client_name.clone(),
-                client_key.clone(),
-                client_type,
-                client_permission_group,
-                client_is_super_user,
-                client_max_sub_channels,
-                client_owned_sub_channels_keys,
-                client_handlers,
-            ));
+        let _ = rt.block_on(async {
+            let client_exist: bool = match OxidizedMyscelium::check_if_client_key_exists(client_key.clone()).await {
+                Ok(ce) => ce,
+                Err(e) => {
+                    let mapped_error = match e {
+                        ClientError::ClientAlreadyExist(c) => PyErr::new::<PyTypeError, _>(format!("Error: client `{}` already exists", c)),
+                        ClientError::ClientDoesNotExist(c) => PyErr::new::<PyTypeError, _>(format!("Error: client `{}` doesn't exist", c)),
+                        ClientError::UnexpectedError(e) => PyErr::new::<PyTypeError, _>(format!("Unexpected error: {}", e)),
+                        ClientError::InvalidCommand(cmd) => PyErr::new::<PyValueError, _>(format!("Invalid command: {}", cmd)),
+                        ClientError::ClientIsNotRunning(c) => PyErr::new::<PyRuntimeError, _>(format!("Client `{}` is not running", c)),
+                        ClientError::ClientIsNotFullyInitialized(c) => PyErr::new::<PyRuntimeError, _>(format!("Client `{}` is not fully initialized", c)),
+                        ClientError::NotAbleToReadClientStates => PyErr::new::<PyIOError, _>("Not able to read client states"),
+                        ClientError::TargetDoesntExists(t) => PyErr::new::<PyTypeError, _>(format!("Target client `{}` doesn't exist", t)),
+                        ClientError::HandlerDoesntExist(h) => PyErr::new::<PyAttributeError, _>(format!("Handler `{}` doesn't exist", h)),
+                        ClientError::ResponseHandlerDoesntExist(rh) => PyErr::new::<PyAttributeError, _>(format!("Response handler `{}` doesn't exist", rh)),
+                        ClientError::CantScheduleCommandsToItself => PyErr::new::<PyRuntimeError, _>("Cannot schedule commands to itself"),
+                        ClientError::HostCantSendResponseToItself => PyErr::new::<PyRuntimeError, _>("Host can't send response to itself"),
+                        ClientError::TargetCantSendResponseToItself => PyErr::new::<PyRuntimeError, _>("Target can't send response to itself"),
+                        ClientError::BufferError(e) => PyErr::new::<PyBufferError, _>(format!("Buffer error: {}", e)),
+                    };
+                    return Err(mapped_error);
+                },
+            };
 
-            client.save_into_db();
-        }
+            if !client_exist {
+                let client = Client::new(
+                    client_name.clone(),
+                    client_key.clone(),
+                    client_type,
+                    client_permission_group,
+                    client_is_super_user,
+                    client_max_sub_channels,
+                    client_owned_sub_channels_keys,
+                    client_handlers,
+                );
+
+                let client = match client {
+                    Ok(c) => c,
+                    Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("An erro occured trying to cast the client the error was: {:?}", e))),
+                };
+
+                match client.save_into_db().await {
+                    Ok(_) => {},
+                    Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("An error occurred trying to save the client into the databse, the error was: {:?}", e))),
+                }
+            }
+            Ok(())
+        })?;
 
         println!("Successfully created client: {} of key: {}", client_name, client_key)
     }
