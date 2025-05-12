@@ -38,7 +38,7 @@ class Senders:
         
         # TODO >>> The verification that the client is ready can be inside the sender with singleton pattern to make the code more optimized
         try: #! Here is required see if client is ready
-            mys_client.ensure_client_ready(max_attempts=25, sleep_time=1)
+            mys_client.ensure_client_ready(max_attempts=25, sleep_time=3)
         except Exception as e:
             Events_Manager(Unit="Client1", path="Logs").Set_Event(
                 f"{e}",

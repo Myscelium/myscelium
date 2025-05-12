@@ -337,7 +337,9 @@ pub fn wait_client_resp<'py>(py: Python<'py>, parity_id: String, timeout_in: u64
 
 #[pyfunction]
 pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject> {
-    let commands = OxidizedMyscelium::get_socket_client_available_handlers();
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+    let commands = rt.block_on(OxidizedMyscelium::get_socket_client_available_handlers());
+
     // Convert the HashMap values to PyObjects
     convert_to_pydict(py, &commands)
 }
@@ -365,13 +367,17 @@ pub fn get_socket_client_available_handlers(py: Python<'_>) -> PyResult<PyObject
 pub fn registry_socket_client_callbacks(py: Python, commands: Bound<PyList>) -> PyResult<()> {
     let mut callbacks: Vec<Callback> = Vec::new();
 
-    let mut client_uid: String = "".to_string();
-    {
-        let node = CLIENT_NODE_CONFIGS.lock();
-        if let Some(key) = &node.key {
-            client_uid = key.clone()
+    let rt = tokio::runtime::Runtime::new().expect("failed to init runtime");
+    let client_uid = rt.block_on(async {
+        let mut client_uid: String = "".to_string();
+        {
+            let node = CLIENT_NODE_CONFIGS.lock().await;
+            if let Some(key) = &node.key {
+                client_uid = key.clone()
+            }
         }
-    }
+        client_uid
+    });
 
     for command in commands.iter() {
         // Safely casting the command to a Python dictionary
