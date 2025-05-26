@@ -1,1 +1,3 @@
 .vscode/
+.env
+rag_config.json
