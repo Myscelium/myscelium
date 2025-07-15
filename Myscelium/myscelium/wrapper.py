@@ -85,8 +85,12 @@ class MysceliumHost:
                 print("Setup socket host complete!")
                 mys.registry_socket_host_callbacks(callbacks)
                 print("Callback registrered successfully!")
-                mys.set_socket_host_allowed_clients(self.allowed_clients)
-                print("Set socket host allowed clients successfully")
+                try:
+                    mys.set_socket_host_allowed_clients(self.allowed_clients)
+                    print("Set socket host allowed clients successfully")
+                except BaseException as e:
+                    print(f"Error setting socket host allowed clients: {e}, so skipping it!")
+                    pass
             except BaseException as e:
                 raise e
 
@@ -662,7 +666,7 @@ class MysceliumClient:
         # This function will be called when a SIGINT signal is received
         mys.stop_socket_client()
 
-    @wait_for_client_ready(max_attempts=5, sleep_time=2)
+    @wait_for_client_ready(max_attempts=10, sleep_time=2)
     def send(self, command: dict, priority: int) -> str:
         """
         Send a command with a specified priority.

@@ -38,7 +38,7 @@ class Senders:
             mys_client.running = True
 
             try: #! Here is required see if client is ready
-                mys_client.ensure_client_ready(max_attempts=25, sleep_time=1)
+                mys_client.ensure_client_ready(max_attempts=15, sleep_time=15)
             except Exception as e:
                 Events_Manager(Unit="Client2", path="Logs").Set_Event(
                     f"{e}",
@@ -55,7 +55,7 @@ class Senders:
             TARGET_KEY = "some_client_id"
 
             try: #! This require the target to be ready
-                mys_client.ensure_target_ready(target_key=TARGET_KEY, max_attempts=10, sleep_time=10)
+                mys_client.ensure_target_ready(target_key=TARGET_KEY, max_attempts=10, sleep_time=20)
             except Exception as e: 
                 Events_Manager(Unit="Client2", path="Logs").Set_Event(
                     f"{e}",

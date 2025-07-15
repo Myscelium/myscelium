@@ -566,6 +566,7 @@ def test_redirect():
     t1 = Process(
         target=host_thread_to_test_redirect, args=("main_event",)
     )  # Passing event_key
+
     t2 = Process(
         target=client_1_thread_to_test_redirect, args=("main_event",)
     )  # Passing event_key
@@ -574,7 +575,9 @@ def test_redirect():
     )  # Passing event_key
 
     t1.start()
+    time.sleep(10)
     t2.start()
+    time.sleep(5)
     t3.start()
 
     t2.join()
@@ -680,7 +683,7 @@ def test_redirect():
         average_com_delta = sum(deltas) / len(deltas)
     else:
         # Handle the empty list case
-        average_com_delta = 0  # or any other default or error valu
+        average_com_delta = 0  # or any other default or error value
 
     test_run_time = test_end_time - test_start_time
 

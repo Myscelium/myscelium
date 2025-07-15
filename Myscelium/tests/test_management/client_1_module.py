@@ -92,7 +92,7 @@ class Receivers:
 
 class Senders:
     def start_send_sequence(self):
-        time.sleep(15)
+        time.sleep(25)
         self.test_add_client()
         time.sleep(10) 
         
@@ -143,11 +143,11 @@ class Senders:
             return
 
         # max_attempts = 10
-        # attemtps = 0
+        # attempts = 0
         # while not mys_client.is_client_ready():
         #     time.sleep(1)
-        #     attemtps += 1
-        #     if attemtps >= max_attempts:
+        #     attempts += 1
+        #     if attempts >= max_attempts:
         #         assert False, "Take too long to client be ready"
         #     continue
         
@@ -205,11 +205,11 @@ class Senders:
         mys_client.running = True
 
         # max_attempts = 10
-        # attemtps = 0
+        # attempts = 0
         # while not mys_client.is_client_ready():
         #     time.sleep(1)
-        #     attemtps += 1
-        #     if attemtps >= max_attempts:
+        #     attempts += 1
+        #     if attempts >= max_attempts:
         #         assert False, "Take too long to client be ready"
         #     continue
         
@@ -276,12 +276,12 @@ class Senders:
         )
         mys_client.running = True
 
-        # max_attempts = 10
-        # attemtps = 0
+        # max_attempts = 10 #! This is the max attempts to wait for client to be ready
+        # attempts = 0
         # while not mys_client.is_client_ready():
         #     time.sleep(1)
-        #     attemtps += 1
-        #     if attemtps >= max_attempts:
+        #     attempts += 1
+        #     if attempts >= max_attempts:
         #         assert False, "Take too long to client be ready"
         #     continue
         
@@ -323,12 +323,12 @@ class Senders:
         )
         mys_client.running = True
 
-        # max_attempts = 10
-        # attemtps = 0
+        # max_attempts = 10 #! This is the max attempts to wait for client to be ready
+        # attempts = 0
         # while not mys_client.is_client_ready():
         #     time.sleep(1)
-        #     attemtps += 1
-        #     if attemtps >= max_attempts:
+        #     attempts += 1
+        #     if attempts >= max_attempts:
         #         assert False, "Take too long to client be ready"
         #     continue
 
@@ -367,12 +367,12 @@ class Senders:
         )
         mys_client.running = True
 
-        # max_attempts = 10
-        # attemtps = 0
+        # max_attempts = 10 #! This is the max attempts to wait for client to be ready
+        # attempts = 0
         # while not mys_client.is_client_ready():
         #     time.sleep(1)
-        #     attemtps += 1
-        #     if attemtps >= max_attempts:
+        #     attempts += 1
+        #     if attempts >= max_attempts:
         #         assert False, "Take too long to client be ready"
         #     continue
 
@@ -413,12 +413,12 @@ class Senders:
 
         mys_client.running = True
 
-        # max_attempts = 10
-        # attemtps = 0
+        # max_attempts = 10 #! This is the max attempts to wait for client to be ready
+        # attempts = 0
         # while not mys_client.is_client_ready():
         #     time.sleep(1)
-        #     attemtps += 1
-        #     if attemtps >= max_attempts:
+        #     attempts += 1
+        #     if attempts >= max_attempts:
         #         assert False, "Take too long to client be ready"
         #     continue
 

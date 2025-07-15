@@ -26,20 +26,20 @@ class Senders:
 
     @staticmethod
     def send_some_data():
-        time.sleep(3)
+        time.sleep(10)
         mys_client = MysceliumClient(
             name=CLIENT_NAME, client_uid=CLIENT_ID, buffer_path="Temp/Client1Data/", is_main_process = False
         )
         mys_client.running = True
 
-        #! Esplicity Define a ready statues waith mechanism now you don't need it anymore
+        #! Explicitly Define a ready statues wait mechanism now you don't need it anymore
 
         # max_attempts = 20
-        # attemtps = 0
+        # attempts = 0
         # while not mys_client.is_client_ready():
         #     time.sleep(1)
-        #     attemtps += 1
-        #     if attemtps >= max_attempts:
+        #     attempts += 1
+        #     if attempts >= max_attempts:
         #         assert False, "Take too long to client be ready"
         #     continue
 
@@ -143,9 +143,7 @@ class MyClient:
         )
 
         self.mys_client = mys_client
-
         receivers = Receivers()
-
         callbacks = [
             callback_pattern(callback=receivers.test_handler),
             callback_pattern(callback=receivers.test_redirect_handler),
@@ -161,7 +159,7 @@ class MyClient:
         return
 
     def monitor_stop_event(self):
-        time.sleep(35)  # needs to be a little more to wait to client 2 initialize
+        time.sleep(30)  # needs to be a little more to wait to client 2 initialize
 
         System_Status(path="Logs").change_unit_status(Unit="Client1", Status=True)
 
