@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright © 2021-2026 Cristian Camargo Filho
+
 use crate::python_pool::pool::PythonTaskQueue;
 use lazy_static::lazy_static;
 use std::sync::{Arc, Mutex};
@@ -69,6 +72,5 @@ pub mod python_pool;
 pub use rustpynet_macros::run_with_py;
 
 lazy_static! {
-    pub static ref CLIENT_PYTHON_PROCESS_QUEUE: Mutex<PythonTaskQueue> =
-        Mutex::new(PythonTaskQueue::new());
+    pub static ref CLIENT_PYTHON_PROCESS_QUEUE: Mutex<PythonTaskQueue> = Mutex::new(PythonTaskQueue::new());
 }

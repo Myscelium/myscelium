@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright © 2021-2026 Cristian Camargo Filho
+
 use lazy_static::lazy_static;
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -31,13 +34,12 @@ macro_rules! acquire_python_queue {
                 Ok(guard) => {
                     acquired = true;
                     q = Some(guard);
-                }
+                },
                 Err(_) => {
-                    let sleep_duration =
-                        std::time::Duration::from_millis(rand::random::<u64>() % 1000);
+                    let sleep_duration = std::time::Duration::from_millis(rand::random::<u64>() % 1000);
                     println!("Not being able to lock on Pool!");
                     std::thread::sleep(sleep_duration);
-                }
+                },
             }
         }
 
@@ -60,13 +62,12 @@ macro_rules! with_python_queue {
                 Ok(mut guard) => {
                     acquired = true;
                     result = Some($code(&mut *guard));
-                }
+                },
                 Err(e) => {
-                    let sleep_duration =
-                        std::time::Duration::from_millis(rand::random::<u64>() % 100);
+                    let sleep_duration = std::time::Duration::from_millis(rand::random::<u64>() % 100);
                     println!("Not being able to lock on Pool! Err {}", e);
                     std::thread::sleep(sleep_duration);
-                }
+                },
             }
         }
         result.expect("Failed to acquire python queue and execute code")
@@ -137,7 +138,7 @@ impl fmt::Display for PythonTaskResult {
                     write!(f, "{}", item)?;
                 }
                 write!(f, "]")
-            }
+            },
             PythonTaskResult::Map(map) => {
                 write!(f, "{{")?;
                 let mut first = true;
@@ -149,7 +150,7 @@ impl fmt::Display for PythonTaskResult {
                     first = false;
                 }
                 write!(f, "}}")
-            }
+            },
             PythonTaskResult::Error(err) => write!(f, "Error: {}", err),
         }
     }
@@ -193,14 +194,14 @@ impl ToPyObject for PythonTaskContext {
                     dict.set_item(key, value.to_object(py)).unwrap();
                 }
                 dict.to_object(py)
-            }
+            },
             PythonTaskContext::List(lst) => {
                 let py_list = PyList::empty(py);
                 for item in lst {
                     py_list.append(item.to_object(py)).unwrap();
                 }
                 py_list.to_object(py)
-            }
+            },
             PythonTaskContext::Str(s) => PyString::new(py, s).to_object(py),
             PythonTaskContext::Int(i) => i.to_object(py),
             PythonTaskContext::Float(f) => f.to_object(py),
@@ -232,7 +233,7 @@ impl fmt::Display for PythonTaskContext {
                     write!(f, "{}", item)?;
                 }
                 write!(f, "]")
-            }
+            },
             PythonTaskContext::Map(map) => {
                 write!(f, "{{")?;
                 let mut first = true;
@@ -244,7 +245,7 @@ impl fmt::Display for PythonTaskContext {
                     first = false;
                 }
                 write!(f, "}}")
-            }
+            },
             PythonTaskContext::Error(err) => write!(f, "Error: {}", err),
         }
     }
@@ -260,11 +261,7 @@ pub trait TaskQueue {
 
 /// A trait representing tasks that can be executed in a Python context.
 pub trait PythonTask {
-    fn execute(
-        &self,
-        py: Python,
-        tx: Sender<MyResult<PythonTaskResult>>,
-    ) -> MyResult<PythonTaskResult>;
+    fn execute(&self, py: Python, tx: Sender<MyResult<PythonTaskResult>>) -> MyResult<PythonTaskResult>;
 }
 
 // Implementation for the TaskQueue trait for PythonTaskQueue.
@@ -275,50 +272,30 @@ impl TaskQueue for PythonTaskQueue {
 
 /// Represents a queue of Python tasks that are to be executed.
 pub struct PythonTaskQueue {
-    tasks: Arc<
-        Mutex<
-            VecDeque<(
-                Box<dyn PythonTask + Send>,
-                std::sync::mpsc::Sender<MyResult<PythonTaskResult>>,
-            )>,
-        >,
-    >,
+    tasks: Arc<Mutex<VecDeque<(Box<dyn PythonTask + Send>, std::sync::mpsc::Sender<MyResult<PythonTaskResult>>)>>>,
 }
 
 impl PythonTaskQueue {
     /// Creates a new empty PythonTaskQueue.
     pub fn new() -> Self {
-        Self {
-            tasks: Arc::new(Mutex::new(VecDeque::new())),
-        }
+        Self { tasks: Arc::new(Mutex::new(VecDeque::new())) }
     }
 
     /// Adds a task to the queue and returns a Receiver to get the result.
-    pub fn enqueue(
-        &self,
-        task: Box<dyn PythonTask + Send>,
-    ) -> std::sync::mpsc::Receiver<MyResult<PythonTaskResult>> {
+    pub fn enqueue(&self, task: Box<dyn PythonTask + Send>) -> std::sync::mpsc::Receiver<MyResult<PythonTaskResult>> {
         let (tx, rx) = std::sync::mpsc::channel();
         self.tasks.lock().unwrap().push_back((task, tx));
-        println!(
-            "Task enqueued. Total tasks in queue: {}",
-            self.tasks.lock().unwrap().len()
-        );
+        println!("Task enqueued. Total tasks in queue: {}", self.tasks.lock().unwrap().len());
         rx // Return the receiver
     }
 
     /// Waits for and retrieves the result of a Python task execution.
-    pub fn wait_for_result(
-        rx: std::sync::mpsc::Receiver<MyResult<PythonTaskResult>>,
-    ) -> MyResult<PythonTaskResult> {
+    pub fn wait_for_result(rx: std::sync::mpsc::Receiver<MyResult<PythonTaskResult>>) -> MyResult<PythonTaskResult> {
         match rx.recv() {
             Ok(result) => match result {
                 r => r,
             },
-            Err(recv_error) => Err(PythonTaskError::OtherError(format!(
-                "Failed to receive result from worker thread due to: {}.",
-                recv_error
-            ))),
+            Err(recv_error) => Err(PythonTaskError::OtherError(format!("Failed to receive result from worker thread due to: {}.", recv_error))),
         }
     }
 }
@@ -332,10 +309,7 @@ pub fn start_processing_host_python_tasks() {
 
     loop {
         // Acquire the Python task queue.
-        let tasks_clone = with_python_queue!(
-            CLIENT_PYTHON_PROCESS_QUEUE,
-            |python_queue: &mut PythonTaskQueue| { python_queue.tasks.clone() }
-        );
+        let tasks_clone = with_python_queue!(CLIENT_PYTHON_PROCESS_QUEUE, |python_queue: &mut PythonTaskQueue| { python_queue.tasks.clone() });
 
         // Check the number of tasks in the queue.
         let num_tasks = tasks_clone.lock().unwrap().len();

@@ -1,4 +1,5 @@
-
+# SPDX-License-Identifier: MPL-2.0
+# Copyright © 2021-2026 Cristian Camargo Filho
 class Verifier:
 
     def __init__ (self, path:str):

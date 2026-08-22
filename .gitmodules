@@ -1,3 +1,4 @@
 [submodule "Myscelium/OxidizedMysceliumCore"]
 	path = Myscelium/OxidizedMysceliumCore
-	url = http://177.72.148.22:3000/Poseidon/OxidizedMyscelium.git
+	url = https://github.com/Myscelium/myscelium-core.git
+	branch = main

@@ -1,3 +1,6 @@
+> SPDX-License-Identifier: MPL-2.0
+> Copyright © 2021-2026 Cristian Camargo Filho
+
 # Changelog
 
 ## v1.3.0 - ReleaseCandidate (18/08/2023)

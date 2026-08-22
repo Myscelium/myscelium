@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright © 2021-2026 Cristian Camargo Filho
 
 # TODO >>> Create a test that auto create one host and client and test all the available functionalities of host and clients
 
