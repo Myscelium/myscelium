@@ -17,4 +17,3 @@ rag_config.json
 
 # Rust build artifacts
 **/target/
-"@ | Set-Content .gitignore
