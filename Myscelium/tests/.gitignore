@@ -1,3 +1,142 @@
-__pycahce__
-ClientData
-Data
+# ============================================================
+# Python
+# ============================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+.venv-*/
+venv/
+venv-*/
+env/
+.env/
+
+# Python build/distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+
+# Python tooling/cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyright/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+
+# ============================================================
+# Rust
+# ============================================================
+
+target/
+**/target/
+
+# Uncomment only if Cargo.lock should NOT be versioned.
+# For applications/workspaces it is usually kept.
+# For pure libraries it may be omitted.
+# Cargo.lock
+
+
+# ============================================================
+# Local application/runtime data
+# ============================================================
+
+ClientData/
+Data/
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Project-local RAG/runtime files
+rag.db
+rag_config.json
+
+# Logs
+*.log
+logs/
+
+
+# ============================================================
+# Local configuration / secrets
+# ============================================================
+
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Local-only test/runtime configuration
+Myscelium/tests/config.toml
+
+# Common secret/key formats
+*.pem
+*.key
+*.p12
+*.pfx
+
+
+# ============================================================
+# IDE / Editor
+# ============================================================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Visual Studio
+.vs/
+
+
+# ============================================================
+# Windows
+# ============================================================
+
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+
+# ============================================================
+# Temporary files
+# ============================================================
+
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.old
+
+
+# ============================================================
+# Project-specific development artifacts
+# ============================================================
+
+# Local virtual environments at any depth
+**/.venv/
+**/.venv-*/
+**/venv/
+**/venv-*/
+
+# Python caches at any depth
+**/__pycache__/
