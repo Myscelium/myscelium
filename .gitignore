@@ -2,3 +2,18 @@
 .env
 rag_config.json
 rag.db
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+
+# Rust build artifacts
+**/target/
+
+# Local runtime state, benchmark output, and logs
+**/*.db
+**/*.db-*
+**/*.sqlite*
+**/*.log
+**/*.log.*
+Myscelium/tests/machines_bench_mark/*.tmp
