@@ -1,0 +1,27 @@
+# Python virtual environments
+Myscelium/.venv/
+Myscelium/.venv-*/
+Myscelium/venv/
+Myscelium/venv-*/
+
+# Local test configuration
+Myscelium/tests/config.toml
+
+# Local runtime / RAG data
+rag.db
+rag_config.json
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+
+# Rust build artifacts
+**/target/
+
+# Local runtime state, benchmark output, and logs
+**/*.db
+**/*.db-*
+**/*.sqlite*
+**/*.log
+**/*.log.*
+Myscelium/tests/machines_bench_mark/*.tmp

@@ -3,9 +3,22 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
+import os
 import sqlite3
 import numpy as np
 from scipy.stats import gaussian_kde
+
+
+def benchmark_results_path():
+    configured = os.environ.get("MYSCELIUM_BENCHMARK_DB")
+    if configured:
+        path = os.path.expanduser(configured)
+        if not os.path.isabs(path):
+            raise ValueError("MYSCELIUM_BENCHMARK_DB must be absolute")
+        return os.path.abspath(path)
+    return os.path.join(
+        os.path.expanduser("~"), ".cache", "myscelium", "benchmarks", "test_results.db"
+    )
 
 # Normalization functions
 def z_score_normalization(times):
@@ -48,7 +61,7 @@ def select_normalization(times, benchmark_name):
     return best_method, normalized_times
 
 def fetch_benchmark_data():
-    conn = sqlite3.connect('test_results.db')
+    conn = sqlite3.connect(benchmark_results_path())
     df = pd.read_sql_query('SELECT * FROM benchmark_samples', conn)
     conn.close()
     return df
