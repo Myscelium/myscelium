@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright © 2021-2026 Cristian Camargo Filho
+
 # Controls the tests history logs
 
 # TODO >>> Make a history controller in a db to mark the history of the tests 
