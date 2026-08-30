@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright © 2021-2026 Cristian Camargo Filho
+
 use super::structs_and_types::{IpcnsError, OrderResponse, OrderVariant, StreamError};
 use crate::common::client_logger::log_handler::Logger;
 use crate::CLIENT_LOG_LEVEL;

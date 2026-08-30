@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright © 2021-2026 Cristian Camargo Filho
+
 use crate::ipcns::ipcn_client::schedule_up_command_instructions;
 use crate::ipcns::structs_and_types::{IpcnsError, OrderResponse, OrderVariant};
 
