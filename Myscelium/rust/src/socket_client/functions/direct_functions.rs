@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright © 2021-2026 Cristian Camargo Filho
+
 use crate::socket_client::transposer::ProcessError;
 use serde_json::Value;
 use std::collections::HashMap;
