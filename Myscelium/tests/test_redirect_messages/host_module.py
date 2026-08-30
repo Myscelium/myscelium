@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright © 2021-2026 Cristian Camargo Filho
+
 from myscelium import MysceliumHost, HostPatterns, MysceliumHostInterface, CallbackCollector, ClientPattern
 from multiprocessing import Process, Event, Manager
 from ..Logs.test_logs_manager import Events_Manager, System_Status
