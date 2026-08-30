@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright © 2021-2026 Cristian Camargo Filho
+
 def cast_response_command_instruction(
     command_mode: str,
     command_type: str,
