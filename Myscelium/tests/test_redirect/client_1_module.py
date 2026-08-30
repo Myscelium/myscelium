@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright © 2021-2026 Cristian Camargo Filho
+
 from myscelium import MysceliumClient, ClientPatterns, callback_pattern
 import os
 import time
